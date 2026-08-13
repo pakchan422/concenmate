@@ -103,8 +103,16 @@
       border-color: var(--brand-500);
     }
 
-    /* Video Player Styling */
+    /* Video Player Styling & Multi-peer Grid */
     .room-bar { background: white; padding: 10px 12px; border-radius: 16px; border: 1px solid var(--brand-200); margin-bottom: 12px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
+
+    .video-grid-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 12px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
 
     .video-card-single { 
       background: #1c1917; 
@@ -117,24 +125,10 @@
       display: flex; 
       flex-direction: column; 
       justify-content: space-between; 
-      max-width: 600px;
-      margin: 0 auto;
       width: 100%;
-      cursor: pointer;
     }
 
-    .behind-stream-video {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 1px;
-      height: 1px;
-      opacity: 0.001;
-      pointer-events: none;
-      z-index: -10;
-    }
-
-    .canvas-stream-display {
+    .peer-video-element {
       position: absolute;
       inset: 0;
       width: 100%;
@@ -142,7 +136,6 @@
       object-fit: cover;
       transform: scaleX(-1);
       z-index: 1;
-      display: none;
       border-radius: 16px;
     }
 
@@ -183,7 +176,6 @@
       display: flex;
       align-items: center;
       gap: 4px;
-      cursor: pointer;
     }
 
     .video-footer {
@@ -319,7 +311,7 @@
         <div style="font-size:52px; margin-bottom:12px;">🦦🔐</div>
         <h2 style="font-size:20px; font-weight:bold; color:var(--brand-800);">請先登入 ConcenMate 書伴</h2>
         <p style="font-size:12px; color:#666; margin-top:6px; line-height:1.5;">
-          登入後即可暢玩公開溫習大廳、建立專屬房間、<br>開啟即時 Canvas 鏡頭直播與參與線上讀書會！
+          登入後即可暢玩公開溫習大廳、建立專屬房間、<br>開啟 WebRTC 即時鏡頭視訊與參與線上讀書會！
         </p>
 
         <div style="display:flex; justify-content:center; gap:12px; margin-top:20px;">
@@ -337,7 +329,7 @@
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
               <div>
                 <h2 style="font-size:18px; font-weight:bold; color:var(--brand-800);">🌐 公開溫習大廳</h2>
-                <p style="font-size:11px; color:#666;">連接 Firebase (concenmate-app) 即時同步各同學的溫習房！</p>
+                <p style="font-size:11px; color:#666;">連接 Firebase (concenmate-app) 即時同步各同學的溫習房與 WebRTC 互聯！</p>
               </div>
               <button class="btn btn-primary" type="button" onclick="openModal('modal-create-room')">
                 🚀 + 建立新溫習房
@@ -372,31 +364,34 @@
               </div>
             </div>
 
-            <div class="video-card-single" onclick="wakeVideoEngine()">
-              <video id="behind-video-engine" class="behind-stream-video" autoplay playsinline webkit-playsinline muted></video>
-              <canvas id="canvas-stream-display" class="canvas-stream-display"></canvas>
-              
-              <div class="video-overlay" id="self-overlay">
-                <div class="avatar-circle" id="room-self-avatar">A</div>
-                <p style="font-size:12px; font-weight:bold; color:#fff;" id="overlay-msg">溫習房已就緒！</p>
-                <p style="font-size:11px; margin-top:4px; color:#aaa;">請點擊上方「📹 開啟鏡頭」進行即時 Canvas 串流</p>
-              </div>
+            <!-- 多人 WebRTC 視訊方格容器 -->
+            <div id="video-grid-container" class="video-grid-container">
+              <!-- 自己的視訊卡片會預設渲染在這 -->
+              <div class="video-card-single" id="my-video-card">
+                <video id="self-video-element" class="peer-video-element" autoplay playsinline muted></video>
+                
+                <div class="video-overlay" id="self-overlay">
+                  <div class="avatar-circle" id="room-self-avatar">A</div>
+                  <p style="font-size:12px; font-weight:bold; color:#fff;" id="overlay-msg">溫習房已就緒！</p>
+                  <p style="font-size:11px; margin-top:4px; color:#aaa;">請點擊上方「📹 開啟鏡頭」加入 WebRTC 視訊</p>
+                </div>
 
-              <div class="video-header">
-                <span class="video-tag" onclick="viewUserProfile('currentUser')">
-                  <span id="room-user-name-tag">Alex Wong (你)</span> ✓
-                </span>
-                <span class="video-tag" style="background:#f59e0b; color:#000;" id="room-host-tag">房主專注中</span>
-              </div>
+                <div class="video-header">
+                  <span class="video-tag">
+                    <span id="room-user-name-tag">Alex Wong (你)</span> ✓
+                  </span>
+                  <span class="video-tag" style="background:#f59e0b; color:#000;" id="room-host-tag">房主專注中</span>
+                </div>
 
-              <div class="video-footer">
-                <span class="video-tag" id="camera-status-tag" style="background:rgba(16,185,129,0.9); display:none;">🔴 鏡頭即時串流中</span>
-              </div>
+                <div class="video-footer">
+                  <span class="video-tag" id="camera-status-tag" style="background:rgba(16,185,129,0.9); display:none;">🔴 WebRTC 直播中</span>
+                </div>
 
-              <div id="sticker-container-box" class="sticker-container-box"></div>
+                <div id="sticker-container-box" class="sticker-container-box"></div>
+              </div>
             </div>
 
-            <div class="card" style="max-width:600px; margin:12px auto 0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <div class="card" style="max-width:900px; margin:12px auto 0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
               <p style="font-size:11px; font-weight:bold;">🦦 發送 Ottiee 彈幕加油貼圖：</p>
               <div style="display:flex; gap:6px;">
                 <button class="btn btn-outline" type="button" style="font-size:16px; padding:4px 8px;" onclick="sendDanmakuSticker('🦦')">🦦</button>
@@ -484,7 +479,7 @@
         <section id="tab-vip" class="tab-content">
           <div class="card" style="background: linear-gradient(135deg, var(--brand-700), #8D6E63); color:white;">
             <h2 style="font-size:18px; font-weight:bold;">ConcenMate VIP 專屬方案</h2>
-            <p style="font-size:12px; margin-top:6px; opacity:0.9;">升級解鎖無限次防瞌睡測試、雲端錄影備份與 HD 60FPS 串流！</p>
+            <p style="font-size:12px; margin-top:6px; opacity:0.9;">升級解鎖無限次防瞌睡測試、雲端錄影備份與 HD 60FPS WebRTC 串流！</p>
           </div>
         </section>
 
@@ -676,7 +671,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     // Firebase 專屬 Config 設定 (Project: concenmate-app)
     const firebaseConfig = {
@@ -695,7 +690,7 @@
     const db = getFirestore(app);
 
     window.db = db;
-    window.fs = { doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot };
+    window.fs = { doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs };
 
     // 全域 Toast 通知函數
     window.showToast = function(msg, icon = 'ℹ️') {
@@ -914,9 +909,13 @@
       mediaStream: null,
       countdownTimer: null,
       remainingSeconds: 1800,
-      renderFrameId: null,
       currentRoomId: null,
-      isHost: false
+      isHost: false,
+      peers: {} // 儲存 WebRTC Peer 連結 { peerUid: { pc, stream } }
+    };
+
+    const rtcConfig = {
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
     };
 
     function updateUserAuthUI() {
@@ -1018,34 +1017,27 @@
         await window.fs.setDoc(window.fs.doc(window.db, "rooms", roomId), roomData);
         closeModal('modal-create-room');
 
-        state.currentRoomId = roomId;
-        state.isHost = true;
-
-        document.getElementById('active-room-title').innerText = roomName;
-        document.getElementById('active-room-subject').innerText = subject;
-        document.getElementById('room-host-tag').innerText = "你是房主 👑";
-
-        state.remainingSeconds = durationMins * 60;
-        updateTimerDisplay();
-
-        document.getElementById('room-lobby').style.display = 'none';
-        document.getElementById('room-active').style.display = 'block';
-
-        startTimer();
+        enterRoom(roomId, roomName, subject, durationMins, true);
         window.showToast("🚀 溫習房建立成功並已廣播至公開大廳！", "✨");
       } catch (err) {
         window.showToast("建立房間失敗: " + err.message, "❌");
       }
     }
 
-    // 加入其他人建立的公開溫習房
     function joinPublicRoom(roomId, roomName, subject, durationMins, hostName, isMyRoom) {
+      enterRoom(roomId, roomName, subject, durationMins, isMyRoom);
+      window.showToast(`成功加入「${roomName}」！`, "🦦");
+    }
+
+    let roomUnsubscribe = null;
+
+    function enterRoom(roomId, roomName, subject, durationMins, isMyRoom) {
       state.currentRoomId = roomId;
       state.isHost = isMyRoom;
 
       document.getElementById('active-room-title').innerText = roomName;
       document.getElementById('active-room-subject').innerText = subject;
-      document.getElementById('room-host-tag').innerText = isMyRoom ? "你是房主 👑" : `房主: ${hostName}`;
+      document.getElementById('room-host-tag').innerText = isMyRoom ? "你是房主 👑" : "已加入房間";
 
       state.remainingSeconds = (durationMins || 30) * 60;
       updateTimerDisplay();
@@ -1054,17 +1046,135 @@
       document.getElementById('room-active').style.display = 'block';
 
       startTimer();
-      window.showToast(`成功加入「${roomName}」！`, "🦦");
+      setupSignaling(roomId);
+    }
+
+    // WebRTC Signaling 機制透過 Firestore 協調
+    function setupSignaling(roomId) {
+      if (!window.db || !window.fs || !window.currentUser) return;
+      const myUid = window.currentUser.uid;
+      const signalsRef = window.fs.collection(window.db, "rooms", roomId, "signals");
+
+      roomUnsubscribe = window.fs.onSnapshot(signalsRef, async (snapshot) => {
+        snapshot.docChanges().forEach(async (change) => {
+          if (change.type === "added") {
+            const data = change.doc.data();
+            if (data.toUid === myUid && data.fromUid !== myUid) {
+              await handleSignalingMessage(roomId, data);
+            }
+          }
+        });
+      }, (err) => console.error("Signaling error:", err));
+    }
+
+    async function sendSignal(roomId, toUid, payload) {
+      if (!window.db || !window.fs || !window.currentUser) return;
+      const signalsRef = window.fs.collection(window.db, "rooms", roomId, "signals");
+      await window.fs.addDoc(signalsRef, {
+        fromUid: window.currentUser.uid,
+        fromName: window.currentUser.username,
+        toUid: toUid,
+        payload: payload,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    async function handleSignalingMessage(roomId, data) {
+      const { fromUid, fromName, payload } = data;
+      let pc = state.peers[fromUid]?.pc;
+
+      if (!pc) {
+        pc = createPeerConnection(fromUid, fromName, roomId);
+      }
+
+      if (payload.type === "offer") {
+        await pc.setRemoteDescription(new RTCSessionDescription(payload));
+        if (state.mediaStream) {
+          state.mediaStream.getTracks().forEach(track => pc.addTrack(track, state.mediaStream));
+        }
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        await sendSignal(roomId, fromUid, answer);
+      } else if (payload.type === "answer") {
+        await pc.setRemoteDescription(new RTCSessionDescription(payload));
+      } else if (payload.candidate) {
+        await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
+      }
+    }
+
+    function createPeerConnection(peerUid, peerName, roomId) {
+      const pc = new RTCPeerConnection(rtcConfig);
+      state.peers[peerUid] = { pc, name: peerName };
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          sendSignal(roomId, peerUid, { candidate: event.candidate });
+        }
+      };
+
+      pc.ontrack = (event) => {
+        let videoCard = document.getElementById(`peer-card-${peerUid}`);
+        if (!videoCard) {
+          videoCard = document.createElement('div');
+          videoCard.className = 'video-card-single';
+          videoCard.id = `peer-card-${peerUid}`;
+          videoCard.innerHTML = `
+            <video id="peer-video-${peerUid}" class="peer-video-element" autoplay playsinline></video>
+            <div class="video-header">
+              <span class="video-tag">${peerName || '同學'} 🟢</span>
+            </div>
+            <div class="video-footer">
+              <span class="video-tag" style="background:rgba(16,185,129,0.9);">🔴 視訊串流中</span>
+            </div>
+          `;
+          document.getElementById('video-grid-container').appendChild(videoCard);
+        }
+        const peerVideo = document.getElementById(`peer-video-${peerUid}`);
+        if (peerVideo && event.streams[0]) {
+          peerVideo.srcObject = event.streams[0];
+          peerVideo.play().catch(e => console.log(e));
+        }
+      };
+
+      return pc;
+    }
+
+    // 當開啟鏡頭時，主動向同房其他線上用戶發起 WebRTC 連線 (Offer)
+    async function initiateCalls() {
+      if (!window.db || !window.fs || !window.currentUser) return;
+      const myUid = window.currentUser.uid;
+      const roomId = state.currentRoomId;
+
+      // 簡單起見，廣播給其他新加入的 peer
+      // 同學在大廳或房內時，可透過 room signals 觸發
+      // 當點擊開啟鏡頭後，若房內有其他人，可在 rooms 或 signals 宣告自己上線
+      const presenceRef = window.fs.collection(window.db, "rooms", roomId, "presence");
+      await window.fs.addDoc(presenceRef, {
+        uid: myUid,
+        name: window.currentUser.username,
+        timestamp: new Date().toISOString()
+      });
+
+      // 監聽 presence 建立對其他人的連線
+      window.fs.onSnapshot(presenceRef, async (snapshot) => {
+        snapshot.forEach(async (docSnap) => {
+          const info = docSnap.data();
+          if (info.uid !== myUid && !state.peers[info.uid]) {
+            const pc = createPeerConnection(info.uid, info.name, roomId);
+            if (state.mediaStream) {
+              state.mediaStream.getTracks().forEach(track => pc.addTrack(track, state.mediaStream));
+            }
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            await sendSignal(roomId, info.uid, offer);
+          }
+        });
+      });
     }
 
     // 從溫習房返回公開大廳
     function returnToLobby() {
-      if (state.isCameraOn) toggleCamera();
-      if (state.countdownTimer) clearInterval(state.countdownTimer);
-
-      state.currentRoomId = null;
-      state.isHost = false;
-
+      cleanupRoom();
       document.getElementById('room-active').style.display = 'none';
       document.getElementById('room-lobby').style.display = 'block';
     }
@@ -1099,69 +1209,48 @@
         `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }
 
-    async function leaveRoom() {
-      if (state.isCameraOn) toggleCamera(); 
+    function cleanupRoom() {
+      if (state.isCameraOn) toggleCamera();
       if (state.countdownTimer) clearInterval(state.countdownTimer);
-      
+      if (roomUnsubscribe) roomUnsubscribe();
+
+      // 關閉所有 WebRTC 連結
+      Object.keys(state.peers).forEach(uid => {
+        state.peers[uid].pc.close();
+        const card = document.getElementById(`peer-card-${uid}`);
+        if (card) card.remove();
+      });
+      state.peers = {};
+
+      state.currentRoomId = null;
+      state.isHost = false;
+    }
+
+    async function leaveRoom() {
       if (state.isHost && state.currentRoomId && window.fs && window.db) {
         try {
           await window.fs.deleteDoc(window.fs.doc(window.db, "rooms", state.currentRoomId));
         } catch(e) { console.error("刪除房間失敗", e); }
       }
       
-      state.currentRoomId = null;
-      state.isHost = false;
-
+      cleanupRoom();
       document.getElementById('room-active').style.display = 'none';
       document.getElementById('room-lobby').style.display = 'block';
       window.showToast('已退出溫習房間', '🚪');
     }
 
-    function wakeVideoEngine() {
-      const video = document.getElementById('behind-video-engine');
-      if (video && video.srcObject && video.paused) {
-        video.play().catch(e => console.log(e));
-      }
-    }
-
-    function startCanvasRenderLoop() {
-      const video = document.getElementById('behind-video-engine');
-      const canvas = document.getElementById('canvas-stream-display');
-      if (!canvas) return;
-      const ctx = canvas.getContext('2d');
-
-      function drawFrame() {
-        if (!state.isCameraOn) return;
-        if (video.paused && video.srcObject) video.play().catch(() => {});
-
-        if (video.readyState >= 2 && video.videoWidth > 0) {
-          if (canvas.width !== video.videoWidth) {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-          }
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        }
-        state.renderFrameId = requestAnimationFrame(drawFrame);
-      }
-
-      state.renderFrameId = requestAnimationFrame(drawFrame);
-    }
-
     async function toggleCamera() {
-      const videoEl = document.getElementById('behind-video-engine');
-      const canvasEl = document.getElementById('canvas-stream-display');
+      const videoEl = document.getElementById('self-video-element');
       const overlayEl = document.getElementById('self-overlay');
       const statusTag = document.getElementById('camera-status-tag');
       const btn = document.getElementById('btn-camera');
 
       if (state.isCameraOn) {
-        if (state.renderFrameId) cancelAnimationFrame(state.renderFrameId);
         if (state.mediaStream) {
           state.mediaStream.getTracks().forEach(track => track.stop());
           state.mediaStream = null;
         }
         state.isCameraOn = false;
-        canvasEl.style.display = 'none';
         videoEl.srcObject = null;
         overlayEl.style.display = 'flex';
         statusTag.style.display = 'none';
@@ -1173,28 +1262,26 @@
         try {
           const stream = await navigator.mediaDevices.getUserMedia({
             video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
-            audio: false
+            audio: true
           });
           
           state.mediaStream = stream;
           state.isCameraOn = true;
 
           videoEl.muted = true;
-          videoEl.volume = 0;
-          videoEl.setAttribute('playsinline', 'true');
           videoEl.srcObject = stream;
           await videoEl.play().catch(e => console.log(e));
 
           overlayEl.style.display = 'none';
-          canvasEl.style.display = 'block';
           statusTag.style.display = 'inline-flex';
           btn.innerText = '🛑 關閉鏡頭';
           btn.className = 'btn btn-red';
 
-          startCanvasRenderLoop();
+          // 啟動 WebRTC 呼叫與串流廣播
+          initiateCalls();
         } catch (err) {
           btn.innerText = '📹 開啟鏡頭';
-          window.showToast('無法開啟鏡頭，請確認權限設定。', '⚠️');
+          window.showToast('無法開啟鏡頭或麥克風，請確認權限設定。', '⚠️');
           console.error(err);
         }
       }
