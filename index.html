@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ConcenMate 書伴 - 虛擬溫習空間</title>
+  
+  <style>
+    :root {
+      --brand-50: #FAF6F0;
+      --brand-100: #F4ECE1;
+      --brand-200: #E8D8C3;
+      --brand-300: #D9C0A3;
+      --brand-500: #B0895B;
+      --brand-600: #946E43;
+      --brand-700: #755331;
+      --brand-800: #573D23;
+      --text-dark: #332920;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+    body { background-color: var(--brand-50); color: var(--text-dark); min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* Header Styling */
+    header { background: rgba(255, 255, 255, 0.95); border-bottom: 1px solid var(--brand-200); padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 40; }
+    .logo-box { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+    .logo-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--brand-500); color: white; display: flex; align-items: center; justify-content: center; font-size: 18px; border: 2px solid var(--brand-200); }
+    .logo-title { font-weight: bold; font-size: 15px; }
+    .badge { background: var(--brand-100); color: var(--brand-700); font-size: 10px; padding: 2px 5px; border-radius: 4px; font-weight: bold; }
+
+    .user-stats { display: flex; align-items: center; gap: 10px; background: var(--brand-50); padding: 4px 10px; border-radius: 20px; border: 1px solid var(--brand-200); font-size: 11px; font-weight: 600; }
+    
+    .btn { border: none; border-radius: 10px; padding: 6px 12px; font-size: 12px; font-weight: bold; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 4px; }
+    .btn-primary { background: var(--brand-500); color: white; }
+    .btn-primary:hover { background: var(--brand-600); }
+    .btn-amber { background: #f59e0b; color: white; }
+    .btn-red { background: #ef4444; color: white; }
+    .btn-outline { background: white; border: 1px solid var(--brand-300); color: var(--brand-800); }
+
+    /* Layout Containers */
+    .app-container { flex: 1; display: flex; overflow: hidden; }
+    aside { width: 200px; background: white; border-right: 1px solid var(--brand-200); padding: 10px; display: flex; flex-direction: column; justify-content: space-between; shrink: 0; }
+    main { flex: 1; padding: 12px; overflow-y: auto; }
+
+    @media (max-width: 640px) {
+      aside { width: 60px; padding: 6px; }
+      .nav-text { display: none; }
+      .user-stats { display: none; }
+    }
+
+    .nav-btn { width: 100%; text-align: left; padding: 10px; border-radius: 10px; border: none; background: transparent; color: #555; font-size: 13px; font-weight: 600; cursor: pointer; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; justify-content: flex-start; }
+    .nav-btn.active, .nav-btn:hover { background: var(--brand-500); color: white; }
+
+    @media (max-width: 640px) {
+      .nav-btn { justify-content: center; padding: 12px 0; }
+    }
+
+    .auth-wall-container {
+      max-width: 480px;
+      margin: 40px auto;
+      background: white;
+      border-radius: 24px;
+      padding: 30px 24px;
+      border: 1px solid var(--brand-200);
+      text-align: center;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.04);
+    }
+
+    .create-room-card, .profile-edit-card {
+      background: white;
+      border-radius: 20px;
+      padding: 20px;
+      border: 1px solid var(--brand-200);
+      max-width: 520px;
+      margin: 10px auto;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    }
+
+    /* Video Player Styling */
+    .room-bar { background: white; padding: 10px 12px; border-radius: 16px; border: 1px solid var(--brand-200); margin-bottom: 12px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
+
+    .video-card-single { 
+      background: #1c1917; 
+      border-radius: 20px; 
+      aspect-ratio: 4/3; 
+      position: relative; 
+      overflow: hidden; 
+      color: white; 
+      border: 3px solid var(--brand-300); 
+      display: flex; 
+      flex-direction: column; 
+      justify-content: space-between; 
+      max-width: 600px;
+      margin: 0 auto;
+      width: 100%;
+      cursor: pointer;
+    }
+
+    .behind-stream-video {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 1px;
+      height: 1px;
+      opacity: 0.001;
+      pointer-events: none;
+      z-index: -10;
+    }
+
+    .canvas-stream-display {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+      z-index: 1;
+      display: none;
+      border-radius: 16px;
+    }
+
+    .video-overlay { 
+      position: absolute; 
+      inset: 0; 
+      background: #1c1917; 
+      display: flex; 
+      flex-direction: column; 
+      align-items: center; 
+      justify-content: center; 
+      z-index: 2; 
+      padding: 20px;
+      text-align: center;
+    }
+    .avatar-circle { width: 56px; height: 56px; border-radius: 50%; background: #444; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: bold; border: 2px solid #666; margin-bottom: 8px; }
+
+    .video-header {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      right: 8px;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .video-tag {
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      color: white;
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 8px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+    }
+
+    .video-footer {
+      position: absolute;
+      bottom: 8px;
+      left: 8px;
+      right: 8px;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+    }
+
+    /* Floating Danmaku Animations */
+    .sticker-container-box {
+      position: absolute;
+      inset: 0;
+      z-index: 30;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .danmaku-sticker {
+      position: absolute;
+      bottom: -10px;
+      user-select: none;
+      animation: floatDanmaku 2.2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
+    }
+
+    @keyframes floatDanmaku {
+      0% { opacity: 0; transform: translateY(0) scale(0.6) rotate(var(--rot, 0deg)); }
+      15% { opacity: 1; transform: translateY(-30px) scale(1.1) rotate(var(--rot, 0deg)); }
+      80% { opacity: 0.9; }
+      100% { opacity: 0; transform: translateY(-180px) scale(1) rotate(calc(var(--rot, 0deg) + 10deg)); }
+    }
+
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .modal-box { background: white; border-radius: 20px; padding: 20px; max-width: 440px; width: 100%; border: 2px solid var(--brand-200); max-height: 90vh; overflow-y: auto; }
+
+    .card { background: white; border-radius: 16px; padding: 14px; border: 1px solid var(--brand-200); margin-bottom: 12px; }
+    .tag { background: var(--brand-100); color: var(--brand-800); font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 6px; }
+    .input-field { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--brand-300); background: var(--brand-50); font-size: 12px; margin-top: 4px; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .clickable-user { text-decoration: underline; cursor: pointer; color: #2563eb; }
+
+    /* Custom Toast Notification */
+    #toast-box {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 200;
+      background: #1e293b;
+      color: white;
+      padding: 12px 18px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transform: translateY(-50px);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      pointer-events: none;
+    }
+    #toast-box.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Toast 通知彈窗 -->
+  <div id="toast-box">
+    <span id="toast-icon">ℹ️</span>
+    <span id="toast-msg">訊息</span>
+  </div>
+
+  <header>
+    <div class="logo-box" onclick="switchTab('room')">
+      <div class="logo-avatar">🦦</div>
+      <div>
+        <div style="display:flex; align-items:center; gap:4px;">
+          <span class="logo-title">ConcenMate</span>
+          <span class="badge">書伴</span>
+        </div>
+        <p style="font-size:9px; color:#777;">與水獺 Ottiee 一起高效專注</p>
+      </div>
+    </div>
+
+    <div class="user-stats" id="header-user-stats" style="display:none;">
+      <span>⏱️ <span id="stat-hours">0.0</span>h</span>
+      <span style="color:#ccc">|</span>
+      <span>🪙 <span id="stat-points">180</span> PTS</span>
+    </div>
+
+    <div style="display:flex; gap:6px; align-items:center;">
+      <button class="btn btn-amber" type="button" onclick="switchTab('vip')">👑 VIP</button>
+      <button class="btn btn-primary" id="header-auth-btn" type="button" onclick="handleHeaderUserClick()">
+        🔑 登入 / 註冊
+      </button>
+    </div>
+  </header>
+
+  <div class="app-container">
+
+    <aside>
+      <div>
+        <button class="nav-btn active" type="button" onclick="switchTab('room', this)">📹 <span class="nav-text">視訊溫習室</span></button>
+        <button class="nav-btn" type="button" onclick="switchTab('qa', this)">❓ <span class="nav-text">疑難解答區</span></button>
+        <button class="nav-btn" type="button" onclick="switchTab('profile', this)">👤 <span class="nav-text">個人檔案編輯</span></button>
+        <button class="nav-btn" type="button" onclick="switchTab('vip', this)">👑 <span class="nav-text">溫習資源 & VIP</span></button>
+        <button class="nav-btn" type="button" onclick="switchTab('store', this)">🎁 <span class="nav-text">時數兌換所</span></button>
+        <button class="nav-btn" type="button" onclick="switchTab('social', this)">👥 <span class="nav-text">夥伴與讀書會</span></button>
+        <button class="nav-btn" type="button" onclick="switchTab('verification', this)">🎓 <span class="nav-text">學生身份驗證</span></button>
+      </div>
+
+      <div style="background:var(--brand-50); padding:8px; border-radius:12px; border:1px solid var(--brand-200); text-align:center;">
+        <p style="font-size:10px; font-weight:bold; color:var(--brand-800);">Ottiee 小叮嚀：</p>
+        <button class="btn btn-primary" type="button" style="width:100%; margin-top:6px; font-size:10px;" onclick="triggerQuiz()">防瞌睡小測驗</button>
+      </div>
+    </aside>
+
+    <main>
+
+      <div id="unauth-screen" class="auth-wall-container" style="display:none;">
+        <div style="font-size:52px; margin-bottom:12px;">🦦🔐</div>
+        <h2 style="font-size:20px; font-weight:bold; color:var(--brand-800);">請先登入 ConcenMate 書伴</h2>
+        <p style="font-size:12px; color:#666; margin-top:6px; line-height:1.5;">
+          登入後即可建立專屬溫習房、開啟 60FPS 直播鏡頭、<br>參與疑難解答區發問及個人化資料管理！
+        </p>
+
+        <div style="display:flex; justify-content:center; gap:12px; margin-top:20px;">
+          <button class="btn btn-primary" style="padding:10px 20px; font-size:14px;" onclick="openModal('modal-login')">🔑 會員登入</button>
+          <button class="btn btn-amber" style="padding:10px 20px; font-size:14px;" onclick="openModal('modal-register')">📝 新用戶註冊</button>
+        </div>
+      </div>
+
+      <div id="authenticated-app-content">
+
+        <!-- 1. 視訊溫習室 -->
+        <section id="tab-room" class="tab-content active">
+
+          <div id="room-lobby">
+            <div class="create-room-card">
+              <div style="text-align:center; margin-bottom:16px;">
+                <div style="font-size:36px;">🦦📚</div>
+                <h2 style="font-size:18px; font-weight:bold; color:var(--brand-800);">建立專屬個人溫習房</h2>
+                <p style="font-size:11px; color:#666; margin-top:2px;">自訂專注目標與時間，打造無干擾溫習空間</p>
+              </div>
+
+              <div style="display:flex; flex-direction:column; gap:12px;">
+                <div>
+                  <label style="font-size:11px; font-weight:bold; color:#555; display:block;">1. 溫習房間名稱</label>
+                  <input type="text" id="setup-room-name" class="input-field" value="DSE 衝刺專注房">
+                </div>
+
+                <div>
+                  <label style="font-size:11px; font-weight:bold; color:#555; display:block;">2. 溫習學科</label>
+                  <select id="setup-subject" class="input-field">
+                    <option value="數學">DSE 數學 (Math)</option>
+                    <option value="英國語文">DSE 英國語文 (English)</option>
+                    <option value="中國語文">DSE 中國語文 (Chinese)</option>
+                    <option value="物理">DSE 物理 (Physics)</option>
+                    <option value="化學">DSE 化學 (Chemistry)</option>
+                    <option value="生物">DSE 生物 (Biology)</option>
+                    <option value="經濟/企會財">DSE 經濟 / 企會財</option>
+                    <option value="其他">其他溫習科目</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style="font-size:11px; font-weight:bold; color:#555; display:block;">3. 溫習目標時間 (分鐘)</label>
+                  <select id="setup-duration" class="input-field">
+                    <option value="15">15 分鐘</option>
+                    <option value="30" selected>30 分鐘</option>
+                    <option value="45">45 分鐘</option>
+                    <option value="60">60 分鐘</option>
+                  </select>
+                </div>
+
+                <button class="btn btn-primary" type="button" style="margin-top:10px; padding:10px; font-size:14px; justify-content:center;" onclick="createAndEnterRoom()">
+                  🚀 建立並進入溫習房
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div id="room-active" style="display:none;">
+            <div class="room-bar">
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span style="font-weight:bold; font-size:14px;" id="active-room-title">DSE 衝刺專注房</span>
+                <span class="tag" style="background:#d1fae5; color:#065f46;" id="active-room-subject">數學</span>
+                <button class="btn btn-outline" type="button" style="padding:3px 8px; font-size:11px; margin-left:4px;" onclick="openEditRoomModal()">✏️ 修改房間</button>
+              </div>
+
+              <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                <button class="btn btn-primary" type="button" id="btn-camera" onclick="toggleCamera()">📹 開啟鏡頭</button>
+
+                <div style="background:#111; color:white; font-family:monospace; padding:4px 8px; border-radius:8px; font-size:11px;">
+                  ⏱️ 倒數: <span id="room-timer">30:00</span>
+                </div>
+
+                <button class="btn btn-outline" type="button" style="border-color:#ef4444; color:#ef4444;" onclick="leaveRoom()">🚪 退出房間</button>
+              </div>
+            </div>
+
+            <div class="video-card-single" onclick="wakeVideoEngine()">
+              <video id="behind-video-engine" class="behind-stream-video" autoplay playsinline webkit-playsinline muted></video>
+              <canvas id="canvas-stream-display" class="canvas-stream-display"></canvas>
+              
+              <div class="video-overlay" id="self-overlay">
+                <div class="avatar-circle" id="room-self-avatar">A</div>
+                <p style="font-size:12px; font-weight:bold; color:#fff;" id="overlay-msg">溫習房已就緒！</p>
+                <p style="font-size:11px; margin-top:4px; color:#aaa;">請點擊上方「📹 開啟鏡頭」進行即時直播</p>
+              </div>
+
+              <div class="video-header">
+                <span class="video-tag" onclick="viewUserProfile('currentUser')">
+                  <span id="room-user-name-tag">Alex Wong (你)</span> ✓
+                </span>
+                <span class="video-tag" style="background:#f59e0b; color:#000;">個人專注中</span>
+              </div>
+
+              <div class="video-footer">
+                <span class="video-tag" id="camera-status-tag" style="background:rgba(16,185,129,0.9); display:none;">🔴 鏡頭即時直播中</span>
+              </div>
+
+              <div id="sticker-container-box" class="sticker-container-box"></div>
+            </div>
+
+            <div class="card" style="max-width:600px; margin:12px auto 0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+              <p style="font-size:11px; font-weight:bold;">🦦 發送 Ottiee 彈幕加油貼圖：</p>
+              <div style="display:flex; gap:6px;">
+                <button class="btn btn-outline" type="button" style="font-size:16px; padding:4px 8px;" onclick="sendDanmakuSticker('🦦')">🦦</button>
+                <button class="btn btn-outline" type="button" style="font-size:16px; padding:4px 8px;" onclick="sendDanmakuSticker('🔥')">🔥</button>
+                <button class="btn btn-outline" type="button" style="font-size:16px; padding:4px 8px;" onclick="sendDanmakuSticker('📚')">📚</button>
+                <button class="btn btn-outline" type="button" style="font-size:16px; padding:4px 8px;" onclick="sendDanmakuSticker('💪')">💪</button>
+              </div>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- 2. 疑難解答區 -->
+        <section id="tab-qa" class="tab-content">
+          <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+              <h3 style="font-size:15px; font-weight:bold;">疑難解答區討論帖</h3>
+              <button class="btn btn-primary" type="button" onclick="showToast('發表提問功能已準備就緒！', '🚀')">+ 發起提問</button>
+            </div>
+
+            <div style="border-top:1px solid #eee; padding-top:10px; margin-top:8px;">
+              <div style="display:flex; justify-content:space-between;">
+                <span class="tag">數學</span>
+                <span style="font-size:11px; color:#f59e0b; font-weight:bold;">懸賞 50 EXP</span>
+              </div>
+              <h4 style="font-size:13px; font-weight:bold; margin-top:6px;">2024 DSE 數學 Paper 1 第 18 題求解步驟？</h4>
+              <p style="font-size:11px; color:#666; margin-top:4px;">發帖者：<span class="clickable-user" onclick="viewUserProfile('Chloe_DSE')">Chloe_DSE</span> (點擊查看個人資料)</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="tab-profile" class="tab-content">
+          <div class="profile-edit-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:14px;">
+              <h2 style="font-size:16px; font-weight:bold; color:var(--brand-800);">👤 編輯會員個人資料</h2>
+              <button class="btn btn-red" type="button" onclick="logoutWithFirebase()">🚪 登出帳號</button>
+            </div>
+
+            <form id="profile-form" onsubmit="saveUserProfile(event)" style="display:flex; flex-direction:column; gap:12px;">
+              <div>
+                <label style="font-size:11px; font-weight:bold; color:#555; display:block;">會員帳號名稱 (Username)</label>
+                <input type="text" id="prof-username" class="input-field" placeholder="例如：Alex Wong">
+              </div>
+
+              <div>
+                <label style="font-size:11px; font-weight:bold; color:#555; display:block;">電子郵件 (Email)</label>
+                <input type="email" id="prof-email" class="input-field" disabled style="background:#e5e5e5; cursor:not-allowed;">
+              </div>
+
+              <div>
+                <label style="font-size:11px; font-weight:bold; color:#555; display:block;">學校名稱</label>
+                <input type="text" id="prof-school" class="input-field" placeholder="例如：聖保羅男女中學 / 屯門官立中學">
+              </div>
+
+              <div>
+                <label style="font-size:11px; font-weight:bold; color:#555; display:block;">現時年級</label>
+                <select id="prof-grade" class="input-field">
+                  <option value="中一 (S1)">中一 (S1)</option>
+                  <option value="中二 (S2)">中二 (S2)</option>
+                  <option value="中三 (S3)">中三 (S3)</option>
+                  <option value="中四 (S4)">中四 (S4)</option>
+                  <option value="中五 (S5)">中五 (S5)</option>
+                  <option value="中六 (S6 DSE)" selected>中六 (S6 DSE)</option>
+                  <option value="大專/大學">大專 / 大學</option>
+                  <option value="其他自修生">其他 / 自修生</option>
+                </select>
+              </div>
+
+              <div>
+                <label style="font-size:11px; font-weight:bold; color:#555; display:block;">喜愛學科 (可留白)</label>
+                <input type="text" id="prof-fav" class="input-field" placeholder="例如：數學, 物理, M2">
+              </div>
+
+              <div>
+                <label style="font-size:11px; font-weight:bold; color:#555; display:block;">討厭學科 (可留白)</label>
+                <input type="text" id="prof-dislike" class="input-field" placeholder="例如：中文背誦, 通識">
+              </div>
+
+              <button class="btn btn-primary" type="submit" style="padding:10px; font-size:13px; margin-top:8px; justify-content:center;">
+                💾 儲存修改資料
+              </button>
+            </form>
+          </div>
+        </section>
+
+        <!-- 4. VIP 與資源 -->
+        <section id="tab-vip" class="tab-content">
+          <div class="card" style="background: linear-gradient(135deg, var(--brand-700), #8D6E63); color:white;">
+            <h2 style="font-size:18px; font-weight:bold;">ConcenMate VIP 專屬方案</h2>
+            <p style="font-size:12px; margin-top:6px; opacity:0.9;">升級解鎖無限次防瞌睡測試、雲端錄影備份與 HD 60FPS 串流！</p>
+          </div>
+        </section>
+
+        <!-- 5. 時數兌換所 -->
+        <section id="tab-store" class="tab-content">
+          <div class="card" style="background:#f59e0b; color:white;">
+            <h2 style="font-size:16px; font-weight:bold;">Ottiee 時數幸運兌換所</h2>
+            <p style="font-size:12px; margin-top:4px;">累積溫習時數即可換領精美學習講義與文具禮券！</p>
+          </div>
+        </section>
+
+        <!-- 6. 夥伴與讀書會 -->
+        <section id="tab-social" class="tab-content">
+          <div class="card">
+            <h3 style="font-size:14px; font-weight:bold;">奮鬥夥伴親密度</h3>
+            <p style="font-size:11px; color:#666; margin-top:4px;">
+              <span class="clickable-user" onclick="viewUserProfile('Chloe_DSE')">Chloe_DSE</span> (共同溫習 28 小時)
+            </p>
+          </div>
+        </section>
+
+        <!-- 7. 學生驗證 -->
+        <section id="tab-verification" class="tab-content">
+          <div class="card" style="text-align:center; padding:20px;">
+            🎓 學生身份認證完成
+          </div>
+        </section>
+
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Modal 1: 登入 Modal -->
+  <div class="modal-backdrop" id="modal-login" style="display:none;">
+    <div class="modal-box">
+      <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); text-align:center;">🔑 會員登入</h3>
+      <form onsubmit="handleLoginSubmit(event)" style="display:flex; flex-direction:column; gap:10px; margin-top:12px;">
+        <div>
+          <label style="font-size:11px; font-weight:bold; color:#555;">電子郵件 (Email)</label>
+          <input type="email" id="login-email" class="input-field" required placeholder="example@school.edu.hk">
+        </div>
+        <div>
+          <label style="font-size:11px; font-weight:bold; color:#555;">密碼 (Password)</label>
+          <input type="password" id="login-password" class="input-field" required placeholder="請輸入密碼">
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
+          <span style="font-size:11px; color:#2563eb; cursor:pointer;" onclick="closeModal('modal-login'); openModal('modal-register');">還沒有帳號？點此註冊</span>
+          <div style="display:flex; gap:6px;">
+            <button class="btn btn-outline" type="button" onclick="closeModal('modal-login')">取消</button>
+            <button class="btn btn-primary" type="submit">登入</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 2: 會員註冊 Modal -->
+  <div class="modal-backdrop" id="modal-register" style="display:none;">
+    <div class="modal-box">
+      <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); text-align:center;">📝 註冊 ConcenMate 會員</h3>
+      <form onsubmit="handleRegisterSubmit(event)" style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">
+        <div>
+          <label style="font-size:11px; font-weight:bold; color:#555;">1. 會員帳號 *</label>
+          <input type="text" id="reg-username" class="input-field" required placeholder="例如：AlexWong2026">
+        </div>
+
+        <div>
+          <label style="font-size:11px; font-weight:bold; color:#555;">2. 電子郵件 (Email) *</label>
+          <input type="email" id="reg-email" class="input-field" required placeholder="example@school.edu.hk">
+        </div>
+
+        <div>
+          <label style="font-size:11px; font-weight:bold; color:#555;">3. 設定密碼 *</label>
+          <input type="password" id="reg-password" class="input-field" required placeholder="請輸入 6 位或以上的密碼">
+        </div>
+
+        <div>
+          <label style="font-size:11px; font-weight:bold; color:#555;">4. 學校名稱 *</label>
+          <input type="text" id="reg-school" class="input-field" required placeholder="例如：屯門官立中學">
+        </div>
+
+        <div>
+          <label style="font-size:11px; font-weight:bold; color:#555;">5. 現時年級 *</label>
+          <select id="reg-grade" class="input-field">
+            <option value="中一 (S1)">中一 (S1)</option>
+            <option value="中二 (S2)">中二 (S2)</option>
+            <option value="中三 (S3)">中三 (S3)</option>
+            <option value="中四 (S4)">中四 (S4)</option>
+            <option value="中五 (S5)">中五 (S5)</option>
+            <option value="中六 (S6 DSE)" selected>中六 (S6 DSE)</option>
+            <option value="大專/大學">大專 / 大學</option>
+            <option value="其他自修生">其他 / 自修生</option>
+          </select>
+        </div>
+
+        <div>
+          <label style="font-size:11px; font-weight:bold; color:#555;">6. 喜愛學科 (可留白)</label>
+          <input type="text" id="reg-fav" class="input-field" placeholder="例如：數學, 物理">
+        </div>
+
+        <div>
+          <label style="font-size:11px; font-weight:bold; color:#555;">7. 討厭學科 (可留白)</label>
+          <input type="text" id="reg-dislike" class="input-field" placeholder="例如：中文範文">
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+          <span style="font-size:11px; color:#2563eb; cursor:pointer;" onclick="closeModal('modal-register'); openModal('modal-login');">已有帳號？點此登入</span>
+          <div style="display:flex; gap:6px;">
+            <button class="btn btn-outline" type="button" onclick="closeModal('modal-register')">取消</button>
+            <button class="btn btn-primary" type="submit">完成註冊並登入</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 3: 查看其他會員資料 Pop-out 卡片 -->
+  <div class="modal-backdrop" id="modal-view-profile" style="display:none;">
+    <div class="modal-box" style="text-align:center;">
+      <div class="avatar-circle" style="margin:0 auto 10px; width:64px; height:64px; font-size:26px; background:var(--brand-500); border-color:var(--brand-200);" id="pop-user-avatar">A</div>
+      <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800);" id="pop-user-name">Alex Wong</h3>
+      <p style="font-size:11px; color:#2563eb; font-weight:bold; margin-bottom:12px;" id="pop-user-verified">✓ 學生身份已驗證</p>
+
+      <div style="background:var(--brand-50); border:1px solid var(--brand-200); border-radius:12px; padding:12px; text-align:left; font-size:12px; display:flex; flex-direction:column; gap:6px; margin-bottom:14px;">
+        <div><strong>🏫 就讀學校：</strong><span id="pop-user-school">屯門官立中學</span></div>
+        <div><strong>🎓 現時年級：</strong><span id="pop-user-grade">中六 (S6 DSE)</span></div>
+        <div><strong>❤️ 喜愛學科：</strong><span id="pop-user-fav">數學, 物理, M2</span></div>
+        <div><strong>💔 討厭學科：</strong><span id="pop-user-dislike">中文範文</span></div>
+        <div><strong>⏱️ 累積溫習：</strong><span id="pop-user-hours">42.5 小時</span></div>
+      </div>
+
+      <button class="btn btn-primary" type="button" style="width:100%; justify-content:center;" onclick="closeModal('modal-view-profile')">關閉資料卡</button>
+    </div>
+  </div>
+
+  <!-- Modal 4: 防瞌睡測驗 -->
+  <div class="modal-backdrop" id="modal-quiz" style="display:none;">
+    <div class="modal-box" style="text-align:center;">
+      <div style="font-size:36px;">🦦⚡</div>
+      <h3>醒下啦~ Ottiee 防瞌睡小測驗！</h3>
+      <p style="font-size:11px; color:#555; margin-bottom:10px;">DSE 數學：sin²θ + cos²θ 等於多少？</p>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <button class="btn btn-outline" type="button" onclick="answerQuiz(true)">等於 1 (正確)</button>
+        <button class="btn btn-outline" type="button" onclick="answerQuiz(false)">等於 0</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 5: 修改房間資料 -->
+  <div class="modal-backdrop" id="modal-edit-room" style="display:none;">
+    <div class="modal-box">
+      <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800);">✏️ 修改房間資料</h3>
+      <div style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">
+        <div>
+          <label style="font-size:11px; font-weight:bold; color:#555; display:block;">房間名稱</label>
+          <input type="text" id="edit-room-name" class="input-field">
+        </div>
+        <div>
+          <label style="font-size:11px; font-weight:bold; color:#555; display:block;">溫習學科</label>
+          <select id="edit-subject" class="input-field">
+            <option value="數學">DSE 數學 (Math)</option>
+            <option value="英國語文">DSE 英國語文 (English)</option>
+            <option value="中國語文">DSE 中國語文 (Chinese)</option>
+            <option value="物理">DSE 物理 (Physics)</option>
+            <option value="化學">DSE 化學 (Chemistry)</option>
+            <option value="其他">其他溫習科目</option>
+          </select>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:8px; justify-content:flex-end;">
+          <button class="btn btn-outline" type="button" onclick="closeModal('modal-edit-room')">取消</button>
+          <button class="btn btn-primary" type="button" onclick="saveEditedRoom()">儲存修改</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { getFirestore, doc, setDoc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    // Firebase 專屬 Config 設定
+    const firebaseConfig = {
+      apiKey: "AIzaSyDcxw01cH4Xdsp8xK4Xq69lnt3kCsEZTkQ",
+      authDomain: "concenmate-app.firebaseapp.com",
+      projectId: "concenmate-app",
+      storageBucket: "concenmate-app.firebasestorage.app",
+      messagingSenderId: "215862346156",
+      appId: "1:215862346156:web:1cc2037abde0e5a24cba09",
+      measurementId: "G-MJSTJ0KRN6"
+    };
+
+    // 初始化 Firebase Services
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // 全域 Toast 通知函數
+    window.showToast = function(msg, icon = 'ℹ️') {
+      const toast = document.getElementById('toast-box');
+      document.getElementById('toast-msg').innerText = msg;
+      document.getElementById('toast-icon').innerText = icon;
+      toast.classList.add('show');
+      setTimeout(() => { toast.classList.remove('show'); }, 3200);
+    };
+
+    // 監聽登入狀態變化
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        console.log("Firebase 登入成功，用戶 UID:", user.uid);
+        try {
+          const userDocRef = doc(db, "users", user.uid);
+          const userDoc = await getDoc(userDocRef);
+          if (userDoc.exists()) {
+            window.currentUser = userDoc.data();
+          } else {
+            window.currentUser = {
+              uid: user.uid,
+              email: user.email,
+              username: user.email.split('@')[0],
+              school: '未設定',
+              grade: '中六 (S6 DSE)',
+              hours: '0.0'
+            };
+          }
+        } catch (e) {
+          console.error("讀取用戶 Firebase 資料失敗:", e);
+        }
+      } else {
+        console.log("目前為未登入狀態");
+        window.currentUser = null;
+      }
+      window.updateUserAuthUI();
+    });
+
+    // 註冊帳號
+    window.registerWithFirebase = async function(email, password, profileData) {
+      try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const uid = userCredential.user.uid;
+
+        const newProfile = {
+          uid: uid,
+          email: email,
+          username: profileData.username,
+          school: profileData.school,
+          grade: profileData.grade,
+          favSubjects: profileData.favSubjects || '無',
+          dislikeSubjects: profileData.dislikeSubjects || '無',
+          hours: "0.0",
+          createdAt: new Date().toISOString()
+        };
+
+        await setDoc(doc(db, "users", uid), newProfile);
+        window.currentUser = newProfile;
+        window.showToast("🎉 註冊成功！資料已同步至 Firebase 雲端資料庫！", "✨");
+        window.closeModal('modal-register');
+      } catch (error) {
+        window.showToast("註冊失敗: " + error.message, "❌");
+      }
+    };
+
+    // 登入帳號
+    window.loginWithFirebase = async function(email, password) {
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+        window.showToast("歡迎回來 ConcenMate！", "👋");
+        window.closeModal('modal-login');
+      } catch (error) {
+        window.showToast("登入失敗: " + error.message, "❌");
+      }
+    };
+
+    // 登出帳號
+    window.logoutWithFirebase = async function() {
+      await signOut(auth);
+      window.currentUser = null;
+      window.updateUserAuthUI();
+      window.showToast("已成功登出。", "🚪");
+    };
+
+    window.handleRegisterSubmit = function(e) {
+      e.preventDefault();
+      const email = document.getElementById('reg-email').value.trim();
+      const password = document.getElementById('reg-password').value;
+      const username = document.getElementById('reg-username').value.trim();
+      const school = document.getElementById('reg-school').value.trim();
+      const grade = document.getElementById('reg-grade').value;
+      const favSubjects = document.getElementById('reg-fav').value.trim();
+      const dislikeSubjects = document.getElementById('reg-dislike').value.trim();
+
+      window.registerWithFirebase(email, password, {
+        username, school, grade, favSubjects, dislikeSubjects
+      });
+    };
+
+    window.handleLoginSubmit = function(e) {
+      e.preventDefault();
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+      window.loginWithFirebase(email, password);
+    };
+
+    window.saveUserProfile = async function(e) {
+      e.preventDefault();
+      if (!window.currentUser || !auth.currentUser) return;
+
+      const school = document.getElementById('prof-school').value.trim();
+      const grade = document.getElementById('prof-grade').value;
+      const favSubjects = document.getElementById('prof-fav').value.trim();
+      const dislikeSubjects = document.getElementById('prof-dislike').value.trim();
+      const username = document.getElementById('prof-username').value.trim();
+
+      try {
+        const userDocRef = doc(db, "users", auth.currentUser.uid);
+        await updateDoc(userDocRef, {
+          username, school, grade, favSubjects, dislikeSubjects
+        });
+        window.currentUser.username = username;
+        window.currentUser.school = school;
+        window.currentUser.grade = grade;
+        window.currentUser.favSubjects = favSubjects;
+        window.currentUser.dislikeSubjects = dislikeSubjects;
+
+        window.updateUserAuthUI();
+        window.showToast("💾 個人檔案已同步更新至 Firebase！", "✅");
+      } catch (err) {
+        window.showToast("更新失敗: " + err.message, "❌");
+      }
+    };
+  </script>
+
+  <script>
+    let state = {
+      isCameraOn: false,
+      mediaStream: null,
+      countdownTimer: null,
+      remainingSeconds: 1800,
+      renderFrameId: null
+    };
+
+    function updateUserAuthUI() {
+      const unauthScreen = document.getElementById('unauth-screen');
+      const authContent = document.getElementById('authenticated-app-content');
+      const headerAuthBtn = document.getElementById('header-auth-btn');
+      const headerStats = document.getElementById('header-user-stats');
+
+      if (window.currentUser) {
+        unauthScreen.style.display = 'none';
+        authContent.style.display = 'block';
+        headerStats.style.display = 'flex';
+
+        headerAuthBtn.className = "btn btn-outline";
+        headerAuthBtn.style.borderRadius = "20px";
+        headerAuthBtn.style.padding = "4px 10px";
+        headerAuthBtn.style.fontSize = "11px";
+        headerAuthBtn.innerHTML = `<span>${window.currentUser.username || window.currentUser.email}</span> <span style="color:#3b82f6; font-weight:bold;">✓</span>`;
+
+        document.getElementById('room-user-name-tag').innerText = (window.currentUser.username || '使用者') + " (你)";
+        document.getElementById('room-self-avatar').innerText = (window.currentUser.username || 'U').charAt(0).toUpperCase();
+        document.getElementById('stat-hours').innerText = window.currentUser.hours || "0.0";
+
+        document.getElementById('prof-username').value = window.currentUser.username || '';
+        document.getElementById('prof-email').value = window.currentUser.email || '';
+        document.getElementById('prof-school').value = window.currentUser.school || '';
+        document.getElementById('prof-grade').value = window.currentUser.grade || '中六 (S6 DSE)';
+        document.getElementById('prof-fav').value = window.currentUser.favSubjects || '';
+        document.getElementById('prof-dislike').value = window.currentUser.dislikeSubjects || '';
+      } else {
+        unauthScreen.style.display = 'block';
+        authContent.style.display = 'none';
+        headerStats.style.display = 'none';
+
+        headerAuthBtn.className = "btn btn-primary";
+        headerAuthBtn.innerHTML = `🔑 登入 / 註冊`;
+      }
+    }
+
+    function handleHeaderUserClick() {
+      if (window.currentUser) {
+        switchTab('profile');
+      } else {
+        openModal('modal-login');
+      }
+    }
+
+    function switchTab(tabId, btn) {
+      if (!window.currentUser) {
+        openModal('modal-login');
+        return;
+      }
+
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+      
+      const targetTab = document.getElementById('tab-' + tabId);
+      if (targetTab) targetTab.classList.add('active');
+      if (btn) btn.classList.add('active');
+    }
+
+    function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+    function createAndEnterRoom() {
+      if (!window.currentUser) {
+        openModal('modal-login');
+        return;
+      }
+
+      const roomName = document.getElementById('setup-room-name').value || 'DSE 衝刺專注房';
+      const subject = document.getElementById('setup-subject').value;
+      const durationMins = parseInt(document.getElementById('setup-duration').value, 10);
+
+      document.getElementById('active-room-title').innerText = roomName;
+      document.getElementById('active-room-subject').innerText = subject;
+      
+      state.remainingSeconds = durationMins * 60;
+      updateTimerDisplay();
+
+      document.getElementById('room-lobby').style.display = 'none';
+      document.getElementById('room-active').style.display = 'block';
+
+      startTimer();
+    }
+
+    function startTimer() {
+      if (state.countdownTimer) clearInterval(state.countdownTimer);
+      state.countdownTimer = setInterval(() => {
+        if (state.remainingSeconds > 0) {
+          state.remainingSeconds--;
+          updateTimerDisplay();
+        } else {
+          clearInterval(state.countdownTimer);
+          window.showToast('🎉 恭喜完成這節溫習目標！點數 +20 PTS！', '🎓');
+        }
+      }, 1000);
+    }
+
+    function updateTimerDisplay() {
+      const mins = Math.floor(state.remainingSeconds / 60);
+      const secs = state.remainingSeconds % 60;
+      document.getElementById('room-timer').innerText = 
+        `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    function leaveRoom() {
+      if (state.isCameraOn) toggleCamera(); 
+      if (state.countdownTimer) clearInterval(state.countdownTimer);
+      document.getElementById('room-active').style.display = 'none';
+      document.getElementById('room-lobby').style.display = 'block';
+    }
+
+    function wakeVideoEngine() {
+      const video = document.getElementById('behind-video-engine');
+      if (video && video.srcObject && video.paused) {
+        video.play().catch(e => console.log(e));
+      }
+    }
+
+    function startCanvasRenderLoop() {
+      const video = document.getElementById('behind-video-engine');
+      const canvas = document.getElementById('canvas-stream-display');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+
+      function drawFrame() {
+        if (!state.isCameraOn) return;
+        if (video.paused && video.srcObject) video.play().catch(() => {});
+
+        if (video.readyState >= 2 && video.videoWidth > 0) {
+          if (canvas.width !== video.videoWidth) {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+          }
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        }
+        state.renderFrameId = requestAnimationFrame(drawFrame);
+      }
+
+      state.renderFrameId = requestAnimationFrame(drawFrame);
+    }
+
+    async function toggleCamera() {
+      const videoEl = document.getElementById('behind-video-engine');
+      const canvasEl = document.getElementById('canvas-stream-display');
+      const overlayEl = document.getElementById('self-overlay');
+      const statusTag = document.getElementById('camera-status-tag');
+      const btn = document.getElementById('btn-camera');
+
+      if (state.isCameraOn) {
+        if (state.renderFrameId) cancelAnimationFrame(state.renderFrameId);
+        if (state.mediaStream) {
+          state.mediaStream.getTracks().forEach(track => track.stop());
+          state.mediaStream = null;
+        }
+        state.isCameraOn = false;
+        canvasEl.style.display = 'none';
+        videoEl.srcObject = null;
+        overlayEl.style.display = 'flex';
+        statusTag.style.display = 'none';
+        btn.innerText = '📹 開啟鏡頭';
+        btn.className = 'btn btn-primary';
+      } else {
+        btn.innerText = '⏳ 鏡頭啟動中...';
+
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
+            audio: false
+          });
+          
+          state.mediaStream = stream;
+          state.isCameraOn = true;
+
+          videoEl.muted = true;
+          videoEl.volume = 0;
+          videoEl.setAttribute('playsinline', 'true');
+          videoEl.srcObject = stream;
+          await videoEl.play().catch(e => console.log(e));
+
+          overlayEl.style.display = 'none';
+          canvasEl.style.display = 'block';
+          statusTag.style.display = 'inline-flex';
+          btn.innerText = '🛑 關閉鏡頭';
+          btn.className = 'btn btn-red';
+
+          startCanvasRenderLoop();
+        } catch (err) {
+          btn.innerText = '📹 開啟鏡頭';
+          window.showToast('無法開啟鏡頭，請確認權限設定。', '⚠️');
+          console.error(err);
+        }
+      }
+    }
+
+    function sendDanmakuSticker(emoji) {
+      const container = document.getElementById('sticker-container-box');
+      if (!container) return;
+
+      const sticker = document.createElement('div');
+      sticker.className = 'danmaku-sticker';
+      sticker.innerText = emoji;
+
+      const randomLeft = Math.floor(Math.random() * 75) + 10;
+      const randomRotate = Math.floor(Math.random() * 40) - 20;
+      const randomSize = Math.floor(Math.random() * 22) + 36;
+
+      sticker.style.left = randomLeft + '%';
+      sticker.style.fontSize = randomSize + 'px';
+      sticker.style.setProperty('--rot', randomRotate + 'deg');
+
+      container.appendChild(sticker);
+      setTimeout(() => { sticker.remove(); }, 2200);
+    }
+
+    function triggerQuiz() { openModal('modal-quiz'); }
+    function answerQuiz(isCorrect) {
+      closeModal('modal-quiz');
+      if (isCorrect) {
+        window.showToast('🎉 答對了！精神滿滿，獎勵 +10 點數！', '⚡');
+      } else {
+        window.showToast('答錯囉，快喝口水提提神！', '🥤');
+      }
+    }
+
+    function openEditRoomModal() {
+      document.getElementById('edit-room-name').value = document.getElementById('active-room-title').innerText;
+      document.getElementById('edit-subject').value = document.getElementById('active-room-subject').innerText;
+      openModal('modal-edit-room');
+    }
+
+    function saveEditedRoom() {
+      const newName = document.getElementById('edit-room-name').value || 'DSE 衝刺專注房';
+      const newSubject = document.getElementById('edit-subject').value;
+
+      document.getElementById('active-room-title').innerText = newName;
+      document.getElementById('active-room-subject').innerText = newSubject;
+
+      closeModal('modal-edit-room');
+      window.showToast('✏️ 房間資料已更新！', '✅');
+    }
+
+    function viewUserProfile(usernameKey) {
+      const u = window.currentUser || { username: 'Alex Wong', school: '聖保羅男女中學', grade: '中六 (S6 DSE)', favSubjects: '數學, 物理', dislikeSubjects: '中文', hours: '42.5' };
+      document.getElementById('pop-user-avatar').innerText = u.username.charAt(0).toUpperCase();
+      document.getElementById('pop-user-name').innerText = u.username;
+      document.getElementById('pop-user-school').innerText = u.school || '未填寫';
+      document.getElementById('pop-user-grade').innerText = u.grade || '未填寫';
+      document.getElementById('pop-user-fav').innerText = u.favSubjects || '未填寫';
+      document.getElementById('pop-user-dislike').innerText = u.dislikeSubjects || '未填寫';
+      document.getElementById('pop-user-hours').innerText = (u.hours || "0") + " 小時";
+      openModal('modal-view-profile');
+    }
+  </script>
+</body>
+</html>
