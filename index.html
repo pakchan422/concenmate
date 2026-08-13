@@ -21,8 +21,7 @@
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
     body { background-color: var(--brand-50); color: var(--text-dark); min-height: 100vh; display: flex; flex-direction: column; }
 
-    /* Header Styling */
-    header { background: rgba(255, 255, 255, 0.95); border-bottom: 1px solid var(--brand-200); padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 40; }
+    header { background: rgba(255, 255, 255, 0.95); border-bottom: 1px solid var(--brand-200); padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 40; backdrop-filter: blur(8px); }
     .logo-box { display: flex; align-items: center; gap: 8px; cursor: pointer; }
     .logo-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--brand-500); color: white; display: flex; align-items: center; justify-content: center; font-size: 18px; border: 2px solid var(--brand-200); }
     .logo-title { font-weight: bold; font-size: 15px; }
@@ -32,14 +31,17 @@
     
     .btn { border: none; border-radius: 10px; padding: 6px 12px; font-size: 12px; font-weight: bold; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 4px; }
     .btn-primary { background: var(--brand-500); color: white; }
-    .btn-primary:hover { background: var(--brand-600); }
+    .btn-primary:hover { background: var(--brand-600); transform: translateY(-1px); }
     .btn-amber { background: #f59e0b; color: white; }
+    .btn-amber:hover { background: #d97706; }
     .btn-red { background: #ef4444; color: white; }
+    .btn-red:hover { background: #dc2626; }
     .btn-outline { background: white; border: 1px solid var(--brand-300); color: var(--brand-800); }
+    .btn-outline:hover { background: var(--brand-50); }
 
     /* Layout Containers */
     .app-container { flex: 1; display: flex; overflow: hidden; }
-    aside { width: 200px; background: white; border-right: 1px solid var(--brand-200); padding: 10px; display: flex; flex-direction: column; justify-content: space-between; shrink: 0; }
+    aside { width: 200px; background: white; border-right: 1px solid var(--brand-200); padding: 10px; display: flex; flex-direction: column; justify-content: space-between; flex-shrink: 0; }
     main { flex: 1; padding: 12px; overflow-y: auto; }
 
     @media (max-width: 640px) {
@@ -48,7 +50,7 @@
       .user-stats { display: none; }
     }
 
-    .nav-btn { width: 100%; text-align: left; padding: 10px; border-radius: 10px; border: none; background: transparent; color: #555; font-size: 13px; font-weight: 600; cursor: pointer; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; justify-content: flex-start; }
+    .nav-btn { width: 100%; text-align: left; padding: 10px; border-radius: 10px; border: none; background: transparent; color: #555; font-size: 13px; font-weight: 600; cursor: pointer; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; justify-content: flex-start; transition: 0.15s; }
     .nav-btn.active, .nav-btn:hover { background: var(--brand-500); color: white; }
 
     @media (max-width: 640px) {
@@ -74,6 +76,31 @@
       max-width: 520px;
       margin: 10px auto;
       box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    }
+
+    /* Public Rooms Lobby Styling */
+    .rooms-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .room-item-card {
+      background: white;
+      border-radius: 16px;
+      padding: 16px;
+      border: 1px solid var(--brand-200);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.02);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .room-item-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.06);
+      border-color: var(--brand-500);
     }
 
     /* Video Player Styling */
@@ -195,12 +222,14 @@
       100% { opacity: 0; transform: translateY(-180px) scale(1) rotate(calc(var(--rot, 0deg) + 10deg)); }
     }
 
-    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; }
-    .modal-box { background: white; border-radius: 20px; padding: 20px; max-width: 440px; width: 100%; border: 2px solid var(--brand-200); max-height: 90vh; overflow-y: auto; }
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; backdrop-filter: blur(4px); }
+    .modal-box { background: white; border-radius: 20px; padding: 20px; max-width: 440px; width: 100%; border: 2px solid var(--brand-200); max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
 
-    .card { background: white; border-radius: 16px; padding: 14px; border: 1px solid var(--brand-200); margin-bottom: 12px; }
+    .card { background: white; border-radius: 16px; padding: 14px; border: 1px solid var(--brand-200); margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
     .tag { background: var(--brand-100); color: var(--brand-800); font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 6px; }
-    .input-field { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--brand-300); background: var(--brand-50); font-size: 12px; margin-top: 4px; }
+    .input-field { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--brand-300); background: var(--brand-50); font-size: 12px; margin-top: 4px; outline: none; transition: 0.2s; }
+    .input-field:focus { border-color: var(--brand-500); background: white; box-shadow: 0 0 0 2px rgba(176,137,91,0.2); }
+    
     .tab-content { display: none; }
     .tab-content.active { display: block; }
     .clickable-user { text-decoration: underline; cursor: pointer; color: #2563eb; }
@@ -234,7 +263,6 @@
 </head>
 <body>
 
-  <!-- Toast 通知彈窗 -->
   <div id="toast-box">
     <span id="toast-icon">ℹ️</span>
     <span id="toast-msg">訊息</span>
@@ -248,7 +276,7 @@
           <span class="logo-title">ConcenMate</span>
           <span class="badge">書伴</span>
         </div>
-        <p style="font-size:9px; color:#777;">與水獺 Ottiee 一起高效專注</p>
+        <p style="font-size:9px; color:#777;">GitHub: pakchan422 | Firebase: concenmate-app</p>
       </div>
     </div>
 
@@ -291,7 +319,7 @@
         <div style="font-size:52px; margin-bottom:12px;">🦦🔐</div>
         <h2 style="font-size:20px; font-weight:bold; color:var(--brand-800);">請先登入 ConcenMate 書伴</h2>
         <p style="font-size:12px; color:#666; margin-top:6px; line-height:1.5;">
-          登入後即可建立專屬溫習房、開啟 60FPS 直播鏡頭、<br>參與疑難解答區發問及個人化資料管理！
+          登入後即可暢玩公開溫習大廳、建立專屬房間、<br>開啟即時 Canvas 鏡頭直播與參與線上讀書會！
         </p>
 
         <div style="display:flex; justify-content:center; gap:12px; margin-top:20px;">
@@ -302,60 +330,35 @@
 
       <div id="authenticated-app-content">
 
-        <!-- 1. 視訊溫習室 -->
         <section id="tab-room" class="tab-content active">
 
+          <!-- 公開溫習大廳列表頁面 -->
           <div id="room-lobby">
-            <div class="create-room-card">
-              <div style="text-align:center; margin-bottom:16px;">
-                <div style="font-size:36px;">🦦📚</div>
-                <h2 style="font-size:18px; font-weight:bold; color:var(--brand-800);">建立專屬個人溫習房</h2>
-                <p style="font-size:11px; color:#666; margin-top:2px;">自訂專注目標與時間，打造無干擾溫習空間</p>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+              <div>
+                <h2 style="font-size:18px; font-weight:bold; color:var(--brand-800);">🌐 公開溫習大廳</h2>
+                <p style="font-size:11px; color:#666;">連接 Firebase (concenmate-app) 即時同步各同學的溫習房！</p>
               </div>
+              <button class="btn btn-primary" type="button" onclick="openModal('modal-create-room')">
+                🚀 + 建立新溫習房
+              </button>
+            </div>
 
-              <div style="display:flex; flex-direction:column; gap:12px;">
-                <div>
-                  <label style="font-size:11px; font-weight:bold; color:#555; display:block;">1. 溫習房間名稱</label>
-                  <input type="text" id="setup-room-name" class="input-field" value="DSE 衝刺專注房">
-                </div>
-
-                <div>
-                  <label style="font-size:11px; font-weight:bold; color:#555; display:block;">2. 溫習學科</label>
-                  <select id="setup-subject" class="input-field">
-                    <option value="數學">DSE 數學 (Math)</option>
-                    <option value="英國語文">DSE 英國語文 (English)</option>
-                    <option value="中國語文">DSE 中國語文 (Chinese)</option>
-                    <option value="物理">DSE 物理 (Physics)</option>
-                    <option value="化學">DSE 化學 (Chemistry)</option>
-                    <option value="生物">DSE 生物 (Biology)</option>
-                    <option value="經濟/企會財">DSE 經濟 / 企會財</option>
-                    <option value="其他">其他溫習科目</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label style="font-size:11px; font-weight:bold; color:#555; display:block;">3. 溫習目標時間 (分鐘)</label>
-                  <select id="setup-duration" class="input-field">
-                    <option value="15">15 分鐘</option>
-                    <option value="30" selected>30 分鐘</option>
-                    <option value="45">45 分鐘</option>
-                    <option value="60">60 分鐘</option>
-                  </select>
-                </div>
-
-                <button class="btn btn-primary" type="button" style="margin-top:10px; padding:10px; font-size:14px; justify-content:center;" onclick="createAndEnterRoom()">
-                  🚀 建立並進入溫習房
-                </button>
+            <!-- 公開房列表格/網格容器 -->
+            <div id="public-rooms-container" class="rooms-grid">
+              <div style="grid-column: 1 / -1; text-align:center; padding: 40px; color: #888; font-size: 13px;">
+                🔄 正在透過 Firebase 加載公開溫習房列表...
               </div>
             </div>
           </div>
 
+          <!-- 單一溫習房 (進行中) -->
           <div id="room-active" style="display:none;">
             <div class="room-bar">
               <div style="display:flex; align-items:center; gap:6px;">
+                <button class="btn btn-outline" type="button" style="padding:3px 8px; font-size:11px;" onclick="returnToLobby()">⬅️ 返回大廳</button>
                 <span style="font-weight:bold; font-size:14px;" id="active-room-title">DSE 衝刺專注房</span>
                 <span class="tag" style="background:#d1fae5; color:#065f46;" id="active-room-subject">數學</span>
-                <button class="btn btn-outline" type="button" style="padding:3px 8px; font-size:11px; margin-left:4px;" onclick="openEditRoomModal()">✏️ 修改房間</button>
               </div>
 
               <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
@@ -376,18 +379,18 @@
               <div class="video-overlay" id="self-overlay">
                 <div class="avatar-circle" id="room-self-avatar">A</div>
                 <p style="font-size:12px; font-weight:bold; color:#fff;" id="overlay-msg">溫習房已就緒！</p>
-                <p style="font-size:11px; margin-top:4px; color:#aaa;">請點擊上方「📹 開啟鏡頭」進行即時直播</p>
+                <p style="font-size:11px; margin-top:4px; color:#aaa;">請點擊上方「📹 開啟鏡頭」進行即時 Canvas 串流</p>
               </div>
 
               <div class="video-header">
                 <span class="video-tag" onclick="viewUserProfile('currentUser')">
                   <span id="room-user-name-tag">Alex Wong (你)</span> ✓
                 </span>
-                <span class="video-tag" style="background:#f59e0b; color:#000;">個人專注中</span>
+                <span class="video-tag" style="background:#f59e0b; color:#000;" id="room-host-tag">房主專注中</span>
               </div>
 
               <div class="video-footer">
-                <span class="video-tag" id="camera-status-tag" style="background:rgba(16,185,129,0.9); display:none;">🔴 鏡頭即時直播中</span>
+                <span class="video-tag" id="camera-status-tag" style="background:rgba(16,185,129,0.9); display:none;">🔴 鏡頭即時串流中</span>
               </div>
 
               <div id="sticker-container-box" class="sticker-container-box"></div>
@@ -406,12 +409,11 @@
 
         </section>
 
-        <!-- 2. 疑難解答區 -->
         <section id="tab-qa" class="tab-content">
           <div class="card">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
               <h3 style="font-size:15px; font-weight:bold;">疑難解答區討論帖</h3>
-              <button class="btn btn-primary" type="button" onclick="showToast('發表提問功能已準備就緒！', '🚀')">+ 發起提問</button>
+              <button class="btn btn-primary" type="button" onclick="showToast('發起提問功能已準備就緒！', '🚀')">+ 發起提問</button>
             </div>
 
             <div style="border-top:1px solid #eee; padding-top:10px; margin-top:8px;">
@@ -420,12 +422,11 @@
                 <span style="font-size:11px; color:#f59e0b; font-weight:bold;">懸賞 50 EXP</span>
               </div>
               <h4 style="font-size:13px; font-weight:bold; margin-top:6px;">2024 DSE 數學 Paper 1 第 18 題求解步驟？</h4>
-              <p style="font-size:11px; color:#666; margin-top:4px;">發帖者：<span class="clickable-user" onclick="viewUserProfile('Chloe_DSE')">Chloe_DSE</span> (點擊查看個人資料)</p>
+              <p style="font-size:11px; color:#666; margin-top:4px;">發帖者：<span class="clickable-user" onclick="viewUserProfile('Chloe_DSE')">Chloe_DSE</span></p>
             </div>
           </div>
         </section>
 
-        <!-- 3. 個人檔案編輯 -->
         <section id="tab-profile" class="tab-content">
           <div class="profile-edit-card">
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:14px;">
@@ -446,7 +447,7 @@
 
               <div>
                 <label style="font-size:11px; font-weight:bold; color:#555; display:block;">學校名稱</label>
-                <input type="text" id="prof-school" class="input-field" placeholder="例如：聖保羅男女中學 / 屯門官立中學">
+                <input type="text" id="prof-school" class="input-field" placeholder="例如：聖保羅男女中學">
               </div>
 
               <div>
@@ -470,7 +471,7 @@
 
               <div>
                 <label style="font-size:11px; font-weight:bold; color:#555; display:block;">討厭學科 (可留白)</label>
-                <input type="text" id="prof-dislike" class="input-field" placeholder="例如：中文背誦, 通識">
+                <input type="text" id="prof-dislike" class="input-field" placeholder="例如：中文背誦">
               </div>
 
               <button class="btn btn-primary" type="submit" style="padding:10px; font-size:13px; margin-top:8px; justify-content:center;">
@@ -480,7 +481,6 @@
           </div>
         </section>
 
-        <!-- 4. VIP 與資源 -->
         <section id="tab-vip" class="tab-content">
           <div class="card" style="background: linear-gradient(135deg, var(--brand-700), #8D6E63); color:white;">
             <h2 style="font-size:18px; font-weight:bold;">ConcenMate VIP 專屬方案</h2>
@@ -488,7 +488,6 @@
           </div>
         </section>
 
-        <!-- 5. 時數兌換所 -->
         <section id="tab-store" class="tab-content">
           <div class="card" style="background:#f59e0b; color:white;">
             <h2 style="font-size:16px; font-weight:bold;">Ottiee 時數幸運兌換所</h2>
@@ -496,7 +495,6 @@
           </div>
         </section>
 
-        <!-- 6. 夥伴與讀書會 -->
         <section id="tab-social" class="tab-content">
           <div class="card">
             <h3 style="font-size:14px; font-weight:bold;">奮鬥夥伴親密度</h3>
@@ -506,7 +504,6 @@
           </div>
         </section>
 
-        <!-- 7. 學生驗證 -->
         <section id="tab-verification" class="tab-content">
           <div class="card" style="text-align:center; padding:20px;">
             🎓 學生身份認證完成
@@ -518,7 +515,6 @@
     </main>
   </div>
 
-  <!-- Modal 1: 登入 Modal -->
   <div class="modal-backdrop" id="modal-login" style="display:none;">
     <div class="modal-box">
       <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); text-align:center;">🔑 會員登入</h3>
@@ -542,7 +538,6 @@
     </div>
   </div>
 
-  <!-- Modal 2: 會員註冊 Modal -->
   <div class="modal-backdrop" id="modal-register" style="display:none;">
     <div class="modal-box">
       <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); text-align:center;">📝 註冊 ConcenMate 會員</h3>
@@ -602,7 +597,52 @@
     </div>
   </div>
 
-  <!-- Modal 3: 查看其他會員資料 Pop-out 卡片 -->
+  <div class="modal-backdrop" id="modal-create-room" style="display:none;">
+    <div class="modal-box">
+      <div style="text-align:center; margin-bottom:12px;">
+        <div style="font-size:32px;">🦦📚</div>
+        <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800);">建立公開溫習房</h3>
+        <p style="font-size:11px; color:#666; margin-top:2px;">讓其他同學在公開大廳看到並加入你的房間</p>
+      </div>
+
+      <form onsubmit="handleCreateRoomSubmit(event)" style="display:flex; flex-direction:column; gap:10px;">
+        <div>
+          <label style="font-size:11px; font-weight:bold; color:#555; display:block;">溫習房間名稱 *</label>
+          <input type="text" id="modal-room-name" class="input-field" required value="DSE 衝刺專注房">
+        </div>
+
+        <div>
+          <label style="font-size:11px; font-weight:bold; color:#555; display:block;">溫習學科 *</label>
+          <select id="modal-room-subject" class="input-field">
+            <option value="數學">DSE 數學 (Math)</option>
+            <option value="英國語文">DSE 英國語文 (English)</option>
+            <option value="中國語文">DSE 中國語文 (Chinese)</option>
+            <option value="物理">DSE 物理 (Physics)</option>
+            <option value="化學">DSE 化學 (Chemistry)</option>
+            <option value="生物">DSE 生物 (Biology)</option>
+            <option value="經濟/企會財">DSE 經濟 / 企會財</option>
+            <option value="其他">其他溫習科目</option>
+          </select>
+        </div>
+
+        <div>
+          <label style="font-size:11px; font-weight:bold; color:#555; display:block;">溫習目標時間 (分鐘)</label>
+          <select id="modal-room-duration" class="input-field">
+            <option value="15">15 分鐘</option>
+            <option value="30" selected>30 分鐘</option>
+            <option value="45">45 分鐘</option>
+            <option value="60">60 分鐘</option>
+          </select>
+        </div>
+
+        <div style="display:flex; gap:8px; margin-top:10px; justify-content:flex-end;">
+          <button class="btn btn-outline" type="button" onclick="closeModal('modal-create-room')">取消</button>
+          <button class="btn btn-primary" type="submit">🚀 立即建立並廣播</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="modal-view-profile" style="display:none;">
     <div class="modal-box" style="text-align:center;">
       <div class="avatar-circle" style="margin:0 auto 10px; width:64px; height:64px; font-size:26px; background:var(--brand-500); border-color:var(--brand-200);" id="pop-user-avatar">A</div>
@@ -621,7 +661,6 @@
     </div>
   </div>
 
-  <!-- Modal 4: 防瞌睡測驗 -->
   <div class="modal-backdrop" id="modal-quiz" style="display:none;">
     <div class="modal-box" style="text-align:center;">
       <div style="font-size:36px;">🦦⚡</div>
@@ -634,40 +673,12 @@
     </div>
   </div>
 
-  <!-- Modal 5: 修改房間資料 -->
-  <div class="modal-backdrop" id="modal-edit-room" style="display:none;">
-    <div class="modal-box">
-      <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800);">✏️ 修改房間資料</h3>
-      <div style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">
-        <div>
-          <label style="font-size:11px; font-weight:bold; color:#555; display:block;">房間名稱</label>
-          <input type="text" id="edit-room-name" class="input-field">
-        </div>
-        <div>
-          <label style="font-size:11px; font-weight:bold; color:#555; display:block;">溫習學科</label>
-          <select id="edit-subject" class="input-field">
-            <option value="數學">DSE 數學 (Math)</option>
-            <option value="英國語文">DSE 英國語文 (English)</option>
-            <option value="中國語文">DSE 中國語文 (Chinese)</option>
-            <option value="物理">DSE 物理 (Physics)</option>
-            <option value="化學">DSE 化學 (Chemistry)</option>
-            <option value="其他">其他溫習科目</option>
-          </select>
-        </div>
-        <div style="display:flex; gap:8px; margin-top:8px; justify-content:flex-end;">
-          <button class="btn btn-outline" type="button" onclick="closeModal('modal-edit-room')">取消</button>
-          <button class="btn btn-primary" type="button" onclick="saveEditedRoom()">儲存修改</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { getFirestore, doc, setDoc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    // Firebase 專屬 Config 設定
+    // Firebase 專屬 Config 設定 (Project: concenmate-app)
     const firebaseConfig = {
       apiKey: "AIzaSyDcxw01cH4Xdsp8xK4Xq69lnt3kCsEZTkQ",
       authDomain: "concenmate-app.firebaseapp.com",
@@ -683,6 +694,9 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
 
+    window.db = db;
+    window.fs = { doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot };
+
     // 全域 Toast 通知函數
     window.showToast = function(msg, icon = 'ℹ️') {
       const toast = document.getElementById('toast-box');
@@ -692,10 +706,64 @@
       setTimeout(() => { toast.classList.remove('show'); }, 3200);
     };
 
+    // 即時監聽 Firestore 公開溫習房間列表
+    let unsubscribeRooms = null;
+    function listenToPublicRooms() {
+      if (unsubscribeRooms) unsubscribeRooms();
+
+      const roomsRef = collection(db, "rooms");
+      unsubscribeRooms = onSnapshot(roomsRef, (snapshot) => {
+        const roomsListEl = document.getElementById('public-rooms-container');
+        if (!roomsListEl) return;
+
+        let roomsHtml = '';
+        if (snapshot.empty) {
+          roomsListEl.innerHTML = `
+            <div style="grid-column: 1 / -1; text-align:center; padding: 40px; background: white; border-radius: 16px; border: 1px solid var(--brand-200);">
+              <div style="font-size:36px; margin-bottom:8px;">🦦📭</div>
+              <p style="font-size:13px; font-weight:bold; color:var(--brand-800);">目前大廳沒有公開的溫習房</p>
+              <p style="font-size:11px; color:#666; margin-top:4px;">點擊上方「+ 建立新溫習房」來開立第一個房間吧！</p>
+            </div>
+          `;
+          return;
+        }
+
+        snapshot.forEach((roomDoc) => {
+          const room = roomDoc.data();
+          const roomId = roomDoc.id;
+          const isMyRoom = window.currentUser && room.hostUid === window.currentUser.uid;
+
+          roomsHtml += `
+            <div class="room-item-card">
+              <div>
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
+                  <span class="tag" style="background:#fef3c7; color:#92400e;">${room.subject || '數學'}</span>
+                  <span style="font-size:10px; color:#10b981; font-weight:bold;">🟢 直播中</span>
+                </div>
+                <h4 style="font-size:14px; font-weight:bold; color:var(--brand-800); margin-bottom:4px;">${room.name}</h4>
+                <p style="font-size:11px; color:#666;">房主：<strong>${room.hostName || '匿名同學'}</strong></p>
+                <p style="font-size:10px; color:#888; margin-top:2px;">目標時間：${room.duration || 30} 分鐘</p>
+              </div>
+
+              <div style="display:flex; gap:6px; margin-top:12px;">
+                <button class="btn btn-primary" style="flex:1; justify-content:center; font-size:11px; padding:6px;" onclick="joinPublicRoom('${roomId}', '${room.name.replace(/'/g, "\\'")}', '${room.subject}', ${room.duration}, '${room.hostName}', ${isMyRoom})">
+                  🚪 加入房間
+                </button>
+                ${isMyRoom ? `<button class="btn btn-red" style="font-size:11px; padding:6px;" onclick="deleteRoomQuick('${roomId}')">刪除</button>` : ''}
+              </div>
+            </div>
+          `;
+        });
+
+        roomsListEl.innerHTML = roomsHtml;
+      }, (error) => {
+        console.error("監聽公開房間失敗:", error);
+      });
+    }
+
     // 監聽登入狀態變化
     onAuthStateChanged(auth, async (user) => {
       if (user) {
-        console.log("Firebase 登入成功，用戶 UID:", user.uid);
         try {
           const userDocRef = doc(db, "users", user.uid);
           const userDoc = await getDoc(userDocRef);
@@ -714,8 +782,8 @@
         } catch (e) {
           console.error("讀取用戶 Firebase 資料失敗:", e);
         }
+        listenToPublicRooms();
       } else {
-        console.log("目前為未登入狀態");
         window.currentUser = null;
       }
       window.updateUserAuthUI();
@@ -742,12 +810,9 @@
         await setDoc(doc(db, "users", uid), newProfile);
         window.currentUser = newProfile;
 
-        // 強制關閉彈窗並更新 UI
         window.closeModal('modal-register');
         window.updateUserAuthUI();
         window.showToast("🎉 註冊成功！資料已同步至 Firebase 雲端資料庫！", "✨");
-        
-        // 註冊成功後，自動切換至「建立溫習房間」頁面
         window.switchTab('room');
       } catch (error) {
         window.showToast("註冊失敗: " + error.message, "❌");
@@ -760,7 +825,6 @@
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
-        // 登入成功後，立刻同步獲取用戶 FireStore 檔案
         const userDocRef = doc(db, "users", user.uid);
         const userDoc = await getDoc(userDocRef);
         if (userDoc.exists()) {
@@ -776,7 +840,6 @@
           };
         }
 
-        // 先關閉登入視窗，再更新介面與跳轉
         window.closeModal('modal-login');
         window.updateUserAuthUI();
         window.showToast("歡迎回來 ConcenMate！", "👋");
@@ -851,7 +914,9 @@
       mediaStream: null,
       countdownTimer: null,
       remainingSeconds: 1800,
-      renderFrameId: null
+      renderFrameId: null,
+      currentRoomId: null,
+      isHost: false
     };
 
     function updateUserAuthUI() {
@@ -861,7 +926,6 @@
       const headerStats = document.getElementById('header-user-stats');
 
       if (window.currentUser) {
-        // 已登入狀態下，確保強制關閉所有登入/註冊 Modal
         closeModal('modal-login');
         closeModal('modal-register');
 
@@ -886,7 +950,6 @@
         document.getElementById('prof-fav').value = window.currentUser.favSubjects || '';
         document.getElementById('prof-dislike').value = window.currentUser.dislikeSubjects || '';
 
-        // 確保成功驗證身份後，預設顯示在「視訊溫習室 (tab-room)」
         switchTab('room');
       } else {
         unauthScreen.style.display = 'block';
@@ -929,26 +992,91 @@
     function openModal(id) { document.getElementById(id).style.display = 'flex'; }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
-    function createAndEnterRoom() {
-      if (!window.currentUser) {
-        openModal('modal-login');
+    // 建立新房間並寫入 Firebase 廣播至大廳
+    async function handleCreateRoomSubmit(e) {
+      e.preventDefault();
+      if (!window.currentUser || !window.db || !window.fs) {
+        window.showToast("請先登入會員", "⚠️");
         return;
       }
 
-      const roomName = document.getElementById('setup-room-name').value || 'DSE 衝刺專注房';
-      const subject = document.getElementById('setup-subject').value;
-      const durationMins = parseInt(document.getElementById('setup-duration').value, 10);
+      const roomName = document.getElementById('modal-room-name').value.trim();
+      const subject = document.getElementById('modal-room-subject').value;
+      const durationMins = parseInt(document.getElementById('modal-room-duration').value, 10);
+
+      const roomId = 'room_' + Date.now();
+      const roomData = {
+        name: roomName,
+        subject: subject,
+        duration: durationMins,
+        hostUid: window.currentUser.uid,
+        hostName: window.currentUser.username || '匿名同學',
+        createdAt: new Date().toISOString()
+      };
+
+      try {
+        await window.fs.setDoc(window.fs.doc(window.db, "rooms", roomId), roomData);
+        closeModal('modal-create-room');
+
+        state.currentRoomId = roomId;
+        state.isHost = true;
+
+        document.getElementById('active-room-title').innerText = roomName;
+        document.getElementById('active-room-subject').innerText = subject;
+        document.getElementById('room-host-tag').innerText = "你是房主 👑";
+
+        state.remainingSeconds = durationMins * 60;
+        updateTimerDisplay();
+
+        document.getElementById('room-lobby').style.display = 'none';
+        document.getElementById('room-active').style.display = 'block';
+
+        startTimer();
+        window.showToast("🚀 溫習房建立成功並已廣播至公開大廳！", "✨");
+      } catch (err) {
+        window.showToast("建立房間失敗: " + err.message, "❌");
+      }
+    }
+
+    // 加入其他人建立的公開溫習房
+    function joinPublicRoom(roomId, roomName, subject, durationMins, hostName, isMyRoom) {
+      state.currentRoomId = roomId;
+      state.isHost = isMyRoom;
 
       document.getElementById('active-room-title').innerText = roomName;
       document.getElementById('active-room-subject').innerText = subject;
-      
-      state.remainingSeconds = durationMins * 60;
+      document.getElementById('room-host-tag').innerText = isMyRoom ? "你是房主 👑" : `房主: ${hostName}`;
+
+      state.remainingSeconds = (durationMins || 30) * 60;
       updateTimerDisplay();
 
       document.getElementById('room-lobby').style.display = 'none';
       document.getElementById('room-active').style.display = 'block';
 
       startTimer();
+      window.showToast(`成功加入「${roomName}」！`, "🦦");
+    }
+
+    // 從溫習房返回公開大廳
+    function returnToLobby() {
+      if (state.isCameraOn) toggleCamera();
+      if (state.countdownTimer) clearInterval(state.countdownTimer);
+
+      state.currentRoomId = null;
+      state.isHost = false;
+
+      document.getElementById('room-active').style.display = 'none';
+      document.getElementById('room-lobby').style.display = 'block';
+    }
+
+    async function deleteRoomQuick(roomId) {
+      if (!window.db || !window.fs) return;
+      try {
+        await window.fs.deleteDoc(window.fs.doc(window.db, "rooms", roomId));
+        window.showToast("已刪除該溫習房", "🗑️");
+      } catch (err) {
+        window.showToast("刪除失敗", "❌");
+      }
     }
 
     function startTimer() {
@@ -971,11 +1099,22 @@
         `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }
 
-    function leaveRoom() {
+    async function leaveRoom() {
       if (state.isCameraOn) toggleCamera(); 
       if (state.countdownTimer) clearInterval(state.countdownTimer);
+      
+      if (state.isHost && state.currentRoomId && window.fs && window.db) {
+        try {
+          await window.fs.deleteDoc(window.fs.doc(window.db, "rooms", state.currentRoomId));
+        } catch(e) { console.error("刪除房間失敗", e); }
+      }
+      
+      state.currentRoomId = null;
+      state.isHost = false;
+
       document.getElementById('room-active').style.display = 'none';
       document.getElementById('room-lobby').style.display = 'block';
+      window.showToast('已退出溫習房間', '🚪');
     }
 
     function wakeVideoEngine() {
@@ -1089,23 +1228,6 @@
       } else {
         window.showToast('答錯囉，快喝口水提提神！', '🥤');
       }
-    }
-
-    function openEditRoomModal() {
-      document.getElementById('edit-room-name').value = document.getElementById('active-room-title').innerText;
-      document.getElementById('edit-subject').value = document.getElementById('active-room-subject').innerText;
-      openModal('modal-edit-room');
-    }
-
-    function saveEditedRoom() {
-      const newName = document.getElementById('edit-room-name').value || 'DSE 衝刺專注房';
-      const newSubject = document.getElementById('edit-subject').value;
-
-      document.getElementById('active-room-title').innerText = newName;
-      document.getElementById('active-room-subject').innerText = newSubject;
-
-      closeModal('modal-edit-room');
-      window.showToast('✏️ 房間資料已更新！', '✅');
     }
 
     function viewUserProfile(usernameKey) {
