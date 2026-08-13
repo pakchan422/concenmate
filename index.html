@@ -270,13 +270,13 @@
 
     <aside>
       <div>
-        <button class="nav-btn active" type="button" onclick="switchTab('room', this)">📹 <span class="nav-text">視訊溫習室</span></button>
-        <button class="nav-btn" type="button" onclick="switchTab('qa', this)">❓ <span class="nav-text">疑難解答區</span></button>
-        <button class="nav-btn" type="button" onclick="switchTab('profile', this)">👤 <span class="nav-text">個人檔案編輯</span></button>
-        <button class="nav-btn" type="button" onclick="switchTab('vip', this)">👑 <span class="nav-text">溫習資源 & VIP</span></button>
-        <button class="nav-btn" type="button" onclick="switchTab('store', this)">🎁 <span class="nav-text">時數兌換所</span></button>
-        <button class="nav-btn" type="button" onclick="switchTab('social', this)">👥 <span class="nav-text">夥伴與讀書會</span></button>
-        <button class="nav-btn" type="button" onclick="switchTab('verification', this)">🎓 <span class="nav-text">學生身份驗證</span></button>
+        <button class="nav-btn active" id="nav-btn-room" type="button" onclick="switchTab('room', this)">📹 <span class="nav-text">視訊溫習室</span></button>
+        <button class="nav-btn" id="nav-btn-qa" type="button" onclick="switchTab('qa', this)">❓ <span class="nav-text">疑難解答區</span></button>
+        <button class="nav-btn" id="nav-btn-profile" type="button" onclick="switchTab('profile', this)">👤 <span class="nav-text">個人檔案編輯</span></button>
+        <button class="nav-btn" id="nav-btn-vip" type="button" onclick="switchTab('vip', this)">👑 <span class="nav-text">溫習資源 & VIP</span></button>
+        <button class="nav-btn" id="nav-btn-store" type="button" onclick="switchTab('store', this)">🎁 <span class="nav-text">時數兌換所</span></button>
+        <button class="nav-btn" id="nav-btn-social" type="button" onclick="switchTab('social', this)">👥 <span class="nav-text">夥伴與讀書會</span></button>
+        <button class="nav-btn" id="nav-btn-verification" type="button" onclick="switchTab('verification', this)">🎓 <span class="nav-text">學生身份驗證</span></button>
       </div>
 
       <div style="background:var(--brand-50); padding:8px; border-radius:12px; border:1px solid var(--brand-200); text-align:center;">
@@ -425,6 +425,7 @@
           </div>
         </section>
 
+        <!-- 3. 個人檔案編輯 -->
         <section id="tab-profile" class="tab-content">
           <div class="profile-edit-card">
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:14px;">
@@ -740,8 +741,14 @@
 
         await setDoc(doc(db, "users", uid), newProfile);
         window.currentUser = newProfile;
-        window.showToast("🎉 註冊成功！資料已同步至 Firebase 雲端資料庫！", "✨");
+
+        // 強制關閉彈窗並更新 UI
         window.closeModal('modal-register');
+        window.updateUserAuthUI();
+        window.showToast("🎉 註冊成功！資料已同步至 Firebase 雲端資料庫！", "✨");
+        
+        // 註冊成功後，自動切換至「建立溫習房間」頁面
+        window.switchTab('room');
       } catch (error) {
         window.showToast("註冊失敗: " + error.message, "❌");
       }
@@ -750,9 +757,30 @@
     // 登入帳號
     window.loginWithFirebase = async function(email, password) {
       try {
-        await signInWithEmailAndPassword(auth, email, password);
-        window.showToast("歡迎回來 ConcenMate！", "👋");
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        // 登入成功後，立刻同步獲取用戶 FireStore 檔案
+        const userDocRef = doc(db, "users", user.uid);
+        const userDoc = await getDoc(userDocRef);
+        if (userDoc.exists()) {
+          window.currentUser = userDoc.data();
+        } else {
+          window.currentUser = {
+            uid: user.uid,
+            email: user.email,
+            username: user.email.split('@')[0],
+            school: '未設定',
+            grade: '中六 (S6 DSE)',
+            hours: '0.0'
+          };
+        }
+
+        // 先關閉登入視窗，再更新介面與跳轉
         window.closeModal('modal-login');
+        window.updateUserAuthUI();
+        window.showToast("歡迎回來 ConcenMate！", "👋");
+        window.switchTab('room');
       } catch (error) {
         window.showToast("登入失敗: " + error.message, "❌");
       }
@@ -833,6 +861,10 @@
       const headerStats = document.getElementById('header-user-stats');
 
       if (window.currentUser) {
+        // 已登入狀態下，確保強制關閉所有登入/註冊 Modal
+        closeModal('modal-login');
+        closeModal('modal-register');
+
         unauthScreen.style.display = 'none';
         authContent.style.display = 'block';
         headerStats.style.display = 'flex';
@@ -853,6 +885,9 @@
         document.getElementById('prof-grade').value = window.currentUser.grade || '中六 (S6 DSE)';
         document.getElementById('prof-fav').value = window.currentUser.favSubjects || '';
         document.getElementById('prof-dislike').value = window.currentUser.dislikeSubjects || '';
+
+        // 確保成功驗證身份後，預設顯示在「視訊溫習室 (tab-room)」
+        switchTab('room');
       } else {
         unauthScreen.style.display = 'block';
         authContent.style.display = 'none';
@@ -882,7 +917,13 @@
       
       const targetTab = document.getElementById('tab-' + tabId);
       if (targetTab) targetTab.classList.add('active');
-      if (btn) btn.classList.add('active');
+
+      if (btn) {
+        btn.classList.add('active');
+      } else {
+        const targetBtn = document.getElementById('nav-btn-' + tabId);
+        if (targetBtn) targetBtn.classList.add('active');
+      }
     }
 
     function openModal(id) { document.getElementById(id).style.display = 'flex'; }
