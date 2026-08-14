@@ -39,7 +39,6 @@
     .btn-outline { background: white; border: 1px solid var(--brand-300); color: var(--brand-800); }
     .btn-outline:hover { background: var(--brand-50); }
 
-    /* Layout Containers */
     .app-container { flex: 1; display: flex; overflow: hidden; }
     aside { width: 200px; background: white; border-right: 1px solid var(--brand-200); padding: 10px; display: flex; flex-direction: column; justify-content: space-between; flex-shrink: 0; }
     main { flex: 1; padding: 12px; overflow-y: auto; }
@@ -78,7 +77,6 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.03);
     }
 
-    /* Public Rooms Lobby Styling */
     .rooms-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -103,14 +101,13 @@
       border-color: var(--brand-500);
     }
 
-    /* Video Player Styling & Multi-peer Grid */
     .room-bar { background: white; padding: 10px 12px; border-radius: 16px; border: 1px solid var(--brand-200); margin-bottom: 12px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
 
     .video-grid-container {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
       gap: 12px;
-      max-width: 900px;
+      max-width: 1000px;
       margin: 0 auto;
     }
 
@@ -128,7 +125,30 @@
       width: 100%;
     }
 
-    .peer-video-element {
+    .behind-stream-video {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 1px;
+      height: 1px;
+      opacity: 0.001;
+      pointer-events: none;
+      z-index: -10;
+    }
+
+    .canvas-stream-display {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+      z-index: 1;
+      display: none;
+      border-radius: 16px;
+    }
+
+    .remote-video-element {
       position: absolute;
       inset: 0;
       width: 100%;
@@ -137,6 +157,7 @@
       transform: scaleX(-1);
       z-index: 1;
       border-radius: 16px;
+      background: #000;
     }
 
     .video-overlay { 
@@ -190,7 +211,6 @@
       pointer-events: none;
     }
 
-    /* Floating Danmaku Animations */
     .sticker-container-box {
       position: absolute;
       inset: 0;
@@ -226,7 +246,6 @@
     .tab-content.active { display: block; }
     .clickable-user { text-decoration: underline; cursor: pointer; color: #2563eb; }
 
-    /* Custom Toast Notification */
     #toast-box {
       position: fixed;
       top: 20px;
@@ -311,7 +330,7 @@
         <div style="font-size:52px; margin-bottom:12px;">🦦🔐</div>
         <h2 style="font-size:20px; font-weight:bold; color:var(--brand-800);">請先登入 ConcenMate 書伴</h2>
         <p style="font-size:12px; color:#666; margin-top:6px; line-height:1.5;">
-          登入後即可暢玩公開溫習大廳、建立專屬房間、<br>開啟 WebRTC 即時鏡頭視訊與參與線上讀書會！
+          登入後即可暢玩公開溫習大廳、建立專屬房間、<br>開啟即時 Canvas 鏡頭直播與參與線上讀書會！
         </p>
 
         <div style="display:flex; justify-content:center; gap:12px; margin-top:20px;">
@@ -324,19 +343,17 @@
 
         <section id="tab-room" class="tab-content active">
 
-          <!-- 公開溫習大廳列表頁面 -->
           <div id="room-lobby">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
               <div>
                 <h2 style="font-size:18px; font-weight:bold; color:var(--brand-800);">🌐 公開溫習大廳</h2>
-                <p style="font-size:11px; color:#666;">連接 Firebase (concenmate-app) 即時同步各同學的溫習房與 WebRTC 互聯！</p>
+                <p style="font-size:11px; color:#666;">連接 Firebase (concenmate-app) 即時同步各同學的溫習房！</p>
               </div>
               <button class="btn btn-primary" type="button" onclick="openModal('modal-create-room')">
                 🚀 + 建立新溫習房
               </button>
             </div>
 
-            <!-- 公開房列表格/網格容器 -->
             <div id="public-rooms-container" class="rooms-grid">
               <div style="grid-column: 1 / -1; text-align:center; padding: 40px; color: #888; font-size: 13px;">
                 🔄 正在透過 Firebase 加載公開溫習房列表...
@@ -344,7 +361,6 @@
             </div>
           </div>
 
-          <!-- 單一溫習房 (進行中) -->
           <div id="room-active" style="display:none;">
             <div class="room-bar">
               <div style="display:flex; align-items:center; gap:6px;">
@@ -364,16 +380,15 @@
               </div>
             </div>
 
-            <!-- 多人 WebRTC 視訊方格容器 -->
             <div id="video-grid-container" class="video-grid-container">
-              <!-- 自己的視訊卡片會預設渲染在這 -->
-              <div class="video-card-single" id="my-video-card">
-                <video id="self-video-element" class="peer-video-element" autoplay playsinline muted></video>
+              <div class="video-card-single" onclick="wakeVideoEngine()">
+                <video id="behind-video-engine" class="behind-stream-video" autoplay playsinline webkit-playsinline muted></video>
+                <canvas id="canvas-stream-display" class="canvas-stream-display"></canvas>
                 
                 <div class="video-overlay" id="self-overlay">
                   <div class="avatar-circle" id="room-self-avatar">A</div>
                   <p style="font-size:12px; font-weight:bold; color:#fff;" id="overlay-msg">溫習房已就緒！</p>
-                  <p style="font-size:11px; margin-top:4px; color:#aaa;">請點擊上方「📹 開啟鏡頭」加入 WebRTC 視訊</p>
+                  <p style="font-size:11px; margin-top:4px; color:#aaa;">請點擊上方「📹 開啟鏡頭」加入 P2P 視訊互聯</p>
                 </div>
 
                 <div class="video-header">
@@ -384,14 +399,14 @@
                 </div>
 
                 <div class="video-footer">
-                  <span class="video-tag" id="camera-status-tag" style="background:rgba(16,185,129,0.9); display:none;">🔴 WebRTC 直播中</span>
+                  <span class="video-tag" id="camera-status-tag" style="background:rgba(16,185,129,0.9); display:none;">🔴 鏡頭即時串流中</span>
                 </div>
 
                 <div id="sticker-container-box" class="sticker-container-box"></div>
               </div>
             </div>
 
-            <div class="card" style="max-width:900px; margin:12px auto 0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <div class="card" style="max-width:1000px; margin:12px auto 0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
               <p style="font-size:11px; font-weight:bold;">🦦 發送 Ottiee 彈幕加油貼圖：</p>
               <div style="display:flex; gap:6px;">
                 <button class="btn btn-outline" type="button" style="font-size:16px; padding:4px 8px;" onclick="sendDanmakuSticker('🦦')">🦦</button>
@@ -479,7 +494,7 @@
         <section id="tab-vip" class="tab-content">
           <div class="card" style="background: linear-gradient(135deg, var(--brand-700), #8D6E63); color:white;">
             <h2 style="font-size:18px; font-weight:bold;">ConcenMate VIP 專屬方案</h2>
-            <p style="font-size:12px; margin-top:6px; opacity:0.9;">升級解鎖無限次防瞌睡測試、雲端錄影備份與 HD 60FPS WebRTC 串流！</p>
+            <p style="font-size:12px; margin-top:6px; opacity:0.9;">升級解鎖無限次防瞌睡測試、雲端錄影備份與 HD 60FPS 串流！</p>
           </div>
         </section>
 
@@ -668,12 +683,149 @@
     </div>
   </div>
 
+  <script>
+    window.currentUser = null;
+
+    function showToast(msg, icon = 'ℹ️') {
+      const toast = document.getElementById('toast-box');
+      document.getElementById('toast-msg').innerText = msg;
+      document.getElementById('toast-icon').innerText = icon;
+      toast.classList.add('show');
+      setTimeout(() => { toast.classList.remove('show'); }, 3200);
+    }
+    window.showToast = showToast;
+
+    function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+    window.openModal = openModal;
+    window.closeModal = closeModal;
+
+    function switchTab(tabId, btn) {
+      if (!window.currentUser) {
+        openModal('modal-login');
+        return;
+      }
+
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+      
+      const targetTab = document.getElementById('tab-' + tabId);
+      if (targetTab) targetTab.classList.add('active');
+
+      if (btn) {
+        btn.classList.add('active');
+      } else {
+        const targetBtn = document.getElementById('nav-btn-' + tabId);
+        if (targetBtn) targetBtn.classList.add('active');
+      }
+    }
+    window.switchTab = switchTab;
+
+    function updateUserAuthUI() {
+      const unauthScreen = document.getElementById('unauth-screen');
+      const authContent = document.getElementById('authenticated-app-content');
+      const headerAuthBtn = document.getElementById('header-auth-btn');
+      const headerStats = document.getElementById('header-user-stats');
+
+      if (window.currentUser) {
+        closeModal('modal-login');
+        closeModal('modal-register');
+
+        unauthScreen.style.display = 'none';
+        authContent.style.display = 'block';
+        headerStats.style.display = 'flex';
+
+        headerAuthBtn.className = "btn btn-outline";
+        headerAuthBtn.style.borderRadius = "20px";
+        headerAuthBtn.style.padding = "4px 10px";
+        headerAuthBtn.style.fontSize = "11px";
+        headerAuthBtn.innerHTML = `<span>${window.currentUser.username || window.currentUser.email}</span> <span style="color:#3b82f6; font-weight:bold;">✓</span>`;
+
+        document.getElementById('room-user-name-tag').innerText = (window.currentUser.username || '使用者') + " (你)";
+        document.getElementById('room-self-avatar').innerText = (window.currentUser.username || 'U').charAt(0).toUpperCase();
+        document.getElementById('stat-hours').innerText = window.currentUser.hours || "0.0";
+
+        document.getElementById('prof-username').value = window.currentUser.username || '';
+        document.getElementById('prof-email').value = window.currentUser.email || '';
+        document.getElementById('prof-school').value = window.currentUser.school || '';
+        document.getElementById('prof-grade').value = window.currentUser.grade || '中六 (S6 DSE)';
+        document.getElementById('prof-fav').value = window.currentUser.favSubjects || '';
+        document.getElementById('prof-dislike').value = window.currentUser.dislikeSubjects || '';
+
+        switchTab('room');
+      } else {
+        unauthScreen.style.display = 'block';
+        authContent.style.display = 'none';
+        headerStats.style.display = 'none';
+
+        headerAuthBtn.className = "btn btn-primary";
+        headerAuthBtn.innerHTML = `🔑 登入 / 註冊`;
+      }
+    }
+    window.updateUserAuthUI = updateUserAuthUI;
+
+    function handleHeaderUserClick() {
+      if (window.currentUser) {
+        switchTab('profile');
+      } else {
+        openModal('modal-login');
+      }
+    }
+    window.handleHeaderUserClick = handleHeaderUserClick;
+
+    function sendDanmakuSticker(emoji) {
+      const container = document.getElementById('sticker-container-box');
+      if (!container) return;
+
+      const sticker = document.createElement('div');
+      sticker.className = 'danmaku-sticker';
+      sticker.innerText = emoji;
+
+      const randomLeft = Math.floor(Math.random() * 75) + 10;
+      const randomRotate = Math.floor(Math.random() * 40) - 20;
+      const randomSize = Math.floor(Math.random() * 22) + 36;
+
+      sticker.style.left = randomLeft + '%';
+      sticker.style.fontSize = randomSize + 'px';
+      sticker.style.setProperty('--rot', randomRotate + 'deg');
+
+      container.appendChild(sticker);
+      setTimeout(() => { sticker.remove(); }, 2200);
+    }
+    window.sendDanmakuSticker = sendDanmakuSticker;
+
+    function triggerQuiz() { openModal('modal-quiz'); }
+    window.triggerQuiz = triggerQuiz;
+
+    function answerQuiz(isCorrect) {
+      closeModal('modal-quiz');
+      if (isCorrect) {
+        showToast('🎉 答對了！精神滿滿，獎勵 +10 點數！', '⚡');
+      } else {
+        showToast('答錯囉，快喝口水提提神！', '🥤');
+      }
+    }
+    window.answerQuiz = answerQuiz;
+
+    function viewUserProfile(usernameKey) {
+      const u = window.currentUser || { username: 'Alex Wong', school: '聖保羅男女中學', grade: '中六 (S6 DSE)', favSubjects: '數學, 物理', dislikeSubjects: '中文', hours: '42.5' };
+      document.getElementById('pop-user-avatar').innerText = u.username.charAt(0).toUpperCase();
+      document.getElementById('pop-user-name').innerText = u.username;
+      document.getElementById('pop-user-school').innerText = u.school || '未填寫';
+      document.getElementById('pop-user-grade').innerText = u.grade || '未填寫';
+      document.getElementById('pop-user-fav').innerText = u.favSubjects || '未填寫';
+      document.getElementById('pop-user-dislike').innerText = u.dislikeSubjects || '未填寫';
+      document.getElementById('pop-user-hours').innerText = (u.hours || "0") + " 小時";
+      openModal('modal-view-profile');
+    }
+    window.viewUserProfile = viewUserProfile;
+  </script>
+
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
     import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    // Firebase 專屬 Config 設定 (Project: concenmate-app)
     const firebaseConfig = {
       apiKey: "AIzaSyDcxw01cH4Xdsp8xK4Xq69lnt3kCsEZTkQ",
       authDomain: "concenmate-app.firebaseapp.com",
@@ -684,7 +836,6 @@
       measurementId: "G-MJSTJ0KRN6"
     };
 
-    // 初始化 Firebase Services
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
@@ -692,16 +843,6 @@
     window.db = db;
     window.fs = { doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs };
 
-    // 全域 Toast 通知函數
-    window.showToast = function(msg, icon = 'ℹ️') {
-      const toast = document.getElementById('toast-box');
-      document.getElementById('toast-msg').innerText = msg;
-      document.getElementById('toast-icon').innerText = icon;
-      toast.classList.add('show');
-      setTimeout(() => { toast.classList.remove('show'); }, 3200);
-    };
-
-    // 即時監聽 Firestore 公開溫習房間列表
     let unsubscribeRooms = null;
     function listenToPublicRooms() {
       if (unsubscribeRooms) unsubscribeRooms();
@@ -756,7 +897,6 @@
       });
     }
 
-    // 監聽登入狀態變化
     onAuthStateChanged(auth, async (user) => {
       if (user) {
         try {
@@ -781,10 +921,11 @@
       } else {
         window.currentUser = null;
       }
-      window.updateUserAuthUI();
+      if (typeof window.updateUserAuthUI === 'function') {
+        window.updateUserAuthUI();
+      }
     });
 
-    // 註冊帳號
     window.registerWithFirebase = async function(email, password, profileData) {
       try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -814,7 +955,6 @@
       }
     };
 
-    // 登入帳號
     window.loginWithFirebase = async function(email, password) {
       try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -844,7 +984,6 @@
       }
     };
 
-    // 登出帳號
     window.logoutWithFirebase = async function() {
       await signOut(auth);
       window.currentUser = null;
@@ -909,90 +1048,21 @@
       mediaStream: null,
       countdownTimer: null,
       remainingSeconds: 1800,
+      renderFrameId: null,
       currentRoomId: null,
       isHost: false,
-      peers: {} // 儲存 WebRTC Peer 連結 { peerUid: { pc, stream } }
+      peerConnections: {},
+      signalingUnsubscribe: null
     };
 
     const rtcConfig = {
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+      ]
     };
 
-    function updateUserAuthUI() {
-      const unauthScreen = document.getElementById('unauth-screen');
-      const authContent = document.getElementById('authenticated-app-content');
-      const headerAuthBtn = document.getElementById('header-auth-btn');
-      const headerStats = document.getElementById('header-user-stats');
-
-      if (window.currentUser) {
-        closeModal('modal-login');
-        closeModal('modal-register');
-
-        unauthScreen.style.display = 'none';
-        authContent.style.display = 'block';
-        headerStats.style.display = 'flex';
-
-        headerAuthBtn.className = "btn btn-outline";
-        headerAuthBtn.style.borderRadius = "20px";
-        headerAuthBtn.style.padding = "4px 10px";
-        headerAuthBtn.style.fontSize = "11px";
-        headerAuthBtn.innerHTML = `<span>${window.currentUser.username || window.currentUser.email}</span> <span style="color:#3b82f6; font-weight:bold;">✓</span>`;
-
-        document.getElementById('room-user-name-tag').innerText = (window.currentUser.username || '使用者') + " (你)";
-        document.getElementById('room-self-avatar').innerText = (window.currentUser.username || 'U').charAt(0).toUpperCase();
-        document.getElementById('stat-hours').innerText = window.currentUser.hours || "0.0";
-
-        document.getElementById('prof-username').value = window.currentUser.username || '';
-        document.getElementById('prof-email').value = window.currentUser.email || '';
-        document.getElementById('prof-school').value = window.currentUser.school || '';
-        document.getElementById('prof-grade').value = window.currentUser.grade || '中六 (S6 DSE)';
-        document.getElementById('prof-fav').value = window.currentUser.favSubjects || '';
-        document.getElementById('prof-dislike').value = window.currentUser.dislikeSubjects || '';
-
-        switchTab('room');
-      } else {
-        unauthScreen.style.display = 'block';
-        authContent.style.display = 'none';
-        headerStats.style.display = 'none';
-
-        headerAuthBtn.className = "btn btn-primary";
-        headerAuthBtn.innerHTML = `🔑 登入 / 註冊`;
-      }
-    }
-
-    function handleHeaderUserClick() {
-      if (window.currentUser) {
-        switchTab('profile');
-      } else {
-        openModal('modal-login');
-      }
-    }
-
-    function switchTab(tabId, btn) {
-      if (!window.currentUser) {
-        openModal('modal-login');
-        return;
-      }
-
-      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-      document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
-      
-      const targetTab = document.getElementById('tab-' + tabId);
-      if (targetTab) targetTab.classList.add('active');
-
-      if (btn) {
-        btn.classList.add('active');
-      } else {
-        const targetBtn = document.getElementById('nav-btn-' + tabId);
-        if (targetBtn) targetBtn.classList.add('active');
-      }
-    }
-
-    function openModal(id) { document.getElementById(id).style.display = 'flex'; }
-    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-
-    // 建立新房間並寫入 Firebase 廣播至大廳
-    async function handleCreateRoomSubmit(e) {
+    window.handleCreateRoomSubmit = async function(e) {
       e.preventDefault();
       if (!window.currentUser || !window.db || !window.fs) {
         window.showToast("請先登入會員", "⚠️");
@@ -1017,27 +1087,25 @@
         await window.fs.setDoc(window.fs.doc(window.db, "rooms", roomId), roomData);
         closeModal('modal-create-room');
 
-        enterRoom(roomId, roomName, subject, durationMins, true);
+        enterRoomSetup(roomId, roomName, subject, durationMins, window.currentUser.username || '匿名同學', true);
         window.showToast("🚀 溫習房建立成功並已廣播至公開大廳！", "✨");
       } catch (err) {
         window.showToast("建立房間失敗: " + err.message, "❌");
       }
-    }
+    };
 
-    function joinPublicRoom(roomId, roomName, subject, durationMins, hostName, isMyRoom) {
-      enterRoom(roomId, roomName, subject, durationMins, isMyRoom);
+    window.joinPublicRoom = function(roomId, roomName, subject, durationMins, hostName, isMyRoom) {
+      enterRoomSetup(roomId, roomName, subject, durationMins, hostName, isMyRoom);
       window.showToast(`成功加入「${roomName}」！`, "🦦");
-    }
+    };
 
-    let roomUnsubscribe = null;
-
-    function enterRoom(roomId, roomName, subject, durationMins, isMyRoom) {
+    function enterRoomSetup(roomId, roomName, subject, durationMins, hostName, isMyRoom) {
       state.currentRoomId = roomId;
       state.isHost = isMyRoom;
 
       document.getElementById('active-room-title').innerText = roomName;
       document.getElementById('active-room-subject').innerText = subject;
-      document.getElementById('room-host-tag').innerText = isMyRoom ? "你是房主 👑" : "已加入房間";
+      document.getElementById('room-host-tag').innerText = isMyRoom ? "你是房主 👑" : `房主: ${hostName}`;
 
       state.remainingSeconds = (durationMins || 30) * 60;
       updateTimerDisplay();
@@ -1046,140 +1114,16 @@
       document.getElementById('room-active').style.display = 'block';
 
       startTimer();
-      setupSignaling(roomId);
+      listenToRoomSignaling(roomId);
     }
 
-    // WebRTC Signaling 機制透過 Firestore 協調
-    function setupSignaling(roomId) {
-      if (!window.db || !window.fs || !window.currentUser) return;
-      const myUid = window.currentUser.uid;
-      const signalsRef = window.fs.collection(window.db, "rooms", roomId, "signals");
-
-      roomUnsubscribe = window.fs.onSnapshot(signalsRef, async (snapshot) => {
-        snapshot.docChanges().forEach(async (change) => {
-          if (change.type === "added") {
-            const data = change.doc.data();
-            if (data.toUid === myUid && data.fromUid !== myUid) {
-              await handleSignalingMessage(roomId, data);
-            }
-          }
-        });
-      }, (err) => console.error("Signaling error:", err));
-    }
-
-    async function sendSignal(roomId, toUid, payload) {
-      if (!window.db || !window.fs || !window.currentUser) return;
-      const signalsRef = window.fs.collection(window.db, "rooms", roomId, "signals");
-      await window.fs.addDoc(signalsRef, {
-        fromUid: window.currentUser.uid,
-        fromName: window.currentUser.username,
-        toUid: toUid,
-        payload: payload,
-        timestamp: new Date().toISOString()
-      });
-    }
-
-    async function handleSignalingMessage(roomId, data) {
-      const { fromUid, fromName, payload } = data;
-      let pc = state.peers[fromUid]?.pc;
-
-      if (!pc) {
-        pc = createPeerConnection(fromUid, fromName, roomId);
-      }
-
-      if (payload.type === "offer") {
-        await pc.setRemoteDescription(new RTCSessionDescription(payload));
-        if (state.mediaStream) {
-          state.mediaStream.getTracks().forEach(track => pc.addTrack(track, state.mediaStream));
-        }
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        await sendSignal(roomId, fromUid, answer);
-      } else if (payload.type === "answer") {
-        await pc.setRemoteDescription(new RTCSessionDescription(payload));
-      } else if (payload.candidate) {
-        await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
-      }
-    }
-
-    function createPeerConnection(peerUid, peerName, roomId) {
-      const pc = new RTCPeerConnection(rtcConfig);
-      state.peers[peerUid] = { pc, name: peerName };
-
-      pc.onicecandidate = (event) => {
-        if (event.candidate) {
-          sendSignal(roomId, peerUid, { candidate: event.candidate });
-        }
-      };
-
-      pc.ontrack = (event) => {
-        let videoCard = document.getElementById(`peer-card-${peerUid}`);
-        if (!videoCard) {
-          videoCard = document.createElement('div');
-          videoCard.className = 'video-card-single';
-          videoCard.id = `peer-card-${peerUid}`;
-          videoCard.innerHTML = `
-            <video id="peer-video-${peerUid}" class="peer-video-element" autoplay playsinline></video>
-            <div class="video-header">
-              <span class="video-tag">${peerName || '同學'} 🟢</span>
-            </div>
-            <div class="video-footer">
-              <span class="video-tag" style="background:rgba(16,185,129,0.9);">🔴 視訊串流中</span>
-            </div>
-          `;
-          document.getElementById('video-grid-container').appendChild(videoCard);
-        }
-        const peerVideo = document.getElementById(`peer-video-${peerUid}`);
-        if (peerVideo && event.streams[0]) {
-          peerVideo.srcObject = event.streams[0];
-          peerVideo.play().catch(e => console.log(e));
-        }
-      };
-
-      return pc;
-    }
-
-    // 當開啟鏡頭時，主動向同房其他線上用戶發起 WebRTC 連線 (Offer)
-    async function initiateCalls() {
-      if (!window.db || !window.fs || !window.currentUser) return;
-      const myUid = window.currentUser.uid;
-      const roomId = state.currentRoomId;
-
-      // 簡單起見，廣播給其他新加入的 peer
-      // 同學在大廳或房內時，可透過 room signals 觸發
-      // 當點擊開啟鏡頭後，若房內有其他人，可在 rooms 或 signals 宣告自己上線
-      const presenceRef = window.fs.collection(window.db, "rooms", roomId, "presence");
-      await window.fs.addDoc(presenceRef, {
-        uid: myUid,
-        name: window.currentUser.username,
-        timestamp: new Date().toISOString()
-      });
-
-      // 監聽 presence 建立對其他人的連線
-      window.fs.onSnapshot(presenceRef, async (snapshot) => {
-        snapshot.forEach(async (docSnap) => {
-          const info = docSnap.data();
-          if (info.uid !== myUid && !state.peers[info.uid]) {
-            const pc = createPeerConnection(info.uid, info.name, roomId);
-            if (state.mediaStream) {
-              state.mediaStream.getTracks().forEach(track => pc.addTrack(track, state.mediaStream));
-            }
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            await sendSignal(roomId, info.uid, offer);
-          }
-        });
-      });
-    }
-
-    // 從溫習房返回公開大廳
-    function returnToLobby() {
-      cleanupRoom();
+    window.returnToLobby = function() {
+      cleanupRoomConnections();
       document.getElementById('room-active').style.display = 'none';
       document.getElementById('room-lobby').style.display = 'block';
-    }
+    };
 
-    async function deleteRoomQuick(roomId) {
+    window.deleteRoomQuick = async function(roomId) {
       if (!window.db || !window.fs) return;
       try {
         await window.fs.deleteDoc(window.fs.doc(window.db, "rooms", roomId));
@@ -1187,7 +1131,7 @@
       } catch (err) {
         window.showToast("刪除失敗", "❌");
       }
-    }
+    };
 
     function startTimer() {
       if (state.countdownTimer) clearInterval(state.countdownTimer);
@@ -1209,124 +1153,231 @@
         `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }
 
-    function cleanupRoom() {
-      if (state.isCameraOn) toggleCamera();
-      if (state.countdownTimer) clearInterval(state.countdownTimer);
-      if (roomUnsubscribe) roomUnsubscribe();
-
-      // 關閉所有 WebRTC 連結
-      Object.keys(state.peers).forEach(uid => {
-        state.peers[uid].pc.close();
-        const card = document.getElementById(`peer-card-${uid}`);
-        if (card) card.remove();
-      });
-      state.peers = {};
-
-      state.currentRoomId = null;
-      state.isHost = false;
-    }
-
-    async function leaveRoom() {
+    window.leaveRoom = async function() {
       if (state.isHost && state.currentRoomId && window.fs && window.db) {
         try {
           await window.fs.deleteDoc(window.fs.doc(window.db, "rooms", state.currentRoomId));
         } catch(e) { console.error("刪除房間失敗", e); }
       }
-      
-      cleanupRoom();
+      cleanupRoomConnections();
       document.getElementById('room-active').style.display = 'none';
       document.getElementById('room-lobby').style.display = 'block';
       window.showToast('已退出溫習房間', '🚪');
+    };
+
+    function cleanupRoomConnections() {
+      if (state.isCameraOn) window.toggleCamera();
+      if (state.countdownTimer) clearInterval(state.countdownTimer);
+      if (state.signalingUnsubscribe) {
+        state.signalingUnsubscribe();
+        state.signalingUnsubscribe = null;
+      }
+      Object.values(state.peerConnections).forEach(pc => pc.close());
+      state.peerConnections = {};
+
+      document.querySelectorAll('.remote-video-card').forEach(el => el.remove());
+      state.currentRoomId = null;
+      state.isHost = false;
     }
 
-    async function toggleCamera() {
-      const videoEl = document.getElementById('self-video-element');
+    window.wakeVideoEngine = function() {
+      const video = document.getElementById('behind-video-engine');
+      if (video && video.srcObject && video.paused) {
+        video.play().catch(e => console.log(e));
+      }
+    };
+
+    function startCanvasRenderLoop() {
+      const video = document.getElementById('behind-video-engine');
+      const canvas = document.getElementById('canvas-stream-display');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+
+      function drawFrame() {
+        if (!state.isCameraOn) return;
+        if (video.paused && video.srcObject) video.play().catch(() => {});
+
+        if (video.readyState >= 2 && video.videoWidth > 0) {
+          if (canvas.width !== video.videoWidth) {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+          }
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        }
+        state.renderFrameId = requestAnimationFrame(drawFrame);
+      }
+
+      state.renderFrameId = requestAnimationFrame(drawFrame);
+    }
+
+    window.toggleCamera = async function() {
+      const videoEl = document.getElementById('behind-video-engine');
+      const canvasEl = document.getElementById('canvas-stream-display');
       const overlayEl = document.getElementById('self-overlay');
       const statusTag = document.getElementById('camera-status-tag');
       const btn = document.getElementById('btn-camera');
 
       if (state.isCameraOn) {
+        if (state.renderFrameId) cancelAnimationFrame(state.renderFrameId);
         if (state.mediaStream) {
           state.mediaStream.getTracks().forEach(track => track.stop());
           state.mediaStream = null;
         }
         state.isCameraOn = false;
+        canvasEl.style.display = 'none';
         videoEl.srcObject = null;
         overlayEl.style.display = 'flex';
         statusTag.style.display = 'none';
         btn.innerText = '📹 開啟鏡頭';
         btn.className = 'btn btn-primary';
+
+        Object.values(state.peerConnections).forEach(pc => pc.close());
+        state.peerConnections = {};
+        document.querySelectorAll('.remote-video-card').forEach(el => el.remove());
       } else {
         btn.innerText = '⏳ 鏡頭啟動中...';
 
         try {
           const stream = await navigator.mediaDevices.getUserMedia({
             video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
-            audio: true
+            audio: false
           });
           
           state.mediaStream = stream;
           state.isCameraOn = true;
 
           videoEl.muted = true;
+          videoEl.volume = 0;
+          videoEl.setAttribute('playsinline', 'true');
           videoEl.srcObject = stream;
           await videoEl.play().catch(e => console.log(e));
 
+          canvasEl.style.display = 'block';
           overlayEl.style.display = 'none';
-          statusTag.style.display = 'inline-flex';
-          btn.innerText = '🛑 關閉鏡頭';
+          statusTag.style.display = 'flex';
+          btn.innerText = '🔴 關閉鏡頭';
           btn.className = 'btn btn-red';
 
-          // 啟動 WebRTC 呼叫與串流廣播
-          initiateCalls();
+          startCanvasRenderLoop();
+          broadcastPresenceAndConnect();
+          window.showToast('鏡頭與 P2P 串流已順利啟動！', '📹');
         } catch (err) {
+          console.error("相機存取失敗:", err);
+          window.showToast('無法存取相機鏡頭，請檢查瀏覽器權限。', '❌');
           btn.innerText = '📹 開啟鏡頭';
-          window.showToast('無法開啟鏡頭或麥克風，請確認權限設定。', '⚠️');
-          console.error(err);
         }
       }
+    };
+
+    async function broadcastPresenceAndConnect() {
+      if (!window.currentUser || !state.currentRoomId || !window.db) return;
+      const myUid = window.currentUser.uid;
+      const presenceRef = window.fs.doc(window.db, "rooms", state.currentRoomId, "signals", myUid);
+      
+      await window.fs.setDoc(presenceRef, {
+        uid: myUid,
+        name: window.currentUser.username || '同學',
+        timestamp: Date.now()
+      }, { merge: true });
     }
 
-    function sendDanmakuSticker(emoji) {
-      const container = document.getElementById('sticker-container-box');
-      if (!container) return;
+    function listenToRoomSignaling(roomId) {
+      if (state.signalingUnsubscribe) state.signalingUnsubscribe();
 
-      const sticker = document.createElement('div');
-      sticker.className = 'danmaku-sticker';
-      sticker.innerText = emoji;
+      const signalsRef = window.fs.collection(window.db, "rooms", roomId, "signals");
+      state.signalingUnsubscribe = window.fs.onSnapshot(signalsRef, async (snapshot) => {
+        if (!state.isCameraOn || !window.currentUser) return;
+        const myUid = window.currentUser.uid;
 
-      const randomLeft = Math.floor(Math.random() * 75) + 10;
-      const randomRotate = Math.floor(Math.random() * 40) - 20;
-      const randomSize = Math.floor(Math.random() * 22) + 36;
+        snapshot.forEach(async (docSnap) => {
+          const data = docSnap.data();
+          const remoteUid = data.uid;
 
-      sticker.style.left = randomLeft + '%';
-      sticker.style.fontSize = randomSize + 'px';
-      sticker.style.setProperty('--rot', randomRotate + 'deg');
+          if (remoteUid && remoteUid !== myUid) {
+            let remoteCard = document.getElementById('remote-card-' + remoteUid);
+            if (!remoteCard) {
+              const grid = document.getElementById('video-grid-container');
+              remoteCard = document.createElement('div');
+              remoteCard.className = 'video-card-single remote-video-card';
+              remoteCard.id = 'remote-card-' + remoteUid;
+              remoteCard.innerHTML = `
+                <video class="remote-video-element" autoplay playsinline></video>
+                <div class="video-header">
+                  <span class="video-tag">📹 ${data.name || '其他用家'}</span>
+                  <span class="video-tag" style="background:#10b981; color:#fff;">🟢 即時串流</span>
+                </div>
+              `;
+              grid.appendChild(remoteCard);
+            }
 
-      container.appendChild(sticker);
-      setTimeout(() => { sticker.remove(); }, 2200);
+            if (!state.peerConnections[remoteUid]) {
+              const pc = createPeerConnection(remoteUid, data.name);
+              state.peerConnections[remoteUid] = pc;
+
+              try {
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                
+                await window.fs.setDoc(window.fs.doc(window.db, "rooms", roomId, "signals", myUid + "_to_" + remoteUid), {
+                  from: myUid,
+                  to: remoteUid,
+                  offer: JSON.parse(JSON.stringify(offer)),
+                  timestamp: Date.now()
+                });
+              } catch (err) {
+                console.error("建立 WebRTC Offer 失敗:", err);
+              }
+            }
+          }
+        });
+      });
     }
 
-    function triggerQuiz() { openModal('modal-quiz'); }
-    function answerQuiz(isCorrect) {
-      closeModal('modal-quiz');
-      if (isCorrect) {
-        window.showToast('🎉 答對了！精神滿滿，獎勵 +10 點數！', '⚡');
-      } else {
-        window.showToast('答錯囉，快喝口水提提神！', '🥤');
+    function createPeerConnection(remoteUid, remoteName) {
+      const pc = new RTCPeerConnection(rtcConfig);
+
+      if (state.mediaStream) {
+        state.mediaStream.getTracks().forEach(track => {
+          pc.addTrack(track, state.mediaStream);
+        });
       }
-    }
 
-    function viewUserProfile(usernameKey) {
-      const u = window.currentUser || { username: 'Alex Wong', school: '聖保羅男女中學', grade: '中六 (S6 DSE)', favSubjects: '數學, 物理', dislikeSubjects: '中文', hours: '42.5' };
-      document.getElementById('pop-user-avatar').innerText = u.username.charAt(0).toUpperCase();
-      document.getElementById('pop-user-name').innerText = u.username;
-      document.getElementById('pop-user-school').innerText = u.school || '未填寫';
-      document.getElementById('pop-user-grade').innerText = u.grade || '未填寫';
-      document.getElementById('pop-user-fav').innerText = u.favSubjects || '未填寫';
-      document.getElementById('pop-user-dislike').innerText = u.dislikeSubjects || '未填寫';
-      document.getElementById('pop-user-hours').innerText = (u.hours || "0") + " 小時";
-      openModal('modal-view-profile');
+      pc.ontrack = (event) => {
+        let remoteCard = document.getElementById('remote-card-' + remoteUid);
+        if (!remoteCard) {
+          const grid = document.getElementById('video-grid-container');
+          remoteCard = document.createElement('div');
+          remoteCard.className = 'video-card-single remote-video-card';
+          remoteCard.id = 'remote-card-' + remoteUid;
+          remoteCard.innerHTML = `
+            <video class="remote-video-element" autoplay playsinline></video>
+            <div class="video-header">
+              <span class="video-tag">📹 ${remoteName}</span>
+              <span class="video-tag" style="background:#10b981; color:#fff;">🟢 串流播放中</span>
+            </div>
+          `;
+          grid.appendChild(remoteCard);
+        }
+
+        const remoteVideo = remoteCard.querySelector('video');
+        if (remoteVideo && event.streams[0]) {
+          remoteVideo.srcObject = event.streams[0];
+          remoteVideo.play().catch(e => console.log(e));
+        }
+      };
+
+      pc.onicecandidate = async (event) => {
+        if (event.candidate && state.currentRoomId && window.currentUser) {
+          await window.fs.addDoc(window.fs.collection(window.db, "rooms", state.currentRoomId, "candidates"), {
+            from: window.currentUser.uid,
+            to: remoteUid,
+            candidate: event.candidate.toJSON(),
+            timestamp: Date.now()
+          });
+        }
+      };
+
+      return pc;
     }
   </script>
 </body>
