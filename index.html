@@ -7,7 +7,7 @@
   
   <!-- 👇👇👇 每次推送到 GitHub 前，請在這裡修改版號 👇👇👇 -->
   <script>
-    window.APP_VERSION = "v1.0.3"; // 在這裡修改測試版號
+    window.APP_VERSION = "v1.0.4"; // 在這裡修改測試版號
   </script>
   <!-- 👆👆👆 每次推送到 GitHub 前，請在這裡修改版號 👆👆👆 -->
 
@@ -465,7 +465,7 @@
 
               <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
                 <button class="btn btn-primary" type="button" id="btn-camera" onclick="toggleCamera()">📹 開啟鏡頭</button>
-                <button class="btn btn-outline" type="button" id="btn-mic" onclick="toggleMic()" style="display:none;">🎤 靜音</button>
+                <button class="btn btn-red" type="button" id="btn-mic" onclick="toggleMic()">🔇 已靜音</button>
 
                 <div style="background:#111; color:white; font-family:monospace; padding:4px 8px; border-radius:8px; font-size:11px;">
                   ⏱️ 倒數: <span id="room-timer">30:00</span>
@@ -1192,7 +1192,7 @@
       renderFrameId: null,
       currentRoomId: null,
       isHost: false,
-      isMicOn: true,
+      isMicOn: false,
       peerConnections: {},
       signalingUnsubscribe: null,
       candidatesUnsubscribe: null,
@@ -1253,6 +1253,10 @@
         el.className = 'video-card-single remote-video-card';
         el.innerHTML = `
           <video class="remote-video-element" autoplay playsinline></video>
+          <div class="video-overlay" style="display:none;">
+            <div class="avatar-circle" style="opacity:.6;">🚫</div>
+            <p style="font-size:12px; color:#ccc; margin-top:6px;">對方鏡頭已關閉</p>
+          </div>
           <div class="video-header">
             <span class="video-tag">📹 ${name || '其他用家'}</span>
             <span class="video-tag" id="stream-status-${uid}" style="background:#6b7280; color:#fff;">🔗 連線中...</span>
@@ -1260,6 +1264,17 @@
         `;
       }
       return el.querySelector('video');
+    }
+
+    // 依對方目前的鏡頭開關狀態，顯示／隱藏「對方鏡頭已關閉」的黑色遮罩
+    // （這樣關閉自己鏡頭的一方也不會誤以為對方畫面卡住，而是清楚顯示鏡頭已關閉）
+    function updateRemoteSlotCameraState(uid, cameraOn) {
+      const slotNum = state.slotAssignments[uid];
+      if (!slotNum) return;
+      const el = getSlotElement(slotNum);
+      if (!el) return;
+      const overlay = el.querySelector('.video-overlay');
+      if (overlay) overlay.style.display = cameraOn ? 'none' : 'flex';
     }
 
     // 收到對方實際的視訊畫面（track）後，把狀態標籤改成「即時串流」
@@ -1307,10 +1322,23 @@
       await window.fs.setDoc(window.fs.doc(window.db, "rooms", roomId, "participants", myUid), {
         uid: myUid,
         name: window.currentUser.username || '同學',
-        joinedAt: Date.now()
+        joinedAt: Date.now(),
+        cameraOn: false
       });
 
       return true;
+    }
+
+    // 把自己目前鏡頭開／關的狀態寫回 participants 文件，讓其他人看到正確的「鏡頭已關閉」提示
+    async function updateMyCameraStatus(cameraOn) {
+      if (!window.currentUser || !state.currentRoomId || !window.db) return;
+      try {
+        await window.fs.setDoc(window.fs.doc(window.db, "rooms", state.currentRoomId, "participants", window.currentUser.uid), {
+          cameraOn
+        }, { merge: true });
+      } catch (e) {
+        console.error("更新鏡頭狀態失敗:", e);
+      }
     }
 
     // 監聽房間目前的用家名單，動態分配 / 釋放格子，並更新人數顯示
@@ -1333,8 +1361,10 @@
         });
 
         // 為在場但尚未分配格子的用家安排格子（僅顯示佔位，鏡頭畫面待 WebRTC 連線後填入）
+        // 並同步「對方鏡頭是否開啟」的狀態，讓對方關鏡頭時能正確顯示「鏡頭已關閉」而不是卡住的畫面
         others.forEach(p => {
           if (!state.slotAssignments[p.uid]) getOrCreateRemoteSlot(p.uid, p.name);
+          updateRemoteSlotCameraState(p.uid, !!p.cameraOn);
         });
 
         updateParticipantCountUI(snapshot.size);
@@ -1484,8 +1514,29 @@
     };
 
     function cleanupRoomConnections() {
-      if (state.isCameraOn) window.toggleCamera();
+      if (state.renderFrameId) cancelAnimationFrame(state.renderFrameId);
       if (state.countdownTimer) clearInterval(state.countdownTimer);
+
+      // 完整結束鏡頭＋麥克風（離開房間跟單純「關閉鏡頭」不同，要整個釋放掉）
+      if (state.mediaStream) {
+        state.mediaStream.getTracks().forEach(track => track.stop());
+        state.mediaStream = null;
+      }
+      state.isCameraOn = false;
+      state.isMicOn = false;
+
+      const videoEl = document.getElementById('behind-video-engine');
+      const canvasEl = document.getElementById('canvas-stream-display');
+      const overlayEl = document.getElementById('self-overlay');
+      const statusTag = document.getElementById('camera-status-tag');
+      const btn = document.getElementById('btn-camera');
+      if (videoEl) videoEl.srcObject = null;
+      if (canvasEl) canvasEl.style.display = 'none';
+      if (overlayEl) overlayEl.style.display = 'flex';
+      if (statusTag) statusTag.style.display = 'none';
+      if (btn) { btn.innerText = '📹 開啟鏡頭'; btn.className = 'btn btn-primary'; }
+      updateMicButtonUI();
+
       if (state.signalingUnsubscribe) {
         state.signalingUnsubscribe();
         state.signalingUnsubscribe = null;
@@ -1535,65 +1586,131 @@
       state.renderFrameId = requestAnimationFrame(drawFrame);
     }
 
+    // 把目前 mediaStream 裡的視訊／音訊軌道，同步套用到所有既存的 P2P 連線上
+    // （用 replaceTrack 就不需要重新走一次 Offer/Answer 協商）
+    function syncLocalTracksToPeers() {
+      if (!state.mediaStream) return;
+      const videoTrack = state.mediaStream.getVideoTracks()[0] || null;
+      const audioTrack = state.mediaStream.getAudioTracks()[0] || null;
+
+      Object.values(state.peerConnections).forEach(pc => {
+        const senders = pc.getSenders();
+
+        if (videoTrack) {
+          const videoSender = senders.find(s => s.track && s.track.kind === 'video');
+          if (videoSender) videoSender.replaceTrack(videoTrack);
+          else pc.addTrack(videoTrack, state.mediaStream);
+        }
+
+        if (audioTrack) {
+          const audioSender = senders.find(s => s.track && s.track.kind === 'audio');
+          if (audioSender) audioSender.replaceTrack(audioTrack);
+          else pc.addTrack(audioTrack, state.mediaStream);
+        }
+      });
+    }
+
+    function updateMicButtonUI() {
+      const micBtn = document.getElementById('btn-mic');
+      const micTag = document.getElementById('mic-status-tag');
+      if (!micBtn) return;
+
+      if (state.isMicOn) {
+        micBtn.innerText = '🎤 咪已開';
+        micBtn.className = 'btn btn-outline';
+        if (micTag) {
+          micTag.style.display = state.isCameraOn ? 'flex' : 'none';
+          micTag.innerText = '🎤 已開咪';
+          micTag.style.background = 'rgba(16,185,129,0.9)';
+        }
+      } else {
+        micBtn.innerText = '🔇 已靜音';
+        micBtn.className = 'btn btn-red';
+        if (micTag) {
+          micTag.style.display = state.isCameraOn ? 'flex' : 'none';
+          micTag.innerText = '🔇 已靜音';
+          micTag.style.background = 'rgba(107,114,128,0.9)';
+        }
+      }
+    }
+
     window.toggleCamera = async function() {
       const videoEl = document.getElementById('behind-video-engine');
       const canvasEl = document.getElementById('canvas-stream-display');
       const overlayEl = document.getElementById('self-overlay');
       const statusTag = document.getElementById('camera-status-tag');
-      const micTag = document.getElementById('mic-status-tag');
       const btn = document.getElementById('btn-camera');
-      const micBtn = document.getElementById('btn-mic');
 
       if (state.isCameraOn) {
+        // 只關閉「鏡頭」本身：停止視訊軌道，但刻意不去關閉 P2P 連線、
+        // 不呼叫 resetVideoSlots()。不然自己會連帶看不到其他人本來就開著的鏡頭畫面。
         if (state.renderFrameId) cancelAnimationFrame(state.renderFrameId);
+
         if (state.mediaStream) {
-          state.mediaStream.getTracks().forEach(track => track.stop());
-          state.mediaStream = null;
+          state.mediaStream.getVideoTracks().forEach(track => {
+            track.stop();
+            state.mediaStream.removeTrack(track);
+          });
         }
+
         state.isCameraOn = false;
-        state.isMicOn = true;
         canvasEl.style.display = 'none';
         videoEl.srcObject = null;
         overlayEl.style.display = 'flex';
         statusTag.style.display = 'none';
-        micTag.style.display = 'none';
         btn.innerText = '📹 開啟鏡頭';
         btn.className = 'btn btn-primary';
-        micBtn.style.display = 'none';
-        micBtn.innerText = '🎤 靜音';
-        micBtn.className = 'btn btn-outline';
+        updateMicButtonUI();
 
-        Object.values(state.peerConnections).forEach(pc => pc.close());
-        state.peerConnections = {};
-        state.pendingCandidates = {};
-        resetVideoSlots();
+        updateMyCameraStatus(false);
       } else {
         btn.innerText = '⏳ 鏡頭啟動中...';
 
         try {
-          let stream;
-          try {
-            stream = await navigator.mediaDevices.getUserMedia({
-              video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
-              audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+          let videoTrack;
+
+          if (state.mediaStream) {
+            // 已經有現成的媒體串流（例如之前已經開過麥克風，或只是重新開鏡頭），
+            // 這次只需要另外取得視訊畫面即可
+            const videoOnlyStream = await navigator.mediaDevices.getUserMedia({
+              video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" }
             });
-          } catch (mediaErr) {
-            console.warn("同時取得鏡頭與麥克風失敗，改為僅開啟鏡頭:", mediaErr);
-            stream = await navigator.mediaDevices.getUserMedia({
-              video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
-              audio: false
-            });
-            window.showToast('未能存取麥克風，僅開啟鏡頭畫面', '⚠️');
+            videoTrack = videoOnlyStream.getVideoTracks()[0];
+            state.mediaStream.addTrack(videoTrack);
+          } else {
+            // 全新啟動：嘗試一次過取得鏡頭＋麥克風（麥克風權限失敗則退回純鏡頭畫面）
+            let stream;
+            try {
+              stream = await navigator.mediaDevices.getUserMedia({
+                video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
+                audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+              });
+            } catch (mediaErr) {
+              console.warn("同時取得鏡頭與麥克風失敗，改為僅開啟鏡頭:", mediaErr);
+              stream = await navigator.mediaDevices.getUserMedia({
+                video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
+                audio: false
+              });
+              window.showToast('未能存取麥克風，僅開啟鏡頭畫面', '⚠️');
+            }
+
+            state.mediaStream = stream;
+            videoTrack = stream.getVideoTracks()[0];
+
+            // 麥克風預設保持靜音，需要按「開咪」才會出聲
+            if (stream.getAudioTracks().length > 0) {
+              stream.getAudioTracks().forEach(t => t.enabled = false);
+              state.isMicOn = false;
+              updateMicButtonUI();
+            }
           }
-          
-          state.mediaStream = stream;
+
           state.isCameraOn = true;
-          state.isMicOn = true;
 
           videoEl.muted = true;
           videoEl.volume = 0;
           videoEl.setAttribute('playsinline', 'true');
-          videoEl.srcObject = stream;
+          videoEl.srcObject = state.mediaStream;
           await videoEl.play().catch(e => console.log(e));
 
           canvasEl.style.display = 'block';
@@ -1601,19 +1718,13 @@
           statusTag.style.display = 'flex';
           btn.innerText = '🔴 關閉鏡頭';
           btn.className = 'btn btn-red';
+          updateMicButtonUI();
 
-          if (stream.getAudioTracks().length > 0) {
-            micBtn.style.display = 'inline-flex';
-            micBtn.innerText = '🎤 靜音';
-            micBtn.className = 'btn btn-outline';
-            micTag.style.display = 'flex';
-            micTag.innerText = '🎤 已開咪';
-            micTag.style.background = 'rgba(16,185,129,0.9)';
-          }
-
+          syncLocalTracksToPeers();
           startCanvasRenderLoop();
           await broadcastPresenceAndConnect();
           await connectToExistingPeers(state.currentRoomId);
+          updateMyCameraStatus(true);
           window.showToast('鏡頭與 P2P 串流已順利啟動！', '📹');
         } catch (err) {
           console.error("相機存取失敗:", err);
@@ -1623,37 +1734,38 @@
       }
     };
 
-    // 靜音 / 取消靜音：只切換音軌的 enabled 狀態，不會中斷已建立的 P2P 連線，
-    // 對方會即時收到「沒有聲音」而不需要重新協商 WebRTC 連線。
-    window.toggleMic = function() {
-      if (!state.mediaStream) return;
-      const audioTracks = state.mediaStream.getAudioTracks();
-      if (audioTracks.length === 0) {
-        window.showToast('未偵測到麥克風裝置', '⚠️');
-        return;
+    // 靜音 / 開咪：跟鏡頭開關互相獨立，就算未開鏡頭也可以先按這顆掣。
+    // 第一次按下且尚未有任何音訊軌道時，會另外請求麥克風權限；
+    // 已經切換過的話，只是單純切換音軌的 enabled 狀態（不會中斷 P2P 連線）。
+    window.toggleMic = async function() {
+      const micBtn = document.getElementById('btn-mic');
+
+      if (!state.mediaStream || state.mediaStream.getAudioTracks().length === 0) {
+        if (micBtn) micBtn.innerText = '⏳ 取得麥克風中...';
+        try {
+          const audioStream = await navigator.mediaDevices.getUserMedia({
+            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+          });
+          const audioTrack = audioStream.getAudioTracks()[0];
+
+          if (!state.mediaStream) {
+            state.mediaStream = audioStream;
+          } else {
+            state.mediaStream.addTrack(audioTrack);
+          }
+
+          syncLocalTracksToPeers();
+        } catch (err) {
+          console.error("取得麥克風失敗:", err);
+          window.showToast('無法存取麥克風，請檢查瀏覽器權限設定。', '❌');
+          updateMicButtonUI();
+          return;
+        }
       }
 
       state.isMicOn = !state.isMicOn;
-      audioTracks.forEach(track => track.enabled = state.isMicOn);
-
-      const micBtn = document.getElementById('btn-mic');
-      const micTag = document.getElementById('mic-status-tag');
-
-      if (state.isMicOn) {
-        micBtn.innerText = '🎤 靜音';
-        micBtn.className = 'btn btn-outline';
-        if (micTag) {
-          micTag.innerText = '🎤 已開咪';
-          micTag.style.background = 'rgba(16,185,129,0.9)';
-        }
-      } else {
-        micBtn.innerText = '🔇 已靜音';
-        micBtn.className = 'btn btn-red';
-        if (micTag) {
-          micTag.innerText = '🔇 已靜音';
-          micTag.style.background = 'rgba(107,114,128,0.9)';
-        }
-      }
+      state.mediaStream.getAudioTracks().forEach(track => track.enabled = state.isMicOn);
+      updateMicButtonUI();
     };
 
     async function broadcastPresenceAndConnect() {
