@@ -7,7 +7,7 @@
   
   <!-- 👇👇👇 每次推送到 GitHub 前，請在這裡修改版號 👇👇👇 -->
   <script>
-    window.APP_VERSION = "v1.0.5"; // 在這裡修改測試版號
+    window.APP_VERSION = "v1.0.6"; // 在這裡修改測試版號
   </script>
   <!-- 👆👆👆 每次推送到 GitHub 前，請在這裡修改版號 👆👆👆 -->
 
@@ -1582,7 +1582,8 @@
           btn.className = 'btn btn-red';
 
           startCanvasRenderLoop();
-          broadcastPresenceAndConnect();
+          await broadcastPresenceAndConnect();
+          await connectToExistingPeers(state.currentRoomId);
           window.showToast('鏡頭與 P2P 串流已順利啟動！', '📹');
         } catch (err) {
           console.error("相機存取失敗:", err);
@@ -1602,6 +1603,32 @@
         name: window.currentUser.username || '同學',
         timestamp: Date.now()
       }, { merge: true });
+    }
+
+    // 開鏡頭當下，主動掃描房內「早已存在」的其他用家並嘗試建立連線。
+    // 若只靠監聽器被動反應，會漏掉「對方比我早開鏡頭」這種情況（因為那時對方的
+    // presence 文件並沒有再次變動，我方的監聽器不會再被觸發）。
+    async function connectToExistingPeers(roomId) {
+      if (!window.currentUser || !window.db || !roomId) return;
+      const myUid = window.currentUser.uid;
+
+      try {
+        const signalsRef = window.fs.collection(window.db, "rooms", roomId, "signals");
+        const snapshot = await window.fs.getDocs(signalsRef);
+
+        for (const docSnap of snapshot.docs) {
+          const data = docSnap.data();
+          if (!data.uid || data.uid === myUid) continue;
+
+          getOrCreateRemoteSlot(data.uid, data.name);
+
+          if (myUid < data.uid && !state.peerConnections[data.uid]) {
+            await createOfferTo(roomId, data.uid, data.name);
+          }
+        }
+      } catch (err) {
+        console.error("掃描現有房內用家失敗:", err);
+      }
     }
 
     function listenToRoomSignaling(roomId) {
