@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>ConcenMate 書伴 - 虛擬溫習空間</title>
   
+  <!-- 👇👇👇 每次推送到 GitHub 前，請在這裡修改版號 👇👇👇 -->
+  <script>
+    window.APP_VERSION = "v1.0.2"; // 在這裡修改測試版號
+  </script>
+  <!-- 👆👆👆 每次推送到 GitHub 前，請在這裡修改版號 👆👆👆 -->
+
   <style>
     :root {
       --brand-50: #FAF6F0;
@@ -316,7 +322,7 @@
     <div style="border-bottom: 1px dashed #059669; padding-bottom: 4px; margin-bottom: 4px; font-weight: bold; color: white;">
       <span class="pulse-dot"></span>環境除錯面板
     </div>
-    🔧 靜態版號: <span style="color:#fbbf24; font-weight:bold;">v1.0.1-beta</span> <span style="font-size:10px; color:#888;">(Push前修改)</span><br>
+    🔧 靜態版號: <span id="version-display" style="color:#fbbf24; font-weight:bold;"></span> <span style="font-size:10px; color:#888;">(於檔案頂部修改)</span><br>
     ⏱️ 載入時間: <span id="load-timestamp" style="color:#60a5fa;">讀取中...</span>
   </div>
 
@@ -742,6 +748,12 @@
                         now.getMinutes().toString().padStart(2, '0') + ':' + 
                         now.getSeconds().toString().padStart(2, '0');
         timeBadge.innerText = `${dateStr} ${timeStr}`;
+      }
+
+      // 將頂部設定的版號注入到除錯面板中
+      const versionBadge = document.getElementById('version-display');
+      if (versionBadge && window.APP_VERSION) {
+        versionBadge.innerText = window.APP_VERSION;
       }
     });
 
