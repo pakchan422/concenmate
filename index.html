@@ -7,7 +7,7 @@
   
   <!-- 👇👇👇 每次推送到 GitHub 前，請在這裡修改版號 👇👇👇 -->
   <script>
-    window.APP_VERSION = "v1.0.4"; // 在這裡修改測試版號
+    window.APP_VERSION = "v1.0.5"; // 在這裡修改測試版號
   </script>
   <!-- 👆👆👆 每次推送到 GitHub 前，請在這裡修改版號 👆👆👆 -->
 
@@ -115,6 +115,40 @@
       gap: 12px;
       max-width: 1000px;
       margin: 0 auto;
+    }
+
+    /* 讓「自己嘅鏡頭卡片 + 底下嘅表情按鈕」合埋做一個 grid cell，唔會拆散版面 */
+    .self-video-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .emoji-reaction-bar {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      background: white;
+      border: 1px solid var(--brand-200);
+      border-radius: 12px;
+      padding: 6px;
+    }
+    .emoji-reaction-bar button {
+      background: transparent;
+      border: none;
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 6px 10px;
+      border-radius: 8px;
+      transition: transform .15s ease, background .15s ease;
+    }
+    .emoji-reaction-bar button:hover {
+      background: var(--brand-100);
+      transform: scale(1.15);
+    }
+    .emoji-reaction-bar button:active {
+      transform: scale(0.9);
     }
 
     .video-card-single { 
@@ -480,29 +514,38 @@
             </div>
 
             <div id="video-grid-container" class="video-grid-container">
-              <div class="video-card-single" id="video-slot-1" onclick="wakeVideoEngine()">
-                <video id="behind-video-engine" class="behind-stream-video" autoplay playsinline webkit-playsinline muted></video>
-                <canvas id="canvas-stream-display" class="canvas-stream-display"></canvas>
-                
-                <div class="video-overlay" id="self-overlay">
-                  <div class="avatar-circle" id="room-self-avatar">A</div>
-                  <p style="font-size:12px; font-weight:bold; color:#fff;" id="overlay-msg">溫習房已就緒！</p>
-                  <p style="font-size:11px; margin-top:4px; color:#aaa;">請點擊上方「📹 開啟鏡頭」加入 P2P 視訊互聯</p>
+              <div class="self-video-wrapper">
+                <div class="video-card-single" id="video-slot-1" onclick="wakeVideoEngine()">
+                  <video id="behind-video-engine" class="behind-stream-video" autoplay playsinline webkit-playsinline muted></video>
+                  <canvas id="canvas-stream-display" class="canvas-stream-display"></canvas>
+                  
+                  <div class="video-overlay" id="self-overlay">
+                    <div class="avatar-circle" id="room-self-avatar">A</div>
+                    <p style="font-size:12px; font-weight:bold; color:#fff;" id="overlay-msg">溫習房已就緒！</p>
+                    <p style="font-size:11px; margin-top:4px; color:#aaa;">請點擊上方「📹 開啟鏡頭」加入 P2P 視訊互聯</p>
+                  </div>
+
+                  <div class="video-header">
+                    <span class="video-tag">
+                      <span id="room-user-name-tag">Alex Wong (你)</span> ✓
+                    </span>
+                    <span class="video-tag" style="background:#f59e0b; color:#000;" id="room-host-tag">房主專注中</span>
+                  </div>
+
+                  <div class="video-footer">
+                    <span class="video-tag" id="camera-status-tag" style="background:rgba(16,185,129,0.9); display:none;">🔴 鏡頭即時串流中</span>
+                    <span class="video-tag" id="mic-status-tag" style="background:rgba(16,185,129,0.9); display:none; margin-left:4px;">🎤 已開咪</span>
+                  </div>
+
+                  <div id="sticker-container-box" class="sticker-container-box"></div>
                 </div>
 
-                <div class="video-header">
-                  <span class="video-tag">
-                    <span id="room-user-name-tag">Alex Wong (你)</span> ✓
-                  </span>
-                  <span class="video-tag" style="background:#f59e0b; color:#000;" id="room-host-tag">房主專注中</span>
+                <div class="emoji-reaction-bar">
+                  <button type="button" onclick="sendDanmakuSticker('😆')">😆</button>
+                  <button type="button" onclick="sendDanmakuSticker('😍')">😍</button>
+                  <button type="button" onclick="sendDanmakuSticker('😭')">😭</button>
+                  <button type="button" onclick="sendDanmakuSticker('😴')">😴</button>
                 </div>
-
-                <div class="video-footer">
-                  <span class="video-tag" id="camera-status-tag" style="background:rgba(16,185,129,0.9); display:none;">🔴 鏡頭即時串流中</span>
-                  <span class="video-tag" id="mic-status-tag" style="background:rgba(16,185,129,0.9); display:none; margin-left:4px;">🎤 已開咪</span>
-                </div>
-
-                <div id="sticker-container-box" class="sticker-container-box"></div>
               </div>
 
               <!-- 預留 3 個空位卡片，供其他用家加入房間後填補（房間上限 4 人） -->
@@ -526,15 +569,6 @@
               </div>
             </div>
 
-            <div class="card" style="max-width:1000px; margin:12px auto 0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-              <p style="font-size:11px; font-weight:bold;">🦦 發送 Ottiee 彈幕加油貼圖：</p>
-              <div style="display:flex; gap:6px;">
-                <button class="btn btn-outline" type="button" style="font-size:16px; padding:4px 8px;" onclick="sendDanmakuSticker('🦦')">🦦</button>
-                <button class="btn btn-outline" type="button" style="font-size:16px; padding:4px 8px;" onclick="sendDanmakuSticker('🔥')">🔥</button>
-                <button class="btn btn-outline" type="button" style="font-size:16px; padding:4px 8px;" onclick="sendDanmakuSticker('📚')">📚</button>
-                <button class="btn btn-outline" type="button" style="font-size:16px; padding:4px 8px;" onclick="sendDanmakuSticker('💪')">💪</button>
-              </div>
-            </div>
           </div>
 
         </section>
@@ -914,8 +948,8 @@
     }
     window.handleHeaderUserClick = handleHeaderUserClick;
 
-    function sendDanmakuSticker(emoji) {
-      const container = document.getElementById('sticker-container-box');
+    // 產生一個飄浮嘅表情動畫，放入指定嘅容器（自己或其他人嘅視訊卡片皆可用）
+    function spawnSticker(container, emoji) {
       if (!container) return;
 
       const sticker = document.createElement('div');
@@ -933,7 +967,67 @@
       container.appendChild(sticker);
       setTimeout(() => { sticker.remove(); }, 2200);
     }
+
+    // 按鈕點擊時呼叫：只負責廣播去 Firestore，實際畫面動畫由 listenToReactions 統一播放
+    // （自己一樣係監聽器嘅其中一位聽眾，所以自己撳低都會經返個監聽器播返出嚟，行為同其他人一致）
+    function sendDanmakuSticker(emoji) {
+      broadcastReaction(emoji);
+    }
     window.sendDanmakuSticker = sendDanmakuSticker;
+
+    async function broadcastReaction(emoji) {
+      if (!window.currentUser || !state.currentRoomId || !window.db) return;
+      try {
+        const docRef = await window.fs.addDoc(window.fs.collection(window.db, "rooms", state.currentRoomId, "reactions"), {
+          uid: window.currentUser.uid,
+          emoji,
+          timestamp: Date.now()
+        });
+        // 表情用完即棄，發送後過幾秒自動刪除，避免 Firestore 累積一堆用不到的舊紀錄
+        setTimeout(() => {
+          window.fs.deleteDoc(docRef).catch(() => {});
+        }, 3000);
+      } catch (e) {
+        console.error("發送表情失敗:", e);
+      }
+    }
+
+    // 找出某位用家對應嘅視訊卡片，並在上面播放表情動畫（自己或其他人皆適用）
+    function playReactionForUid(uid, emoji) {
+      const myUid = window.currentUser ? window.currentUser.uid : null;
+      let container;
+
+      if (uid === myUid) {
+        container = document.getElementById('sticker-container-box');
+      } else {
+        const slotNum = state.slotAssignments[uid];
+        if (!slotNum) return;
+        const el = getSlotElement(slotNum);
+        container = el ? el.querySelector('.sticker-container-box') : null;
+      }
+
+      spawnSticker(container, emoji);
+    }
+
+    // 監聽房間內其他人（包括自己）發送嘅表情廣播
+    function listenToReactions(roomId) {
+      if (state.reactionsUnsubscribe) state.reactionsUnsubscribe();
+
+      let isFirstSnapshot = true;
+      const reactionsRef = window.fs.collection(window.db, "rooms", roomId, "reactions");
+      state.reactionsUnsubscribe = window.fs.onSnapshot(reactionsRef, (snapshot) => {
+        if (isFirstSnapshot) {
+          isFirstSnapshot = false;
+          return; // 唔重播加入房間前已經存在嘅舊表情紀錄
+        }
+        snapshot.docChanges().forEach((change) => {
+          if (change.type !== 'added') return;
+          const data = change.doc.data();
+          if (!data.uid || !data.emoji) return;
+          playReactionForUid(data.uid, data.emoji);
+        });
+      });
+    }
 
     function triggerQuiz() { openModal('modal-quiz'); }
     window.triggerQuiz = triggerQuiz;
@@ -1198,6 +1292,7 @@
       candidatesUnsubscribe: null,
       pendingCandidates: {}, // { uid: [candidateInit, ...] } 尚未能加入的 ICE candidate 佇列
       participantsUnsubscribe: null,
+      reactionsUnsubscribe: null,
       slotAssignments: {} // { uid: 2|3|4 } 遠端用家目前佔用的視窗格 (格1固定留給自己)
     };
 
@@ -1261,6 +1356,7 @@
             <span class="video-tag">📹 ${name || '其他用家'}</span>
             <span class="video-tag" id="stream-status-${uid}" style="background:#6b7280; color:#fff;">🔗 連線中...</span>
           </div>
+          <div class="sticker-container-box"></div>
         `;
       }
       return el.querySelector('video');
@@ -1462,6 +1558,7 @@
       startTimer();
       listenToRoomSignaling(roomId);
       listenToParticipants(roomId);
+      listenToReactions(roomId);
       return true;
     }
 
@@ -1544,6 +1641,10 @@
       if (state.candidatesUnsubscribe) {
         state.candidatesUnsubscribe();
         state.candidatesUnsubscribe = null;
+      }
+      if (state.reactionsUnsubscribe) {
+        state.reactionsUnsubscribe();
+        state.reactionsUnsubscribe = null;
       }
       state.pendingCandidates = {};
       Object.values(state.peerConnections).forEach(pc => pc.close());
@@ -1743,9 +1844,17 @@
       if (!state.mediaStream || state.mediaStream.getAudioTracks().length === 0) {
         if (micBtn) micBtn.innerText = '⏳ 取得麥克風中...';
         try {
-          const audioStream = await navigator.mediaDevices.getUserMedia({
-            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
-          });
+          let audioStream;
+          try {
+            audioStream = await navigator.mediaDevices.getUserMedia({
+              audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+            });
+          } catch (constrainedErr) {
+            // 部分手機瀏覽器對進階音訊限制較敏感，改用最簡單的 audio:true 再試一次
+            console.warn("進階麥克風設定取得失敗，改用預設設定重試:", constrainedErr);
+            audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          }
+
           const audioTrack = audioStream.getAudioTracks()[0];
 
           if (!state.mediaStream) {
@@ -1757,7 +1866,16 @@
           syncLocalTracksToPeers();
         } catch (err) {
           console.error("取得麥克風失敗:", err);
-          window.showToast('無法存取麥克風，請檢查瀏覽器權限設定。', '❌');
+
+          let msg = '無法存取麥克風，請檢查瀏覽器權限設定。';
+          if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+            msg = '麥克風權限被拒絕。請到手機「設定」→ 瀏覽器 → 麥克風，允許此網站使用麥克風後再試一次。';
+          } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+            msg = '未偵測到麥克風裝置。';
+          } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+            msg = '麥克風正被其他 App 或分頁佔用，請關閉後再試一次。';
+          }
+          window.showToast(msg, '❌');
           updateMicButtonUI();
           return;
         }
