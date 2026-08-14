@@ -7,7 +7,7 @@
   
   <!-- 👇👇👇 每次推送到 GitHub 前，請在這裡修改版號 👇👇👇 -->
   <script>
-    window.APP_VERSION = "v1.0.2"; // 在這裡修改測試版號
+    window.APP_VERSION = "v1.0.3"; // 在這裡修改測試版號
   </script>
   <!-- 👆👆👆 每次推送到 GitHub 前，請在這裡修改版號 👆👆👆 -->
 
@@ -465,6 +465,7 @@
 
               <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
                 <button class="btn btn-primary" type="button" id="btn-camera" onclick="toggleCamera()">📹 開啟鏡頭</button>
+                <button class="btn btn-outline" type="button" id="btn-mic" onclick="toggleMic()" style="display:none;">🎤 靜音</button>
 
                 <div style="background:#111; color:white; font-family:monospace; padding:4px 8px; border-radius:8px; font-size:11px;">
                   ⏱️ 倒數: <span id="room-timer">30:00</span>
@@ -498,6 +499,7 @@
 
                 <div class="video-footer">
                   <span class="video-tag" id="camera-status-tag" style="background:rgba(16,185,129,0.9); display:none;">🔴 鏡頭即時串流中</span>
+                  <span class="video-tag" id="mic-status-tag" style="background:rgba(16,185,129,0.9); display:none; margin-left:4px;">🎤 已開咪</span>
                 </div>
 
                 <div id="sticker-container-box" class="sticker-container-box"></div>
@@ -1190,6 +1192,7 @@
       renderFrameId: null,
       currentRoomId: null,
       isHost: false,
+      isMicOn: true,
       peerConnections: {},
       signalingUnsubscribe: null,
       candidatesUnsubscribe: null,
@@ -1537,7 +1540,9 @@
       const canvasEl = document.getElementById('canvas-stream-display');
       const overlayEl = document.getElementById('self-overlay');
       const statusTag = document.getElementById('camera-status-tag');
+      const micTag = document.getElementById('mic-status-tag');
       const btn = document.getElementById('btn-camera');
+      const micBtn = document.getElementById('btn-mic');
 
       if (state.isCameraOn) {
         if (state.renderFrameId) cancelAnimationFrame(state.renderFrameId);
@@ -1546,12 +1551,17 @@
           state.mediaStream = null;
         }
         state.isCameraOn = false;
+        state.isMicOn = true;
         canvasEl.style.display = 'none';
         videoEl.srcObject = null;
         overlayEl.style.display = 'flex';
         statusTag.style.display = 'none';
+        micTag.style.display = 'none';
         btn.innerText = '📹 開啟鏡頭';
         btn.className = 'btn btn-primary';
+        micBtn.style.display = 'none';
+        micBtn.innerText = '🎤 靜音';
+        micBtn.className = 'btn btn-outline';
 
         Object.values(state.peerConnections).forEach(pc => pc.close());
         state.peerConnections = {};
@@ -1561,13 +1571,24 @@
         btn.innerText = '⏳ 鏡頭啟動中...';
 
         try {
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
-            audio: false
-          });
+          let stream;
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
+              audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+            });
+          } catch (mediaErr) {
+            console.warn("同時取得鏡頭與麥克風失敗，改為僅開啟鏡頭:", mediaErr);
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
+              audio: false
+            });
+            window.showToast('未能存取麥克風，僅開啟鏡頭畫面', '⚠️');
+          }
           
           state.mediaStream = stream;
           state.isCameraOn = true;
+          state.isMicOn = true;
 
           videoEl.muted = true;
           videoEl.volume = 0;
@@ -1581,6 +1602,15 @@
           btn.innerText = '🔴 關閉鏡頭';
           btn.className = 'btn btn-red';
 
+          if (stream.getAudioTracks().length > 0) {
+            micBtn.style.display = 'inline-flex';
+            micBtn.innerText = '🎤 靜音';
+            micBtn.className = 'btn btn-outline';
+            micTag.style.display = 'flex';
+            micTag.innerText = '🎤 已開咪';
+            micTag.style.background = 'rgba(16,185,129,0.9)';
+          }
+
           startCanvasRenderLoop();
           await broadcastPresenceAndConnect();
           await connectToExistingPeers(state.currentRoomId);
@@ -1589,6 +1619,39 @@
           console.error("相機存取失敗:", err);
           window.showToast('無法存取相機鏡頭，請檢查瀏覽器權限。', '❌');
           btn.innerText = '📹 開啟鏡頭';
+        }
+      }
+    };
+
+    // 靜音 / 取消靜音：只切換音軌的 enabled 狀態，不會中斷已建立的 P2P 連線，
+    // 對方會即時收到「沒有聲音」而不需要重新協商 WebRTC 連線。
+    window.toggleMic = function() {
+      if (!state.mediaStream) return;
+      const audioTracks = state.mediaStream.getAudioTracks();
+      if (audioTracks.length === 0) {
+        window.showToast('未偵測到麥克風裝置', '⚠️');
+        return;
+      }
+
+      state.isMicOn = !state.isMicOn;
+      audioTracks.forEach(track => track.enabled = state.isMicOn);
+
+      const micBtn = document.getElementById('btn-mic');
+      const micTag = document.getElementById('mic-status-tag');
+
+      if (state.isMicOn) {
+        micBtn.innerText = '🎤 靜音';
+        micBtn.className = 'btn btn-outline';
+        if (micTag) {
+          micTag.innerText = '🎤 已開咪';
+          micTag.style.background = 'rgba(16,185,129,0.9)';
+        }
+      } else {
+        micBtn.innerText = '🔇 已靜音';
+        micBtn.className = 'btn btn-red';
+        if (micTag) {
+          micTag.innerText = '🔇 已靜音';
+          micTag.style.background = 'rgba(107,114,128,0.9)';
         }
       }
     };
