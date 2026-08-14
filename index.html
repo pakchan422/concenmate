@@ -7,7 +7,7 @@
   
   <!-- 👇👇👇 每次推送到 GitHub 前，請在這裡修改版號 👇👇👇 -->
   <script>
-    window.APP_VERSION = "v1.0.4"; // 在這裡修改測試版號
+    window.APP_VERSION = "v1.0.2"; // 在這裡修改測試版號
   </script>
   <!-- 👆👆👆 每次推送到 GitHub 前，請在這裡修改版號 👆👆👆 -->
 
@@ -1192,6 +1192,8 @@
       isHost: false,
       peerConnections: {},
       signalingUnsubscribe: null,
+      candidatesUnsubscribe: null,
+      pendingCandidates: {}, // { uid: [candidateInit, ...] } 尚未能加入的 ICE candidate 佇列
       participantsUnsubscribe: null,
       slotAssignments: {} // { uid: 2|3|4 } 遠端用家目前佔用的視窗格 (格1固定留給自己)
     };
@@ -1250,11 +1252,20 @@
           <video class="remote-video-element" autoplay playsinline></video>
           <div class="video-header">
             <span class="video-tag">📹 ${name || '其他用家'}</span>
-            <span class="video-tag" style="background:#10b981; color:#fff;">🟢 即時串流</span>
+            <span class="video-tag" id="stream-status-${uid}" style="background:#6b7280; color:#fff;">🔗 連線中...</span>
           </div>
         `;
       }
       return el.querySelector('video');
+    }
+
+    // 收到對方實際的視訊畫面（track）後，把狀態標籤改成「即時串流」
+    function markSlotLive(uid) {
+      const statusTag = document.getElementById('stream-status-' + uid);
+      if (statusTag) {
+        statusTag.style.background = '#10b981';
+        statusTag.innerText = '🟢 即時串流';
+      }
     }
 
     // 用家離開房間時，釋放其佔用的格子
@@ -1476,6 +1487,11 @@
         state.signalingUnsubscribe();
         state.signalingUnsubscribe = null;
       }
+      if (state.candidatesUnsubscribe) {
+        state.candidatesUnsubscribe();
+        state.candidatesUnsubscribe = null;
+      }
+      state.pendingCandidates = {};
       Object.values(state.peerConnections).forEach(pc => pc.close());
       state.peerConnections = {};
 
@@ -1539,6 +1555,7 @@
 
         Object.values(state.peerConnections).forEach(pc => pc.close());
         state.peerConnections = {};
+        state.pendingCandidates = {};
         resetVideoSlots();
       } else {
         btn.innerText = '⏳ 鏡頭啟動中...';
@@ -1591,39 +1608,143 @@
       if (state.signalingUnsubscribe) state.signalingUnsubscribe();
 
       const signalsRef = window.fs.collection(window.db, "rooms", roomId, "signals");
-      state.signalingUnsubscribe = window.fs.onSnapshot(signalsRef, async (snapshot) => {
-        if (!state.isCameraOn || !window.currentUser) return;
+      state.signalingUnsubscribe = window.fs.onSnapshot(signalsRef, (snapshot) => {
+        if (!window.currentUser) return;
         const myUid = window.currentUser.uid;
 
-        snapshot.forEach(async (docSnap) => {
-          const data = docSnap.data();
-          const remoteUid = data.uid;
+        snapshot.docChanges().forEach(async (change) => {
+          const data = change.doc.data();
 
-          if (remoteUid && remoteUid !== myUid) {
-            // 將此用家安排到四格視窗其中一格（已滿則靜默略過，正常情況不會發生，因為加入房間時已檢查人數上限）
+          // (a) 用家上線通知（presence）：發現房內其他人，並安排到四格視窗其中一格
+          if (data.uid && data.uid !== myUid) {
+            const remoteUid = data.uid;
             getOrCreateRemoteSlot(remoteUid, data.name);
 
-            if (!state.peerConnections[remoteUid]) {
-              const pc = createPeerConnection(remoteUid, data.name);
-              state.peerConnections[remoteUid] = pc;
-
-              try {
-                const offer = await pc.createOffer();
-                await pc.setLocalDescription(offer);
-                
-                await window.fs.setDoc(window.fs.doc(window.db, "rooms", roomId, "signals", myUid + "_to_" + remoteUid), {
-                  from: myUid,
-                  to: remoteUid,
-                  offer: JSON.parse(JSON.stringify(offer)),
-                  timestamp: Date.now()
-                });
-              } catch (err) {
-                console.error("建立 WebRTC Offer 失敗:", err);
-              }
+            // 只由 UID 字母序較小的一方主動發起 Offer，避免雙方同時發起造成衝突
+            if (state.isCameraOn && myUid < remoteUid && !state.peerConnections[remoteUid]) {
+              await createOfferTo(roomId, remoteUid, data.name);
             }
+            return;
+          }
+
+          if (change.type !== 'added') return; // offer / answer 只需處理一次
+
+          // (b) 收到指名給自己的 Offer → 建立連線並回覆 Answer
+          if (data.to === myUid && data.offer) {
+            await handleIncomingOffer(roomId, data.from, data.offer);
+            return;
+          }
+
+          // (c) 收到指名給自己的 Answer → 完成連線協商
+          if (data.to === myUid && data.answer) {
+            await handleIncomingAnswer(data.from, data.answer);
+            return;
           }
         });
       });
+
+      listenToIceCandidates(roomId);
+    }
+
+    async function createOfferTo(roomId, remoteUid, remoteName) {
+      const pc = createPeerConnection(remoteUid, remoteName);
+      state.peerConnections[remoteUid] = pc;
+
+      try {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+
+        await window.fs.setDoc(window.fs.doc(window.db, "rooms", roomId, "signals", window.currentUser.uid + "_to_" + remoteUid), {
+          from: window.currentUser.uid,
+          to: remoteUid,
+          offer: JSON.parse(JSON.stringify(offer)),
+          timestamp: Date.now()
+        });
+      } catch (err) {
+        console.error("建立 WebRTC Offer 失敗:", err);
+      }
+    }
+
+    async function handleIncomingOffer(roomId, fromUid, offer) {
+      if (!state.isCameraOn) return; // 尚未開啟鏡頭前不建立連線
+
+      let pc = state.peerConnections[fromUid];
+      if (!pc) {
+        pc = createPeerConnection(fromUid, null);
+        state.peerConnections[fromUid] = pc;
+      }
+
+      try {
+        await pc.setRemoteDescription(new RTCSessionDescription(offer));
+        await flushPendingCandidates(fromUid);
+
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+
+        await window.fs.setDoc(window.fs.doc(window.db, "rooms", roomId, "signals", window.currentUser.uid + "_to_" + fromUid), {
+          from: window.currentUser.uid,
+          to: fromUid,
+          answer: JSON.parse(JSON.stringify(answer)),
+          timestamp: Date.now()
+        });
+      } catch (err) {
+        console.error("處理 Offer / 建立 Answer 失敗:", err);
+      }
+    }
+
+    async function handleIncomingAnswer(fromUid, answer) {
+      const pc = state.peerConnections[fromUid];
+      if (!pc || pc.currentRemoteDescription) return;
+
+      try {
+        await pc.setRemoteDescription(new RTCSessionDescription(answer));
+        await flushPendingCandidates(fromUid);
+      } catch (err) {
+        console.error("設定 Answer 失敗:", err);
+      }
+    }
+
+    function listenToIceCandidates(roomId) {
+      if (state.candidatesUnsubscribe) state.candidatesUnsubscribe();
+
+      const candidatesRef = window.fs.collection(window.db, "rooms", roomId, "candidates");
+      state.candidatesUnsubscribe = window.fs.onSnapshot(candidatesRef, (snapshot) => {
+        if (!window.currentUser) return;
+        const myUid = window.currentUser.uid;
+
+        snapshot.docChanges().forEach(async (change) => {
+          if (change.type !== 'added') return;
+          const data = change.doc.data();
+          if (data.to !== myUid || !data.candidate) return;
+
+          const pc = state.peerConnections[data.from];
+          if (pc && pc.remoteDescription && pc.remoteDescription.type) {
+            try {
+              await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+            } catch (err) {
+              console.error("加入 ICE Candidate 失敗:", err);
+            }
+          } else {
+            if (!state.pendingCandidates[data.from]) state.pendingCandidates[data.from] = [];
+            state.pendingCandidates[data.from].push(data.candidate);
+          }
+        });
+      });
+    }
+
+    async function flushPendingCandidates(remoteUid) {
+      const pc = state.peerConnections[remoteUid];
+      const queued = state.pendingCandidates[remoteUid];
+      if (!pc || !queued || queued.length === 0) return;
+
+      for (const candidate of queued) {
+        try {
+          await pc.addIceCandidate(new RTCIceCandidate(candidate));
+        } catch (err) {
+          console.error("加入排隊中的 ICE Candidate 失敗:", err);
+        }
+      }
+      state.pendingCandidates[remoteUid] = [];
     }
 
     function createPeerConnection(remoteUid, remoteName) {
@@ -1640,6 +1761,7 @@
         if (remoteVideo && event.streams[0]) {
           remoteVideo.srcObject = event.streams[0];
           remoteVideo.play().catch(e => console.log(e));
+          markSlotLive(remoteUid);
         }
       };
 
@@ -1651,6 +1773,12 @@
             candidate: event.candidate.toJSON(),
             timestamp: Date.now()
           });
+        }
+      };
+
+      pc.onconnectionstatechange = () => {
+        if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) {
+          console.warn(`與 ${remoteUid} 的連線狀態變為 ${pc.connectionState}`);
         }
       };
 
