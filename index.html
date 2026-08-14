@@ -7,7 +7,7 @@
   
   <!-- 👇👇👇 每次推送到 GitHub 前，請在這裡修改版號 👇👇👇 -->
   <script>
-    window.APP_VERSION = "v1.0.5"; // 在這裡修改測試版號
+    window.APP_VERSION = "v1.0.6"; // 在這裡修改測試版號
   </script>
   <!-- 👆👆👆 每次推送到 GitHub 前，請在這裡修改版號 👆👆👆 -->
 
@@ -1562,8 +1562,8 @@
       return true;
     }
 
-    window.returnToLobby = function() {
-      cleanupRoomConnections();
+    window.returnToLobby = async function() {
+      await cleanupRoomConnections();
       document.getElementById('room-active').style.display = 'none';
       document.getElementById('room-lobby').style.display = 'block';
     };
@@ -1604,17 +1604,24 @@
           await window.fs.deleteDoc(window.fs.doc(window.db, "rooms", state.currentRoomId));
         } catch(e) { console.error("刪除房間失敗", e); }
       }
-      cleanupRoomConnections();
+      await cleanupRoomConnections();
       document.getElementById('room-active').style.display = 'none';
       document.getElementById('room-lobby').style.display = 'block';
       window.showToast('已退出溫習房間', '🚪');
     };
 
-    function cleanupRoomConnections() {
+    async function cleanupRoomConnections() {
       if (state.renderFrameId) cancelAnimationFrame(state.renderFrameId);
       if (state.countdownTimer) clearInterval(state.countdownTimer);
 
       // 完整結束鏡頭＋麥克風（離開房間跟單純「關閉鏡頭」不同，要整個釋放掉）
+      // 注意順序：要先解除 <video> 元素對串流嘅綁定，再停止軌道，
+      // 部分手機瀏覽器要全部「消費者」都釋放咗先會真正放開鏡頭硬件。
+      const videoElForCleanup = document.getElementById('behind-video-engine');
+      if (videoElForCleanup) {
+        videoElForCleanup.pause();
+        videoElForCleanup.srcObject = null;
+      }
       if (state.mediaStream) {
         state.mediaStream.getTracks().forEach(track => track.stop());
         state.mediaStream = null;
@@ -1627,7 +1634,6 @@
       const overlayEl = document.getElementById('self-overlay');
       const statusTag = document.getElementById('camera-status-tag');
       const btn = document.getElementById('btn-camera');
-      if (videoEl) videoEl.srcObject = null;
       if (canvasEl) canvasEl.style.display = 'none';
       if (overlayEl) overlayEl.style.display = 'flex';
       if (statusTag) statusTag.style.display = 'none';
@@ -1650,7 +1656,7 @@
       Object.values(state.peerConnections).forEach(pc => pc.close());
       state.peerConnections = {};
 
-      leaveRoomParticipants();
+      await leaveRoomParticipants();
       resetVideoSlots();
 
       state.currentRoomId = null;
@@ -1735,6 +1741,35 @@
       }
     }
 
+    // 包裝 getUserMedia：如果裝置暫時「忙緊」（常見於剛關閉鏡頭/咪就馬上重開，
+    // 手機裝置釋放鏡頭硬件有時需要多過半秒），會分階段延遲重試多次先俾使用者見到失敗。
+    async function getUserMediaSafe(constraints, retries = 3, delayMs = 500) {
+      for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+          return await navigator.mediaDevices.getUserMedia(constraints);
+        } catch (err) {
+          const isBusy = err.name === 'NotReadableError' || err.name === 'TrackStartError';
+          if (!isBusy || attempt === retries) throw err;
+          console.warn(`裝置暫時忙緊，${delayMs}ms 後重試（第 ${attempt + 1} 次）:`, err);
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
+      }
+    }
+
+    // 統一將 getUserMedia 的錯誤代碼轉做用家睇得明嘅訊息
+    function describeMediaError(err) {
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        return '權限被拒絕。請到瀏覽器／系統設定允許呢個網站使用鏡頭與麥克風後再試一次。';
+      }
+      if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        return '未偵測到鏡頭或麥克風裝置。';
+      }
+      if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+        return '鏡頭或麥克風正被其他 App／分頁佔用，請關閉後再試一次（或重新整理網頁）。';
+      }
+      return '無法存取鏡頭／麥克風，請檢查瀏覽器權限設定。';
+    }
+
     window.toggleCamera = async function() {
       const videoEl = document.getElementById('behind-video-engine');
       const canvasEl = document.getElementById('canvas-stream-display');
@@ -1747,6 +1782,9 @@
         // 不呼叫 resetVideoSlots()。不然自己會連帶看不到其他人本來就開著的鏡頭畫面。
         if (state.renderFrameId) cancelAnimationFrame(state.renderFrameId);
 
+        videoEl.pause();
+        videoEl.srcObject = null;
+
         if (state.mediaStream) {
           state.mediaStream.getVideoTracks().forEach(track => {
             track.stop();
@@ -1756,7 +1794,6 @@
 
         state.isCameraOn = false;
         canvasEl.style.display = 'none';
-        videoEl.srcObject = null;
         overlayEl.style.display = 'flex';
         statusTag.style.display = 'none';
         btn.innerText = '📹 開啟鏡頭';
@@ -1773,7 +1810,7 @@
           if (state.mediaStream) {
             // 已經有現成的媒體串流（例如之前已經開過麥克風，或只是重新開鏡頭），
             // 這次只需要另外取得視訊畫面即可
-            const videoOnlyStream = await navigator.mediaDevices.getUserMedia({
+            const videoOnlyStream = await getUserMediaSafe({
               video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" }
             });
             videoTrack = videoOnlyStream.getVideoTracks()[0];
@@ -1782,13 +1819,13 @@
             // 全新啟動：嘗試一次過取得鏡頭＋麥克風（麥克風權限失敗則退回純鏡頭畫面）
             let stream;
             try {
-              stream = await navigator.mediaDevices.getUserMedia({
+              stream = await getUserMediaSafe({
                 video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
                 audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
               });
             } catch (mediaErr) {
               console.warn("同時取得鏡頭與麥克風失敗，改為僅開啟鏡頭:", mediaErr);
-              stream = await navigator.mediaDevices.getUserMedia({
+              stream = await getUserMediaSafe({
                 video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
                 audio: false
               });
@@ -1829,8 +1866,9 @@
           window.showToast('鏡頭與 P2P 串流已順利啟動！', '📹');
         } catch (err) {
           console.error("相機存取失敗:", err);
-          window.showToast('無法存取相機鏡頭，請檢查瀏覽器權限。', '❌');
+          window.showToast(describeMediaError(err), '❌');
           btn.innerText = '📹 開啟鏡頭';
+          btn.className = 'btn btn-primary';
         }
       }
     };
@@ -1846,13 +1884,13 @@
         try {
           let audioStream;
           try {
-            audioStream = await navigator.mediaDevices.getUserMedia({
+            audioStream = await getUserMediaSafe({
               audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
             });
           } catch (constrainedErr) {
             // 部分手機瀏覽器對進階音訊限制較敏感，改用最簡單的 audio:true 再試一次
             console.warn("進階麥克風設定取得失敗，改用預設設定重試:", constrainedErr);
-            audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            audioStream = await getUserMediaSafe({ audio: true });
           }
 
           const audioTrack = audioStream.getAudioTracks()[0];
@@ -1866,16 +1904,7 @@
           syncLocalTracksToPeers();
         } catch (err) {
           console.error("取得麥克風失敗:", err);
-
-          let msg = '無法存取麥克風，請檢查瀏覽器權限設定。';
-          if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-            msg = '麥克風權限被拒絕。請到手機「設定」→ 瀏覽器 → 麥克風，允許此網站使用麥克風後再試一次。';
-          } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-            msg = '未偵測到麥克風裝置。';
-          } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
-            msg = '麥克風正被其他 App 或分頁佔用，請關閉後再試一次。';
-          }
-          window.showToast(msg, '❌');
+          window.showToast(describeMediaError(err), '❌');
           updateMicButtonUI();
           return;
         }
