@@ -7,7 +7,7 @@
   
   <!-- 👇👇👇 每次推送到 GitHub 前，請在這裡修改版號 👇👇👇 -->
   <script>
-    window.APP_VERSION = "v1.0.8"; // 在這裡修改測試版號
+    window.APP_VERSION = "v1.0.9"; // 在這裡修改測試版號
   </script>
   <!-- 👆👆👆 每次推送到 GitHub 前，請在這裡修改版號 👆👆👆 -->
 
@@ -2082,8 +2082,17 @@
     function listenToIceCandidates(roomId) {
       if (state.candidatesUnsubscribe) state.candidatesUnsubscribe();
 
+      // 同 reactions 一樣：略過第一次快照，唔好處理呢個房間歷史上（例如之前好多次
+      // 退出／重新入房嘅測試）已經留低嘅舊 ICE candidate 文件。呢啲舊文件屬於早已
+      // 失效嘅連線，混入而家呢個新連線只會令 addIceCandidate 塞入垃圾資料，
+      // 反而阻礙真正嘅候選位處理，令連線一直卡喺「連線中」。
+      let isFirstSnapshot = true;
       const candidatesRef = window.fs.collection(window.db, "rooms", roomId, "candidates");
       state.candidatesUnsubscribe = window.fs.onSnapshot(candidatesRef, (snapshot) => {
+        if (isFirstSnapshot) {
+          isFirstSnapshot = false;
+          return;
+        }
         if (!window.currentUser) return;
         const myUid = window.currentUser.uid;
 
@@ -2142,12 +2151,17 @@
 
       pc.onicecandidate = async (event) => {
         if (event.candidate && state.currentRoomId && window.currentUser) {
-          await window.fs.addDoc(window.fs.collection(window.db, "rooms", state.currentRoomId, "candidates"), {
+          const docRef = await window.fs.addDoc(window.fs.collection(window.db, "rooms", state.currentRoomId, "candidates"), {
             from: window.currentUser.uid,
             to: remoteUid,
             candidate: event.candidate.toJSON(),
             timestamp: Date.now()
           });
+          // candidate 文件用完即棄，發送後過幾秒自動刪除，
+          // 避免呢個 collection 隨住每次開關鏡頭不斷累積、拖累之後嘅連線
+          setTimeout(() => {
+            window.fs.deleteDoc(docRef).catch(() => {});
+          }, 8000);
         }
       };
 
