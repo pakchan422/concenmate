@@ -7,7 +7,7 @@
   
   <!-- 👇👇👇 每次推送到 GitHub 前，請在這裡修改版號 👇👇👇 -->
   <script>
-    window.APP_VERSION = "v1.0.6"; // 在這裡修改測試版號
+    window.APP_VERSION = "v1.0.7"; // 在這裡修改測試版號
   </script>
   <!-- 👆👆👆 每次推送到 GitHub 前，請在這裡修改版號 👆👆👆 -->
 
@@ -1559,6 +1559,11 @@
       listenToRoomSignaling(roomId);
       listenToParticipants(roomId);
       listenToReactions(roomId);
+
+      // 一入房就廣播自己嘅上線通知並主動接駁現有用家，
+      // 唔再要求一定要開咗鏡頭先可以「收睇」其他人嘅畫面
+      await broadcastPresenceAndConnect();
+      await connectToExistingPeers(roomId);
       return true;
     }
 
@@ -1615,8 +1620,17 @@
       if (state.countdownTimer) clearInterval(state.countdownTimer);
 
       // 完整結束鏡頭＋麥克風（離開房間跟單純「關閉鏡頭」不同，要整個釋放掉）
-      // 注意順序：要先解除 <video> 元素對串流嘅綁定，再停止軌道，
-      // 部分手機瀏覽器要全部「消費者」都釋放咗先會真正放開鏡頭硬件。
+      // 注意釋放次序：先斷開 P2P 連線入面 sender 對軌道嘅參照 → 解除 <video>
+      // 元素嘅綁定 → 先至停止軌道本身。部分手機瀏覽器要全部「消費者」都釋放
+      // 咗先會真正放開鏡頭／咪硬件，如果次序調轉，重新開鏡頭好易失敗。
+      Object.values(state.peerConnections).forEach(pc => {
+        pc.getSenders().forEach(sender => {
+          if (sender.track) {
+            try { sender.replaceTrack(null); } catch (e) { /* 連線可能已經斷咗，忽略 */ }
+          }
+        });
+      });
+
       const videoElForCleanup = document.getElementById('behind-video-engine');
       if (videoElForCleanup) {
         videoElForCleanup.pause();
@@ -1701,19 +1715,18 @@
       const audioTrack = state.mediaStream.getAudioTracks()[0] || null;
 
       Object.values(state.peerConnections).forEach(pc => {
-        const senders = pc.getSenders();
+        pc.getTransceivers().forEach(transceiver => {
+          const kind = transceiver.receiver && transceiver.receiver.track ? transceiver.receiver.track.kind : null;
 
-        if (videoTrack) {
-          const videoSender = senders.find(s => s.track && s.track.kind === 'video');
-          if (videoSender) videoSender.replaceTrack(videoTrack);
-          else pc.addTrack(videoTrack, state.mediaStream);
-        }
-
-        if (audioTrack) {
-          const audioSender = senders.find(s => s.track && s.track.kind === 'audio');
-          if (audioSender) audioSender.replaceTrack(audioTrack);
-          else pc.addTrack(audioTrack, state.mediaStream);
-        }
+          if (kind === 'video' && videoTrack) {
+            transceiver.sender.replaceTrack(videoTrack);
+            if (transceiver.direction !== 'sendrecv') transceiver.direction = 'sendrecv';
+          }
+          if (kind === 'audio' && audioTrack) {
+            transceiver.sender.replaceTrack(audioTrack);
+            if (transceiver.direction !== 'sendrecv') transceiver.direction = 'sendrecv';
+          }
+        });
       });
     }
 
@@ -1781,6 +1794,14 @@
         // 只關閉「鏡頭」本身：停止視訊軌道，但刻意不去關閉 P2P 連線、
         // 不呼叫 resetVideoSlots()。不然自己會連帶看不到其他人本來就開著的鏡頭畫面。
         if (state.renderFrameId) cancelAnimationFrame(state.renderFrameId);
+
+        // 同全面離開房間一樣：先斷開 sender 對視訊軌道嘅參照，先至停止軌道本身
+        Object.values(state.peerConnections).forEach(pc => {
+          const videoSender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+          if (videoSender) {
+            try { videoSender.replaceTrack(null); } catch (e) { /* 忽略 */ }
+          }
+        });
 
         videoEl.pause();
         videoEl.srcObject = null;
@@ -1979,7 +2000,7 @@
             getOrCreateRemoteSlot(remoteUid, data.name);
 
             // 只由 UID 字母序較小的一方主動發起 Offer，避免雙方同時發起造成衝突
-            if (state.isCameraOn && myUid < remoteUid && !state.peerConnections[remoteUid]) {
+            if (myUid < remoteUid && !state.peerConnections[remoteUid]) {
               await createOfferTo(roomId, remoteUid, data.name);
             }
             return;
@@ -2024,7 +2045,6 @@
     }
 
     async function handleIncomingOffer(roomId, fromUid, offer) {
-      if (!state.isCameraOn) return; // 尚未開啟鏡頭前不建立連線
 
       let pc = state.peerConnections[fromUid];
       if (!pc) {
@@ -2108,11 +2128,17 @@
     function createPeerConnection(remoteUid, remoteName) {
       const pc = new RTCPeerConnection(rtcConfig);
 
-      if (state.mediaStream) {
-        state.mediaStream.getTracks().forEach(track => {
-          pc.addTrack(track, state.mediaStream);
-        });
-      }
+      // 就算自己仲未開鏡頭／咪，都要預留 audio/video 嘅收發位置（sendrecv transceiver）。
+      // 咁樣就算而家淨係「收睇」對方畫面，之後自己開返鏡頭都可以直接用 replaceTrack／addTrack
+      // 塞返軌道落已經開通嘅連線度，唔使成個連線重新協商（renegotiate）。
+      const videoTrack = state.mediaStream ? state.mediaStream.getVideoTracks()[0] : null;
+      const audioTrack = state.mediaStream ? state.mediaStream.getAudioTracks()[0] : null;
+
+      if (videoTrack) pc.addTrack(videoTrack, state.mediaStream);
+      else pc.addTransceiver('video', { direction: 'sendrecv' });
+
+      if (audioTrack) pc.addTrack(audioTrack, state.mediaStream);
+      else pc.addTransceiver('audio', { direction: 'sendrecv' });
 
       pc.ontrack = (event) => {
         const remoteVideo = getOrCreateRemoteSlot(remoteUid, remoteName);
