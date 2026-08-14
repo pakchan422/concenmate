@@ -7,7 +7,7 @@
   
   <!-- 👇👇👇 每次推送到 GitHub 前，請在這裡修改版號 👇👇👇 -->
   <script>
-    window.APP_VERSION = "v1.0.5"; // 在這裡修改測試版號
+    window.APP_VERSION = "v1.0.6"; // 在這裡修改測試版號
   </script>
   <!-- 👆👆👆 每次推送到 GitHub 前，請在這裡修改版號 👆👆👆 -->
 
@@ -1294,6 +1294,8 @@
       isHost: false,
       isMicOn: false,
       cameraToggleInProgress: false,
+      lastProcessedOfferTs: {},
+      lastProcessedAnswerTs: {},
       peerConnections: {},
       signalingUnsubscribe: null,
       candidatesUnsubscribe: null,
@@ -1712,6 +1714,8 @@
         state.reactionsUnsubscribe = null;
       }
       state.pendingCandidates = {};
+      state.lastProcessedOfferTs = {};
+      state.lastProcessedAnswerTs = {};
 
       // 主動清走自己嘅 presence 同已經送出嘅 offer/answer 文件，
       // 等其他人之後重新入返嚟嗰陣，唔會執到自己呢次留低嘅舊訊號資料
@@ -2054,8 +2058,9 @@
           }
 
           // (b) 指名給我、但之前鏡頭未開而被略過的 Offer → 現在補上 Answer
-          if (data.to === myUid && data.offer && !state.peerConnections[data.from]) {
+          if (data.to === myUid && data.offer && state.lastProcessedOfferTs[data.from] !== data.timestamp) {
             wrtcLog(`發現一份之前錯過嘅 Offer ← ${data.from}，補上處理`);
+            state.lastProcessedOfferTs[data.from] = data.timestamp;
             await handleIncomingOffer(roomId, data.from, data.offer);
           }
         }
@@ -2093,16 +2098,25 @@
             return;
           }
 
-          if (change.type !== 'added') return; // offer / answer 只需處理一次
+          // offer / answer：用時間戳去重，唔再淨係睇 change.type === 'added'。
+          // 之前淨係處理 'added' 會有個race condition：如果一開始執到嘅係
+          // 舊版本嘅 offer/answer（例如同一時間對方啱啱又覆寫緊份文件），
+          // 之後嗰個帶住新內容嘅 'modified' 事件會被完全忽略，永遠停留喺舊嘅、
+          // 唔啱嘅 SDP 度。而家改用 timestamp 判斷「呢份係咪已經處理過」，
+          // 咁樣就算一開始執到舊版本，之後嗰個新版本都會被正確處理返。
 
           // (b) 收到指名給自己的 Offer → 建立連線並回覆 Answer
           if (data.to === myUid && data.offer) {
+            if (state.lastProcessedOfferTs[data.from] === data.timestamp) return;
+            state.lastProcessedOfferTs[data.from] = data.timestamp;
             await handleIncomingOffer(roomId, data.from, data.offer);
             return;
           }
 
           // (c) 收到指名給自己的 Answer → 完成連線協商
           if (data.to === myUid && data.answer) {
+            if (state.lastProcessedAnswerTs[data.from] === data.timestamp) return;
+            state.lastProcessedAnswerTs[data.from] = data.timestamp;
             await handleIncomingAnswer(data.from, data.answer);
             return;
           }
@@ -2114,6 +2128,14 @@
 
     async function createOfferTo(roomId, remoteUid, remoteName) {
       wrtcLog(`主動發起連線 → ${remoteUid}`);
+
+      const existing = state.peerConnections[remoteUid];
+      if (existing) {
+        wrtcLog(`與 ${remoteUid} 已經有舊連線，捨棄並重新建立`);
+        existing.close();
+        delete state.peerConnections[remoteUid];
+      }
+
       const pc = createPeerConnection(remoteUid, remoteName);
       state.peerConnections[remoteUid] = pc;
 
@@ -2140,11 +2162,17 @@
       }
       wrtcLog(`收到 Offer ← ${fromUid}`);
 
-      let pc = state.peerConnections[fromUid];
-      if (!pc) {
-        pc = createPeerConnection(fromUid, null);
-        state.peerConnections[fromUid] = pc;
+      // 如果之前已經有一條連線（例如對方啱啱重新入房，呢個係一次全新嘅協商），
+      // 為咗避免新舊 SDP 混淆搞亂晒，直接捨棄舊連線，乾淨咁用新 offer 重新建立
+      const existing = state.peerConnections[fromUid];
+      if (existing) {
+        wrtcLog(`與 ${fromUid} 已經有舊連線，捨棄並用新 Offer 重新建立`);
+        existing.close();
+        delete state.peerConnections[fromUid];
       }
+
+      const pc = createPeerConnection(fromUid, null);
+      state.peerConnections[fromUid] = pc;
 
       try {
         await pc.setRemoteDescription(new RTCSessionDescription(offer));
@@ -2167,7 +2195,14 @@
 
     async function handleIncomingAnswer(fromUid, answer) {
       const pc = state.peerConnections[fromUid];
-      if (!pc || pc.currentRemoteDescription) return;
+      if (!pc) return;
+      // 用 signalingState 判斷「而家係咪真係度等緊 answer」，比起淨係睇
+      // currentRemoteDescription 準確得多——後者一旦第一次協商成功之後就會
+      // 永遠得個真，令之後任何重新協商嘅 answer 都被誤判成「已經處理過」而略過。
+      if (pc.signalingState !== 'have-local-offer') {
+        wrtcLog(`⚠️ 收到 ${fromUid} 嘅 Answer，但目前狀態係 ${pc.signalingState}，忽略`);
+        return;
+      }
       wrtcLog(`收到 Answer ← ${fromUid}`);
 
       try {
