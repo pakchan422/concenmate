@@ -29,9 +29,10 @@
 
     .user-stats { display: flex; align-items: center; gap: 10px; background: var(--brand-50); padding: 4px 10px; border-radius: 20px; border: 1px solid var(--brand-200); font-size: 11px; font-weight: 600; }
     
-    .btn { border: none; border-radius: 10px; padding: 6px 12px; font-size: 12px; font-weight: bold; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 4px; }
+    .btn { border: none; border-radius: 10px; padding: 6px 12px; font-size: 12px; font-weight: bold; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 4px; justify-content: center; }
     .btn-primary { background: var(--brand-500); color: white; }
-    .btn-primary:hover { background: var(--brand-600); transform: translateY(-1px); }
+    .btn-primary:hover:not(:disabled) { background: var(--brand-600); transform: translateY(-1px); }
+    .btn-primary:disabled { background: var(--brand-300); cursor: not-allowed; }
     .btn-amber { background: #f59e0b; color: white; }
     .btn-amber:hover { background: #d97706; }
     .btn-red { background: #ef4444; color: white; }
@@ -56,59 +57,25 @@
       .nav-btn { justify-content: center; padding: 12px 0; }
     }
 
-    .auth-wall-container {
-      max-width: 480px;
-      margin: 40px auto;
-      background: white;
-      border-radius: 24px;
-      padding: 30px 24px;
-      border: 1px solid var(--brand-200);
-      text-align: center;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.04);
-    }
+    .auth-wall-container { max-width: 480px; margin: 40px auto; background: white; border-radius: 24px; padding: 30px 24px; border: 1px solid var(--brand-200); text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.04); }
+    .create-room-card, .profile-edit-card { background: white; border-radius: 20px; padding: 20px; border: 1px solid var(--brand-200); max-width: 520px; margin: 10px auto; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
 
-    .create-room-card, .profile-edit-card {
-      background: white;
-      border-radius: 20px;
-      padding: 20px;
-      border: 1px solid var(--brand-200);
-      max-width: 520px;
-      margin: 10px auto;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-    }
-
-    .rooms-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-      gap: 12px;
-      margin-top: 14px;
-    }
-
-    .room-item-card {
-      background: white;
-      border-radius: 16px;
-      padding: 16px;
-      border: 1px solid var(--brand-200);
-      box-shadow: 0 4px 10px rgba(0,0,0,0.02);
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      transition: transform 0.2s, box-shadow 0.2s;
-    }
-    .room-item-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 16px rgba(0,0,0,0.06);
-      border-color: var(--brand-500);
-    }
+    .rooms-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-top: 14px; }
+    .room-item-card { background: white; border-radius: 16px; padding: 16px; border: 1px solid var(--brand-200); box-shadow: 0 4px 10px rgba(0,0,0,0.02); display: flex; flex-direction: column; justify-content: space-between; transition: transform 0.2s, box-shadow 0.2s; }
+    .room-item-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.06); border-color: var(--brand-500); }
 
     .room-bar { background: white; padding: 10px 12px; border-radius: 16px; border: 1px solid var(--brand-200); margin-bottom: 12px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
 
     .video-grid-container {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      /* 固定 2x2 網格，最多 4 個用家 */
+      grid-template-columns: repeat(2, 1fr);
       gap: 12px;
       max-width: 1000px;
       margin: 0 auto;
+    }
+    @media (max-width: 640px) {
+      .video-grid-container { grid-template-columns: 1fr; }
     }
 
     .video-card-single { 
@@ -125,108 +92,32 @@
       width: 100%;
     }
 
-    .behind-stream-video {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 1px;
-      height: 1px;
-      opacity: 0.001;
-      pointer-events: none;
-      z-index: -10;
-    }
-
-    .canvas-stream-display {
+    .empty-slot-placeholder {
       position: absolute;
       inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      transform: scaleX(-1);
-      z-index: 1;
-      display: none;
-      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #292524;
+      z-index: 2;
     }
+    .empty-slot-placeholder .icon { font-size: 32px; opacity: 0.4; margin-bottom: 8px; }
+    .empty-slot-placeholder p { font-size: 13px; color: #888; font-weight: bold; }
 
-    .remote-video-element {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      transform: scaleX(-1);
-      z-index: 1;
-      border-radius: 16px;
-      background: #000;
-    }
+    .behind-stream-video { position: absolute; top: 0; left: 0; width: 1px; height: 1px; opacity: 0.001; pointer-events: none; z-index: -10; }
+    .canvas-stream-display, .remote-video-element { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); z-index: 1; border-radius: 16px; background: #000; }
+    .canvas-stream-display { display: none; }
 
-    .video-overlay { 
-      position: absolute; 
-      inset: 0; 
-      background: #1c1917; 
-      display: flex; 
-      flex-direction: column; 
-      align-items: center; 
-      justify-content: center; 
-      z-index: 2; 
-      padding: 20px;
-      text-align: center;
-    }
+    .video-overlay { position: absolute; inset: 0; background: #1c1917; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 3; padding: 20px; text-align: center; }
     .avatar-circle { width: 56px; height: 56px; border-radius: 50%; background: #444; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: bold; border: 2px solid #666; margin-bottom: 8px; }
 
-    .video-header {
-      position: absolute;
-      top: 8px;
-      left: 8px;
-      right: 8px;
-      z-index: 10;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    
-    .video-tag {
-      background: rgba(0, 0, 0, 0.65);
-      backdrop-filter: blur(4px);
-      -webkit-backdrop-filter: blur(4px);
-      color: white;
-      font-size: 11px;
-      padding: 4px 8px;
-      border-radius: 8px;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
+    .video-header { position: absolute; top: 8px; left: 8px; right: 8px; z-index: 10; display: flex; justify-content: space-between; align-items: center; }
+    .video-tag { background: rgba(0, 0, 0, 0.65); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); color: white; font-size: 11px; padding: 4px 8px; border-radius: 8px; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+    .video-footer { position: absolute; bottom: 8px; left: 8px; right: 8px; z-index: 10; display: flex; justify-content: space-between; align-items: center; pointer-events: none; }
 
-    .video-footer {
-      position: absolute;
-      bottom: 8px;
-      left: 8px;
-      right: 8px;
-      z-index: 10;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      pointer-events: none;
-    }
-
-    .sticker-container-box {
-      position: absolute;
-      inset: 0;
-      z-index: 30;
-      pointer-events: none;
-      overflow: hidden;
-    }
-
-    .danmaku-sticker {
-      position: absolute;
-      bottom: -10px;
-      user-select: none;
-      animation: floatDanmaku 2.2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
-    }
-
+    .sticker-container-box { position: absolute; inset: 0; z-index: 30; pointer-events: none; overflow: hidden; }
+    .danmaku-sticker { position: absolute; bottom: -10px; user-select: none; animation: floatDanmaku 2.2s cubic-bezier(0.25, 1, 0.5, 1) forwards; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5)); }
     @keyframes floatDanmaku {
       0% { opacity: 0; transform: translateY(0) scale(0.6) rotate(var(--rot, 0deg)); }
       15% { opacity: 1; transform: translateY(-30px) scale(1.1) rotate(var(--rot, 0deg)); }
@@ -247,57 +138,12 @@
     .clickable-user { text-decoration: underline; cursor: pointer; color: #2563eb; }
 
     #toast-box {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      z-index: 200;
-      background: #1e293b;
-      color: white;
-      padding: 12px 18px;
-      border-radius: 12px;
-      font-size: 13px;
-      font-weight: 600;
-      box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      transform: translateY(-50px);
-      opacity: 0;
-      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-      pointer-events: none;
+      position: fixed; top: 20px; right: 20px; z-index: 200; background: #1e293b; color: white; padding: 12px 18px; border-radius: 12px; font-size: 13px; font-weight: 600; box-shadow: 0 10px 20px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 8px; transform: translateY(-50px); opacity: 0; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); pointer-events: none;
     }
-    #toast-box.show {
-      transform: translateY(0);
-      opacity: 1;
-    }
-
-    /* 開發測試用標籤的樣式 */
-    #dev-build-badge {
-      position: fixed;
-      bottom: 16px;
-      right: 16px;
-      background: rgba(15, 23, 42, 0.85);
-      color: #34d399;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      font-size: 11px;
-      padding: 8px 12px;
-      border-radius: 8px;
-      border: 1px solid #059669;
-      z-index: 9999;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-      pointer-events: none; /* 確保不會阻擋點擊 */
-      backdrop-filter: blur(4px);
-      line-height: 1.5;
-    }
+    #toast-box.show { transform: translateY(0); opacity: 1; }
   </style>
 </head>
 <body>
-
-  <!-- 開發測試用：版本時間戳記 (部署完成後可手動刪除此區塊) -->
-  <div id="dev-build-badge">
-    🔧 Build: <span style="color:white; font-weight:bold;">v1.0.0 (手動修改版號)</span><br>
-    ⏱️ Load: <span id="load-timestamp" style="color:#60a5fa;">--:--:--</span>
-  </div>
 
   <div id="toast-box">
     <span id="toast-icon">ℹ️</span>
@@ -350,7 +196,6 @@
     </aside>
 
     <main>
-
       <div id="unauth-screen" class="auth-wall-container" style="display:none;">
         <div style="font-size:52px; margin-bottom:12px;">🦦🔐</div>
         <h2 style="font-size:20px; font-weight:bold; color:var(--brand-800);">請先登入 ConcenMate 書伴</h2>
@@ -372,7 +217,7 @@
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
               <div>
                 <h2 style="font-size:18px; font-weight:bold; color:var(--brand-800);">🌐 公開溫習大廳</h2>
-                <p style="font-size:11px; color:#666;">連接 Firebase (concenmate-app) 即時同步各同學的溫習房！</p>
+                <p style="font-size:11px; color:#666;">即時同步各同學的溫習房（每房上限 4 人）</p>
               </div>
               <button class="btn btn-primary" type="button" onclick="openModal('modal-create-room')">
                 🚀 + 建立新溫習房
@@ -389,47 +234,85 @@
           <div id="room-active" style="display:none;">
             <div class="room-bar">
               <div style="display:flex; align-items:center; gap:6px;">
-                <button class="btn btn-outline" type="button" style="padding:3px 8px; font-size:11px;" onclick="returnToLobby()">⬅️ 返回大廳</button>
+                <button class="btn btn-outline" type="button" style="padding:3px 8px; font-size:11px;" onclick="leaveRoom()">⬅️ 返回大廳</button>
                 <span style="font-weight:bold; font-size:14px;" id="active-room-title">DSE 衝刺專注房</span>
                 <span class="tag" style="background:#d1fae5; color:#065f46;" id="active-room-subject">數學</span>
               </div>
 
               <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
                 <button class="btn btn-primary" type="button" id="btn-camera" onclick="toggleCamera()">📹 開啟鏡頭</button>
-
                 <div style="background:#111; color:white; font-family:monospace; padding:4px 8px; border-radius:8px; font-size:11px;">
                   ⏱️ 倒數: <span id="room-timer">30:00</span>
                 </div>
-
                 <button class="btn btn-outline" type="button" style="border-color:#ef4444; color:#ef4444;" onclick="leaveRoom()">🚪 退出房間</button>
               </div>
             </div>
 
+            <!-- 固定 4 格視窗設計 -->
             <div id="video-grid-container" class="video-grid-container">
-              <div class="video-card-single" onclick="wakeVideoEngine()">
+              
+              <!-- Slot 0: 自己 (Local User) -->
+              <div class="video-card-single" id="slot-0" onclick="wakeVideoEngine()">
                 <video id="behind-video-engine" class="behind-stream-video" autoplay playsinline webkit-playsinline muted></video>
                 <canvas id="canvas-stream-display" class="canvas-stream-display"></canvas>
                 
                 <div class="video-overlay" id="self-overlay">
                   <div class="avatar-circle" id="room-self-avatar">A</div>
                   <p style="font-size:12px; font-weight:bold; color:#fff;" id="overlay-msg">溫習房已就緒！</p>
-                  <p style="font-size:11px; margin-top:4px; color:#aaa;">請點擊上方「📹 開啟鏡頭」加入 P2P 視訊互聯</p>
+                  <p style="font-size:11px; margin-top:4px; color:#aaa;">請點擊上方「📹 開啟鏡頭」</p>
                 </div>
 
                 <div class="video-header">
                   <span class="video-tag">
-                    <span id="room-user-name-tag">Alex Wong (你)</span> ✓
+                    <span id="room-user-name-tag">你</span> ✓
                   </span>
-                  <span class="video-tag" style="background:#f59e0b; color:#000;" id="room-host-tag">房主專注中</span>
+                  <span class="video-tag" style="background:#f59e0b; color:#000;" id="room-host-tag">房主</span>
                 </div>
 
                 <div class="video-footer">
                   <span class="video-tag" id="camera-status-tag" style="background:rgba(16,185,129,0.9); display:none;">🔴 鏡頭即時串流中</span>
                 </div>
-
                 <div id="sticker-container-box" class="sticker-container-box"></div>
               </div>
+
+              <!-- Slot 1: 遠端同學 1 -->
+              <div class="video-card-single" id="slot-1">
+                <div class="empty-slot-placeholder" id="placeholder-1">
+                  <div class="icon">🪑</div><p>等待加入...</p>
+                </div>
+                <video class="remote-video-element" id="video-1" style="display:none;" autoplay playsinline></video>
+                <div class="video-header" id="header-1" style="display:none;">
+                  <span class="video-tag" id="name-1">📹 同學</span>
+                  <span class="video-tag" style="background:#10b981; color:#fff;">🟢 串流中</span>
+                </div>
+              </div>
+
+              <!-- Slot 2: 遠端同學 2 -->
+              <div class="video-card-single" id="slot-2">
+                <div class="empty-slot-placeholder" id="placeholder-2">
+                  <div class="icon">🪑</div><p>等待加入...</p>
+                </div>
+                <video class="remote-video-element" id="video-2" style="display:none;" autoplay playsinline></video>
+                <div class="video-header" id="header-2" style="display:none;">
+                  <span class="video-tag" id="name-2">📹 同學</span>
+                  <span class="video-tag" style="background:#10b981; color:#fff;">🟢 串流中</span>
+                </div>
+              </div>
+
+              <!-- Slot 3: 遠端同學 3 -->
+              <div class="video-card-single" id="slot-3">
+                <div class="empty-slot-placeholder" id="placeholder-3">
+                  <div class="icon">🪑</div><p>等待加入...</p>
+                </div>
+                <video class="remote-video-element" id="video-3" style="display:none;" autoplay playsinline></video>
+                <div class="video-header" id="header-3" style="display:none;">
+                  <span class="video-tag" id="name-3">📹 同學</span>
+                  <span class="video-tag" style="background:#10b981; color:#fff;">🟢 串流中</span>
+                </div>
+              </div>
+
             </div>
+            <!-- 結束固定 4 格設計 -->
 
             <div class="card" style="max-width:1000px; margin:12px auto 0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
               <p style="font-size:11px; font-weight:bold;">🦦 發送 Ottiee 彈幕加油貼圖：</p>
@@ -450,11 +333,9 @@
               <h3 style="font-size:15px; font-weight:bold;">疑難解答區討論帖</h3>
               <button class="btn btn-primary" type="button" onclick="showToast('發起提問功能已準備就緒！', '🚀')">+ 發起提問</button>
             </div>
-
             <div style="border-top:1px solid #eee; padding-top:10px; margin-top:8px;">
               <div style="display:flex; justify-content:space-between;">
-                <span class="tag">數學</span>
-                <span style="font-size:11px; color:#f59e0b; font-weight:bold;">懸賞 50 EXP</span>
+                <span class="tag">數學</span><span style="font-size:11px; color:#f59e0b; font-weight:bold;">懸賞 50 EXP</span>
               </div>
               <h4 style="font-size:13px; font-weight:bold; margin-top:6px;">2024 DSE 數學 Paper 1 第 18 題求解步驟？</h4>
               <p style="font-size:11px; color:#666; margin-top:4px;">發帖者：<span class="clickable-user" onclick="viewUserProfile('Chloe_DSE')">Chloe_DSE</span></p>
@@ -468,85 +349,33 @@
               <h2 style="font-size:16px; font-weight:bold; color:var(--brand-800);">👤 編輯會員個人資料</h2>
               <button class="btn btn-red" type="button" onclick="logoutWithFirebase()">🚪 登出帳號</button>
             </div>
-
             <form id="profile-form" onsubmit="saveUserProfile(event)" style="display:flex; flex-direction:column; gap:12px;">
-              <div>
-                <label style="font-size:11px; font-weight:bold; color:#555; display:block;">會員帳號名稱 (Username)</label>
-                <input type="text" id="prof-username" class="input-field" placeholder="例如：Alex Wong">
-              </div>
-
-              <div>
-                <label style="font-size:11px; font-weight:bold; color:#555; display:block;">電子郵件 (Email)</label>
-                <input type="email" id="prof-email" class="input-field" disabled style="background:#e5e5e5; cursor:not-allowed;">
-              </div>
-
-              <div>
-                <label style="font-size:11px; font-weight:bold; color:#555; display:block;">學校名稱</label>
-                <input type="text" id="prof-school" class="input-field" placeholder="例如：聖保羅男女中學">
-              </div>
-
+              <div><label style="font-size:11px; font-weight:bold; color:#555; display:block;">會員帳號名稱 (Username)</label><input type="text" id="prof-username" class="input-field" placeholder="例如：Alex Wong"></div>
+              <div><label style="font-size:11px; font-weight:bold; color:#555; display:block;">電子郵件 (Email)</label><input type="email" id="prof-email" class="input-field" disabled style="background:#e5e5e5; cursor:not-allowed;"></div>
+              <div><label style="font-size:11px; font-weight:bold; color:#555; display:block;">學校名稱</label><input type="text" id="prof-school" class="input-field" placeholder="例如：聖保羅男女中學"></div>
               <div>
                 <label style="font-size:11px; font-weight:bold; color:#555; display:block;">現時年級</label>
                 <select id="prof-grade" class="input-field">
                   <option value="中一 (S1)">中一 (S1)</option>
-                  <option value="中二 (S2)">中二 (S2)</option>
-                  <option value="中三 (S3)">中三 (S3)</option>
-                  <option value="中四 (S4)">中四 (S4)</option>
-                  <option value="中五 (S5)">中五 (S5)</option>
                   <option value="中六 (S6 DSE)" selected>中六 (S6 DSE)</option>
                   <option value="大專/大學">大專 / 大學</option>
-                  <option value="其他自修生">其他 / 自修生</option>
                 </select>
               </div>
-
-              <div>
-                <label style="font-size:11px; font-weight:bold; color:#555; display:block;">喜愛學科 (可留白)</label>
-                <input type="text" id="prof-fav" class="input-field" placeholder="例如：數學, 物理, M2">
-              </div>
-
-              <div>
-                <label style="font-size:11px; font-weight:bold; color:#555; display:block;">討厭學科 (可留白)</label>
-                <input type="text" id="prof-dislike" class="input-field" placeholder="例如：中文背誦">
-              </div>
-
-              <button class="btn btn-primary" type="submit" style="padding:10px; font-size:13px; margin-top:8px; justify-content:center;">
-                💾 儲存修改資料
-              </button>
+              <div><label style="font-size:11px; font-weight:bold; color:#555; display:block;">喜愛學科 (可留白)</label><input type="text" id="prof-fav" class="input-field"></div>
+              <div><label style="font-size:11px; font-weight:bold; color:#555; display:block;">討厭學科 (可留白)</label><input type="text" id="prof-dislike" class="input-field"></div>
+              <button class="btn btn-primary" type="submit" style="padding:10px; font-size:13px; margin-top:8px;">💾 儲存修改資料</button>
             </form>
           </div>
         </section>
 
         <section id="tab-vip" class="tab-content">
-          <div class="card" style="background: linear-gradient(135deg, var(--brand-700), #8D6E63); color:white;">
-            <h2 style="font-size:18px; font-weight:bold;">ConcenMate VIP 專屬方案</h2>
-            <p style="font-size:12px; margin-top:6px; opacity:0.9;">升級解鎖無限次防瞌睡測試、雲端錄影備份與 HD 60FPS 串流！</p>
-          </div>
+          <div class="card" style="background: linear-gradient(135deg, var(--brand-700), #8D6E63); color:white;"><h2 style="font-size:18px; font-weight:bold;">ConcenMate VIP 專屬方案</h2><p style="font-size:12px; margin-top:6px; opacity:0.9;">升級解鎖無限次防瞌睡測試與 HD 60FPS 串流！</p></div>
         </section>
-
-        <section id="tab-store" class="tab-content">
-          <div class="card" style="background:#f59e0b; color:white;">
-            <h2 style="font-size:16px; font-weight:bold;">Ottiee 時數幸運兌換所</h2>
-            <p style="font-size:12px; margin-top:4px;">累積溫習時數即可換領精美學習講義與文具禮券！</p>
-          </div>
-        </section>
-
-        <section id="tab-social" class="tab-content">
-          <div class="card">
-            <h3 style="font-size:14px; font-weight:bold;">奮鬥夥伴親密度</h3>
-            <p style="font-size:11px; color:#666; margin-top:4px;">
-              <span class="clickable-user" onclick="viewUserProfile('Chloe_DSE')">Chloe_DSE</span> (共同溫習 28 小時)
-            </p>
-          </div>
-        </section>
-
-        <section id="tab-verification" class="tab-content">
-          <div class="card" style="text-align:center; padding:20px;">
-            🎓 學生身份認證完成
-          </div>
-        </section>
+        <section id="tab-store" class="tab-content"><div class="card" style="background:#f59e0b; color:white;"><h2 style="font-size:16px; font-weight:bold;">Ottiee 時數幸運兌換所</h2><p style="font-size:12px; margin-top:4px;">累積溫習時數即可換領精美禮品！</p></div></section>
+        <section id="tab-social" class="tab-content"><div class="card"><h3 style="font-size:14px; font-weight:bold;">奮鬥夥伴親密度</h3><p style="font-size:11px; color:#666; margin-top:4px;"><span class="clickable-user" onclick="viewUserProfile('Chloe_DSE')">Chloe_DSE</span> (共同溫習 28 小時)</p></div></section>
+        <section id="tab-verification" class="tab-content"><div class="card" style="text-align:center; padding:20px;">🎓 學生身份認證完成</div></section>
 
       </div>
-
     </main>
   </div>
 
@@ -554,20 +383,11 @@
     <div class="modal-box">
       <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); text-align:center;">🔑 會員登入</h3>
       <form onsubmit="handleLoginSubmit(event)" style="display:flex; flex-direction:column; gap:10px; margin-top:12px;">
-        <div>
-          <label style="font-size:11px; font-weight:bold; color:#555;">電子郵件 (Email)</label>
-          <input type="email" id="login-email" class="input-field" required placeholder="example@school.edu.hk">
-        </div>
-        <div>
-          <label style="font-size:11px; font-weight:bold; color:#555;">密碼 (Password)</label>
-          <input type="password" id="login-password" class="input-field" required placeholder="請輸入密碼">
-        </div>
+        <div><label style="font-size:11px; font-weight:bold; color:#555;">電子郵件</label><input type="email" id="login-email" class="input-field" required></div>
+        <div><label style="font-size:11px; font-weight:bold; color:#555;">密碼</label><input type="password" id="login-password" class="input-field" required></div>
         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
-          <span style="font-size:11px; color:#2563eb; cursor:pointer;" onclick="closeModal('modal-login'); openModal('modal-register');">還沒有帳號？點此註冊</span>
-          <div style="display:flex; gap:6px;">
-            <button class="btn btn-outline" type="button" onclick="closeModal('modal-login')">取消</button>
-            <button class="btn btn-primary" type="submit">登入</button>
-          </div>
+          <span style="font-size:11px; color:#2563eb; cursor:pointer;" onclick="closeModal('modal-login'); openModal('modal-register');">註冊帳號</span>
+          <div style="display:flex; gap:6px;"><button class="btn btn-outline" type="button" onclick="closeModal('modal-login')">取消</button><button class="btn btn-primary" type="submit">登入</button></div>
         </div>
       </form>
     </div>
@@ -575,58 +395,16 @@
 
   <div class="modal-backdrop" id="modal-register" style="display:none;">
     <div class="modal-box">
-      <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); text-align:center;">📝 註冊 ConcenMate 會員</h3>
+      <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); text-align:center;">📝 註冊 ConcenMate</h3>
       <form onsubmit="handleRegisterSubmit(event)" style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">
-        <div>
-          <label style="font-size:11px; font-weight:bold; color:#555;">1. 會員帳號 *</label>
-          <input type="text" id="reg-username" class="input-field" required placeholder="例如：AlexWong2026">
-        </div>
-
-        <div>
-          <label style="font-size:11px; font-weight:bold; color:#555;">2. 電子郵件 (Email) *</label>
-          <input type="email" id="reg-email" class="input-field" required placeholder="example@school.edu.hk">
-        </div>
-
-        <div>
-          <label style="font-size:11px; font-weight:bold; color:#555;">3. 設定密碼 *</label>
-          <input type="password" id="reg-password" class="input-field" required placeholder="請輸入 6 位或以上的密碼">
-        </div>
-
-        <div>
-          <label style="font-size:11px; font-weight:bold; color:#555;">4. 學校名稱 *</label>
-          <input type="text" id="reg-school" class="input-field" required placeholder="例如：屯門官立中學">
-        </div>
-
-        <div>
-          <label style="font-size:11px; font-weight:bold; color:#555;">5. 現時年級 *</label>
-          <select id="reg-grade" class="input-field">
-            <option value="中一 (S1)">中一 (S1)</option>
-            <option value="中二 (S2)">中二 (S2)</option>
-            <option value="中三 (S3)">中三 (S3)</option>
-            <option value="中四 (S4)">中四 (S4)</option>
-            <option value="中五 (S5)">中五 (S5)</option>
-            <option value="中六 (S6 DSE)" selected>中六 (S6 DSE)</option>
-            <option value="大專/大學">大專 / 大學</option>
-            <option value="其他自修生">其他 / 自修生</option>
-          </select>
-        </div>
-
-        <div>
-          <label style="font-size:11px; font-weight:bold; color:#555;">6. 喜愛學科 (可留白)</label>
-          <input type="text" id="reg-fav" class="input-field" placeholder="例如：數學, 物理">
-        </div>
-
-        <div>
-          <label style="font-size:11px; font-weight:bold; color:#555;">7. 討厭學科 (可留白)</label>
-          <input type="text" id="reg-dislike" class="input-field" placeholder="例如：中文範文">
-        </div>
-
+        <div><label style="font-size:11px; font-weight:bold; color:#555;">會員帳號 *</label><input type="text" id="reg-username" class="input-field" required></div>
+        <div><label style="font-size:11px; font-weight:bold; color:#555;">電子郵件 *</label><input type="email" id="reg-email" class="input-field" required></div>
+        <div><label style="font-size:11px; font-weight:bold; color:#555;">設定密碼 *</label><input type="password" id="reg-password" class="input-field" required></div>
+        <div><label style="font-size:11px; font-weight:bold; color:#555;">學校名稱 *</label><input type="text" id="reg-school" class="input-field" required></div>
+        <div><label style="font-size:11px; font-weight:bold; color:#555;">現時年級 *</label><select id="reg-grade" class="input-field"><option value="中六 (S6 DSE)" selected>中六 (S6 DSE)</option></select></div>
         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-          <span style="font-size:11px; color:#2563eb; cursor:pointer;" onclick="closeModal('modal-register'); openModal('modal-login');">已有帳號？點此登入</span>
-          <div style="display:flex; gap:6px;">
-            <button class="btn btn-outline" type="button" onclick="closeModal('modal-register')">取消</button>
-            <button class="btn btn-primary" type="submit">完成註冊並登入</button>
-          </div>
+          <span style="font-size:11px; color:#2563eb; cursor:pointer;" onclick="closeModal('modal-register'); openModal('modal-login');">點此登入</span>
+          <div style="display:flex; gap:6px;"><button class="btn btn-outline" type="button" onclick="closeModal('modal-register')">取消</button><button class="btn btn-primary" type="submit">完成註冊</button></div>
         </div>
       </form>
     </div>
@@ -634,46 +412,20 @@
 
   <div class="modal-backdrop" id="modal-create-room" style="display:none;">
     <div class="modal-box">
-      <div style="text-align:center; margin-bottom:12px;">
-        <div style="font-size:32px;">🦦📚</div>
-        <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800);">建立公開溫習房</h3>
-        <p style="font-size:11px; color:#666; margin-top:2px;">讓其他同學在公開大廳看到並加入你的房間</p>
-      </div>
-
+      <div style="text-align:center; margin-bottom:12px;"><div style="font-size:32px;">🦦📚</div><h3 style="font-size:16px; font-weight:bold; color:var(--brand-800);">建立公開溫習房 (上限4人)</h3></div>
       <form onsubmit="handleCreateRoomSubmit(event)" style="display:flex; flex-direction:column; gap:10px;">
+        <div><label style="font-size:11px; font-weight:bold; color:#555;">房間名稱 *</label><input type="text" id="modal-room-name" class="input-field" required value="DSE 衝刺專注房"></div>
         <div>
-          <label style="font-size:11px; font-weight:bold; color:#555; display:block;">溫習房間名稱 *</label>
-          <input type="text" id="modal-room-name" class="input-field" required value="DSE 衝刺專注房">
-        </div>
-
-        <div>
-          <label style="font-size:11px; font-weight:bold; color:#555; display:block;">溫習學科 *</label>
+          <label style="font-size:11px; font-weight:bold; color:#555;">溫習學科 *</label>
           <select id="modal-room-subject" class="input-field">
-            <option value="數學">DSE 數學 (Math)</option>
-            <option value="英國語文">DSE 英國語文 (English)</option>
-            <option value="中國語文">DSE 中國語文 (Chinese)</option>
-            <option value="物理">DSE 物理 (Physics)</option>
-            <option value="化學">DSE 化學 (Chemistry)</option>
-            <option value="生物">DSE 生物 (Biology)</option>
-            <option value="經濟/企會財">DSE 經濟 / 企會財</option>
-            <option value="其他">其他溫習科目</option>
+            <option value="數學">DSE 數學</option><option value="英文">DSE 英文</option><option value="其他">其他科目</option>
           </select>
         </div>
-
         <div>
-          <label style="font-size:11px; font-weight:bold; color:#555; display:block;">溫習目標時間 (分鐘)</label>
-          <select id="modal-room-duration" class="input-field">
-            <option value="15">15 分鐘</option>
-            <option value="30" selected>30 分鐘</option>
-            <option value="45">45 分鐘</option>
-            <option value="60">60 分鐘</option>
-          </select>
+          <label style="font-size:11px; font-weight:bold; color:#555;">目標時間 (分鐘)</label>
+          <select id="modal-room-duration" class="input-field"><option value="30" selected>30 分鐘</option><option value="60">60 分鐘</option></select>
         </div>
-
-        <div style="display:flex; gap:8px; margin-top:10px; justify-content:flex-end;">
-          <button class="btn btn-outline" type="button" onclick="closeModal('modal-create-room')">取消</button>
-          <button class="btn btn-primary" type="submit">🚀 立即建立並廣播</button>
-        </div>
+        <div style="display:flex; gap:8px; margin-top:10px; justify-content:flex-end;"><button class="btn btn-outline" type="button" onclick="closeModal('modal-create-room')">取消</button><button class="btn btn-primary" type="submit">🚀 建立並廣播</button></div>
       </form>
     </div>
   </div>
@@ -682,25 +434,14 @@
     <div class="modal-box" style="text-align:center;">
       <div class="avatar-circle" style="margin:0 auto 10px; width:64px; height:64px; font-size:26px; background:var(--brand-500); border-color:var(--brand-200);" id="pop-user-avatar">A</div>
       <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800);" id="pop-user-name">Alex Wong</h3>
-      <p style="font-size:11px; color:#2563eb; font-weight:bold; margin-bottom:12px;" id="pop-user-verified">✓ 學生身份已驗證</p>
-
-      <div style="background:var(--brand-50); border:1px solid var(--brand-200); border-radius:12px; padding:12px; text-align:left; font-size:12px; display:flex; flex-direction:column; gap:6px; margin-bottom:14px;">
-        <div><strong>🏫 就讀學校：</strong><span id="pop-user-school">屯門官立中學</span></div>
-        <div><strong>🎓 現時年級：</strong><span id="pop-user-grade">中六 (S6 DSE)</span></div>
-        <div><strong>❤️ 喜愛學科：</strong><span id="pop-user-fav">數學, 物理, M2</span></div>
-        <div><strong>💔 討厭學科：</strong><span id="pop-user-dislike">中文範文</span></div>
-        <div><strong>⏱️ 累積溫習：</strong><span id="pop-user-hours">42.5 小時</span></div>
-      </div>
-
-      <button class="btn btn-primary" type="button" style="width:100%; justify-content:center;" onclick="closeModal('modal-view-profile')">關閉資料卡</button>
+      <button class="btn btn-primary" type="button" style="width:100%; margin-top:14px;" onclick="closeModal('modal-view-profile')">關閉資料卡</button>
     </div>
   </div>
 
   <div class="modal-backdrop" id="modal-quiz" style="display:none;">
     <div class="modal-box" style="text-align:center;">
-      <div style="font-size:36px;">🦦⚡</div>
-      <h3>醒下啦~ Ottiee 防瞌睡小測驗！</h3>
-      <p style="font-size:11px; color:#555; margin-bottom:10px;">DSE 數學：sin²θ + cos²θ 等於多少？</p>
+      <div style="font-size:36px;">🦦⚡</div><h3>醒下啦~ 防瞌睡測驗！</h3>
+      <p style="font-size:11px; color:#555; margin-bottom:10px;">DSE 數學：sin²θ + cos²θ = ?</p>
       <div style="display:flex; flex-direction:column; gap:6px;">
         <button class="btn btn-outline" type="button" onclick="answerQuiz(true)">等於 1 (正確)</button>
         <button class="btn btn-outline" type="button" onclick="answerQuiz(false)">等於 0</button>
@@ -709,17 +450,6 @@
   </div>
 
   <script>
-    // 開發測試用：自動更新載入時間戳記
-    document.addEventListener("DOMContentLoaded", () => {
-      const timeBadge = document.getElementById('load-timestamp');
-      if (timeBadge) {
-        const now = new Date();
-        timeBadge.innerText = now.getHours().toString().padStart(2, '0') + ':' + 
-                              now.getMinutes().toString().padStart(2, '0') + ':' + 
-                              now.getSeconds().toString().padStart(2, '0');
-      }
-    });
-
     window.currentUser = null;
 
     function showToast(msg, icon = 'ℹ️') {
@@ -737,20 +467,13 @@
     window.closeModal = closeModal;
 
     function switchTab(tabId, btn) {
-      if (!window.currentUser) {
-        openModal('modal-login');
-        return;
-      }
-
+      if (!window.currentUser) { openModal('modal-login'); return; }
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
-      
       const targetTab = document.getElementById('tab-' + tabId);
       if (targetTab) targetTab.classList.add('active');
-
-      if (btn) {
-        btn.classList.add('active');
-      } else {
+      if (btn) btn.classList.add('active');
+      else {
         const targetBtn = document.getElementById('nav-btn-' + tabId);
         if (targetBtn) targetBtn.classList.add('active');
       }
@@ -764,94 +487,49 @@
       const headerStats = document.getElementById('header-user-stats');
 
       if (window.currentUser) {
-        closeModal('modal-login');
-        closeModal('modal-register');
-
-        unauthScreen.style.display = 'none';
-        authContent.style.display = 'block';
-        headerStats.style.display = 'flex';
-
-        headerAuthBtn.className = "btn btn-outline";
-        headerAuthBtn.style.borderRadius = "20px";
-        headerAuthBtn.style.padding = "4px 10px";
-        headerAuthBtn.style.fontSize = "11px";
+        closeModal('modal-login'); closeModal('modal-register');
+        unauthScreen.style.display = 'none'; authContent.style.display = 'block'; headerStats.style.display = 'flex';
+        headerAuthBtn.className = "btn btn-outline"; headerAuthBtn.style.borderRadius = "20px"; headerAuthBtn.style.padding = "4px 10px"; headerAuthBtn.style.fontSize = "11px";
         headerAuthBtn.innerHTML = `<span>${window.currentUser.username || window.currentUser.email}</span> <span style="color:#3b82f6; font-weight:bold;">✓</span>`;
-
         document.getElementById('room-user-name-tag').innerText = (window.currentUser.username || '使用者') + " (你)";
         document.getElementById('room-self-avatar').innerText = (window.currentUser.username || 'U').charAt(0).toUpperCase();
-        document.getElementById('stat-hours').innerText = window.currentUser.hours || "0.0";
-
-        document.getElementById('prof-username').value = window.currentUser.username || '';
-        document.getElementById('prof-email').value = window.currentUser.email || '';
-        document.getElementById('prof-school').value = window.currentUser.school || '';
-        document.getElementById('prof-grade').value = window.currentUser.grade || '中六 (S6 DSE)';
-        document.getElementById('prof-fav').value = window.currentUser.favSubjects || '';
-        document.getElementById('prof-dislike').value = window.currentUser.dislikeSubjects || '';
-
         switchTab('room');
       } else {
-        unauthScreen.style.display = 'block';
-        authContent.style.display = 'none';
-        headerStats.style.display = 'none';
-
-        headerAuthBtn.className = "btn btn-primary";
-        headerAuthBtn.innerHTML = `🔑 登入 / 註冊`;
+        unauthScreen.style.display = 'block'; authContent.style.display = 'none'; headerStats.style.display = 'none';
+        headerAuthBtn.className = "btn btn-primary"; headerAuthBtn.innerHTML = `🔑 登入 / 註冊`;
       }
     }
     window.updateUserAuthUI = updateUserAuthUI;
 
-    function handleHeaderUserClick() {
-      if (window.currentUser) {
-        switchTab('profile');
-      } else {
-        openModal('modal-login');
-      }
-    }
+    function handleHeaderUserClick() { window.currentUser ? switchTab('profile') : openModal('modal-login'); }
     window.handleHeaderUserClick = handleHeaderUserClick;
 
     function sendDanmakuSticker(emoji) {
       const container = document.getElementById('sticker-container-box');
       if (!container) return;
-
       const sticker = document.createElement('div');
-      sticker.className = 'danmaku-sticker';
-      sticker.innerText = emoji;
-
-      const randomLeft = Math.floor(Math.random() * 75) + 10;
-      const randomRotate = Math.floor(Math.random() * 40) - 20;
-      const randomSize = Math.floor(Math.random() * 22) + 36;
-
-      sticker.style.left = randomLeft + '%';
-      sticker.style.fontSize = randomSize + 'px';
-      sticker.style.setProperty('--rot', randomRotate + 'deg');
-
+      sticker.className = 'danmaku-sticker'; sticker.innerText = emoji;
+      sticker.style.left = (Math.floor(Math.random() * 75) + 10) + '%';
+      sticker.style.fontSize = (Math.floor(Math.random() * 22) + 36) + 'px';
+      sticker.style.setProperty('--rot', (Math.floor(Math.random() * 40) - 20) + 'deg');
       container.appendChild(sticker);
-      setTimeout(() => { sticker.remove(); }, 2200);
+      setTimeout(() => sticker.remove(), 2200);
     }
     window.sendDanmakuSticker = sendDanmakuSticker;
 
     function triggerQuiz() { openModal('modal-quiz'); }
     window.triggerQuiz = triggerQuiz;
-
     function answerQuiz(isCorrect) {
       closeModal('modal-quiz');
-      if (isCorrect) {
-        showToast('🎉 答對了！精神滿滿，獎勵 +10 點數！', '⚡');
-      } else {
-        showToast('答錯囉，快喝口水提提神！', '🥤');
-      }
+      if (isCorrect) showToast('🎉 答對了！精神滿滿，獎勵 +10 點數！', '⚡');
+      else showToast('答錯囉，快喝口水提提神！', '🥤');
     }
     window.answerQuiz = answerQuiz;
 
     function viewUserProfile(usernameKey) {
-      const u = window.currentUser || { username: 'Alex Wong', school: '聖保羅男女中學', grade: '中六 (S6 DSE)', favSubjects: '數學, 物理', dislikeSubjects: '中文', hours: '42.5' };
+      const u = window.currentUser || { username: 'Alex Wong' };
       document.getElementById('pop-user-avatar').innerText = u.username.charAt(0).toUpperCase();
       document.getElementById('pop-user-name').innerText = u.username;
-      document.getElementById('pop-user-school').innerText = u.school || '未填寫';
-      document.getElementById('pop-user-grade').innerText = u.grade || '未填寫';
-      document.getElementById('pop-user-fav').innerText = u.favSubjects || '未填寫';
-      document.getElementById('pop-user-dislike').innerText = u.dislikeSubjects || '未填寫';
-      document.getElementById('pop-user-hours').innerText = (u.hours || "0") + " 小時";
       openModal('modal-view-profile');
     }
     window.viewUserProfile = viewUserProfile;
@@ -860,7 +538,8 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    // 引入 arrayUnion 和 arrayRemove 來處理房間人數名單
+    import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDcxw01cH4Xdsp8xK4Xq69lnt3kCsEZTkQ",
@@ -868,35 +547,28 @@
       projectId: "concenmate-app",
       storageBucket: "concenmate-app.firebasestorage.app",
       messagingSenderId: "215862346156",
-      appId: "1:215862346156:web:1cc2037abde0e5a24cba09",
-      measurementId: "G-MJSTJ0KRN6"
+      appId: "1:215862346156:web:1cc2037abde0e5a24cba09"
     };
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
-
     window.db = db;
-    window.fs = { doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs };
+    // 匯出陣列操作函式供全域使用
+    window.fs = { doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs, arrayUnion, arrayRemove };
 
     let unsubscribeRooms = null;
     function listenToPublicRooms() {
       if (unsubscribeRooms) unsubscribeRooms();
-
       const roomsRef = collection(db, "rooms");
+      
       unsubscribeRooms = onSnapshot(roomsRef, (snapshot) => {
         const roomsListEl = document.getElementById('public-rooms-container');
         if (!roomsListEl) return;
-
         let roomsHtml = '';
+        
         if (snapshot.empty) {
-          roomsListEl.innerHTML = `
-            <div style="grid-column: 1 / -1; text-align:center; padding: 40px; background: white; border-radius: 16px; border: 1px solid var(--brand-200);">
-              <div style="font-size:36px; margin-bottom:8px;">🦦📭</div>
-              <p style="font-size:13px; font-weight:bold; color:var(--brand-800);">目前大廳沒有公開的溫習房</p>
-              <p style="font-size:11px; color:#666; margin-top:4px;">點擊上方「+ 建立新溫習房」來開立第一個房間吧！</p>
-            </div>
-          `;
+          roomsListEl.innerHTML = `<div style="grid-column: 1 / -1; text-align:center; padding: 40px; background: white; border-radius: 16px; border: 1px solid var(--brand-200);"><p style="font-size:13px; font-weight:bold;">目前大廳沒有公開的溫習房</p></div>`;
           return;
         }
 
@@ -904,32 +576,39 @@
           const room = roomDoc.data();
           const roomId = roomDoc.id;
           const isMyRoom = window.currentUser && room.hostUid === window.currentUser.uid;
+          
+          // 計算目前房間人數 (預設防呆為 0)
+          const participantCount = room.participants ? room.participants.length : 0;
+          const isFull = participantCount >= 4;
+          const iAmInRoom = room.participants && window.currentUser && room.participants.includes(window.currentUser.uid);
+
+          // 判斷按鈕狀態：如果滿了且我不在裡面，則禁用加入
+          let joinBtnHtml = '';
+          if (isFull && !iAmInRoom) {
+            joinBtnHtml = `<button class="btn btn-primary" style="flex:1; justify-content:center; font-size:11px; padding:6px;" disabled>🚫 房間滿座</button>`;
+          } else {
+            joinBtnHtml = `<button class="btn btn-primary" style="flex:1; justify-content:center; font-size:11px; padding:6px;" onclick="joinPublicRoom('${roomId}', '${room.name.replace(/'/g, "\\'")}', '${room.subject}', ${room.duration}, '${room.hostName}', ${isMyRoom})">🚪 加入房間</button>`;
+          }
 
           roomsHtml += `
             <div class="room-item-card">
               <div>
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
                   <span class="tag" style="background:#fef3c7; color:#92400e;">${room.subject || '數學'}</span>
-                  <span style="font-size:10px; color:#10b981; font-weight:bold;">🟢 直播中</span>
+                  <span style="font-size:10px; color:${isFull ? '#ef4444' : '#10b981'}; font-weight:bold;">
+                    ${isFull ? '🔴 滿座' : '🟢 直播中'} (${participantCount}/4)
+                  </span>
                 </div>
                 <h4 style="font-size:14px; font-weight:bold; color:var(--brand-800); margin-bottom:4px;">${room.name}</h4>
                 <p style="font-size:11px; color:#666;">房主：<strong>${room.hostName || '匿名同學'}</strong></p>
-                <p style="font-size:10px; color:#888; margin-top:2px;">目標時間：${room.duration || 30} 分鐘</p>
               </div>
-
               <div style="display:flex; gap:6px; margin-top:12px;">
-                <button class="btn btn-primary" style="flex:1; justify-content:center; font-size:11px; padding:6px;" onclick="joinPublicRoom('${roomId}', '${room.name.replace(/'/g, "\\'")}', '${room.subject}', ${room.duration}, '${room.hostName}', ${isMyRoom})">
-                  🚪 加入房間
-                </button>
+                ${joinBtnHtml}
                 ${isMyRoom ? `<button class="btn btn-red" style="font-size:11px; padding:6px;" onclick="deleteRoomQuick('${roomId}')">刪除</button>` : ''}
               </div>
-            </div>
-          `;
+            </div>`;
         });
-
         roomsListEl.innerHTML = roomsHtml;
-      }, (error) => {
-        console.error("監聽公開房間失敗:", error);
       });
     }
 
@@ -938,211 +617,142 @@
         try {
           const userDocRef = doc(db, "users", user.uid);
           const userDoc = await getDoc(userDocRef);
-          if (userDoc.exists()) {
-            window.currentUser = userDoc.data();
-          } else {
-            window.currentUser = {
-              uid: user.uid,
-              email: user.email,
-              username: user.email.split('@')[0],
-              school: '未設定',
-              grade: '中六 (S6 DSE)',
-              hours: '0.0'
-            };
-          }
-        } catch (e) {
-          console.error("讀取用戶 Firebase 資料失敗:", e);
-        }
+          if (userDoc.exists()) window.currentUser = userDoc.data();
+          else window.currentUser = { uid: user.uid, email: user.email, username: user.email.split('@')[0], hours: '0.0' };
+        } catch (e) { console.error("Firebase read fail:", e); }
         listenToPublicRooms();
-      } else {
-        window.currentUser = null;
-      }
-      if (typeof window.updateUserAuthUI === 'function') {
-        window.updateUserAuthUI();
-      }
+      } else { window.currentUser = null; }
+      if (typeof window.updateUserAuthUI === 'function') window.updateUserAuthUI();
     });
 
     window.registerWithFirebase = async function(email, password, profileData) {
       try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const uid = userCredential.user.uid;
-
-        const newProfile = {
-          uid: uid,
-          email: email,
-          username: profileData.username,
-          school: profileData.school,
-          grade: profileData.grade,
-          favSubjects: profileData.favSubjects || '無',
-          dislikeSubjects: profileData.dislikeSubjects || '無',
-          hours: "0.0",
-          createdAt: new Date().toISOString()
-        };
-
+        const newProfile = { uid, email, username: profileData.username, createdAt: new Date().toISOString() };
         await setDoc(doc(db, "users", uid), newProfile);
         window.currentUser = newProfile;
-
-        window.closeModal('modal-register');
-        window.updateUserAuthUI();
-        window.showToast("🎉 註冊成功！資料已同步至 Firebase 雲端資料庫！", "✨");
-        window.switchTab('room');
-      } catch (error) {
-        window.showToast("註冊失敗: " + error.message, "❌");
-      }
+        window.closeModal('modal-register'); window.updateUserAuthUI(); window.showToast("🎉 註冊成功！", "✨");
+      } catch (error) { window.showToast("註冊失敗: " + error.message, "❌"); }
     };
 
     window.loginWithFirebase = async function(email, password) {
       try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
-
         const userDocRef = doc(db, "users", user.uid);
         const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists()) {
-          window.currentUser = userDoc.data();
-        } else {
-          window.currentUser = {
-            uid: user.uid,
-            email: user.email,
-            username: user.email.split('@')[0],
-            school: '未設定',
-            grade: '中六 (S6 DSE)',
-            hours: '0.0'
-          };
-        }
-
-        window.closeModal('modal-login');
-        window.updateUserAuthUI();
-        window.showToast("歡迎回來 ConcenMate！", "👋");
-        window.switchTab('room');
-      } catch (error) {
-        window.showToast("登入失敗: " + error.message, "❌");
-      }
+        window.currentUser = userDoc.exists() ? userDoc.data() : { uid: user.uid, email: user.email, username: user.email.split('@')[0] };
+        window.closeModal('modal-login'); window.updateUserAuthUI(); window.showToast("歡迎回來！", "👋");
+      } catch (error) { window.showToast("登入失敗: " + error.message, "❌"); }
     };
-
-    window.logoutWithFirebase = async function() {
-      await signOut(auth);
-      window.currentUser = null;
-      window.updateUserAuthUI();
-      window.showToast("已成功登出。", "🚪");
-    };
-
-    window.handleRegisterSubmit = function(e) {
-      e.preventDefault();
-      const email = document.getElementById('reg-email').value.trim();
-      const password = document.getElementById('reg-password').value;
-      const username = document.getElementById('reg-username').value.trim();
-      const school = document.getElementById('reg-school').value.trim();
-      const grade = document.getElementById('reg-grade').value;
-      const favSubjects = document.getElementById('reg-fav').value.trim();
-      const dislikeSubjects = document.getElementById('reg-dislike').value.trim();
-
-      window.registerWithFirebase(email, password, {
-        username, school, grade, favSubjects, dislikeSubjects
-      });
-    };
-
-    window.handleLoginSubmit = function(e) {
-      e.preventDefault();
-      const email = document.getElementById('login-email').value.trim();
-      const password = document.getElementById('login-password').value;
-      window.loginWithFirebase(email, password);
-    };
-
-    window.saveUserProfile = async function(e) {
-      e.preventDefault();
-      if (!window.currentUser || !auth.currentUser) return;
-
-      const school = document.getElementById('prof-school').value.trim();
-      const grade = document.getElementById('prof-grade').value;
-      const favSubjects = document.getElementById('prof-fav').value.trim();
-      const dislikeSubjects = document.getElementById('prof-dislike').value.trim();
-      const username = document.getElementById('prof-username').value.trim();
-
-      try {
-        const userDocRef = doc(db, "users", auth.currentUser.uid);
-        await updateDoc(userDocRef, {
-          username, school, grade, favSubjects, dislikeSubjects
-        });
-        window.currentUser.username = username;
-        window.currentUser.school = school;
-        window.currentUser.grade = grade;
-        window.currentUser.favSubjects = favSubjects;
-        window.currentUser.dislikeSubjects = dislikeSubjects;
-
-        window.updateUserAuthUI();
-        window.showToast("💾 個人檔案已同步更新至 Firebase！", "✅");
-      } catch (err) {
-        window.showToast("更新失敗: " + err.message, "❌");
-      }
-    };
+    window.logoutWithFirebase = async function() { await signOut(auth); window.currentUser = null; window.updateUserAuthUI(); window.showToast("已成功登出。", "🚪"); };
+    window.handleRegisterSubmit = function(e) { e.preventDefault(); window.registerWithFirebase(document.getElementById('reg-email').value, document.getElementById('reg-password').value, { username: document.getElementById('reg-username').value }); };
+    window.handleLoginSubmit = function(e) { e.preventDefault(); window.loginWithFirebase(document.getElementById('login-email').value, document.getElementById('login-password').value); };
   </script>
 
   <script>
     let state = {
-      isCameraOn: false,
-      mediaStream: null,
-      countdownTimer: null,
-      remainingSeconds: 1800,
-      renderFrameId: null,
-      currentRoomId: null,
-      isHost: false,
-      peerConnections: {},
-      signalingUnsubscribe: null
+      isCameraOn: false, mediaStream: null, countdownTimer: null, remainingSeconds: 1800, renderFrameId: null,
+      currentRoomId: null, isHost: false, peerConnections: {}, signalingUnsubscribe: null
     };
 
-    const rtcConfig = {
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
-      ]
-    };
+    // 負責管理遠端視窗的 Slot 狀態 (1, 2, 3)
+    let slotStatus = { 1: null, 2: null, 3: null };
+
+    function allocateSlot(remoteUid) {
+      // 尋找 1~3 是否有空位
+      for (let i = 1; i <= 3; i++) {
+        if (slotStatus[i] === null || slotStatus[i] === remoteUid) {
+          slotStatus[i] = remoteUid;
+          return i; // 回傳找到的槽位號碼
+        }
+      }
+      return null; // 滿了
+    }
+
+    function freeSlot(remoteUid) {
+      for (let i = 1; i <= 3; i++) {
+        if (slotStatus[i] === remoteUid) {
+          slotStatus[i] = null;
+          // 重置 UI
+          document.getElementById('placeholder-' + i).style.display = 'flex';
+          document.getElementById('video-' + i).style.display = 'none';
+          document.getElementById('header-' + i).style.display = 'none';
+          const videoEl = document.getElementById('video-' + i);
+          if (videoEl.srcObject) {
+            videoEl.srcObject.getTracks().forEach(t => t.stop());
+            videoEl.srcObject = null;
+          }
+          break;
+        }
+      }
+    }
+
+    const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
     window.handleCreateRoomSubmit = async function(e) {
       e.preventDefault();
-      if (!window.currentUser || !window.db || !window.fs) {
-        window.showToast("請先登入會員", "⚠️");
-        return;
-      }
+      if (!window.currentUser || !window.db || !window.fs) { window.showToast("請先登入會員", "⚠️"); return; }
 
       const roomName = document.getElementById('modal-room-name').value.trim();
       const subject = document.getElementById('modal-room-subject').value;
       const durationMins = parseInt(document.getElementById('modal-room-duration').value, 10);
-
       const roomId = 'room_' + Date.now();
+      
       const roomData = {
-        name: roomName,
-        subject: subject,
-        duration: durationMins,
-        hostUid: window.currentUser.uid,
-        hostName: window.currentUser.username || '匿名同學',
+        name: roomName, subject: subject, duration: durationMins,
+        hostUid: window.currentUser.uid, hostName: window.currentUser.username || '匿名同學',
+        // 初始化參與者名單（自己先加入）
+        participants: [window.currentUser.uid],
         createdAt: new Date().toISOString()
       };
 
       try {
         await window.fs.setDoc(window.fs.doc(window.db, "rooms", roomId), roomData);
         closeModal('modal-create-room');
-
         enterRoomSetup(roomId, roomName, subject, durationMins, window.currentUser.username || '匿名同學', true);
-        window.showToast("🚀 溫習房建立成功並已廣播至公開大廳！", "✨");
-      } catch (err) {
-        window.showToast("建立房間失敗: " + err.message, "❌");
+        window.showToast("🚀 溫習房建立成功，等待其他同學加入！", "✨");
+      } catch (err) { window.showToast("建立失敗: " + err.message, "❌"); }
+    };
+
+    window.joinPublicRoom = async function(roomId, roomName, subject, durationMins, hostName, isMyRoom) {
+      if (!window.currentUser) { window.showToast("請先登入", "⚠️"); return; }
+      
+      // 再次檢查房間人數限制
+      const roomRef = window.fs.doc(window.db, "rooms", roomId);
+      try {
+        const roomSnap = await window.fs.getDoc(roomRef);
+        if (roomSnap.exists()) {
+          const data = roomSnap.data();
+          const currentCount = data.participants ? data.participants.length : 0;
+          const iAmInRoom = data.participants && data.participants.includes(window.currentUser.uid);
+          
+          if (currentCount >= 4 && !iAmInRoom) {
+            window.showToast("抱歉，此溫習房已達到 4 人上限！", "🚫");
+            return;
+          }
+          
+          // 如果未滿，將自己加入參與者名單
+          if (!iAmInRoom) {
+            await window.fs.updateDoc(roomRef, {
+              participants: window.fs.arrayUnion(window.currentUser.uid)
+            });
+          }
+          
+          enterRoomSetup(roomId, roomName, subject, durationMins, hostName, isMyRoom);
+          window.showToast(`成功加入「${roomName}」！`, "🦦");
+        }
+      } catch (error) {
+        console.error("加入房間錯誤:", error);
       }
     };
 
-    window.joinPublicRoom = function(roomId, roomName, subject, durationMins, hostName, isMyRoom) {
-      enterRoomSetup(roomId, roomName, subject, durationMins, hostName, isMyRoom);
-      window.showToast(`成功加入「${roomName}」！`, "🦦");
-    };
-
     function enterRoomSetup(roomId, roomName, subject, durationMins, hostName, isMyRoom) {
-      state.currentRoomId = roomId;
-      state.isHost = isMyRoom;
-
+      state.currentRoomId = roomId; state.isHost = isMyRoom;
       document.getElementById('active-room-title').innerText = roomName;
       document.getElementById('active-room-subject').innerText = subject;
       document.getElementById('room-host-tag').innerText = isMyRoom ? "你是房主 👑" : `房主: ${hostName}`;
-
       state.remainingSeconds = (durationMins || 30) * 60;
       updateTimerDisplay();
 
@@ -1153,47 +763,42 @@
       listenToRoomSignaling(roomId);
     }
 
-    window.returnToLobby = function() {
-      cleanupRoomConnections();
-      document.getElementById('room-active').style.display = 'none';
-      document.getElementById('room-lobby').style.display = 'block';
-    };
-
     window.deleteRoomQuick = async function(roomId) {
       if (!window.db || !window.fs) return;
-      try {
-        await window.fs.deleteDoc(window.fs.doc(window.db, "rooms", roomId));
-        window.showToast("已刪除該溫習房", "🗑️");
-      } catch (err) {
-        window.showToast("刪除失敗", "❌");
-      }
+      try { await window.fs.deleteDoc(window.fs.doc(window.db, "rooms", roomId)); window.showToast("已刪除該溫習房", "🗑️"); } 
+      catch (err) { window.showToast("刪除失敗", "❌"); }
     };
 
     function startTimer() {
       if (state.countdownTimer) clearInterval(state.countdownTimer);
       state.countdownTimer = setInterval(() => {
-        if (state.remainingSeconds > 0) {
-          state.remainingSeconds--;
-          updateTimerDisplay();
-        } else {
-          clearInterval(state.countdownTimer);
-          window.showToast('🎉 恭喜完成這節溫習目標！點數 +20 PTS！', '🎓');
-        }
+        if (state.remainingSeconds > 0) { state.remainingSeconds--; updateTimerDisplay(); } 
+        else { clearInterval(state.countdownTimer); window.showToast('🎉 恭喜完成這節溫習目標！', '🎓'); }
       }, 1000);
     }
 
     function updateTimerDisplay() {
-      const mins = Math.floor(state.remainingSeconds / 60);
-      const secs = state.remainingSeconds % 60;
-      document.getElementById('room-timer').innerText = 
-        `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      const mins = Math.floor(state.remainingSeconds / 60); const secs = state.remainingSeconds % 60;
+      document.getElementById('room-timer').innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }
 
+    // 處理退出房間，包含從人數名單移除
     window.leaveRoom = async function() {
-      if (state.isHost && state.currentRoomId && window.fs && window.db) {
-        try {
-          await window.fs.deleteDoc(window.fs.doc(window.db, "rooms", state.currentRoomId));
-        } catch(e) { console.error("刪除房間失敗", e); }
+      if (state.currentRoomId && window.fs && window.db && window.currentUser) {
+        if (state.isHost) {
+          // 如果是房主退出，為簡化邏輯直接刪除房間
+          try { await window.fs.deleteDoc(window.fs.doc(window.db, "rooms", state.currentRoomId)); } catch(e){}
+        } else {
+          // 如果是訪客，將自己從 participants 中移除
+          try {
+            const roomRef = window.fs.doc(window.db, "rooms", state.currentRoomId);
+            await window.fs.updateDoc(roomRef, {
+              participants: window.fs.arrayRemove(window.currentUser.uid)
+            });
+            // 同時刪除自己的 WebRTC Signal 以通知其他人自己斷線
+            await window.fs.deleteDoc(window.fs.doc(window.db, "rooms", state.currentRoomId, "signals", window.currentUser.uid));
+          } catch(e) { console.error("退出更新失敗", e); }
+        }
       }
       cleanupRoomConnections();
       document.getElementById('room-active').style.display = 'none';
@@ -1204,23 +809,22 @@
     function cleanupRoomConnections() {
       if (state.isCameraOn) window.toggleCamera();
       if (state.countdownTimer) clearInterval(state.countdownTimer);
-      if (state.signalingUnsubscribe) {
-        state.signalingUnsubscribe();
-        state.signalingUnsubscribe = null;
-      }
+      if (state.signalingUnsubscribe) { state.signalingUnsubscribe(); state.signalingUnsubscribe = null; }
+      
       Object.values(state.peerConnections).forEach(pc => pc.close());
       state.peerConnections = {};
 
-      document.querySelectorAll('.remote-video-card').forEach(el => el.remove());
-      state.currentRoomId = null;
-      state.isHost = false;
+      // 清空所有的 Slot
+      for (let i = 1; i <= 3; i++) {
+        if (slotStatus[i]) freeSlot(slotStatus[i]);
+      }
+      
+      state.currentRoomId = null; state.isHost = false;
     }
 
     window.wakeVideoEngine = function() {
       const video = document.getElementById('behind-video-engine');
-      if (video && video.srcObject && video.paused) {
-        video.play().catch(e => console.log(e));
-      }
+      if (video && video.srcObject && video.paused) video.play().catch(e => {});
     };
 
     function startCanvasRenderLoop() {
@@ -1228,21 +832,15 @@
       const canvas = document.getElementById('canvas-stream-display');
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
-
       function drawFrame() {
         if (!state.isCameraOn) return;
         if (video.paused && video.srcObject) video.play().catch(() => {});
-
         if (video.readyState >= 2 && video.videoWidth > 0) {
-          if (canvas.width !== video.videoWidth) {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-          }
+          if (canvas.width !== video.videoWidth) { canvas.width = video.videoWidth; canvas.height = video.videoHeight; }
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         }
         state.renderFrameId = requestAnimationFrame(drawFrame);
       }
-
       state.renderFrameId = requestAnimationFrame(drawFrame);
     }
 
@@ -1255,52 +853,35 @@
 
       if (state.isCameraOn) {
         if (state.renderFrameId) cancelAnimationFrame(state.renderFrameId);
-        if (state.mediaStream) {
-          state.mediaStream.getTracks().forEach(track => track.stop());
-          state.mediaStream = null;
-        }
-        state.isCameraOn = false;
-        canvasEl.style.display = 'none';
-        videoEl.srcObject = null;
-        overlayEl.style.display = 'flex';
-        statusTag.style.display = 'none';
-        btn.innerText = '📹 開啟鏡頭';
-        btn.className = 'btn btn-primary';
+        if (state.mediaStream) { state.mediaStream.getTracks().forEach(track => track.stop()); state.mediaStream = null; }
+        state.isCameraOn = false; canvasEl.style.display = 'none'; videoEl.srcObject = null;
+        overlayEl.style.display = 'flex'; statusTag.style.display = 'none';
+        btn.innerText = '📹 開啟鏡頭'; btn.className = 'btn btn-primary';
 
         Object.values(state.peerConnections).forEach(pc => pc.close());
         state.peerConnections = {};
-        document.querySelectorAll('.remote-video-card').forEach(el => el.remove());
+        for (let i = 1; i <= 3; i++) { if(slotStatus[i]) freeSlot(slotStatus[i]); }
+
+        // 如果關閉鏡頭，從 signals 移除自己，讓其他人畫面空出來
+        if (window.currentUser && state.currentRoomId) {
+          try { await window.fs.deleteDoc(window.fs.doc(window.db, "rooms", state.currentRoomId, "signals", window.currentUser.uid)); } catch(e){}
+        }
       } else {
-        btn.innerText = '⏳ 鏡頭啟動中...';
-
+        btn.innerText = '⏳ 鏡頭啟動中...'; btn.disabled = true;
         try {
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
-            audio: false
-          });
-          
-          state.mediaStream = stream;
-          state.isCameraOn = true;
+          const stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" }, audio: false });
+          state.mediaStream = stream; state.isCameraOn = true;
+          videoEl.muted = true; videoEl.volume = 0; videoEl.srcObject = stream;
+          await videoEl.play().catch(e => {});
 
-          videoEl.muted = true;
-          videoEl.volume = 0;
-          videoEl.setAttribute('playsinline', 'true');
-          videoEl.srcObject = stream;
-          await videoEl.play().catch(e => console.log(e));
-
-          canvasEl.style.display = 'block';
-          overlayEl.style.display = 'none';
-          statusTag.style.display = 'flex';
-          btn.innerText = '🔴 關閉鏡頭';
-          btn.className = 'btn btn-red';
-
+          canvasEl.style.display = 'block'; overlayEl.style.display = 'none'; statusTag.style.display = 'flex';
+          btn.innerText = '🔴 關閉鏡頭'; btn.className = 'btn btn-red'; btn.disabled = false;
           startCanvasRenderLoop();
           broadcastPresenceAndConnect();
-          window.showToast('鏡頭與 P2P 串流已順利啟動！', '📹');
+          window.showToast('鏡頭啟動！準備與房間內的同學互相打氣！', '📹');
         } catch (err) {
-          console.error("相機存取失敗:", err);
-          window.showToast('無法存取相機鏡頭，請檢查瀏覽器權限。', '❌');
-          btn.innerText = '📹 開啟鏡頭';
+          window.showToast('無法存取相機鏡頭。', '❌');
+          btn.innerText = '📹 開啟鏡頭'; btn.disabled = false;
         }
       }
     };
@@ -1309,59 +890,50 @@
       if (!window.currentUser || !state.currentRoomId || !window.db) return;
       const myUid = window.currentUser.uid;
       const presenceRef = window.fs.doc(window.db, "rooms", state.currentRoomId, "signals", myUid);
-      
-      await window.fs.setDoc(presenceRef, {
-        uid: myUid,
-        name: window.currentUser.username || '同學',
-        timestamp: Date.now()
-      }, { merge: true });
+      await window.fs.setDoc(presenceRef, { uid: myUid, name: window.currentUser.username || '同學', timestamp: Date.now() }, { merge: true });
     }
 
     function listenToRoomSignaling(roomId) {
       if (state.signalingUnsubscribe) state.signalingUnsubscribe();
-
       const signalsRef = window.fs.collection(window.db, "rooms", roomId, "signals");
+      
       state.signalingUnsubscribe = window.fs.onSnapshot(signalsRef, async (snapshot) => {
         if (!state.isCameraOn || !window.currentUser) return;
         const myUid = window.currentUser.uid;
 
-        snapshot.forEach(async (docSnap) => {
-          const data = docSnap.data();
+        // 處理 Signals 變化 (加入、更新、移除)
+        snapshot.docChanges().forEach(async (change) => {
+          const data = change.doc.data();
           const remoteUid = data.uid;
+          
+          if (!remoteUid || remoteUid === myUid) return;
 
-          if (remoteUid && remoteUid !== myUid) {
-            let remoteCard = document.getElementById('remote-card-' + remoteUid);
-            if (!remoteCard) {
-              const grid = document.getElementById('video-grid-container');
-              remoteCard = document.createElement('div');
-              remoteCard.className = 'video-card-single remote-video-card';
-              remoteCard.id = 'remote-card-' + remoteUid;
-              remoteCard.innerHTML = `
-                <video class="remote-video-element" autoplay playsinline></video>
-                <div class="video-header">
-                  <span class="video-tag">📹 ${data.name || '其他用家'}</span>
-                  <span class="video-tag" style="background:#10b981; color:#fff;">🟢 即時串流</span>
-                </div>
-              `;
-              grid.appendChild(remoteCard);
+          if (change.type === 'removed') {
+            // 同學關閉鏡頭或離開，釋放該 Slot
+            freeSlot(remoteUid);
+            if (state.peerConnections[remoteUid]) {
+              state.peerConnections[remoteUid].close();
+              delete state.peerConnections[remoteUid];
             }
-
-            if (!state.peerConnections[remoteUid]) {
-              const pc = createPeerConnection(remoteUid, data.name);
-              state.peerConnections[remoteUid] = pc;
-
-              try {
-                const offer = await pc.createOffer();
-                await pc.setLocalDescription(offer);
-                
-                await window.fs.setDoc(window.fs.doc(window.db, "rooms", roomId, "signals", myUid + "_to_" + remoteUid), {
-                  from: myUid,
-                  to: remoteUid,
-                  offer: JSON.parse(JSON.stringify(offer)),
-                  timestamp: Date.now()
-                });
-              } catch (err) {
-                console.error("建立 WebRTC Offer 失敗:", err);
+          } 
+          else if (change.type === 'added' || change.type === 'modified') {
+            // 分配 Slot 給新來的同學
+            const slotNum = allocateSlot(remoteUid);
+            
+            if (slotNum !== null) {
+              // 更新該 Slot 的名稱 UI
+              document.getElementById('name-' + slotNum).innerText = `📹 ${data.name || '同學'}`;
+              
+              if (!state.peerConnections[remoteUid]) {
+                const pc = createPeerConnection(remoteUid, slotNum);
+                state.peerConnections[remoteUid] = pc;
+                try {
+                  const offer = await pc.createOffer();
+                  await pc.setLocalDescription(offer);
+                  await window.fs.setDoc(window.fs.doc(window.db, "rooms", roomId, "signals", myUid + "_to_" + remoteUid), {
+                    from: myUid, to: remoteUid, offer: JSON.parse(JSON.stringify(offer)), timestamp: Date.now()
+                  });
+                } catch (err) { console.error("建立 WebRTC 失敗:", err); }
               }
             }
           }
@@ -1369,52 +941,47 @@
       });
     }
 
-    function createPeerConnection(remoteUid, remoteName) {
+    // 建立 PeerConnection 並將遠端畫面綁定至指定的 Slot
+    function createPeerConnection(remoteUid, slotNum) {
       const pc = new RTCPeerConnection(rtcConfig);
-
       if (state.mediaStream) {
-        state.mediaStream.getTracks().forEach(track => {
-          pc.addTrack(track, state.mediaStream);
-        });
+        state.mediaStream.getTracks().forEach(track => pc.addTrack(track, state.mediaStream));
       }
 
       pc.ontrack = (event) => {
-        let remoteCard = document.getElementById('remote-card-' + remoteUid);
-        if (!remoteCard) {
-          const grid = document.getElementById('video-grid-container');
-          remoteCard = document.createElement('div');
-          remoteCard.className = 'video-card-single remote-video-card';
-          remoteCard.id = 'remote-card-' + remoteUid;
-          remoteCard.innerHTML = `
-            <video class="remote-video-element" autoplay playsinline></video>
-            <div class="video-header">
-              <span class="video-tag">📹 ${remoteName}</span>
-              <span class="video-tag" style="background:#10b981; color:#fff;">🟢 串流播放中</span>
-            </div>
-          `;
-          grid.appendChild(remoteCard);
-        }
-
-        const remoteVideo = remoteCard.querySelector('video');
-        if (remoteVideo && event.streams[0]) {
-          remoteVideo.srcObject = event.streams[0];
-          remoteVideo.play().catch(e => console.log(e));
+        if (event.streams && event.streams[0]) {
+          const remoteVideo = document.getElementById('video-' + slotNum);
+          const placeholder = document.getElementById('placeholder-' + slotNum);
+          const header = document.getElementById('header-' + slotNum);
+          
+          // 切換顯示狀態
+          if (remoteVideo && placeholder) {
+            placeholder.style.display = 'none';
+            remoteVideo.style.display = 'block';
+            header.style.display = 'flex';
+            remoteVideo.srcObject = event.streams[0];
+            remoteVideo.play().catch(e => console.log(e));
+          }
         }
       };
 
       pc.onicecandidate = async (event) => {
         if (event.candidate && state.currentRoomId && window.currentUser) {
           await window.fs.addDoc(window.fs.collection(window.db, "rooms", state.currentRoomId, "candidates"), {
-            from: window.currentUser.uid,
-            to: remoteUid,
-            candidate: event.candidate.toJSON(),
-            timestamp: Date.now()
+            from: window.currentUser.uid, to: remoteUid, candidate: event.candidate.toJSON(), timestamp: Date.now()
           });
         }
       };
 
       return pc;
     }
+    
+    // 預防重新整理或關閉分頁時未正確離開
+    window.addEventListener('beforeunload', () => {
+       if (state.currentRoomId && window.currentUser && window.fs && window.db) {
+         window.fs.deleteDoc(window.fs.doc(window.db, "rooms", state.currentRoomId, "signals", window.currentUser.uid)).catch(e=>{});
+       }
+    });
   </script>
 </body>
 </html>
