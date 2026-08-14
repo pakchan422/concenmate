@@ -7,7 +7,7 @@
   
   <!-- 👇👇👇 每次推送到 GitHub 前，請在這裡修改版號 👇👇👇 -->
   <script>
-    window.APP_VERSION = "v1.0.3"; // 在這裡修改測試版號
+    window.APP_VERSION = "v1.0.4"; // 在這裡修改測試版號
   </script>
   <!-- 👆👆👆 每次推送到 GitHub 前，請在這裡修改版號 👆👆👆 -->
 
@@ -1711,6 +1711,18 @@
         state.reactionsUnsubscribe = null;
       }
       state.pendingCandidates = {};
+
+      // 主動清走自己嘅 presence 同已經送出嘅 offer/answer 文件，
+      // 等其他人之後重新入返嚟嗰陣，唔會執到自己呢次留低嘅舊訊號資料
+      if (state.currentRoomId && window.currentUser) {
+        const myUid = window.currentUser.uid;
+        const roomId = state.currentRoomId;
+        Object.keys(state.peerConnections).forEach(remoteUid => {
+          window.fs.deleteDoc(window.fs.doc(window.db, "rooms", roomId, "signals", myUid + "_to_" + remoteUid)).catch(() => {});
+        });
+        window.fs.deleteDoc(window.fs.doc(window.db, "rooms", roomId, "signals", myUid)).catch(() => {});
+      }
+
       Object.values(state.peerConnections).forEach(pc => pc.close());
       state.peerConnections = {};
 
@@ -2249,9 +2261,34 @@
         if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) {
           console.warn(`與 ${remoteUid} 的連線狀態變為 ${pc.connectionState}`);
         }
+        // 關鍵修正：連線徹底死咗（failed／closed）之後，一定要將佢由
+        // state.peerConnections 度移除。之前冇做呢步，導致對方離開房間後，
+        // 呢個已經失效嘅連線物件會一直卡喺 state.peerConnections 度，
+        // 令 "!state.peerConnections[remoteUid]" 呢個檢查永遠都係 false，
+        // 對方之後重新入房都再冇機會收到一個全新嘅 Offer——
+        // 佢哋只可以撿到一份舊時已經冇人理會嘅過時 Offer 文件，白費工夫。
+        if (['failed', 'closed'].includes(pc.connectionState)) {
+          cleanupDeadPeerConnection(remoteUid, pc);
+        }
       };
 
       return pc;
+    }
+
+    // 連線徹底失效後嘅清理：釋放格仔、由連線清單中移除，
+    // 並刪走自己之前送出、而家已經過時嘅 offer/answer 文件，
+    // 咁對方之後重新入房先唔會執到呢份舊嘢
+    async function cleanupDeadPeerConnection(remoteUid, pc) {
+      if (state.peerConnections[remoteUid] !== pc) return; // 已經俾一條新連線取代咗，唔使處理
+      delete state.peerConnections[remoteUid];
+      releaseRemoteSlot(remoteUid);
+      wrtcLog(`已清理與 ${remoteUid} 嘅失效連線`);
+
+      if (state.currentRoomId && window.currentUser) {
+        try {
+          await window.fs.deleteDoc(window.fs.doc(window.db, "rooms", state.currentRoomId, "signals", window.currentUser.uid + "_to_" + remoteUid));
+        } catch (e) { /* 文件可能本身就唔存在，忽略 */ }
+      }
     }
   </script>
 </body>
