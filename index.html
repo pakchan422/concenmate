@@ -7,7 +7,7 @@
   
   <!-- 👇👇👇 每次推送到 GitHub 前，請在這裡修改版號 👇👇👇 -->
   <script>
-    window.APP_VERSION = "v1.0.7"; // 在這裡修改測試版號
+    window.APP_VERSION = "v1.0.8"; // 在這裡修改測試版號
   </script>
   <!-- 👆👆👆 每次推送到 GitHub 前，請在這裡修改版號 👆👆👆 -->
 
@@ -1559,11 +1559,6 @@
       listenToRoomSignaling(roomId);
       listenToParticipants(roomId);
       listenToReactions(roomId);
-
-      // 一入房就廣播自己嘅上線通知並主動接駁現有用家，
-      // 唔再要求一定要開咗鏡頭先可以「收睇」其他人嘅畫面
-      await broadcastPresenceAndConnect();
-      await connectToExistingPeers(roomId);
       return true;
     }
 
@@ -1715,18 +1710,19 @@
       const audioTrack = state.mediaStream.getAudioTracks()[0] || null;
 
       Object.values(state.peerConnections).forEach(pc => {
-        pc.getTransceivers().forEach(transceiver => {
-          const kind = transceiver.receiver && transceiver.receiver.track ? transceiver.receiver.track.kind : null;
+        const senders = pc.getSenders();
 
-          if (kind === 'video' && videoTrack) {
-            transceiver.sender.replaceTrack(videoTrack);
-            if (transceiver.direction !== 'sendrecv') transceiver.direction = 'sendrecv';
-          }
-          if (kind === 'audio' && audioTrack) {
-            transceiver.sender.replaceTrack(audioTrack);
-            if (transceiver.direction !== 'sendrecv') transceiver.direction = 'sendrecv';
-          }
-        });
+        if (videoTrack) {
+          const videoSender = senders.find(s => s.track && s.track.kind === 'video');
+          if (videoSender) videoSender.replaceTrack(videoTrack);
+          else pc.addTrack(videoTrack, state.mediaStream);
+        }
+
+        if (audioTrack) {
+          const audioSender = senders.find(s => s.track && s.track.kind === 'audio');
+          if (audioSender) audioSender.replaceTrack(audioTrack);
+          else pc.addTrack(audioTrack, state.mediaStream);
+        }
       });
     }
 
@@ -2000,7 +1996,7 @@
             getOrCreateRemoteSlot(remoteUid, data.name);
 
             // 只由 UID 字母序較小的一方主動發起 Offer，避免雙方同時發起造成衝突
-            if (myUid < remoteUid && !state.peerConnections[remoteUid]) {
+            if (state.isCameraOn && myUid < remoteUid && !state.peerConnections[remoteUid]) {
               await createOfferTo(roomId, remoteUid, data.name);
             }
             return;
@@ -2045,6 +2041,7 @@
     }
 
     async function handleIncomingOffer(roomId, fromUid, offer) {
+      if (!state.isCameraOn) return; // 尚未開啟鏡頭前不建立連線
 
       let pc = state.peerConnections[fromUid];
       if (!pc) {
@@ -2128,17 +2125,11 @@
     function createPeerConnection(remoteUid, remoteName) {
       const pc = new RTCPeerConnection(rtcConfig);
 
-      // 就算自己仲未開鏡頭／咪，都要預留 audio/video 嘅收發位置（sendrecv transceiver）。
-      // 咁樣就算而家淨係「收睇」對方畫面，之後自己開返鏡頭都可以直接用 replaceTrack／addTrack
-      // 塞返軌道落已經開通嘅連線度，唔使成個連線重新協商（renegotiate）。
-      const videoTrack = state.mediaStream ? state.mediaStream.getVideoTracks()[0] : null;
-      const audioTrack = state.mediaStream ? state.mediaStream.getAudioTracks()[0] : null;
-
-      if (videoTrack) pc.addTrack(videoTrack, state.mediaStream);
-      else pc.addTransceiver('video', { direction: 'sendrecv' });
-
-      if (audioTrack) pc.addTrack(audioTrack, state.mediaStream);
-      else pc.addTransceiver('audio', { direction: 'sendrecv' });
+      if (state.mediaStream) {
+        state.mediaStream.getTracks().forEach(track => {
+          pc.addTrack(track, state.mediaStream);
+        });
+      }
 
       pc.ontrack = (event) => {
         const remoteVideo = getOrCreateRemoteSlot(remoteUid, remoteName);
