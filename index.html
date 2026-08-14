@@ -7,7 +7,7 @@
   
   <!-- 👇👇👇 每次推送到 GitHub 前，請在這裡修改版號 👇👇👇 -->
   <script>
-    window.APP_VERSION = "v1.0.1"; // 在這裡修改測試版號
+    window.APP_VERSION = "v1.0.2"; // 在這裡修改測試版號
   </script>
   <!-- 👆👆👆 每次推送到 GitHub 前，請在這裡修改版號 👆👆👆 -->
 
@@ -1298,10 +1298,29 @@
 
     const ROOM_CAPACITY = 4; // 同一房間最多同時容納的用家人數（包括自己）
 
+    // 之前一直用純 STUN，喺部分網路環境（例如其中一方喺較嚴格嘅 NAT／防火牆後面）
+    // 好可能完全連唔通——訊號（Offer/Answer）交換得晒，但實際媒體流永遠過唔到，
+    // 症狀就係一直卡喺「連線中」。而家加返一個公開嘅測試用 TURN 伺服器
+    // （Metered Open Relay Project，官方公開提供嘅測試帳號，唔使自己註冊）。
     const rtcConfig = {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
+        { urls: 'stun:stun1.l.google.com:19302' },
+        {
+          urls: 'turn:openrelay.metered.ca:80',
+          username: 'openrelayproject',
+          credential: 'openrelayproject'
+        },
+        {
+          urls: 'turn:openrelay.metered.ca:443',
+          username: 'openrelayproject',
+          credential: 'openrelayproject'
+        },
+        {
+          urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+          username: 'openrelayproject',
+          credential: 'openrelayproject'
+        }
       ]
     };
 
@@ -2022,6 +2041,7 @@
     }
 
     async function createOfferTo(roomId, remoteUid, remoteName) {
+      console.log(`[WebRTC] 主動發起連線 → ${remoteUid}`);
       const pc = createPeerConnection(remoteUid, remoteName);
       state.peerConnections[remoteUid] = pc;
 
@@ -2035,6 +2055,7 @@
           offer: JSON.parse(JSON.stringify(offer)),
           timestamp: Date.now()
         });
+        console.log(`[WebRTC] Offer 已送出 → ${remoteUid}`);
       } catch (err) {
         console.error("建立 WebRTC Offer 失敗:", err);
       }
@@ -2042,6 +2063,7 @@
 
     async function handleIncomingOffer(roomId, fromUid, offer) {
       if (!state.isCameraOn) return; // 尚未開啟鏡頭前不建立連線
+      console.log(`[WebRTC] 收到 Offer ← ${fromUid}`);
 
       let pc = state.peerConnections[fromUid];
       if (!pc) {
@@ -2062,6 +2084,7 @@
           answer: JSON.parse(JSON.stringify(answer)),
           timestamp: Date.now()
         });
+        console.log(`[WebRTC] Answer 已送出 → ${fromUid}`);
       } catch (err) {
         console.error("處理 Offer / 建立 Answer 失敗:", err);
       }
@@ -2070,6 +2093,7 @@
     async function handleIncomingAnswer(fromUid, answer) {
       const pc = state.peerConnections[fromUid];
       if (!pc || pc.currentRemoteDescription) return;
+      console.log(`[WebRTC] 收到 Answer ← ${fromUid}`);
 
       try {
         await pc.setRemoteDescription(new RTCSessionDescription(answer));
@@ -2141,6 +2165,7 @@
       }
 
       pc.ontrack = (event) => {
+        console.log(`[WebRTC] 收到 ${remoteUid} 嘅 track:`, event.track.kind, 'streams:', event.streams.length);
         const remoteVideo = getOrCreateRemoteSlot(remoteUid, remoteName);
         if (remoteVideo && event.streams[0]) {
           remoteVideo.srcObject = event.streams[0];
@@ -2165,7 +2190,19 @@
         }
       };
 
+      // 診斷用日誌：如果之後仍然連唔到，喺瀏覽器 Console 睇呢啲 log
+      // 可以清楚知道係卡喺邊一步（訊號交換？ICE 收集？定係實際連線？）
+      pc.oniceconnectionstatechange = () => {
+        console.log(`[WebRTC] 與 ${remoteUid} 嘅 ICE 連線狀態: ${pc.iceConnectionState}`);
+      };
+      pc.onicegatheringstatechange = () => {
+        console.log(`[WebRTC] 與 ${remoteUid} 嘅 ICE 收集狀態: ${pc.iceGatheringState}`);
+      };
+      pc.onsignalingstatechange = () => {
+        console.log(`[WebRTC] 與 ${remoteUid} 嘅 signaling 狀態: ${pc.signalingState}`);
+      };
       pc.onconnectionstatechange = () => {
+        console.log(`[WebRTC] 與 ${remoteUid} 嘅整體連線狀態: ${pc.connectionState}`);
         if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) {
           console.warn(`與 ${remoteUid} 的連線狀態變為 ${pc.connectionState}`);
         }
