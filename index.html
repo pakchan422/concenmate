@@ -7,7 +7,7 @@
   
   <!-- 👇👇👇 每次推送到 GitHub 前，請在這裡修改版號 👇👇👇 -->
   <script>
-    window.APP_VERSION = "v1.0.4"; // 在這裡修改測試版號
+    window.APP_VERSION = "v1.0.5"; // 在這裡修改測試版號
   </script>
   <!-- 👆👆👆 每次推送到 GitHub 前，請在這裡修改版號 👆👆👆 -->
 
@@ -1293,6 +1293,7 @@
       currentRoomId: null,
       isHost: false,
       isMicOn: false,
+      cameraToggleInProgress: false,
       peerConnections: {},
       signalingUnsubscribe: null,
       candidatesUnsubscribe: null,
@@ -1841,6 +1842,25 @@
     }
 
     window.toggleCamera = async function() {
+      // 防止手機上快速連撳兩下（或者其他原因觸發嘅重複呼叫）：
+      // 開鏡頭嘅過程中 state.isCameraOn 仲未變成 true 之前，
+      // 兩次呼叫都會行入「開鏡頭」呢個分支，各自建立多一次連線，
+      // 令同一位用家出現兩條互相衝突嘅 P2P 連線。加返呢個鎖之後，
+      // 呼叫緊嗰陣其他呼叫會直接被忽略。
+      if (state.cameraToggleInProgress) {
+        wrtcLog('⚠️ 開/關鏡頭操作進行緊，忽略重複嘅呼叫');
+        return;
+      }
+      state.cameraToggleInProgress = true;
+
+      try {
+        await toggleCameraInner();
+      } finally {
+        state.cameraToggleInProgress = false;
+      }
+    };
+
+    async function toggleCameraInner() {
       const videoEl = document.getElementById('behind-video-engine');
       const canvasEl = document.getElementById('canvas-stream-display');
       const overlayEl = document.getElementById('self-overlay');
@@ -1949,7 +1969,7 @@
           btn.className = 'btn btn-primary';
         }
       }
-    };
+    }
 
     // 靜音 / 開咪：跟鏡頭開關互相獨立，就算未開鏡頭也可以先按這顆掣。
     // 第一次按下且尚未有任何音訊軌道時，會另外請求麥克風權限；
