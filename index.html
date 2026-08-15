@@ -1636,16 +1636,31 @@
           commentList.innerHTML = '<div style="font-size:12px; color:#aaa; text-align:center; padding:10px;">未有回答，你係第一個！</div>';
           return;
         }
+        const myUid = window.currentUser ? window.currentUser.uid : null;
         commentList.innerHTML = comments.map(c => {
           const cPhotos = (c.photos || []).map(src =>
             `<img src="${src}" class="qa-photo-thumb" style="width:70px;height:70px;" onclick="openLightbox('${src}')">`
           ).join('');
+          const isOwn = myUid && c.uid === myUid;
+          const editedNote = c.editedAt
+            ? `<span style="font-size:11px; color:#7DB8C5; margin-left:6px;">✏️ 已編輯 ${formatTime(c.editedAt)}</span>`
+            : '';
+          const actions = isOwn ? `
+            <div style="display:flex; gap:6px; margin-top:8px;">
+              <button class="btn btn-outline" style="font-size:12px; padding:4px 10px;"
+                onclick="startEditComment('${c.id}', \`${escapeHtml(c.body).replace(/`/g,'\\`')}\`)">✏️ 編輯</button>
+              <button class="btn btn-red" style="font-size:12px; padding:4px 10px;"
+                onclick="deleteComment('${c.id}')">🗑️ 刪除</button>
+            </div>` : '';
           return `
-          <div style="background:var(--brand-50); border-radius:12px; padding:12px; border:1px solid var(--brand-200);">
+          <div id="comment-${c.id}" style="background:var(--brand-50); border-radius:12px; padding:12px; border:1px solid var(--brand-200);">
             <div style="font-size:13px; font-weight:bold; color:var(--brand-700);">👤 ${escapeHtml(c.authorName || '匿名')}</div>
-            <p style="font-size:13px; color:#333; margin-top:5px; line-height:1.6;">${escapeHtml(c.body)}</p>
+            <p id="comment-body-${c.id}" style="font-size:13px; color:#333; margin-top:5px; line-height:1.6;">${escapeHtml(c.body)}</p>
             ${cPhotos ? `<div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;">${cPhotos}</div>` : ''}
-            <div style="font-size:12px; color:#aaa; margin-top:5px;">${formatTime(c.createdAt)}</div>
+            <div style="font-size:12px; color:#aaa; margin-top:5px;">
+              ${formatTime(c.createdAt)}${editedNote}
+            </div>
+            ${actions}
           </div>
         `}).join('');
       });
@@ -1701,7 +1716,65 @@
       }
     };
 
-    window.openLightbox = function(src) {
+    window.deleteComment = async function(commentId) {
+      if (!confirm('確定刪除呢個留言？')) return;
+      try {
+        await window.fs.deleteDoc(
+          window.fs.doc(window.db, 'qa_posts', qaCurrentPostId, 'comments', commentId)
+        );
+        await window.fs.updateDoc(window.fs.doc(window.db, 'qa_posts', qaCurrentPostId), {
+          commentCount: window.fs.increment(-1)
+        });
+        window.showToast('留言已刪除', '🗑️');
+      } catch(e) { window.showToast('刪除失敗', '❌'); }
+    };
+
+    window.startEditComment = function(commentId, currentBody) {
+      const bodyEl = document.getElementById('comment-body-' + commentId);
+      if (!bodyEl) return;
+
+      // 替換段落為可編輯的 textarea + 確認/取消按鈕
+      const parent = bodyEl.parentElement;
+      bodyEl.style.display = 'none';
+
+      // 避免重複建立編輯框
+      if (document.getElementById('edit-area-' + commentId)) return;
+
+      const editArea = document.createElement('div');
+      editArea.id = 'edit-area-' + commentId;
+      editArea.innerHTML = `
+        <textarea id="edit-input-${commentId}" class="input-field" rows="3"
+          style="margin-top:6px; resize:vertical; font-size:13px;">${currentBody.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"')}</textarea>
+        <div style="display:flex; gap:6px; margin-top:6px;">
+          <button class="btn btn-outline" style="font-size:12px; padding:4px 10px;"
+            onclick="cancelEditComment('${commentId}')">取消</button>
+          <button class="btn btn-primary" style="font-size:12px; padding:4px 10px;"
+            onclick="saveEditComment('${commentId}')">✅ 儲存</button>
+        </div>
+      `;
+      parent.insertBefore(editArea, bodyEl.nextSibling);
+      document.getElementById('edit-input-' + commentId)?.focus();
+    };
+
+    window.cancelEditComment = function(commentId) {
+      const editArea = document.getElementById('edit-area-' + commentId);
+      if (editArea) editArea.remove();
+      const bodyEl = document.getElementById('comment-body-' + commentId);
+      if (bodyEl) bodyEl.style.display = '';
+    };
+
+    window.saveEditComment = async function(commentId) {
+      const newBody = document.getElementById('edit-input-' + commentId)?.value.trim();
+      if (!newBody) { window.showToast('內容唔可以係空白', '⚠️'); return; }
+      try {
+        await window.fs.updateDoc(
+          window.fs.doc(window.db, 'qa_posts', qaCurrentPostId, 'comments', commentId),
+          { body: newBody, editedAt: Date.now() }
+        );
+        window.showToast('留言已更新', '✅');
+      } catch(e) { window.showToast('儲存失敗', '❌'); }
+    };
+
       const lb = document.getElementById('qa-lightbox');
       document.getElementById('qa-lightbox-img').src = src;
       lb.style.display = 'flex';
