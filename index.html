@@ -7,7 +7,7 @@
   
   <!-- 👇👇👇 每次推送到 GitHub 前，請在這裡修改版號 👇👇👇 -->
   <script>
-    window.APP_VERSION = "v1.0.1"; // 在這裡修改測試版號
+    window.APP_VERSION = "v1.0.2"; // 在這裡修改測試版號
   </script>
   <!-- 👆👆👆 每次推送到 GitHub 前，請在這裡修改版號 👆👆👆 -->
 
@@ -24,13 +24,13 @@
       --brand-800: #1E4550;   /* 最深，標題文字 */
       --text-dark: #1A3A44;   /* 正文主色 */
 
-      /* 功能按鈕色調 — 用水獺暖灰棕（Logo 身體色）做底，深淺各有差異 */
-      --tone-a: #EDE9E4;  --tone-a-d: #D5CFC7;
-      --tone-b: #E8E4DE;  --tone-b-d: #CFC8BF;
-      --tone-c: #E4DFD8;  --tone-c-d: #CAC3B9;
-      --tone-d: #F0EDE9;  --tone-d-d: #DDD8D1;
-      --tone-e: #EBE7E2;  --tone-e-d: #D2CCС4;
-      --tone-f: #E6E2DC;  --tone-f-d: #CDBBB0;
+      /* 功能按鈕色調 — 交替使用 Logo 嘅兩個主色：暖灰棕（水獺身體）同鋼青（文字色） */
+      --tone-a: #EAE6E1;  --tone-a-d: #CFC9C1;  /* 暖灰棕淺 — 視訊溫習室 */
+      --tone-b: #D9EBEF;  --tone-b-d: #A8CFDA;  /* 鋼青淺   — 扭蛋兌換所 */
+      --tone-c: #E6E2DC;  --tone-c-d: #CBBFB5;  /* 暖灰棕中 — 疑難解答區 */
+      --tone-d: #C8DFE6;  --tone-d-d: #96BEC9;  /* 鋼青中   — 溫習資源VIP */
+      --tone-e: #DDD9D3;  --tone-e-d: #C2BAB0;  /* 暖灰棕深 — 夥伴讀書會 */
+      --tone-f: #B8D4DC;  --tone-f-d: #89B3BE;  /* 鋼青深   — 個人檔案 */
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
@@ -628,7 +628,7 @@
             <div>
               <div class="home-feature-grid">
 
-                <button class="home-feature-btn" style="background:linear-gradient(135deg,var(--tone-a),var(--tone-a-d)); color:var(--brand-800);"
+                <button class="home-feature-btn" style="background:linear-gradient(135deg,var(--tone-a),var(--tone-a-d)); color:#1E4550;"
                   onclick="switchTab('room')">
                   <span class="btn-icon">📹</span>
                   <div>
@@ -637,7 +637,7 @@
                   </div>
                 </button>
 
-                <button class="home-feature-btn" style="background:linear-gradient(135deg,var(--tone-b),var(--tone-b-d)); color:var(--brand-800);"
+                <button class="home-feature-btn" style="background:linear-gradient(135deg,var(--tone-b),var(--tone-b-d)); color:#1E4550;"
                   onclick="switchTab('store')">
                   <span class="btn-icon">🎰</span>
                   <div>
@@ -646,7 +646,7 @@
                   </div>
                 </button>
 
-                <button class="home-feature-btn" style="background:linear-gradient(135deg,var(--tone-c),var(--tone-c-d)); color:var(--brand-800);"
+                <button class="home-feature-btn" style="background:linear-gradient(135deg,var(--tone-c),var(--tone-c-d)); color:#1E4550;"
                   onclick="switchTab('qa')">
                   <span class="btn-icon">❓</span>
                   <div>
@@ -655,7 +655,7 @@
                   </div>
                 </button>
 
-                <button class="home-feature-btn" style="background:linear-gradient(135deg,var(--tone-d),var(--tone-d-d)); color:var(--brand-800);"
+                <button class="home-feature-btn" style="background:linear-gradient(135deg,var(--tone-d),var(--tone-d-d)); color:#1E4550;"
                   onclick="switchTab('vip')">
                   <span class="btn-icon">👑</span>
                   <div>
@@ -664,7 +664,7 @@
                   </div>
                 </button>
 
-                <button class="home-feature-btn" style="background:linear-gradient(135deg,var(--tone-e),var(--tone-e-d)); color:var(--brand-800);"
+                <button class="home-feature-btn" style="background:linear-gradient(135deg,var(--tone-e),var(--tone-e-d)); color:#1E4550;"
                   onclick="switchTab('social')">
                   <span class="btn-icon">👥</span>
                   <div>
@@ -673,7 +673,7 @@
                   </div>
                 </button>
 
-                <button class="home-feature-btn" style="background:linear-gradient(135deg,var(--tone-f),var(--tone-f-d)); color:var(--brand-800);"
+                <button class="home-feature-btn" style="background:linear-gradient(135deg,var(--tone-f),var(--tone-f-d)); color:white;"
                   onclick="switchTab('profile')">
                   <span class="btn-icon">👤</span>
                   <div>
