@@ -7,7 +7,7 @@
   
   <!-- 👇👇👇 每次推送到 GitHub 前，請在這裡修改版號 👇👇👇 -->
   <script>
-    window.APP_VERSION = "v1.0.1"; // 在這裡修改測試版號
+    window.APP_VERSION = "v1.0.2"; // 在這裡修改測試版號
   </script>
   <!-- 👆👆👆 每次推送到 GitHub 前，請在這裡修改版號 👆👆👆 -->
 
@@ -84,8 +84,8 @@
       main { padding: 8px; }
       .card { padding: 10px; border-radius: 12px; }
       .home-feature-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
-      .home-feature-btn { padding: 16px 10px; min-height: 90px; border-radius: 16px; }
-      .home-feature-btn .btn-icon { font-size: 24px; }
+      .home-feature-btn { padding: 8px; border-radius: 16px; }
+      .home-feature-btn .btn-icon { font-size: 22px; }
       .home-feature-btn .btn-label { font-size: 12px; }
       .home-feature-btn .btn-sub { display: none; }   /* 手機太窄，副標題收起 */
       .home-welcome-card { padding: 14px; gap: 10px; }
@@ -103,7 +103,7 @@
       aside { display: none; }          /* 極小螢幕完全收起側邊欄 */
       main { padding: 6px; }
       .home-feature-grid { gap: 6px; }
-      .home-feature-btn { padding: 12px 6px; min-height: 80px; }
+      .home-feature-btn { padding: 6px; }
     }
 
     .nav-btn { width: 100%; text-align: left; padding: 10px; border-radius: 10px; border: none; background: transparent; color: #555; font-size: 13px; font-weight: 600; cursor: pointer; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; justify-content: flex-start; transition: 0.15s; }
@@ -410,8 +410,9 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 10px;
-      padding: 22px 14px;
+      gap: 8px;
+      aspect-ratio: 1 / 1;       /* 正方形 — 唔論螢幕大細都維持正方形比例 */
+      padding: 12px;
       border-radius: 22px;
       border: none;
       cursor: pointer;
@@ -420,7 +421,7 @@
       transition: transform .15s ease, box-shadow .15s ease;
       color: white;
       text-align: center;
-      min-height: 110px;
+      width: 100%;               /* 跟隨 grid column 寬度，再由 aspect-ratio 決定高度 */
       position: relative;
       overflow: hidden;
       box-shadow: 0 4px 16px rgba(0,0,0,.1);
