@@ -7,7 +7,7 @@
   
   <!-- 👇👇👇 每次推送到 GitHub 前，請在這裡修改版號 👇👇👇 -->
   <script>
-    window.APP_VERSION = "v1.0.2"; // 在這裡修改測試版號
+    window.APP_VERSION = "v1.0.3"; // 在這裡修改測試版號
   </script>
   <!-- 👆👆👆 每次推送到 GitHub 前，請在這裡修改版號 👆👆👆 -->
 
@@ -65,7 +65,7 @@
       .user-stats { display: none; }
       .nav-btn { justify-content: center; padding: 11px 0; font-size: 16px; }
       main { padding: 10px; }
-      .home-feature-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+      .home-feature-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; max-width: 400px; }
       .video-grid-container { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
       .logo-title { font-size: 13px; }
       .rooms-grid { grid-template-columns: 1fr; }
@@ -83,7 +83,7 @@
       .nav-btn { padding: 10px 0; font-size: 15px; border-radius: 8px; }
       main { padding: 8px; }
       .card { padding: 10px; border-radius: 12px; }
-      .home-feature-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+      .home-feature-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; max-width: 320px; }
       .home-feature-btn { padding: 8px; border-radius: 16px; }
       .home-feature-btn .btn-icon { font-size: 22px; }
       .home-feature-btn .btn-label { font-size: 12px; }
@@ -401,9 +401,10 @@
     /* 主頁大功能按鈕 */
     .home-feature-grid {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(3, 1fr);
       gap: 14px;
       padding: 4px 0 16px;
+      max-width: 480px;       /* 限制最大寬度，按鈕唔會無限放大 */
     }
     .home-feature-btn {
       display: flex;
