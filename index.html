@@ -7,7 +7,7 @@
   
   <!-- 👇👇👇 每次推送到 GitHub 前，請在這裡修改版號 👇👇👇 -->
   <script>
-    window.APP_VERSION = "v1.0.2"; // 在這裡修改測試版號
+    window.APP_VERSION = "v1.0.3"; // 在這裡修改測試版號
   </script>
   <!-- 👆👆👆 每次推送到 GitHub 前，請在這裡修改版號 👆👆👆 -->
 
@@ -1294,6 +1294,7 @@
       isHost: false,
       isMicOn: false,
       cameraToggleInProgress: false,
+      connectingTo: new Set(), // 正在進行緊 offer 流程嘅 peer UIDs，防止同時發多條 offer
       lastProcessedOfferTs: {},
       lastProcessedAnswerTs: {},
       peerConnections: {},
@@ -1720,6 +1721,7 @@
       state.pendingCandidates = {};
       state.lastProcessedOfferTs = {};
       state.lastProcessedAnswerTs = {};
+      state.connectingTo = new Set();
 
       // 主動清走自己嘅 presence 同已經送出嘅 offer/answer 文件，
       // 等其他人之後重新入返嚟嗰陣，唔會執到自己呢次留低嘅舊訊號資料
@@ -2126,6 +2128,13 @@
     }
 
     async function createOfferTo(roomId, remoteUid, remoteName) {
+      // 防止監聽器同掃描同時對同一個 peer 發起多條 offer
+      if (state.connectingTo.has(remoteUid)) {
+        wrtcLog(`⚠️ 已經喺向 ${remoteUid} 發起連線嘅途中，跳過重複請求`);
+        return;
+      }
+      state.connectingTo.add(remoteUid);
+
       wrtcLog(`主動發起連線 → ${remoteUid}`);
 
       const existing = state.peerConnections[remoteUid];
@@ -2151,6 +2160,9 @@
         wrtcLog(`Offer 已送出 → ${remoteUid}`);
       } catch (err) {
         console.error("建立 WebRTC Offer 失敗:", err);
+        delete state.peerConnections[remoteUid];
+      } finally {
+        state.connectingTo.delete(remoteUid);
       }
     }
 
@@ -2278,11 +2290,20 @@
       pc.ontrack = (event) => {
         wrtcLog(`收到 ${remoteUid} 嘅 track: ${event.track.kind}, streams: ${event.streams.length}`);
         const remoteVideo = getOrCreateRemoteSlot(remoteUid, remoteName);
-        if (remoteVideo && event.streams[0]) {
-          remoteVideo.srcObject = event.streams[0];
-          remoteVideo.play().catch(e => console.log(e));
-          markSlotLive(remoteUid);
+        if (!remoteVideo) return;
+
+        // 當用 addTransceiver 預留位置嘅時候，ontrack 觸發時 event.streams 可能係空嘅，
+        // 呢個時候直接用 track 本身建立一個 MediaStream 解決
+        let stream = event.streams[0];
+        if (!stream) {
+          if (!remoteVideo.srcObject) remoteVideo.srcObject = new MediaStream();
+          remoteVideo.srcObject.addTrack(event.track);
+          stream = remoteVideo.srcObject;
+        } else {
+          remoteVideo.srcObject = stream;
         }
+        remoteVideo.play().catch(e => console.log(e));
+        if (event.track.kind === 'video') markSlotLive(remoteUid);
       };
 
       pc.onicecandidate = async (event) => {
