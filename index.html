@@ -7,7 +7,7 @@
   
   <!-- 👇👇👇 每次推送到 GitHub 前，請在這裡修改版號 👇👇👇 -->
   <script>
-    window.APP_VERSION = "v1.0.7"; // 在這裡修改測試版號
+    window.APP_VERSION = "v1.0.1"; // 在這裡修改測試版號
   </script>
   <!-- 👆👆👆 每次推送到 GitHub 前，請在這裡修改版號 👆👆👆 -->
 
@@ -320,6 +320,31 @@
 
     .card { background: white; border-radius: 16px; padding: 14px; border: 1px solid var(--brand-200); margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
     .tag { background: var(--brand-100); color: var(--brand-800); font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 6px; }
+
+    @keyframes gacha-pop {
+      0%   { transform: scale(.5); opacity: 0; }
+      70%  { transform: scale(1.08); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    @keyframes gacha-shake {
+      0%,100% { transform: rotate(0deg); }
+      20%  { transform: rotate(-8deg); }
+      40%  { transform: rotate(8deg); }
+      60%  { transform: rotate(-6deg); }
+      80%  { transform: rotate(6deg); }
+    }
+    @keyframes gacha-bounce {
+      0%,100% { transform: translateX(-50%) translateY(0); }
+      30%  { transform: translateX(-50%) translateY(-24px); }
+      60%  { transform: translateX(-50%) translateY(-10px); }
+    }
+    @keyframes gacha-spin {
+      0%   { transform: rotate(0deg) scale(1); }
+      50%  { transform: rotate(180deg) scale(1.2); }
+      100% { transform: rotate(360deg) scale(1); }
+    }
+    .gacha-shaking  { animation: gacha-shake .5s ease; }
+    .gacha-spinning { animation: gacha-spin .6s ease; }
     .input-field { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--brand-300); background: var(--brand-50); font-size: 12px; margin-top: 4px; outline: none; transition: 0.2s; }
     .input-field:focus { border-color: var(--brand-500); background: white; box-shadow: 0 0 0 2px rgba(176,137,91,0.2); }
     
@@ -658,11 +683,124 @@
         </section>
 
         <section id="tab-store" class="tab-content">
-          <div class="card" style="background:#f59e0b; color:white;">
-            <h2 style="font-size:16px; font-weight:bold;">Ottiee 時數幸運兌換所</h2>
-            <p style="font-size:12px; margin-top:4px;">累積溫習時數即可換領精美學習講義與文具禮券！</p>
+
+          <!-- 頁首卡片 -->
+          <div class="card" style="background: linear-gradient(135deg, #f59e0b, #d97706); color:white; text-align:center;">
+            <div style="font-size:28px; margin-bottom:4px;">🎰</div>
+            <h2 style="font-size:16px; font-weight:bold;">Ottiee 時數幸運扭蛋機</h2>
+            <p style="font-size:12px; margin-top:4px; opacity:.9;">用積分抽獎，換取學習大獎！</p>
+            <div style="margin-top:10px; background:rgba(255,255,255,0.2); border-radius:10px; padding:8px; display:inline-block;">
+              <span style="font-size:13px; font-weight:bold;">你的積分：<span id="gacha-pts-display">180</span> PTS</span>
+            </div>
           </div>
+
+          <!-- 扭蛋機主體 -->
+          <div class="card" style="text-align:center; padding:24px 16px;">
+
+            <!-- 扭蛋機動畫區 -->
+            <div id="gacha-machine" style="position:relative; display:inline-block; user-select:none;">
+              <!-- 扭蛋機外殼 SVG -->
+              <svg viewBox="0 0 200 260" width="180" xmlns="http://www.w3.org/2000/svg">
+                <!-- 機身 -->
+                <rect x="20" y="120" width="160" height="120" rx="16" fill="#dc2626"/>
+                <rect x="24" y="124" width="152" height="112" rx="13" fill="#ef4444"/>
+                <!-- 玻璃球艙 -->
+                <circle cx="100" cy="100" r="72" fill="#bfdbfe" opacity=".6"/>
+                <circle cx="100" cy="100" r="72" fill="none" stroke="#2563eb" stroke-width="5"/>
+                <circle cx="100" cy="100" r="64" fill="none" stroke="#93c5fd" stroke-width="2" opacity=".7"/>
+                <!-- 球艙高光 -->
+                <ellipse cx="78" cy="68" rx="18" ry="10" fill="white" opacity=".35"/>
+                <!-- 轉盤旋鈕 -->
+                <circle cx="100" cy="208" r="22" fill="#fbbf24"/>
+                <circle cx="100" cy="208" r="16" fill="#f59e0b"/>
+                <circle cx="100" cy="208" r="7" fill="#fef3c7"/>
+                <text x="100" y="212" text-anchor="middle" font-size="10" fill="#92400e" font-weight="bold">扭!</text>
+                <!-- 出球口 -->
+                <rect x="72" y="228" width="56" height="22" rx="6" fill="#7f1d1d"/>
+                <rect x="76" y="232" width="48" height="14" rx="4" fill="#991b1b"/>
+                <!-- 機腳 -->
+                <rect x="30" y="234" width="20" height="14" rx="4" fill="#b91c1c"/>
+                <rect x="150" y="234" width="20" height="14" rx="4" fill="#b91c1c"/>
+                <!-- 機身標誌 -->
+                <text x="100" y="168" text-anchor="middle" font-size="11" fill="white" font-weight="bold">OTTIEE</text>
+                <text x="100" y="182" text-anchor="middle" font-size="9" fill="#fca5a5">GACHA</text>
+              </svg>
+
+              <!-- 蛋的動畫疊層 -->
+              <div id="gacha-capsule-anim" style="
+                position:absolute; top:26px; left:50%; transform:translateX(-50%);
+                width:80px; height:80px; pointer-events:none; opacity:0;
+                transition: opacity .3s ease;
+              ">
+                <div id="gacha-capsule-inner" style="
+                  width:80px; height:80px; border-radius:50%;
+                  display:flex; align-items:center; justify-content:center;
+                  font-size:36px; background:#fff;
+                  box-shadow: 0 4px 20px rgba(0,0,0,.25);
+                ">🎁</div>
+              </div>
+            </div>
+
+            <!-- 費用說明 -->
+            <div style="margin:12px auto 16px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+              <div style="background:#fef3c7; border:1px solid #fcd34d; border-radius:10px; padding:6px 12px; font-size:11px;">
+                <strong>普通扭蛋</strong><br>30 PTS / 次
+              </div>
+              <div style="background:#ede9fe; border:1px solid #c4b5fd; border-radius:10px; padding:6px 12px; font-size:11px;">
+                <strong>幸運扭蛋</strong><br>80 PTS / 次
+              </div>
+            </div>
+
+            <!-- 扭蛋按鈕 -->
+            <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+              <button class="btn btn-amber" type="button" onclick="doGacha('normal')" style="padding:10px 20px; font-size:13px;">
+                🎰 普通扭蛋 (30 PTS)
+              </button>
+              <button class="btn btn-primary" type="button" onclick="doGacha('lucky')" style="padding:10px 20px; font-size:13px; background:#7c3aed; border-color:#7c3aed;">
+                ✨ 幸運扭蛋 (80 PTS)
+              </button>
+            </div>
+
+            <!-- 結果顯示區 -->
+            <div id="gacha-result-box" style="display:none; margin-top:20px; padding:16px; border-radius:14px; background:#f8fafc; border:2px solid #e2e8f0; animation: gacha-pop .4s ease;">
+              <div id="gacha-result-emoji" style="font-size:40px;"></div>
+              <div id="gacha-result-tier" style="font-size:12px; font-weight:bold; margin-top:4px;"></div>
+              <div id="gacha-result-name" style="font-size:15px; font-weight:bold; margin-top:2px;"></div>
+              <div id="gacha-result-desc" style="font-size:11px; color:#64748b; margin-top:4px;"></div>
+            </div>
+          </div>
+
+          <!-- 獎品列表 -->
+          <div class="card">
+            <h3 style="font-size:13px; font-weight:bold; margin-bottom:10px;">🎁 獎品一覽</h3>
+            <div style="display:flex; flex-direction:column; gap:6px; font-size:11px;">
+              <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; background:#fef9c3; border-radius:8px;">
+                <span style="font-size:18px;">⭐</span>
+                <div><strong style="color:#b45309;">普通獎 (55%)</strong><br>溫習貼士卡、Ottiee 表情貼 ×3</div>
+              </div>
+              <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; background:#f0fdf4; border-radius:8px;">
+                <span style="font-size:18px;">🌟</span>
+                <div><strong style="color:#15803d;">良好獎 (30%)</strong><br>文具禮券 $20、精美書簽套裝</div>
+              </div>
+              <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; background:#eff6ff; border-radius:8px;">
+                <span style="font-size:18px;">💎</span>
+                <div><strong style="color:#1d4ed8;">稀有獎 (12%)</strong><br>DSE 參考書、課外補充練習冊</div>
+              </div>
+              <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; background:#fdf4ff; border-radius:8px;">
+                <span style="font-size:18px;">👑</span>
+                <div><strong style="color:#7e22ce;">傳說獎 (3%)</strong><br>VIP 溫習月票、$100 書券</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 抽獎歷史 -->
+          <div class="card" id="gacha-history-card" style="display:none;">
+            <h3 style="font-size:13px; font-weight:bold; margin-bottom:8px;">📜 最近抽獎記錄</h3>
+            <div id="gacha-history-list" style="display:flex; flex-direction:column; gap:6px; font-size:11px;"></div>
+          </div>
+
         </section>
+
 
         <section id="tab-social" class="tab-content">
           <div class="card">
@@ -979,6 +1117,152 @@
       broadcastReaction(emoji);
     }
     window.sendDanmakuSticker = sendDanmakuSticker;
+
+    // ===================== 扭蛋機系統 =====================
+
+    const GACHA_PRIZES = {
+      normal: [
+        { tier: '普通獎', tierColor: '#b45309', bg: '#fef9c3', emoji: '⭐', name: '溫習貼士卡', desc: '附有考試重點提示的精美卡片', weight: 55 },
+        { tier: '普通獎', tierColor: '#b45309', bg: '#fef9c3', emoji: '😊', name: 'Ottiee 表情貼 ×3', desc: '可愛水獺 Ottiee 貼紙套裝', weight: 40 },
+        { tier: '良好獎', tierColor: '#15803d', bg: '#f0fdf4', emoji: '🌟', name: '文具禮券 $20', desc: 'CitySuper 文具區現金禮券', weight: 18 },
+        { tier: '良好獎', tierColor: '#15803d', bg: '#f0fdf4', emoji: '🔖', name: '精美書簽套裝', desc: '三款主題書簽+便利貼套裝', weight: 16 },
+        { tier: '稀有獎', tierColor: '#1d4ed8', bg: '#eff6ff', emoji: '💎', name: 'DSE 參考書', desc: '指定科目 DSE 精讀備試書一本', weight: 8 },
+        { tier: '稀有獎', tierColor: '#1d4ed8', bg: '#eff6ff', emoji: '📖', name: '課外補充練習冊', desc: 'HKDSE 練習題精選合集', weight: 5 },
+        { tier: '傳說獎', tierColor: '#7e22ce', bg: '#fdf4ff', emoji: '👑', name: 'VIP 溫習月票', desc: '免費升級 VIP 會員一個月', weight: 2 },
+        { tier: '傳說獎', tierColor: '#7e22ce', bg: '#fdf4ff', emoji: '🎫', name: '$100 書券', desc: '三聯書店 $100 現金書券', weight: 1 }
+      ],
+      lucky: [
+        { tier: '普通獎', tierColor: '#b45309', bg: '#fef9c3', emoji: '⭐', name: '溫習貼士卡 ×2', desc: '雙份考試重點提示精美卡片', weight: 30 },
+        { tier: '良好獎', tierColor: '#15803d', bg: '#f0fdf4', emoji: '🌟', name: '文具禮券 $20', desc: 'CitySuper 文具區現金禮券', weight: 28 },
+        { tier: '良好獎', tierColor: '#15803d', bg: '#f0fdf4', emoji: '🔖', name: '精美書簽套裝 ×2', desc: '六款主題書簽+便利貼豪華套裝', weight: 20 },
+        { tier: '稀有獎', tierColor: '#1d4ed8', bg: '#eff6ff', emoji: '💎', name: 'DSE 參考書', desc: '指定科目 DSE 精讀備試書一本', weight: 13 },
+        { tier: '稀有獎', tierColor: '#1d4ed8', bg: '#eff6ff', emoji: '📖', name: '課外補充練習冊', desc: 'HKDSE 練習題精選合集', weight: 10 },
+        { tier: '傳說獎', tierColor: '#7e22ce', bg: '#fdf4ff', emoji: '👑', name: 'VIP 溫習月票', desc: '免費升級 VIP 會員一個月', weight: 5 },
+        { tier: '傳說獎', tierColor: '#7e22ce', bg: '#fdf4ff', emoji: '🎫', name: '$100 書券', desc: '三聯書店 $100 現金書券', weight: 3 }
+      ]
+    };
+
+    const GACHA_COST = { normal: 30, lucky: 80 };
+
+    function gachaRoll(type) {
+      const pool = GACHA_PRIZES[type];
+      const total = pool.reduce((s, p) => s + p.weight, 0);
+      let rand = Math.random() * total;
+      for (const prize of pool) {
+        rand -= prize.weight;
+        if (rand <= 0) return prize;
+      }
+      return pool[pool.length - 1];
+    }
+
+    function syncGachaPtsDisplay() {
+      const pts = parseInt(document.getElementById('stat-points')?.innerText || '0');
+      const el = document.getElementById('gacha-pts-display');
+      if (el) el.innerText = pts;
+    }
+
+    window.doGacha = async function(type) {
+      const cost = GACHA_COST[type];
+      const ptsEl = document.getElementById('stat-points');
+      const pts = parseInt(ptsEl?.innerText || '0');
+
+      if (pts < cost) {
+        window.showToast(`積分不足！需要 ${cost} PTS，你只有 ${pts} PTS`, '❌');
+        return;
+      }
+
+      // 扣分
+      if (ptsEl) ptsEl.innerText = pts - cost;
+      syncGachaPtsDisplay();
+
+      // 隱藏上次結果
+      document.getElementById('gacha-result-box').style.display = 'none';
+
+      // 扭蛋機震動動畫
+      const machine = document.getElementById('gacha-machine');
+      machine.classList.remove('gacha-shaking');
+      void machine.offsetWidth; // reflow to restart animation
+      machine.classList.add('gacha-shaking');
+
+      // 膠囊飛出動畫
+      const capsuleAnim = document.getElementById('gacha-capsule-anim');
+      const capsuleInner = document.getElementById('gacha-capsule-inner');
+      capsuleInner.innerText = '🥚';
+      capsuleAnim.style.opacity = '1';
+      capsuleAnim.style.animation = 'none';
+      void capsuleAnim.offsetWidth;
+      capsuleAnim.style.animation = 'gacha-bounce 0.7s ease 0.3s both';
+
+      // 等動畫完成
+      await new Promise(r => setTimeout(r, 1000));
+
+      // 抽獎
+      const prize = gachaRoll(type);
+
+      // 變成獎品表情 + 旋轉
+      capsuleInner.innerText = prize.emoji;
+      capsuleInner.classList.remove('gacha-spinning');
+      void capsuleInner.offsetWidth;
+      capsuleInner.classList.add('gacha-spinning');
+
+      await new Promise(r => setTimeout(r, 700));
+      capsuleAnim.style.opacity = '0';
+
+      // 顯示結果
+      const resultBox = document.getElementById('gacha-result-box');
+      resultBox.style.background = prize.bg;
+      resultBox.style.borderColor = prize.tierColor;
+      resultBox.style.animation = 'none';
+      void resultBox.offsetWidth;
+      resultBox.style.animation = 'gacha-pop .4s ease';
+      resultBox.style.display = 'block';
+      document.getElementById('gacha-result-emoji').innerText = prize.emoji;
+      document.getElementById('gacha-result-tier').innerText = prize.tier;
+      document.getElementById('gacha-result-tier').style.color = prize.tierColor;
+      document.getElementById('gacha-result-name').innerText = prize.name;
+      document.getElementById('gacha-result-desc').innerText = prize.desc;
+
+      // 傳說獎撒花
+      if (prize.tier === '傳說獎') {
+        window.showToast(`🎊 恭喜！抽到傳說獎「${prize.name}」！！`, '👑');
+      } else if (prize.tier === '稀有獎') {
+        window.showToast(`✨ 稀有！抽到「${prize.name}」！`, '💎');
+      }
+
+      // 加入歷史記錄
+      addGachaHistory(prize, type);
+    };
+
+    function addGachaHistory(prize, type) {
+      const card = document.getElementById('gacha-history-card');
+      const list = document.getElementById('gacha-history-list');
+      if (!card || !list) return;
+      card.style.display = 'block';
+
+      const time = new Date().toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit' });
+      const entry = document.createElement('div');
+      entry.style.cssText = `display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px; background:${prize.bg}; border:1px solid ${prize.tierColor}33;`;
+      entry.innerHTML = `
+        <span style="font-size:20px;">${prize.emoji}</span>
+        <div style="flex:1;">
+          <strong style="color:${prize.tierColor};">${prize.tier}</strong> · ${prize.name}
+          <div style="color:#94a3b8; font-size:10px;">${type === 'lucky' ? '✨ 幸運扭蛋' : '🎰 普通扭蛋'} · ${time} · -${GACHA_COST[type]} PTS</div>
+        </div>
+      `;
+      list.insertBefore(entry, list.firstChild);
+      // 只保留最近 10 筆
+      while (list.children.length > 10) list.removeChild(list.lastChild);
+    }
+
+    // 切換到 store tab 時更新積分顯示
+    const _origSwitchTab = window.switchTab;
+    if (typeof _origSwitchTab === 'function') {
+      window.switchTab = function(tab, el) {
+        _origSwitchTab(tab, el);
+        if (tab === 'store') syncGachaPtsDisplay();
+      };
+    }
+
 
     async function broadcastReaction(emoji) {
       if (!window.currentUser || !state.currentRoomId || !window.db) return;
