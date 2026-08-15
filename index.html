@@ -7,7 +7,7 @@
   
   <!-- 👇👇👇 每次推送到 GitHub 前，請在這裡修改版號 👇👇👇 -->
   <script>
-    window.APP_VERSION = "v1.0.4"; // 在這裡修改測試版號
+    window.APP_VERSION = "v1.0.5"; // 在這裡修改測試版號
   </script>
   <!-- 👆👆👆 每次推送到 GitHub 前，請在這裡修改版號 👆👆👆 -->
 
@@ -1774,38 +1774,49 @@
       state.renderFrameId = requestAnimationFrame(drawFrame);
     }
 
-    // 把目前 mediaStream 裡的視訊／音訊軌道，同步套用到所有既存的 P2P 連線上
-    // （用 replaceTrack 就不需要重新走一次 Offer/Answer 協商）
-    function syncLocalTracksToPeers() {
-      if (!state.mediaStream) return;
-      const videoTrack = state.mediaStream.getVideoTracks()[0] || null;
-      const audioTrack = state.mediaStream.getAudioTracks()[0] || null;
+    // 當自己開咗鏡頭／咪，需要讓對方知道「我依家有 track 可以送」。
+    // 之前嘗試用 replaceTrack 直接修改現有 transceiver 嘅 sender，
+    // 但因為 offerer 同 answerer 兩邊嘅 transceiver 次序唔一定一樣，
+    // 配對容易出錯，令軌道塞唔進去。
+    //
+    // 正確做法：直接重新協商（renegotiate）——把新嘅軌道加入現有連線後，
+    // 再走一次 Offer/Answer，讓對方嘅 SDP 重新描述晒最新嘅媒體狀態。
+    // 呢樣嘢 WebRTC 本身已經設計支援，唔需要斷開舊連線。
+    async function renegotiateWithPeers() {
+      if (!state.mediaStream || !state.currentRoomId) return;
+      const roomId = state.currentRoomId;
+      const myUid = window.currentUser.uid;
 
-      Object.values(state.peerConnections).forEach(pc => {
-        const transceivers = pc.getTransceivers();
+      for (const [remoteUid, pc] of Object.entries(state.peerConnections)) {
+        if (pc.connectionState === 'closed' || pc.connectionState === 'failed') continue;
 
-        transceivers.forEach(transceiver => {
-          // 配對優先順序：
-          // 1. receiver.track.kind（最準確，正常連線後都有）
-          // 2. sender.track.kind（如果已經有送緊嘅軌道）
-          // 3. 按順序（第一個係 video，第二個係 audio）——
-          //    呢個係用 addTransceiver 建立嘅連線特有情況：
-          //    連線建立時對方仲未開鏡頭，receiver.track 係 null
-          const receiverKind = transceiver.receiver?.track?.kind;
-          const senderKind = transceiver.sender?.track?.kind;
-          const idx = transceivers.indexOf(transceiver);
-          const inferredKind = receiverKind ?? senderKind ?? (idx === 0 ? 'video' : idx === 1 ? 'audio' : null);
-
-          if (inferredKind === 'video' && videoTrack) {
-            transceiver.sender.replaceTrack(videoTrack);
-            if (transceiver.direction !== 'sendrecv') transceiver.direction = 'sendrecv';
+        // 將本地媒體軌道加入連線（如果未加過嘅話）
+        const existingSenderKinds = new Set(pc.getSenders().filter(s => s.track).map(s => s.track.kind));
+        for (const track of state.mediaStream.getTracks()) {
+          if (!existingSenderKinds.has(track.kind)) {
+            pc.addTrack(track, state.mediaStream);
+            wrtcLog(`加入 ${track.kind} track 到與 ${remoteUid} 嘅連線`);
           }
-          if (inferredKind === 'audio' && audioTrack) {
-            transceiver.sender.replaceTrack(audioTrack);
-            if (transceiver.direction !== 'sendrecv') transceiver.direction = 'sendrecv';
+        }
+
+        // 只有當我係呢條連線嘅 Offer 發起方先重新協商，
+        // 否則等對方發過嚟（避免雙方同時 renegotiate）
+        if (myUid < remoteUid) {
+          try {
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            await window.fs.setDoc(window.fs.doc(window.db, "rooms", roomId, "signals", myUid + "_to_" + remoteUid), {
+              from: myUid,
+              to: remoteUid,
+              offer: JSON.parse(JSON.stringify(offer)),
+              timestamp: Date.now()
+            });
+            wrtcLog(`重新協商 Offer 已送出 → ${remoteUid}`);
+          } catch (err) {
+            console.error(`重新協商失敗 (${remoteUid}):`, err);
           }
-        });
-      });
+        }
+      }
     }
 
     function updateMicButtonUI() {
@@ -1976,12 +1987,13 @@
           btn.className = 'btn btn-red';
           updateMicButtonUI();
 
-          syncLocalTracksToPeers();
           startCanvasRenderLoop();
 
-          // 一入房就已經廣播咗上線通知同掃描過現有用家，
-          // 開鏡頭時只需要將新嘅軌道塞入已有連線（syncLocalTracksToPeers 已做）。
-          // 如果意外地仲未有任何連線，先補一次廣播+掃描。
+          // 開咗鏡頭之後，通知所有已連線嘅 peer 重新協商，
+          // 令佢哋嘅 SDP 包含到我哋新加入嘅視訊軌道
+          await renegotiateWithPeers();
+
+          // 如果仲未有任何連線（例如係第一個入房嘅人），先補一次廣播+掃描
           if (Object.keys(state.peerConnections).length === 0 && state.currentRoomId) {
             await broadcastPresenceAndConnect();
             await connectToExistingPeers(state.currentRoomId);
@@ -2026,7 +2038,7 @@
             state.mediaStream.addTrack(audioTrack);
           }
 
-          syncLocalTracksToPeers();
+          await renegotiateWithPeers();
         } catch (err) {
           console.error("取得麥克風失敗:", err);
           window.showToast(describeMediaError(err), '❌');
@@ -2293,32 +2305,23 @@
     function createPeerConnection(remoteUid, remoteName) {
       const pc = new RTCPeerConnection(rtcConfig);
 
-      // 就算自己仲未開鏡頭／咪，都要預留 audio/video 嘅收發位置（sendrecv transceiver），
-      // 咁樣先可以喺未開自己鏡頭嘅情況下都「收睇」到對方畫面；之後幾時開返自己個鏡頭，
-      // 都可以用 replaceTrack 直接塞落已經開通嘅連線度，唔使成個連線推倒重來。
-      const videoTrack = state.mediaStream ? state.mediaStream.getVideoTracks()[0] : null;
-      const audioTrack = state.mediaStream ? state.mediaStream.getAudioTracks()[0] : null;
-
-      if (videoTrack) pc.addTrack(videoTrack, state.mediaStream);
-      else pc.addTransceiver('video', { direction: 'sendrecv' });
-
-      if (audioTrack) pc.addTrack(audioTrack, state.mediaStream);
-      else pc.addTransceiver('audio', { direction: 'sendrecv' });
+      // 如果開咗鏡頭先，喺建立連線時就直接加入軌道；
+      // 如果未開鏡頭，就先建立空白連線接收對方嘅畫面，
+      // 等之後開鏡頭時再由 renegotiateWithPeers 加入軌道並重新協商。
+      if (state.mediaStream) {
+        state.mediaStream.getTracks().forEach(track => pc.addTrack(track, state.mediaStream));
+      }
 
       pc.ontrack = (event) => {
         wrtcLog(`收到 ${remoteUid} 嘅 track: ${event.track.kind}, streams: ${event.streams.length}`);
         const remoteVideo = getOrCreateRemoteSlot(remoteUid, remoteName);
         if (!remoteVideo) return;
 
-        // 當用 addTransceiver 預留位置嘅時候，ontrack 觸發時 event.streams 可能係空嘅，
-        // 呢個時候直接用 track 本身建立一個 MediaStream 解決
-        let stream = event.streams[0];
-        if (!stream) {
+        if (event.streams[0]) {
+          remoteVideo.srcObject = event.streams[0];
+        } else {
           if (!remoteVideo.srcObject) remoteVideo.srcObject = new MediaStream();
           remoteVideo.srcObject.addTrack(event.track);
-          stream = remoteVideo.srcObject;
-        } else {
-          remoteVideo.srcObject = stream;
         }
         remoteVideo.play().catch(e => console.log(e));
         if (event.track.kind === 'video') markSlotLive(remoteUid);
