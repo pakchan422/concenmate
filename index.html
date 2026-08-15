@@ -7,7 +7,7 @@
   
   <!-- 👇👇👇 每次推送到 GitHub 前，請在這裡修改版號 👇👇👇 -->
   <script>
-    window.APP_VERSION = "v1.0.5"; // 在這裡修改測試版號
+    window.APP_VERSION = "v1.0.6"; // 在這裡修改測試版號
   </script>
   <!-- 👆👆👆 每次推送到 GitHub 前，請在這裡修改版號 👆👆👆 -->
 
@@ -194,7 +194,6 @@
       width: 100%;
       height: 100%;
       object-fit: cover;
-      transform: scaleX(-1);
       z-index: 1;
       border-radius: 16px;
       background: #000;
@@ -1400,7 +1399,7 @@
       if (!el.querySelector('video')) {
         el.className = 'video-card-single remote-video-card';
         el.innerHTML = `
-          <video class="remote-video-element" autoplay playsinline></video>
+          <video class="remote-video-element" autoplay playsinline muted></video>
           <div class="video-overlay" style="display:none;">
             <div class="avatar-circle" style="opacity:.6;">🚫</div>
             <p style="font-size:12px; color:#ccc; margin-top:6px;">對方鏡頭已關閉</p>
@@ -2323,7 +2322,19 @@
           if (!remoteVideo.srcObject) remoteVideo.srcObject = new MediaStream();
           remoteVideo.srcObject.addTrack(event.track);
         }
-        remoteVideo.play().catch(e => console.log(e));
+
+        // Desktop Chrome 嘅 autoplay policy：有 audio track 嘅 video 唔可以直接 autoplay，
+        // 但 muted 狀態就可以。所以先 muted 播放，播放成功後立即 unmute，
+        // 呢樣嘢係目前業界通用嘅 workaround（類似 Zoom、Google Meet 嘅做法）。
+        remoteVideo.muted = true;
+        remoteVideo.play()
+          .then(() => { remoteVideo.muted = false; })
+          .catch(e => {
+            console.log('remote video play failed:', e);
+            // 如果 unmute 播放都失敗，保持 muted 至少顯示畫面
+            remoteVideo.muted = true;
+            remoteVideo.play().catch(() => {});
+          });
         if (event.track.kind === 'video') markSlotLive(remoteUid);
       };
 
