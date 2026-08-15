@@ -7,7 +7,7 @@
   
   <!-- 👇👇👇 每次推送到 GitHub 前，請在這裡修改版號 👇👇👇 -->
   <script>
-    window.APP_VERSION = "v1.0.2"; // 在這裡修改測試版號
+    window.APP_VERSION = "v1.0.1"; // 在這裡修改測試版號
   </script>
   <!-- 👆👆👆 每次推送到 GitHub 前，請在這裡修改版號 👆👆👆 -->
 
@@ -367,6 +367,30 @@
 
     .card { background: white; border-radius: 16px; padding: 14px; border: 1px solid var(--brand-200); margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
     .tag { background: var(--brand-100); color: var(--brand-800); font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 6px; }
+
+    /* 疑難解答區學科 Tab */
+    .qa-subject-btn {
+      padding: 6px 12px; border-radius: 20px; border: 1.5px solid var(--brand-200);
+      background: white; color: var(--brand-700); font-size: 12px; font-weight: 600;
+      cursor: pointer; transition: .15s;
+    }
+    .qa-subject-btn.active, .qa-subject-btn:hover {
+      background: var(--brand-500); color: white; border-color: var(--brand-500);
+    }
+    .qa-post-card {
+      background: white; border: 1px solid var(--brand-200); border-radius: 14px;
+      padding: 14px; margin-bottom: 10px; cursor: pointer; transition: box-shadow .15s;
+    }
+    .qa-post-card:hover { box-shadow: 0 4px 16px rgba(74,143,160,.15); }
+    .qa-subject-label {
+      display: inline-block; padding: 2px 8px; border-radius: 20px;
+      font-size: 10px; font-weight: bold; background: var(--brand-100); color: var(--brand-700);
+      margin-bottom: 6px;
+    }
+    .qa-photo-thumb {
+      width: 72px; height: 72px; object-fit: cover;
+      border-radius: 8px; border: 1px solid var(--brand-200); cursor: pointer;
+    }
 
     @keyframes gacha-pop {
       0%   { transform: scale(.5); opacity: 0; }
@@ -813,22 +837,88 @@
         </section>
 
         <section id="tab-qa" class="tab-content">
-          <div class="card">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-              <h3 style="font-size:15px; font-weight:bold;">疑難解答區討論帖</h3>
-              <button class="btn btn-primary" type="button" onclick="showToast('發起提問功能已準備就緒！', '🚀')">+ 發起提問</button>
+
+          <!-- 學科 Tab 列 -->
+          <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;">
+            <button class="qa-subject-btn active" onclick="switchQASubject('all', this)">📚 全部</button>
+            <button class="qa-subject-btn" onclick="switchQASubject('math', this)">➕ 數學</button>
+            <button class="qa-subject-btn" onclick="switchQASubject('chi', this)">📝 中文</button>
+            <button class="qa-subject-btn" onclick="switchQASubject('eng', this)">🔤 英文</button>
+            <button class="qa-subject-btn" onclick="switchQASubject('sci', this)">🔬 科學</button>
+            <button class="qa-subject-btn" onclick="switchQASubject('econ', this)">💹 經濟</button>
+            <button class="qa-subject-btn" onclick="switchQASubject('other', this)">💬 其他</button>
+          </div>
+
+          <!-- 發起提問按鈕 -->
+          <button class="btn btn-primary" type="button" onclick="openQAModal()" style="margin-bottom:14px; width:100%;">
+            ✏️ 發起提問
+          </button>
+
+          <!-- 問題列表 -->
+          <div id="qa-post-list">
+            <div style="text-align:center; padding:30px; color:#7DB8C5; font-size:13px;">載入中…</div>
+          </div>
+
+        </section>
+
+        <!-- ===== 發起提問 Modal ===== -->
+        <div class="modal-backdrop" id="modal-qa-post" style="display:none;">
+          <div class="modal-box">
+            <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:14px;">✏️ 發起提問</h3>
+
+            <div style="display:flex; flex-direction:column; gap:10px;">
+              <div>
+                <label style="font-size:11px; font-weight:bold; color:#555;">學科</label>
+                <select id="qa-subject-select" class="input-field">
+                  <option value="math">➕ 數學</option>
+                  <option value="chi">📝 中文</option>
+                  <option value="eng">🔤 英文</option>
+                  <option value="sci">🔬 科學</option>
+                  <option value="econ">💹 經濟</option>
+                  <option value="other">💬 其他</option>
+                </select>
+              </div>
+
+              <div>
+                <label style="font-size:11px; font-weight:bold; color:#555;">問題標題</label>
+                <input type="text" id="qa-title" class="input-field" placeholder="例：DSE 數學 2024 Paper 1 Q18 點解？" maxlength="80">
+              </div>
+
+              <div>
+                <label style="font-size:11px; font-weight:bold; color:#555;">詳細描述</label>
+                <textarea id="qa-body" class="input-field" rows="4" placeholder="描述你嘅問題，或補充更多資料…" style="resize:vertical;"></textarea>
+              </div>
+
+              <div>
+                <label style="font-size:11px; font-weight:bold; color:#555;">上傳圖片（最多 3 張）</label>
+                <input type="file" id="qa-photos" accept="image/*" multiple style="margin-top:4px; font-size:12px;">
+                <div id="qa-photo-preview" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;"></div>
+              </div>
             </div>
 
-            <div style="border-top:1px solid #eee; padding-top:10px; margin-top:8px;">
-              <div style="display:flex; justify-content:space-between;">
-                <span class="tag">數學</span>
-                <span style="font-size:11px; color:#D9C9B5; font-weight:bold;">懸賞 50 EXP</span>
-              </div>
-              <h4 style="font-size:13px; font-weight:bold; margin-top:6px;">2024 DSE 數學 Paper 1 第 18 題求解步驟？</h4>
-              <p style="font-size:11px; color:#666; margin-top:4px;">發帖者：<span class="clickable-user" onclick="viewUserProfile('Chloe_DSE')">Chloe_DSE</span></p>
+            <div style="display:flex; gap:8px; margin-top:16px;">
+              <button class="btn btn-outline" type="button" onclick="closeModal('modal-qa-post')" style="flex:1;">取消</button>
+              <button class="btn btn-primary" type="button" onclick="submitQAPost()" style="flex:2;">發布提問</button>
             </div>
           </div>
-        </section>
+        </div>
+
+        <!-- ===== 問題詳情 / 留言 Modal ===== -->
+        <div class="modal-backdrop" id="modal-qa-detail" style="display:none; align-items:flex-start; padding-top:40px;">
+          <div class="modal-box" style="max-width:560px; max-height:85vh; overflow-y:auto;">
+            <div id="qa-detail-content"></div>
+
+            <div style="border-top:1px solid var(--brand-200); margin-top:14px; padding-top:12px;">
+              <label style="font-size:11px; font-weight:bold; color:#555;">留言回答</label>
+              <textarea id="qa-comment-input" class="input-field" rows="3" placeholder="分享你嘅解題方法…" style="margin-top:4px; resize:vertical;"></textarea>
+              <div style="display:flex; gap:8px; margin-top:8px;">
+                <button class="btn btn-outline" type="button" onclick="closeModal('modal-qa-detail')" style="flex:1;">關閉</button>
+                <button class="btn btn-primary" type="button" onclick="submitQAComment()" style="flex:2;">💬 送出回答</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
 
         <section id="tab-profile" class="tab-content">
           <div class="profile-edit-card">
@@ -1337,6 +1427,231 @@
       broadcastReaction(emoji);
     }
     window.sendDanmakuSticker = sendDanmakuSticker;
+
+    // ===================== 疑難解答區 =====================
+
+    const QA_SUBJECTS = {
+      all: '📚 全部', math: '➕ 數學', chi: '📝 中文',
+      eng: '🔤 英文', sci: '🔬 科學', econ: '💹 經濟', other: '💬 其他'
+    };
+    let qaCurrentSubject = 'all';
+    let qaUnsubscribe = null;
+    let qaCurrentPostId = null;
+    let qaCommentUnsubscribe = null;
+
+    function switchQASubject(subject, btn) {
+      qaCurrentSubject = subject;
+      document.querySelectorAll('.qa-subject-btn').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      loadQAPosts();
+    }
+    window.switchQASubject = switchQASubject;
+
+    function loadQAPosts() {
+      if (!window.db || !window.fs) return;
+      if (qaUnsubscribe) qaUnsubscribe();
+
+      const list = document.getElementById('qa-post-list');
+      if (list) list.innerHTML = '<div style="text-align:center; padding:30px; color:#7DB8C5; font-size:13px;">載入中…</div>';
+
+      let ref = window.fs.collection(window.db, 'qa_posts');
+      qaUnsubscribe = window.fs.onSnapshot(ref, (snapshot) => {
+        if (!list) return;
+        let posts = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        posts = posts.filter(p => qaCurrentSubject === 'all' || p.subject === qaCurrentSubject);
+        posts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+        if (posts.length === 0) {
+          list.innerHTML = '<div style="text-align:center; padding:40px; color:#aaa; font-size:13px;">呢個學科暫時未有提問，你先嚟發起第一題！</div>';
+          return;
+        }
+
+        list.innerHTML = posts.map(p => {
+          const isOwn = window.currentUser && p.uid === window.currentUser.uid;
+          const photos = (p.photos || []).map(src =>
+            `<img src="${src}" class="qa-photo-thumb" onclick="event.stopPropagation(); window.open('${src}','_blank')">`
+          ).join('');
+          return `
+            <div class="qa-post-card" onclick="openQADetail('${p.id}')">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <span class="qa-subject-label">${QA_SUBJECTS[p.subject] || p.subject}</span>
+                ${isOwn ? `<button class="btn btn-red" style="font-size:10px; padding:3px 8px;" onclick="deleteQAPost(event,'${p.id}')">🗑️ 刪除</button>` : ''}
+              </div>
+              <h4 style="font-size:13px; font-weight:700; margin:4px 0; color:var(--brand-800);">${escapeHtml(p.title)}</h4>
+              <p style="font-size:11px; color:#666; line-height:1.5; margin-bottom:6px;">${escapeHtml(p.body || '').substring(0,100)}${(p.body||'').length > 100 ? '…' : ''}</p>
+              ${photos ? `<div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px;">${photos}</div>` : ''}
+              <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px; color:#aaa;">
+                <span>👤 ${escapeHtml(p.authorName || '匿名')} · ${formatTime(p.createdAt)}</span>
+                <span>💬 ${p.commentCount || 0} 個回答</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+      });
+    }
+
+    window.openQAModal = function() {
+      if (!window.currentUser) { window.showToast('請先登入', '⚠️'); return; }
+      document.getElementById('qa-title').value = '';
+      document.getElementById('qa-body').value = '';
+      document.getElementById('qa-photos').value = '';
+      document.getElementById('qa-photo-preview').innerHTML = '';
+      openModal('modal-qa-post');
+    };
+
+    // Photo preview
+    document.addEventListener('change', function(e) {
+      if (e.target.id !== 'qa-photos') return;
+      const files = Array.from(e.target.files).slice(0, 3);
+      const preview = document.getElementById('qa-photo-preview');
+      preview.innerHTML = '';
+      files.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = ev => {
+          const img = document.createElement('img');
+          img.src = ev.target.result;
+          img.className = 'qa-photo-thumb';
+          preview.appendChild(img);
+        };
+        reader.readAsDataURL(file);
+      });
+    });
+
+    window.submitQAPost = async function() {
+      if (!window.currentUser || !window.db || !window.fs) return;
+      const title = document.getElementById('qa-title').value.trim();
+      const body = document.getElementById('qa-body').value.trim();
+      const subject = document.getElementById('qa-subject-select').value;
+      if (!title) { window.showToast('請填寫問題標題', '⚠️'); return; }
+
+      const files = Array.from(document.getElementById('qa-photos').files).slice(0, 3);
+      const photos = await Promise.all(files.map(file => new Promise(res => {
+        const r = new FileReader();
+        r.onload = ev => res(ev.target.result);
+        r.readAsDataURL(file);
+      })));
+
+      try {
+        await window.fs.addDoc(window.fs.collection(window.db, 'qa_posts'), {
+          uid: window.currentUser.uid,
+          authorName: window.currentUser.username || '匿名同學',
+          subject, title, body, photos,
+          commentCount: 0,
+          createdAt: Date.now()
+        });
+        closeModal('modal-qa-post');
+        window.showToast('提問已發布！', '✅');
+        // Switch to matching subject tab
+        const btn = document.querySelector(`.qa-subject-btn[onclick*="${subject}"]`);
+        switchQASubject(subject, btn);
+      } catch(e) {
+        console.error(e);
+        window.showToast('發布失敗，請稍後再試', '❌');
+      }
+    };
+
+    window.deleteQAPost = async function(event, postId) {
+      event.stopPropagation();
+      if (!confirm('確定刪除呢個提問嗎？')) return;
+      try {
+        await window.fs.deleteDoc(window.fs.doc(window.db, 'qa_posts', postId));
+        window.showToast('提問已刪除', '🗑️');
+      } catch(e) { window.showToast('刪除失敗', '❌'); }
+    };
+
+    window.openQADetail = async function(postId) {
+      qaCurrentPostId = postId;
+      document.getElementById('qa-comment-input').value = '';
+      openModal('modal-qa-detail');
+
+      const docSnap = await window.fs.getDoc(window.fs.doc(window.db, 'qa_posts', postId));
+      if (!docSnap.exists()) return;
+      const p = { id: docSnap.id, ...docSnap.data() };
+      const isOwn = window.currentUser && p.uid === window.currentUser.uid;
+
+      const photos = (p.photos || []).map(src =>
+        `<img src="${src}" class="qa-photo-thumb" style="width:90px;height:90px;" onclick="window.open('${src}','_blank')">`
+      ).join('');
+
+      document.getElementById('qa-detail-content').innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+          <span class="qa-subject-label">${QA_SUBJECTS[p.subject] || p.subject}</span>
+          ${isOwn ? `<button class="btn btn-red" style="font-size:10px; padding:3px 8px;" onclick="deleteQAPost(event,'${p.id}'); closeModal('modal-qa-detail');">🗑️ 刪除</button>` : ''}
+        </div>
+        <h3 style="font-size:15px; font-weight:700; color:var(--brand-800); margin-bottom:8px;">${escapeHtml(p.title)}</h3>
+        ${p.body ? `<p style="font-size:12px; color:#555; line-height:1.6; margin-bottom:10px;">${escapeHtml(p.body)}</p>` : ''}
+        ${photos ? `<div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;">${photos}</div>` : ''}
+        <div style="font-size:10px; color:#aaa; margin-bottom:14px;">👤 ${escapeHtml(p.authorName || '匿名')} · ${formatTime(p.createdAt)}</div>
+        <div id="qa-comment-list" style="display:flex; flex-direction:column; gap:8px;">
+          <div style="font-size:12px; color:#aaa; text-align:center;">載入留言中…</div>
+        </div>
+      `;
+
+      if (qaCommentUnsubscribe) qaCommentUnsubscribe();
+      const commentsRef = window.fs.collection(window.db, 'qa_posts', postId, 'comments');
+      qaCommentUnsubscribe = window.fs.onSnapshot(commentsRef, (snap) => {
+        const comments = snap.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+        const commentList = document.getElementById('qa-comment-list');
+        if (!commentList) return;
+        if (comments.length === 0) {
+          commentList.innerHTML = '<div style="font-size:12px; color:#aaa; text-align:center; padding:10px;">未有回答，你係第一個！</div>';
+          return;
+        }
+        commentList.innerHTML = comments.map(c => `
+          <div style="background:var(--brand-50); border-radius:10px; padding:10px; border:1px solid var(--brand-200);">
+            <div style="font-size:11px; font-weight:bold; color:var(--brand-700);">👤 ${escapeHtml(c.authorName || '匿名')}</div>
+            <p style="font-size:12px; color:#333; margin-top:4px; line-height:1.5;">${escapeHtml(c.body)}</p>
+            <div style="font-size:10px; color:#aaa; margin-top:4px;">${formatTime(c.createdAt)}</div>
+          </div>
+        `).join('');
+      });
+    };
+
+    window.submitQAComment = async function() {
+      if (!window.currentUser) { window.showToast('請先登入', '⚠️'); return; }
+      const body = document.getElementById('qa-comment-input').value.trim();
+      if (!body) { window.showToast('請填寫回答內容', '⚠️'); return; }
+      if (!qaCurrentPostId) return;
+
+      try {
+        await window.fs.addDoc(window.fs.collection(window.db, 'qa_posts', qaCurrentPostId, 'comments'), {
+          uid: window.currentUser.uid,
+          authorName: window.currentUser.username || '匿名同學',
+          body, createdAt: Date.now()
+        });
+        await window.fs.updateDoc(window.fs.doc(window.db, 'qa_posts', qaCurrentPostId), {
+          commentCount: window.fs.increment(1)
+        });
+        document.getElementById('qa-comment-input').value = '';
+        window.showToast('回答已送出！', '💬');
+      } catch(e) {
+        console.error(e); window.showToast('送出失敗，請稍後再試', '❌');
+      }
+    };
+
+    function escapeHtml(str) {
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function formatTime(ts) {
+      if (!ts) return '';
+      const d = new Date(ts);
+      return d.toLocaleDateString('zh-HK', { month:'short', day:'numeric' }) + ' ' +
+             d.toLocaleTimeString('zh-HK', { hour:'2-digit', minute:'2-digit', hour12:false });
+    }
+
+    // 切換到 QA tab 時自動載入
+    const _origSwitchTab2 = window.switchTab;
+    if (typeof _origSwitchTab2 === 'function') {
+      window.switchTab = function(tab, el) {
+        _origSwitchTab2(tab, el);
+        if (tab === 'qa' && window.db && window.fs) loadQAPosts();
+        if (tab === 'store') syncGachaPtsDisplay();
+      };
+    }
+
 
     // ===================== 扭蛋機系統 =====================
 
