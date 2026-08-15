@@ -7,7 +7,7 @@
   
   <!-- 👇👇👇 每次推送到 GitHub 前，請在這裡修改版號 👇👇👇 -->
   <script>
-    window.APP_VERSION = "v1.0.1"; // 在這裡修改測試版號
+    window.APP_VERSION = "v1.0.2"; // 在這裡修改測試版號
   </script>
   <!-- 👆👆👆 每次推送到 GitHub 前，請在這裡修改版號 👆👆👆 -->
 
@@ -1062,6 +1062,8 @@
         document.getElementById('room-user-name-tag').innerText = (window.currentUser.username || '使用者') + " (你)";
         document.getElementById('room-self-avatar').innerText = (window.currentUser.username || 'U').charAt(0).toUpperCase();
         document.getElementById('stat-hours').innerText = window.currentUser.hours || "0.0";
+        document.getElementById('stat-points').innerText = window.currentUser.points ?? 180;
+        syncGachaPtsDisplay();
 
         document.getElementById('prof-username').value = window.currentUser.username || '';
         document.getElementById('prof-email').value = window.currentUser.email || '';
@@ -1348,7 +1350,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDcxw01cH4Xdsp8xK4Xq69lnt3kCsEZTkQ",
@@ -1365,7 +1367,7 @@
     const db = getFirestore(app);
 
     window.db = db;
-    window.fs = { doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs };
+    window.fs = { doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs, increment };
 
     let unsubscribeRooms = null;
     function listenToPublicRooms() {
@@ -1435,7 +1437,8 @@
               username: user.email.split('@')[0],
               school: '未設定',
               grade: '中六 (S6 DSE)',
-              hours: '0.0'
+              hours: '0.0',
+              points: 0
             };
           }
         } catch (e) {
@@ -1949,15 +1952,54 @@
 
     function startTimer() {
       if (state.countdownTimer) clearInterval(state.countdownTimer);
-      state.countdownTimer = setInterval(() => {
+
+      // 追蹤本次進房後已過的秒數，每 60 秒獎勵 1 PTS
+      let secondsElapsed = 0;
+
+      state.countdownTimer = setInterval(async () => {
         if (state.remainingSeconds > 0) {
           state.remainingSeconds--;
+          secondsElapsed++;
           updateTimerDisplay();
+
+          // 每滿 60 秒 → +1 PTS
+          if (secondsElapsed % 60 === 0) {
+            awardStudyPoint();
+          }
         } else {
           clearInterval(state.countdownTimer);
           window.showToast('🎉 恭喜完成這節溫習目標！點數 +20 PTS！', '🎓');
         }
       }, 1000);
+    }
+
+    async function awardStudyPoint() {
+      // 更新畫面
+      const ptsEl = document.getElementById('stat-points');
+      if (ptsEl) {
+        const current = parseInt(ptsEl.innerText || '0');
+        ptsEl.innerText = current + 1;
+        syncGachaPtsDisplay();
+      }
+
+      // 簡短閃亮提示（唔彈 toast 避免騷擾）
+      if (ptsEl) {
+        ptsEl.style.transition = 'color .3s';
+        ptsEl.style.color = '#f59e0b';
+        setTimeout(() => { ptsEl.style.color = ''; }, 800);
+      }
+
+      // 寫入 Firestore（atomic increment，就算多頁面同時開都唔會出問題）
+      if (!window.currentUser || !window.db || !window.fs) return;
+      try {
+        const userRef = window.fs.doc(window.db, "users", window.currentUser.uid);
+        await window.fs.updateDoc(userRef, {
+          points: window.fs.increment(1)
+        });
+        if (window.currentUser) window.currentUser.points = (window.currentUser.points || 0) + 1;
+      } catch (e) {
+        console.warn("積分更新失敗（唔影響使用）:", e);
+      }
     }
 
     function updateTimerDisplay() {
