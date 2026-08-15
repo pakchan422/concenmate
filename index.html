@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.0.3"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.0.1"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -1775,6 +1775,7 @@
       } catch(e) { window.showToast('儲存失敗', '❌'); }
     };
 
+    window.openLightbox = function(src) {
       const lb = document.getElementById('qa-lightbox');
       document.getElementById('qa-lightbox-img').src = src;
       lb.style.display = 'flex';
