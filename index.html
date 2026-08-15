@@ -7,30 +7,30 @@
   
   <!-- 👇👇👇 每次推送到 GitHub 前，請在這裡修改版號 👇👇👇 -->
   <script>
-    window.APP_VERSION = "v1.0.2"; // 在這裡修改測試版號
+    window.APP_VERSION = "v1.0.1"; // 在這裡修改測試版號
   </script>
   <!-- 👆👆👆 每次推送到 GitHub 前，請在這裡修改版號 👆👆👆 -->
 
   <style>
     :root {
-      /* 暖棕柔和調色盤 — 比之前更淺更奶油，避免過深或過鮮 */
-      --brand-50:  #FAF8F5;   /* 頁面底色：近乎白色的米白 */
-      --brand-100: #F2EBE1;   /* 淺米棕，卡片、輸入框底色 */
-      --brand-200: #E0D0BC;   /* border、分隔線 */
-      --brand-300: #C9B49A;   /* 較深border、placeholder */
-      --brand-500: #A8845C;   /* 主按鈕、active nav */
-      --brand-600: #8B6642;   /* hover 狀態 */
-      --brand-700: #6F4E30;   /* 深棕，副標題 */
-      --brand-800: #4A3220;   /* 最深，標題文字 */
-      --text-dark: #3D2B1A;   /* 正文主色 */
+      /* ConcenMate 品牌色 — 源自 Logo 嘅鋼青色系 */
+      --brand-50:  #F0F6F8;   /* 頁面底色：帶藍嘅近白 */
+      --brand-100: #D9EBEF;   /* 卡片底色、輸入框 */
+      --brand-200: #B3D6DE;   /* border、分隔線 */
+      --brand-300: #7DB8C5;   /* 較深 border */
+      --brand-500: #4A8FA0;   /* 主按鈕、active nav */
+      --brand-600: #3E7A8A;   /* hover 狀態 */
+      --brand-700: #2F6070;   /* 深色，副標題 */
+      --brand-800: #1E4550;   /* 最深，標題文字 */
+      --text-dark: #1A3A44;   /* 正文主色 */
 
-      /* 功能區色調 — 全部用暖棕家族，用深淺區分，唔用彩色 */
-      --tone-a: #F5EDE3;  --tone-a-d: #E0CDB8;  /* 米杏 — 視訊溫習室 */
-      --tone-b: #F0E9DF;  --tone-b-d: #D9C9B5;  /* 淺沙 — 扭蛋兌換所 */
-      --tone-c: #EBE5DC;  --tone-c-d: #D2C4AD;  /* 沙棕 — 疑難解答區 */
-      --tone-d: #F7F3EE;  --tone-d-d: #E8DDD1;  /* 奶油 — 溫習資源VIP */
-      --tone-e: #F4EDE6;  --tone-e-d: #DDCABB;  /* 桃奶 — 夥伴讀書會 */
-      --tone-f: #EDE7DF;  --tone-f-d: #D5C7B6;  /* 暖灰棕 — 個人檔案 */
+      /* 功能按鈕色調 — 用水獺暖灰棕（Logo 身體色）做底，深淺各有差異 */
+      --tone-a: #EDE9E4;  --tone-a-d: #D5CFC7;
+      --tone-b: #E8E4DE;  --tone-b-d: #CFC8BF;
+      --tone-c: #E4DFD8;  --tone-c-d: #CAC3B9;
+      --tone-d: #F0EDE9;  --tone-d-d: #DDD8D1;
+      --tone-e: #EBE7E2;  --tone-e-d: #D2CCС4;
+      --tone-f: #E6E2DC;  --tone-f-d: #CDBBB0;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
@@ -47,10 +47,10 @@
     .btn { border: none; border-radius: 10px; padding: 6px 12px; font-size: 12px; font-weight: bold; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 4px; }
     .btn-primary { background: var(--brand-500); color: white; }
     .btn-primary:hover { background: var(--brand-600); transform: translateY(-1px); }
-    .btn-amber { background: #D9C9B5; color: #4A3220; }
-    .btn-amber:hover { background: #C9B49A; color: white; }
-    .btn-red { background: #DDCABB; color: #4A3220; }
-    .btn-red:hover { background: #C9B49A; color: white; }
+    .btn-amber { background: #D9C9B5; color: #1E4550; }
+    .btn-amber:hover { background: #7DB8C5; color: white; }
+    .btn-red { background: #DDCABB; color: #1E4550; }
+    .btn-red:hover { background: #7DB8C5; color: white; }
     .btn-outline { background: white; border: 1px solid var(--brand-300); color: var(--brand-800); }
     .btn-outline:hover { background: var(--brand-50); }
 
@@ -299,7 +299,7 @@
       border-radius: 8px;
       font-size: 11px;
     }
-    .room-capacity-tag.full { color: #E0D0BC; }
+    .room-capacity-tag.full { color: #B3D6DE; }
     .avatar-circle { width: 56px; height: 56px; border-radius: 50%; background: #444; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: bold; border: 2px solid #666; margin-bottom: 8px; }
 
     .video-header {
@@ -445,7 +445,7 @@
       gap: 14px;
     }
     .home-welcome-card {
-      background: linear-gradient(135deg, #C9B49A, #A8845C);
+      background: linear-gradient(135deg, #7DB8C5, #4A8FA0);
       border-radius: 20px;
       padding: 20px;
       color: white;
@@ -457,14 +457,14 @@
       .home-layout { grid-template-columns: 1fr; }  /* 手機單欄：按鈕在上，資訊在下 */
       .home-feature-grid { grid-template-columns: repeat(3, 1fr); max-width: none; }
     }
-    .clickable-user { text-decoration: underline; cursor: pointer; color: #8B6642; }
+    .clickable-user { text-decoration: underline; cursor: pointer; color: #3E7A8A; }
 
     #toast-box {
       position: fixed;
       top: 20px;
       right: 20px;
       z-index: 200;
-      background: #4A3220;
+      background: #1E4550;
       color: white;
       padding: 12px 18px;
       border-radius: 12px;
@@ -489,7 +489,7 @@
       bottom: 20px;
       right: 20px;
       background: rgba(15, 23, 42, 0.95);
-      color: #E0D0BC;
+      color: #B3D6DE;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       font-size: 12px;
       padding: 12px 16px;
@@ -526,11 +526,11 @@
 
   <!-- 開發測試用：版本時間戳記 (部署完成後可手動刪除此區塊) -->
   <div id="dev-build-badge" title="每次推送到 GitHub 前請修改靜態版號，以確認是否載入最新版本">
-    <div style="border-bottom: 1px dashed #8B6642; padding-bottom: 4px; margin-bottom: 4px; font-weight: bold; color: white;">
+    <div style="border-bottom: 1px dashed #3E7A8A; padding-bottom: 4px; margin-bottom: 4px; font-weight: bold; color: white;">
       <span class="pulse-dot"></span>環境除錯面板
     </div>
-    🔧 靜態版號: <span id="version-display" style="color:#A8845C; font-weight:bold;"></span> <span style="font-size:10px; color:#888;">(於檔案頂部修改)</span><br>
-    ⏱️ 載入時間: <span id="load-timestamp" style="color:#C9B49A;">讀取中...</span>
+    🔧 靜態版號: <span id="version-display" style="color:#4A8FA0; font-weight:bold;"></span> <span style="font-size:10px; color:#888;">(於檔案頂部修改)</span><br>
+    ⏱️ 載入時間: <span id="load-timestamp" style="color:#7DB8C5;">讀取中...</span>
   </div>
 
   <div id="toast-box">
@@ -540,7 +540,7 @@
 
   <header>
     <div class="logo-box" onclick="switchTab('home')">
-      <div class="logo-avatar">🦦</div>
+      <div class="logo-avatar" style="background:transparent; border:none; padding:0; width:40px; height:40px;"><img src="logo.png" width="36" height="36" alt="ConcenMate" style="border-radius:50%; object-fit:cover;"></div>
       <div>
         <div style="display:flex; align-items:center; gap:4px;">
           <span class="logo-title">ConcenMate</span>
@@ -606,7 +606,7 @@
 
           <!-- 歡迎卡片：全寬，在按鈕上方 -->
           <div class="home-welcome-card" style="margin-bottom:16px;">
-            <div style="font-size:44px; line-height:1; flex-shrink:0;">🦦</div>
+            <div style="flex-shrink:0;"><img src="logo.png" width="60" height="60" alt="ConcenMate" style="border-radius:50%; object-fit:cover; flex-shrink:0;"></div>
             <div>
               <div style="font-size:17px; font-weight:800; letter-spacing:-.3px;">
                 你好，<span id="home-username">同學</span>！
@@ -690,7 +690,7 @@
                 <div style="font-size:28px;">🧠</div>
                 <div style="flex:1;">
                   <div style="font-size:12px; font-weight:700; color:var(--brand-800);">Ottiee 防瞌睡小測驗</div>
-                  <div style="font-size:11px; color:#8B6642; margin-top:2px;">隨機一題，保持精神！</div>
+                  <div style="font-size:11px; color:#3E7A8A; margin-top:2px;">隨機一題，保持精神！</div>
                 </div>
                 <button class="btn btn-primary" type="button" style="font-size:11px; padding:6px 12px; flex-shrink:0;" onclick="triggerQuiz()">
                   開始
@@ -727,7 +727,7 @@
               <div style="display:flex; align-items:center; gap:6px;">
                 <button class="btn btn-outline" type="button" style="padding:3px 8px; font-size:11px;" onclick="returnToLobby()">⬅️ 返回大廳</button>
                 <span style="font-weight:bold; font-size:14px;" id="active-room-title">DSE 衝刺專注房</span>
-                <span class="tag" style="background:#F0E9DF; color:#4A3220;" id="active-room-subject">數學</span>
+                <span class="tag" style="background:#F0E9DF; color:#1E4550;" id="active-room-subject">數學</span>
               </div>
 
               <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
@@ -742,12 +742,12 @@
                   👥 <span id="room-participant-count">1</span>/4
                 </div>
 
-                <button class="btn btn-outline" type="button" style="border-color:#DDCABB; color:#4A3220;" onclick="leaveRoom()">🚪 退出房間</button>
+                <button class="btn btn-outline" type="button" style="border-color:#DDCABB; color:#1E4550;" onclick="leaveRoom()">🚪 退出房間</button>
               </div>
             </div>
 
-            <details style="max-width:1000px; margin:0 auto 12px; background:#111; border-radius:10px; padding:8px 12px; color:#C9B49A; font-size:11px;">
-              <summary style="cursor:pointer; color:#E0D0BC; font-weight:bold;">🛠️ WebRTC 連線記錄（手機都睇到，除錯用）</summary>
+            <details style="max-width:1000px; margin:0 auto 12px; background:#111; border-radius:10px; padding:8px 12px; color:#7DB8C5; font-size:11px;">
+              <summary style="cursor:pointer; color:#B3D6DE; font-weight:bold;">🛠️ WebRTC 連線記錄（手機都睇到，除錯用）</summary>
               <div id="webrtc-debug-log" style="max-height:180px; overflow-y:auto; white-space:pre-wrap; margin-top:8px; line-height:1.6; font-family:monospace; color:#D2C4AD;"></div>
               <button type="button" onclick="copyWebrtcLog()" style="margin-top:8px; background:#333; color:#fff; border:none; padding:5px 12px; border-radius:6px; font-size:11px; cursor:pointer;">📋 複製記錄</button>
             </details>
@@ -768,12 +768,12 @@
                     <span class="video-tag">
                       <span id="room-user-name-tag">Alex Wong (你)</span> ✓
                     </span>
-                    <span class="video-tag" style="background:#F2EBE1; color:#4A3220;" id="room-host-tag">房主專注中</span>
+                    <span class="video-tag" style="background:#D9EBEF; color:#1E4550;" id="room-host-tag">房主專注中</span>
                   </div>
 
                   <div class="video-footer">
-                    <span class="video-tag" id="camera-status-tag" style="background:rgba(134,239,172,0.9); color:#4A3220; display:none;">🔴 鏡頭即時串流中</span>
-                    <span class="video-tag" id="mic-status-tag" style="background:rgba(134,239,172,0.9); color:#4A3220; display:none; margin-left:4px;">🎤 已開咪</span>
+                    <span class="video-tag" id="camera-status-tag" style="background:rgba(134,239,172,0.9); color:#1E4550; display:none;">🔴 鏡頭即時串流中</span>
+                    <span class="video-tag" id="mic-status-tag" style="background:rgba(134,239,172,0.9); color:#1E4550; display:none; margin-left:4px;">🎤 已開咪</span>
                   </div>
 
                   <div id="sticker-container-box" class="sticker-container-box"></div>
@@ -845,7 +845,7 @@
 
               <div>
                 <label style="font-size:11px; font-weight:bold; color:#555; display:block;">電子郵件 (Email)</label>
-                <input type="email" id="prof-email" class="input-field" disabled style="background:#E0D0BC; cursor:not-allowed;">
+                <input type="email" id="prof-email" class="input-field" disabled style="background:#B3D6DE; cursor:not-allowed;">
               </div>
 
               <div>
@@ -885,7 +885,7 @@
         </section>
 
         <section id="tab-vip" class="tab-content">
-          <div class="card" style="background: linear-gradient(135deg, #E0D0BC, #E0D0BC); color:#4A3220;">
+          <div class="card" style="background: linear-gradient(135deg, #B3D6DE, #B3D6DE); color:#1E4550;">
             <h2 style="font-size:18px; font-weight:bold;">ConcenMate VIP 專屬方案</h2>
             <p style="font-size:12px; margin-top:6px; opacity:0.9;">升級解鎖無限次防瞌睡測試、雲端錄影備份與 HD 60FPS 串流！</p>
           </div>
@@ -894,7 +894,7 @@
         <section id="tab-store" class="tab-content">
 
           <!-- 頁首卡片 -->
-          <div class="card" style="background: linear-gradient(135deg, #F2EBE1, #D9C9B5); color:#4A3220; text-align:center;">
+          <div class="card" style="background: linear-gradient(135deg, #D9EBEF, #D9C9B5); color:#1E4550; text-align:center;">
             <div style="font-size:28px; margin-bottom:4px;">🎰</div>
             <h2 style="font-size:16px; font-weight:bold;">Ottiee 時數幸運扭蛋機</h2>
             <p style="font-size:12px; margin-top:4px; opacity:.9;">用積分抽獎，換取學習大獎！</p>
@@ -911,28 +911,28 @@
               <!-- 扭蛋機外殼 SVG -->
               <svg viewBox="0 0 200 260" width="180" xmlns="http://www.w3.org/2000/svg">
                 <!-- 機身 -->
-                <rect x="20" y="120" width="160" height="120" rx="16" fill="#E0D0BC"/>
-                <rect x="24" y="124" width="152" height="112" rx="13" fill="#E0D0BC"/>
+                <rect x="20" y="120" width="160" height="120" rx="16" fill="#B3D6DE"/>
+                <rect x="24" y="124" width="152" height="112" rx="13" fill="#B3D6DE"/>
                 <!-- 玻璃球艙 -->
                 <circle cx="100" cy="100" r="72" fill="#F5EDE3" opacity=".6"/>
-                <circle cx="100" cy="100" r="72" fill="none" stroke="#8B6642" stroke-width="5"/>
+                <circle cx="100" cy="100" r="72" fill="none" stroke="#3E7A8A" stroke-width="5"/>
                 <circle cx="100" cy="100" r="64" fill="none" stroke="#E0CDB8" stroke-width="2" opacity=".7"/>
                 <!-- 球艙高光 -->
                 <ellipse cx="78" cy="68" rx="18" ry="10" fill="white" opacity=".35"/>
                 <!-- 轉盤旋鈕 -->
-                <circle cx="100" cy="208" r="22" fill="#F2EBE1"/>
+                <circle cx="100" cy="208" r="22" fill="#D9EBEF"/>
                 <circle cx="100" cy="208" r="16" fill="#D9C9B5"/>
-                <circle cx="100" cy="208" r="7" fill="#FAF8F5"/>
-                <text x="100" y="212" text-anchor="middle" font-size="10" fill="#4A3220" font-weight="bold">扭!</text>
+                <circle cx="100" cy="208" r="7" fill="#F0F6F8"/>
+                <text x="100" y="212" text-anchor="middle" font-size="10" fill="#1E4550" font-weight="bold">扭!</text>
                 <!-- 出球口 -->
-                <rect x="72" y="228" width="56" height="22" rx="6" fill="#A8845C"/>
-                <rect x="76" y="232" width="48" height="14" rx="4" fill="#E0D0BC"/>
+                <rect x="72" y="228" width="56" height="22" rx="6" fill="#4A8FA0"/>
+                <rect x="76" y="232" width="48" height="14" rx="4" fill="#B3D6DE"/>
                 <!-- 機腳 -->
-                <rect x="30" y="234" width="20" height="14" rx="4" fill="#8B6642"/>
-                <rect x="150" y="234" width="20" height="14" rx="4" fill="#8B6642"/>
+                <rect x="30" y="234" width="20" height="14" rx="4" fill="#3E7A8A"/>
+                <rect x="150" y="234" width="20" height="14" rx="4" fill="#3E7A8A"/>
                 <!-- 機身標誌 -->
-                <text x="100" y="168" text-anchor="middle" font-size="11" fill="#4A3220" font-weight="bold">OTTIEE</text>
-                <text x="100" y="182" text-anchor="middle" font-size="9" fill="#6F4E30">GACHA</text>
+                <text x="100" y="168" text-anchor="middle" font-size="11" fill="#1E4550" font-weight="bold">OTTIEE</text>
+                <text x="100" y="182" text-anchor="middle" font-size="9" fill="#2F6070">GACHA</text>
               </svg>
 
               <!-- 蛋的動畫疊層 -->
@@ -952,10 +952,10 @@
 
             <!-- 費用說明 -->
             <div style="margin:12px auto 16px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
-              <div style="background:#FAF8F5; border:1px solid #C9B49A; border-radius:10px; padding:6px 12px; font-size:11px;">
+              <div style="background:#F0F6F8; border:1px solid #7DB8C5; border-radius:10px; padding:6px 12px; font-size:11px;">
                 <strong>普通扭蛋</strong><br>30 PTS / 次
               </div>
-              <div style="background:#F2EBE1; border:1px solid #E0D0BC; border-radius:10px; padding:6px 12px; font-size:11px;">
+              <div style="background:#D9EBEF; border:1px solid #B3D6DE; border-radius:10px; padding:6px 12px; font-size:11px;">
                 <strong>幸運扭蛋</strong><br>80 PTS / 次
               </div>
             </div>
@@ -965,17 +965,17 @@
               <button class="btn btn-amber" type="button" onclick="doGacha('normal')" style="padding:10px 20px; font-size:13px;">
                 🎰 普通扭蛋 (30 PTS)
               </button>
-              <button class="btn btn-primary" type="button" onclick="doGacha('lucky')" style="padding:10px 20px; font-size:13px; background:#D9C9B5; color:#4A3220; border-color:#D9C9B5;">
+              <button class="btn btn-primary" type="button" onclick="doGacha('lucky')" style="padding:10px 20px; font-size:13px; background:#D9C9B5; color:#1E4550; border-color:#D9C9B5;">
                 ✨ 幸運扭蛋 (80 PTS)
               </button>
             </div>
 
             <!-- 結果顯示區 -->
-            <div id="gacha-result-box" style="display:none; margin-top:20px; padding:16px; border-radius:14px; background:#FAF8F5; border:2px solid #E0D0BC; animation: gacha-pop .4s ease;">
+            <div id="gacha-result-box" style="display:none; margin-top:20px; padding:16px; border-radius:14px; background:#F0F6F8; border:2px solid #B3D6DE; animation: gacha-pop .4s ease;">
               <div id="gacha-result-emoji" style="font-size:40px;"></div>
               <div id="gacha-result-tier" style="font-size:12px; font-weight:bold; margin-top:4px;"></div>
               <div id="gacha-result-name" style="font-size:15px; font-weight:bold; margin-top:2px;"></div>
-              <div id="gacha-result-desc" style="font-size:11px; color:#6F4E30; margin-top:4px;"></div>
+              <div id="gacha-result-desc" style="font-size:11px; color:#2F6070; margin-top:4px;"></div>
             </div>
           </div>
 
@@ -983,21 +983,21 @@
           <div class="card">
             <h3 style="font-size:13px; font-weight:bold; margin-bottom:10px;">🎁 獎品一覽</h3>
             <div style="display:flex; flex-direction:column; gap:6px; font-size:11px;">
-              <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; background:#F2EBE1; border-radius:8px;">
+              <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; background:#D9EBEF; border-radius:8px;">
                 <span style="font-size:18px;">⭐</span>
-                <div><strong style="color:#6F4E30;">普通獎 (55%)</strong><br>溫習貼士卡、Ottiee 表情貼 ×3</div>
+                <div><strong style="color:#2F6070;">普通獎 (55%)</strong><br>溫習貼士卡、Ottiee 表情貼 ×3</div>
               </div>
-              <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; background:#FAF8F5; border-radius:8px;">
+              <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; background:#F0F6F8; border-radius:8px;">
                 <span style="font-size:18px;">🌟</span>
-                <div><strong style="color:#6F4E30;">良好獎 (30%)</strong><br>文具禮券 $20、精美書簽套裝</div>
+                <div><strong style="color:#2F6070;">良好獎 (30%)</strong><br>文具禮券 $20、精美書簽套裝</div>
               </div>
               <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; background:#F5EDE3; border-radius:8px;">
                 <span style="font-size:18px;">💎</span>
-                <div><strong style="color:#6F4E30;">稀有獎 (12%)</strong><br>DSE 參考書、課外補充練習冊</div>
+                <div><strong style="color:#2F6070;">稀有獎 (12%)</strong><br>DSE 參考書、課外補充練習冊</div>
               </div>
-              <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; background:#FAF8F5; border-radius:8px;">
+              <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; background:#F0F6F8; border-radius:8px;">
                 <span style="font-size:18px;">👑</span>
-                <div><strong style="color:#6F4E30;">傳說獎 (3%)</strong><br>VIP 溫習月票、$100 書券</div>
+                <div><strong style="color:#2F6070;">傳說獎 (3%)</strong><br>VIP 溫習月票、$100 書券</div>
               </div>
             </div>
           </div>
@@ -1044,7 +1044,7 @@
           <input type="password" id="login-password" class="input-field" required placeholder="請輸入密碼">
         </div>
         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
-          <span style="font-size:11px; color:#8B6642; cursor:pointer;" onclick="closeModal('modal-login'); openModal('modal-register');">還沒有帳號？點此註冊</span>
+          <span style="font-size:11px; color:#3E7A8A; cursor:pointer;" onclick="closeModal('modal-login'); openModal('modal-register');">還沒有帳號？點此註冊</span>
           <div style="display:flex; gap:6px;">
             <button class="btn btn-outline" type="button" onclick="closeModal('modal-login')">取消</button>
             <button class="btn btn-primary" type="submit">登入</button>
@@ -1103,7 +1103,7 @@
         </div>
 
         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-          <span style="font-size:11px; color:#8B6642; cursor:pointer;" onclick="closeModal('modal-register'); openModal('modal-login');">已有帳號？點此登入</span>
+          <span style="font-size:11px; color:#3E7A8A; cursor:pointer;" onclick="closeModal('modal-register'); openModal('modal-login');">已有帳號？點此登入</span>
           <div style="display:flex; gap:6px;">
             <button class="btn btn-outline" type="button" onclick="closeModal('modal-register')">取消</button>
             <button class="btn btn-primary" type="submit">完成註冊並登入</button>
@@ -1163,7 +1163,7 @@
     <div class="modal-box" style="text-align:center;">
       <div class="avatar-circle" style="margin:0 auto 10px; width:64px; height:64px; font-size:26px; background:var(--brand-500); border-color:var(--brand-200);" id="pop-user-avatar">A</div>
       <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800);" id="pop-user-name">Alex Wong</h3>
-      <p style="font-size:11px; color:#8B6642; font-weight:bold; margin-bottom:12px;" id="pop-user-verified">✓ 學生身份已驗證</p>
+      <p style="font-size:11px; color:#3E7A8A; font-weight:bold; margin-bottom:12px;" id="pop-user-verified">✓ 學生身份已驗證</p>
 
       <div style="background:var(--brand-50); border:1px solid var(--brand-200); border-radius:12px; padding:12px; text-align:left; font-size:12px; display:flex; flex-direction:column; gap:6px; margin-bottom:14px;">
         <div><strong>🏫 就讀學校：</strong><span id="pop-user-school">屯門官立中學</span></div>
@@ -1266,7 +1266,7 @@
         headerAuthBtn.style.borderRadius = "20px";
         headerAuthBtn.style.padding = "4px 10px";
         headerAuthBtn.style.fontSize = "11px";
-        headerAuthBtn.innerHTML = `<span>${window.currentUser.username || window.currentUser.email}</span> <span style="color:#A8845C; font-weight:bold;">✓</span>`;
+        headerAuthBtn.innerHTML = `<span>${window.currentUser.username || window.currentUser.email}</span> <span style="color:#4A8FA0; font-weight:bold;">✓</span>`;
 
         document.getElementById('room-user-name-tag').innerText = (window.currentUser.username || '使用者') + " (你)";
         document.getElementById('room-self-avatar').innerText = (window.currentUser.username || 'U').charAt(0).toUpperCase();
@@ -1342,23 +1342,23 @@
 
     const GACHA_PRIZES = {
       normal: [
-        { tier: '普通獎', tierColor: '#6F4E30', bg: '#F2EBE1', emoji: '⭐', name: '溫習貼士卡', desc: '附有考試重點提示的精美卡片', weight: 55 },
-        { tier: '普通獎', tierColor: '#6F4E30', bg: '#F2EBE1', emoji: '😊', name: 'Ottiee 表情貼 ×3', desc: '可愛水獺 Ottiee 貼紙套裝', weight: 40 },
-        { tier: '良好獎', tierColor: '#6F4E30', bg: '#FAF8F5', emoji: '🌟', name: '文具禮券 $20', desc: 'CitySuper 文具區現金禮券', weight: 18 },
-        { tier: '良好獎', tierColor: '#6F4E30', bg: '#FAF8F5', emoji: '🔖', name: '精美書簽套裝', desc: '三款主題書簽+便利貼套裝', weight: 16 },
-        { tier: '稀有獎', tierColor: '#6F4E30', bg: '#F5EDE3', emoji: '💎', name: 'DSE 參考書', desc: '指定科目 DSE 精讀備試書一本', weight: 8 },
-        { tier: '稀有獎', tierColor: '#6F4E30', bg: '#F5EDE3', emoji: '📖', name: '課外補充練習冊', desc: 'HKDSE 練習題精選合集', weight: 5 },
-        { tier: '傳說獎', tierColor: '#6F4E30', bg: '#FAF8F5', emoji: '👑', name: 'VIP 溫習月票', desc: '免費升級 VIP 會員一個月', weight: 2 },
-        { tier: '傳說獎', tierColor: '#6F4E30', bg: '#FAF8F5', emoji: '🎫', name: '$100 書券', desc: '三聯書店 $100 現金書券', weight: 1 }
+        { tier: '普通獎', tierColor: '#2F6070', bg: '#D9EBEF', emoji: '⭐', name: '溫習貼士卡', desc: '附有考試重點提示的精美卡片', weight: 55 },
+        { tier: '普通獎', tierColor: '#2F6070', bg: '#D9EBEF', emoji: '😊', name: 'Ottiee 表情貼 ×3', desc: '可愛水獺 Ottiee 貼紙套裝', weight: 40 },
+        { tier: '良好獎', tierColor: '#2F6070', bg: '#F0F6F8', emoji: '🌟', name: '文具禮券 $20', desc: 'CitySuper 文具區現金禮券', weight: 18 },
+        { tier: '良好獎', tierColor: '#2F6070', bg: '#F0F6F8', emoji: '🔖', name: '精美書簽套裝', desc: '三款主題書簽+便利貼套裝', weight: 16 },
+        { tier: '稀有獎', tierColor: '#2F6070', bg: '#F5EDE3', emoji: '💎', name: 'DSE 參考書', desc: '指定科目 DSE 精讀備試書一本', weight: 8 },
+        { tier: '稀有獎', tierColor: '#2F6070', bg: '#F5EDE3', emoji: '📖', name: '課外補充練習冊', desc: 'HKDSE 練習題精選合集', weight: 5 },
+        { tier: '傳說獎', tierColor: '#2F6070', bg: '#F0F6F8', emoji: '👑', name: 'VIP 溫習月票', desc: '免費升級 VIP 會員一個月', weight: 2 },
+        { tier: '傳說獎', tierColor: '#2F6070', bg: '#F0F6F8', emoji: '🎫', name: '$100 書券', desc: '三聯書店 $100 現金書券', weight: 1 }
       ],
       lucky: [
-        { tier: '普通獎', tierColor: '#6F4E30', bg: '#F2EBE1', emoji: '⭐', name: '溫習貼士卡 ×2', desc: '雙份考試重點提示精美卡片', weight: 30 },
-        { tier: '良好獎', tierColor: '#6F4E30', bg: '#FAF8F5', emoji: '🌟', name: '文具禮券 $20', desc: 'CitySuper 文具區現金禮券', weight: 28 },
-        { tier: '良好獎', tierColor: '#6F4E30', bg: '#FAF8F5', emoji: '🔖', name: '精美書簽套裝 ×2', desc: '六款主題書簽+便利貼豪華套裝', weight: 20 },
-        { tier: '稀有獎', tierColor: '#6F4E30', bg: '#F5EDE3', emoji: '💎', name: 'DSE 參考書', desc: '指定科目 DSE 精讀備試書一本', weight: 13 },
-        { tier: '稀有獎', tierColor: '#6F4E30', bg: '#F5EDE3', emoji: '📖', name: '課外補充練習冊', desc: 'HKDSE 練習題精選合集', weight: 10 },
-        { tier: '傳說獎', tierColor: '#6F4E30', bg: '#FAF8F5', emoji: '👑', name: 'VIP 溫習月票', desc: '免費升級 VIP 會員一個月', weight: 5 },
-        { tier: '傳說獎', tierColor: '#6F4E30', bg: '#FAF8F5', emoji: '🎫', name: '$100 書券', desc: '三聯書店 $100 現金書券', weight: 3 }
+        { tier: '普通獎', tierColor: '#2F6070', bg: '#D9EBEF', emoji: '⭐', name: '溫習貼士卡 ×2', desc: '雙份考試重點提示精美卡片', weight: 30 },
+        { tier: '良好獎', tierColor: '#2F6070', bg: '#F0F6F8', emoji: '🌟', name: '文具禮券 $20', desc: 'CitySuper 文具區現金禮券', weight: 28 },
+        { tier: '良好獎', tierColor: '#2F6070', bg: '#F0F6F8', emoji: '🔖', name: '精美書簽套裝 ×2', desc: '六款主題書簽+便利貼豪華套裝', weight: 20 },
+        { tier: '稀有獎', tierColor: '#2F6070', bg: '#F5EDE3', emoji: '💎', name: 'DSE 參考書', desc: '指定科目 DSE 精讀備試書一本', weight: 13 },
+        { tier: '稀有獎', tierColor: '#2F6070', bg: '#F5EDE3', emoji: '📖', name: '課外補充練習冊', desc: 'HKDSE 練習題精選合集', weight: 10 },
+        { tier: '傳說獎', tierColor: '#2F6070', bg: '#F0F6F8', emoji: '👑', name: 'VIP 溫習月票', desc: '免費升級 VIP 會員一個月', weight: 5 },
+        { tier: '傳說獎', tierColor: '#2F6070', bg: '#F0F6F8', emoji: '🎫', name: '$100 書券', desc: '三聯書店 $100 現金書券', weight: 3 }
       ]
     };
 
@@ -1466,7 +1466,7 @@
         <span style="font-size:20px;">${prize.emoji}</span>
         <div style="flex:1;">
           <strong style="color:${prize.tierColor};">${prize.tier}</strong> · ${prize.name}
-          <div style="color:#C9B49A; font-size:10px;">${type === 'lucky' ? '✨ 幸運扭蛋' : '🎰 普通扭蛋'} · ${time} · -${GACHA_COST[type]} PTS</div>
+          <div style="color:#7DB8C5; font-size:10px;">${type === 'lucky' ? '✨ 幸運扭蛋' : '🎰 普通扭蛋'} · ${time} · -${GACHA_COST[type]} PTS</div>
         </div>
       `;
       list.insertBefore(entry, list.firstChild);
@@ -1617,8 +1617,8 @@
             <div class="room-item-card">
               <div>
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
-                  <span class="tag" style="background:#FAF8F5; color:#4A3220;">${room.subject || '數學'}</span>
-                  <span style="font-size:10px; color:#8B6642; font-weight:bold;">🟢 直播中</span>
+                  <span class="tag" style="background:#F0F6F8; color:#1E4550;">${room.subject || '數學'}</span>
+                  <span style="font-size:10px; color:#3E7A8A; font-weight:bold;">🟢 直播中</span>
                 </div>
                 <h4 style="font-size:14px; font-weight:bold; color:var(--brand-800); margin-bottom:4px;">${room.name}</h4>
                 <p style="font-size:11px; color:#666;">房主：<strong>${room.hostName || '匿名同學'}</strong></p>
@@ -1912,7 +1912,7 @@
           </div>
           <div class="video-header">
             <span class="video-tag">📹 ${name || '其他用家'}</span>
-            <span class="video-tag" id="stream-status-${uid}" style="background:#8B6642; color:#fff;">🔗 連線中...</span>
+            <span class="video-tag" id="stream-status-${uid}" style="background:#3E7A8A; color:#fff;">🔗 連線中...</span>
           </div>
           <div class="sticker-container-box"></div>
         `;
@@ -2472,7 +2472,7 @@
         if (micTag) {
           micTag.style.display = state.isCameraOn ? 'flex' : 'none';
           micTag.innerText = '🔇 已靜音';
-          micTag.style.background = 'rgba(196,181,253,0.9)';
+          micTag.style.background = 'rgba(125,184,197,0.7)';
         }
       }
     }
