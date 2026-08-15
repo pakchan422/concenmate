@@ -4,14 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>ConcenMate 書伴 - 虛擬溫習空間</title>
-  
-  <!-- 👇👇👇 每次推送到 GitHub 前，請在這裡修改版號 👇👇👇 -->
-  <script>
-    window.APP_VERSION = "v1.0.3"; // 在這裡修改測試版號
-  </script>
-  <!-- 👆👆👆 每次推送到 GitHub 前，請在這裡修改版號 👆👆👆 -->
 
-  <style>
+  <!-- ========================================
+       🔧 版本號 — 每次推送 GitHub 前改呢度
+       ======================================== -->
+  <script>
+    window.APP_VERSION = "v1.0.1"; // 每次推送 GitHub 前，喺呢度改版號
+  </script>
+
+<style>
     :root {
       /* ConcenMate 品牌色 — 源自 Logo 嘅鋼青色系 */
       --brand-50:  #F0F6F8;   /* 頁面底色：帶藍嘅近白 */
@@ -38,13 +39,13 @@
 
     header { background: rgba(255, 255, 255, 0.95); border-bottom: 1px solid var(--brand-200); padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 40; backdrop-filter: blur(8px); }
     .logo-box { display: flex; align-items: center; gap: 8px; cursor: pointer; }
-    .logo-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--brand-500); color: white; display: flex; align-items: center; justify-content: center; font-size: 18px; border: 2px solid var(--brand-200); }
-    .logo-title { font-weight: bold; font-size: 15px; }
-    .badge { background: var(--brand-100); color: var(--brand-700); font-size: 10px; padding: 2px 5px; border-radius: 4px; font-weight: bold; }
+    .logo-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--brand-500); color: white; display: flex; align-items: center; justify-content: center; font-size: 20px; border: 2px solid var(--brand-200); }
+    .logo-title { font-weight: bold; font-size: 17px; }
+    .badge { background: var(--brand-100); color: var(--brand-700); font-size: 12px; padding: 2px 5px; border-radius: 4px; font-weight: bold; }
 
-    .user-stats { display: flex; align-items: center; gap: 10px; background: var(--brand-50); padding: 4px 10px; border-radius: 20px; border: 1px solid var(--brand-200); font-size: 11px; font-weight: 600; }
+    .user-stats { display: flex; align-items: center; gap: 10px; background: var(--brand-50); padding: 4px 10px; border-radius: 20px; border: 1px solid var(--brand-200); font-size: 13px; font-weight: 600; }
     
-    .btn { border: none; border-radius: 10px; padding: 6px 12px; font-size: 12px; font-weight: bold; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 4px; }
+    .btn { border: none; border-radius: 10px; padding: 6px 12px; font-size: 14px; font-weight: bold; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 4px; }
     .btn-primary { background: var(--brand-500); color: white; }
     .btn-primary:hover { background: var(--brand-600); transform: translateY(-1px); }
     .btn-amber { background: #D9C9B5; color: #1E4550; }
@@ -63,30 +64,30 @@
       aside { width: 56px; padding: 6px 4px; }
       .nav-text { display: none; }
       .user-stats { display: none; }
-      .nav-btn { justify-content: center; padding: 11px 0; font-size: 16px; }
+      .nav-btn { justify-content: center; padding: 11px 0; font-size: 18px; }
       main { padding: 10px; }
       .home-feature-grid { grid-template-columns: repeat(3, minmax(0, 160px)); gap: 10px; }
       .video-grid-container { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
-      .logo-title { font-size: 13px; }
+      .logo-title { font-size: 15px; }
       .rooms-grid { grid-template-columns: 1fr; }
     }
 
     /* ── Mobile (≤480px) ── */
     @media (max-width: 480px) {
       header { padding: 6px 8px; gap: 4px; }
-      .logo-avatar { width: 30px; height: 30px; font-size: 15px; }
+      .logo-avatar { width: 30px; height: 30px; font-size: 17px; }
       .logo-title { display: none; }         /* 超窄螢幕：隱藏文字，只顯示水獺 logo */
       .badge { display: none; }
       .header-vip-text { display: none; }    /* 只保留 👑 emoji */
       .header-auth-text { display: none; }   /* 只保留 🔑 emoji */
       aside { width: 48px; padding: 4px; }
-      .nav-btn { padding: 10px 0; font-size: 15px; border-radius: 8px; }
+      .nav-btn { padding: 10px 0; font-size: 17px; border-radius: 8px; }
       main { padding: 8px; }
       .card { padding: 10px; border-radius: 12px; }
       .home-feature-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
       .home-feature-btn { padding: 8px; border-radius: 16px; }
-      .home-feature-btn .btn-icon { font-size: 22px; }
-      .home-feature-btn .btn-label { font-size: 12px; }
+      .home-feature-btn .btn-icon { font-size: 24px; }
+      .home-feature-btn .btn-label { font-size: 14px; }
       .home-feature-btn .btn-sub { display: none; }   /* 手機太窄，副標題收起 */
       .home-welcome-card { padding: 14px; gap: 10px; }
       .video-grid-container { grid-template-columns: 1fr; }  /* 視訊格：手機單列 */
@@ -95,7 +96,7 @@
       .modal-box { border-radius: 14px; padding: 16px; }
       .rooms-grid { grid-template-columns: 1fr; }
       /* 按鈕在手機上放大觸控區 */
-      .btn { padding: 9px 14px; font-size: 12px; min-height: 38px; }
+      .btn { padding: 9px 14px; font-size: 14px; min-height: 38px; }
     }
 
     /* ── 超小（≤360px，例如舊 Android）── */
@@ -106,7 +107,7 @@
       .home-feature-btn { padding: 6px; }
     }
 
-    .nav-btn { width: 100%; text-align: left; padding: 10px; border-radius: 10px; border: none; background: transparent; color: #555; font-size: 13px; font-weight: 600; cursor: pointer; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; justify-content: flex-start; transition: 0.15s; }
+    .nav-btn { width: 100%; text-align: left; padding: 10px; border-radius: 10px; border: none; background: transparent; color: #555; font-size: 15px; font-weight: 600; cursor: pointer; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; justify-content: flex-start; transition: 0.15s; }
     .nav-btn.active, .nav-btn:hover { background: var(--brand-500); color: white; }
 
     .auth-wall-container {
@@ -183,7 +184,7 @@
     .emoji-reaction-bar button {
       background: transparent;
       border: none;
-      font-size: 22px;
+      font-size: 24px;
       line-height: 1;
       cursor: pointer;
       padding: 6px 10px;
@@ -282,12 +283,12 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 18px;
+      font-size: 20px;
       color: #888;
       margin-bottom: 6px;
     }
     .video-slot-placeholder p {
-      font-size: 11px;
+      font-size: 13px;
       color: #888;
     }
 
@@ -297,10 +298,10 @@
       font-family: monospace;
       padding: 4px 8px;
       border-radius: 8px;
-      font-size: 11px;
+      font-size: 13px;
     }
     .room-capacity-tag.full { color: #B3D6DE; }
-    .avatar-circle { width: 56px; height: 56px; border-radius: 50%; background: #444; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: bold; border: 2px solid #666; margin-bottom: 8px; }
+    .avatar-circle { width: 56px; height: 56px; border-radius: 50%; background: #444; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; border: 2px solid #666; margin-bottom: 8px; }
 
     .video-header {
       position: absolute;
@@ -318,7 +319,7 @@
       backdrop-filter: blur(4px);
       -webkit-backdrop-filter: blur(4px);
       color: white;
-      font-size: 11px;
+      font-size: 13px;
       padding: 4px 8px;
       border-radius: 8px;
       font-weight: 600;
@@ -366,12 +367,12 @@
     .modal-box { background: white; border-radius: 20px; padding: 20px; max-width: 440px; width: 100%; border: 2px solid var(--brand-200); max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
 
     .card { background: white; border-radius: 16px; padding: 14px; border: 1px solid var(--brand-200); margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
-    .tag { background: var(--brand-100); color: var(--brand-800); font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 6px; }
+    .tag { background: var(--brand-100); color: var(--brand-800); font-size: 12px; font-weight: bold; padding: 2px 6px; border-radius: 6px; }
 
     /* 疑難解答區學科 Tab */
     .qa-subject-btn {
       padding: 6px 12px; border-radius: 20px; border: 1.5px solid var(--brand-200);
-      background: white; color: var(--brand-700); font-size: 12px; font-weight: 600;
+      background: white; color: var(--brand-700); font-size: 14px; font-weight: 600;
       cursor: pointer; transition: .15s;
     }
     .qa-subject-btn.active, .qa-subject-btn:hover {
@@ -384,7 +385,7 @@
     .qa-post-card:hover { box-shadow: 0 4px 16px rgba(74,143,160,.15); }
     .qa-subject-label {
       display: inline-block; padding: 2px 8px; border-radius: 20px;
-      font-size: 10px; font-weight: bold; background: var(--brand-100); color: var(--brand-700);
+      font-size: 12px; font-weight: bold; background: var(--brand-100); color: var(--brand-700);
       margin-bottom: 6px;
     }
     .qa-photo-thumb {
@@ -416,7 +417,7 @@
     }
     .gacha-shaking  { animation: gacha-shake .5s ease; }
     .gacha-spinning { animation: gacha-spin .6s ease; }
-    .input-field { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--brand-300); background: var(--brand-50); font-size: 12px; margin-top: 4px; outline: none; transition: 0.2s; }
+    .input-field { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--brand-300); background: var(--brand-50); font-size: 14px; margin-top: 4px; outline: none; transition: 0.2s; }
     .input-field:focus { border-color: var(--brand-500); background: white; box-shadow: 0 0 0 2px rgba(176,137,91,0.2); }
     
     .tab-content { display: none; }
@@ -441,7 +442,7 @@
       border: none;
       cursor: pointer;
       font-weight: bold;
-      font-size: 13px;
+      font-size: 15px;
       transition: transform .15s ease, box-shadow .15s ease;
       color: white;
       text-align: center;
@@ -453,8 +454,8 @@
     .home-feature-btn:hover  { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,.18); }
     .home-feature-btn:active { transform: scale(.96); }
     .home-feature-btn .btn-icon { font-size: 30px; line-height: 1; }
-    .home-feature-btn .btn-label { font-size: 13px; font-weight: 700; line-height: 1.2; }
-    .home-feature-btn .btn-sub { font-size: 10px; opacity: .82; font-weight: 400; margin-top: 2px; }
+    .home-feature-btn .btn-label { font-size: 15px; font-weight: 700; line-height: 1.2; }
+    .home-feature-btn .btn-sub { font-size: 12px; opacity: .82; font-weight: 400; margin-top: 2px; }
 
     /* 主頁兩欄版面 */
     .home-layout {
@@ -492,7 +493,7 @@
       color: white;
       padding: 12px 18px;
       border-radius: 12px;
-      font-size: 13px;
+      font-size: 15px;
       font-weight: 600;
       box-shadow: 0 10px 20px rgba(0,0,0,0.2);
       display: flex;
@@ -515,7 +516,7 @@
       background: rgba(15, 23, 42, 0.95);
       color: #B3D6DE;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      font-size: 12px;
+      font-size: 14px;
       padding: 12px 16px;
       border-radius: 12px;
       border: 2px solid #D2C4AD;
@@ -553,7 +554,7 @@
     <div style="border-bottom: 1px dashed #3E7A8A; padding-bottom: 4px; margin-bottom: 4px; font-weight: bold; color: white;">
       <span class="pulse-dot"></span>環境除錯面板
     </div>
-    🔧 靜態版號: <span id="version-display" style="color:#4A8FA0; font-weight:bold;"></span> <span style="font-size:10px; color:#888;">(於檔案頂部修改)</span><br>
+    🔧 靜態版號: <span id="version-display" style="color:#4A8FA0; font-weight:bold;"></span> <span style="font-size:12px; color:#888;">(於檔案頂部修改)</span><br>
     ⏱️ 載入時間: <span id="load-timestamp" style="color:#7DB8C5;">讀取中...</span>
   </div>
 
@@ -570,7 +571,7 @@
           <span class="logo-title">ConcenMate</span>
           <span class="badge">書伴</span>
         </div>
-        <p style="font-size:9px; color:#777;">GitHub: pakchan422 | Firebase: concenmate-app</p>
+        <p style="font-size:11px; color:#777;">GitHub: pakchan422 | Firebase: concenmate-app</p>
       </div>
     </div>
 
@@ -603,8 +604,8 @@
       </div>
 
       <div style="background:var(--brand-50); padding:8px; border-radius:12px; border:1px solid var(--brand-200); text-align:center;">
-        <p style="font-size:10px; font-weight:bold; color:var(--brand-800);">Ottiee 小叮嚀：</p>
-        <button class="btn btn-primary" type="button" style="width:100%; margin-top:6px; font-size:10px;" onclick="triggerQuiz()">防瞌睡小測驗</button>
+        <p style="font-size:12px; font-weight:bold; color:var(--brand-800);">Ottiee 小叮嚀：</p>
+        <button class="btn btn-primary" type="button" style="width:100%; margin-top:6px; font-size:12px;" onclick="triggerQuiz()">防瞌睡小測驗</button>
       </div>
     </aside>
 
@@ -612,14 +613,14 @@
 
       <div id="unauth-screen" class="auth-wall-container" style="display:none;">
         <div style="font-size:52px; margin-bottom:12px;">🦦🔐</div>
-        <h2 style="font-size:20px; font-weight:bold; color:var(--brand-800);">請先登入 ConcenMate 書伴</h2>
-        <p style="font-size:12px; color:#666; margin-top:6px; line-height:1.5;">
+        <h2 style="font-size:22px; font-weight:bold; color:var(--brand-800);">請先登入 ConcenMate 書伴</h2>
+        <p style="font-size:14px; color:#666; margin-top:6px; line-height:1.5;">
           登入後即可暢玩公開溫習大廳、建立專屬房間、<br>開啟即時 Canvas 鏡頭直播與參與線上讀書會！
         </p>
 
         <div style="display:flex; justify-content:center; gap:12px; margin-top:20px; flex-wrap:wrap;">
-          <button class="btn btn-primary" style="padding:10px 20px; font-size:14px;" onclick="openModal('modal-login')">🔑 會員登入</button>
-          <button class="btn btn-amber" style="padding:10px 20px; font-size:14px;" onclick="openModal('modal-register')">📝 新用戶註冊</button>
+          <button class="btn btn-primary" style="padding:10px 20px; font-size:16px;" onclick="openModal('modal-login')">🔑 會員登入</button>
+          <button class="btn btn-amber" style="padding:10px 20px; font-size:16px;" onclick="openModal('modal-register')">📝 新用戶註冊</button>
         </div>
       </div>
 
@@ -632,11 +633,11 @@
           <div class="home-welcome-card" style="margin-bottom:16px;">
             <div style="flex-shrink:0;"><img src="logo.png" width="60" height="60" alt="ConcenMate" style="border-radius:50%; object-fit:cover; flex-shrink:0;"></div>
             <div>
-              <div style="font-size:17px; font-weight:800; letter-spacing:-.3px;">
+              <div style="font-size:19px; font-weight:800; letter-spacing:-.3px;">
                 你好，<span id="home-username">同學</span>！
               </div>
-              <div style="font-size:11px; opacity:.85; margin-top:3px;">準備好今日嘅溫習了嗎？</div>
-              <div style="display:flex; gap:12px; margin-top:10px; font-size:11px;">
+              <div style="font-size:13px; opacity:.85; margin-top:3px;">準備好今日嘅溫習了嗎？</div>
+              <div style="display:flex; gap:12px; margin-top:10px; font-size:13px;">
                 <span style="background:rgba(255,255,255,.28); padding:3px 10px; border-radius:20px;">
                   ⏱️ <span id="home-stat-hours">0.0</span>h
                 </span>
@@ -713,10 +714,10 @@
               <div style="background:var(--brand-50); border:1px solid var(--brand-200); border-radius:16px; padding:14px 16px; display:flex; align-items:center; gap:12px;">
                 <div style="font-size:28px;">🧠</div>
                 <div style="flex:1;">
-                  <div style="font-size:12px; font-weight:700; color:var(--brand-800);">Ottiee 防瞌睡小測驗</div>
-                  <div style="font-size:11px; color:#3E7A8A; margin-top:2px;">隨機一題，保持精神！</div>
+                  <div style="font-size:14px; font-weight:700; color:var(--brand-800);">Ottiee 防瞌睡小測驗</div>
+                  <div style="font-size:13px; color:#3E7A8A; margin-top:2px;">隨機一題，保持精神！</div>
                 </div>
-                <button class="btn btn-primary" type="button" style="font-size:11px; padding:6px 12px; flex-shrink:0;" onclick="triggerQuiz()">
+                <button class="btn btn-primary" type="button" style="font-size:13px; padding:6px 12px; flex-shrink:0;" onclick="triggerQuiz()">
                   開始
                 </button>
               </div>
@@ -732,7 +733,7 @@
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
               <div>
                 <h2 style="font-size:18px; font-weight:bold; color:var(--brand-800);">🌐 公開溫習大廳</h2>
-                <p style="font-size:11px; color:#666;">連接 Firebase (concenmate-app) 即時同步各同學的溫習房！</p>
+                <p style="font-size:13px; color:#666;">連接 Firebase (concenmate-app) 即時同步各同學的溫習房！</p>
               </div>
               <button class="btn btn-primary" type="button" onclick="openModal('modal-create-room')">
                 🚀 + 建立新溫習房
@@ -749,8 +750,8 @@
           <div id="room-active" style="display:none;">
             <div class="room-bar">
               <div style="display:flex; align-items:center; gap:6px;">
-                <button class="btn btn-outline" type="button" style="padding:3px 8px; font-size:11px;" onclick="returnToLobby()">⬅️ 返回大廳</button>
-                <span style="font-weight:bold; font-size:14px;" id="active-room-title">DSE 衝刺專注房</span>
+                <button class="btn btn-outline" type="button" style="padding:3px 8px; font-size:13px;" onclick="returnToLobby()">⬅️ 返回大廳</button>
+                <span style="font-weight:bold; font-size:16px;" id="active-room-title">DSE 衝刺專注房</span>
                 <span class="tag" style="background:#F0E9DF; color:#1E4550;" id="active-room-subject">數學</span>
               </div>
 
@@ -758,7 +759,7 @@
                 <button class="btn btn-primary" type="button" id="btn-camera" onclick="toggleCamera()">📹 開啟鏡頭</button>
                 <button class="btn btn-red" type="button" id="btn-mic" onclick="toggleMic()">🔇 已靜音</button>
 
-                <div style="background:#111; color:white; font-family:monospace; padding:4px 8px; border-radius:8px; font-size:11px;">
+                <div style="background:#111; color:white; font-family:monospace; padding:4px 8px; border-radius:8px; font-size:13px;">
                   ⏱️ 倒數: <span id="room-timer">30:00</span>
                 </div>
 
@@ -770,10 +771,10 @@
               </div>
             </div>
 
-            <details style="max-width:1000px; margin:0 auto 12px; background:#111; border-radius:10px; padding:8px 12px; color:#7DB8C5; font-size:11px;">
+            <details style="max-width:1000px; margin:0 auto 12px; background:#111; border-radius:10px; padding:8px 12px; color:#7DB8C5; font-size:13px;">
               <summary style="cursor:pointer; color:#B3D6DE; font-weight:bold;">🛠️ WebRTC 連線記錄（手機都睇到，除錯用）</summary>
               <div id="webrtc-debug-log" style="max-height:180px; overflow-y:auto; white-space:pre-wrap; margin-top:8px; line-height:1.6; font-family:monospace; color:#D2C4AD;"></div>
-              <button type="button" onclick="copyWebrtcLog()" style="margin-top:8px; background:#333; color:#fff; border:none; padding:5px 12px; border-radius:6px; font-size:11px; cursor:pointer;">📋 複製記錄</button>
+              <button type="button" onclick="copyWebrtcLog()" style="margin-top:8px; background:#333; color:#fff; border:none; padding:5px 12px; border-radius:6px; font-size:13px; cursor:pointer;">📋 複製記錄</button>
             </details>
 
             <div id="video-grid-container" class="video-grid-container">
@@ -784,8 +785,8 @@
                   
                   <div class="video-overlay" id="self-overlay">
                     <div class="avatar-circle" id="room-self-avatar">A</div>
-                    <p style="font-size:12px; font-weight:bold; color:#fff;" id="overlay-msg">溫習房已就緒！</p>
-                    <p style="font-size:11px; margin-top:4px; color:#aaa;">請點擊上方「📹 開啟鏡頭」加入 P2P 視訊互聯</p>
+                    <p style="font-size:14px; font-weight:bold; color:#fff;" id="overlay-msg">溫習房已就緒！</p>
+                    <p style="font-size:13px; margin-top:4px; color:#aaa;">請點擊上方「📹 開啟鏡頭」加入 P2P 視訊互聯</p>
                   </div>
 
                   <div class="video-header">
@@ -856,7 +857,7 @@
 
           <!-- 問題列表 -->
           <div id="qa-post-list">
-            <div style="text-align:center; padding:30px; color:#7DB8C5; font-size:13px;">載入中…</div>
+            <div style="text-align:center; padding:30px; color:#7DB8C5; font-size:15px;">載入中…</div>
           </div>
 
         </section>
@@ -864,11 +865,11 @@
         <!-- ===== 發起提問 Modal ===== -->
         <div class="modal-backdrop" id="modal-qa-post" style="display:none;">
           <div class="modal-box">
-            <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:14px;">✏️ 發起提問</h3>
+            <h3 style="font-size:17px; font-weight:bold; color:var(--brand-800); margin-bottom:14px;">✏️ 發起提問</h3>
 
             <div style="display:flex; flex-direction:column; gap:10px;">
               <div>
-                <label style="font-size:11px; font-weight:bold; color:#555;">學科</label>
+                <label style="font-size:13px; font-weight:bold; color:#555;">學科</label>
                 <select id="qa-subject-select" class="input-field">
                   <option value="math">➕ 數學</option>
                   <option value="chi">📝 中文</option>
@@ -880,18 +881,18 @@
               </div>
 
               <div>
-                <label style="font-size:11px; font-weight:bold; color:#555;">問題標題</label>
+                <label style="font-size:13px; font-weight:bold; color:#555;">問題標題</label>
                 <input type="text" id="qa-title" class="input-field" placeholder="例：DSE 數學 2024 Paper 1 Q18 點解？" maxlength="80">
               </div>
 
               <div>
-                <label style="font-size:11px; font-weight:bold; color:#555;">詳細描述</label>
+                <label style="font-size:13px; font-weight:bold; color:#555;">詳細描述</label>
                 <textarea id="qa-body" class="input-field" rows="4" placeholder="描述你嘅問題，或補充更多資料…" style="resize:vertical;"></textarea>
               </div>
 
               <div>
-                <label style="font-size:11px; font-weight:bold; color:#555;">上傳圖片（最多 3 張）</label>
-                <input type="file" id="qa-photos" accept="image/*" multiple style="margin-top:4px; font-size:12px;">
+                <label style="font-size:13px; font-weight:bold; color:#555;">上傳圖片（最多 3 張）</label>
+                <input type="file" id="qa-photos" accept="image/*" multiple style="margin-top:4px; font-size:14px;">
                 <div id="qa-photo-preview" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;"></div>
               </div>
             </div>
@@ -909,11 +910,16 @@
             <div id="qa-detail-content"></div>
 
             <div style="border-top:1px solid var(--brand-200); margin-top:14px; padding-top:12px;">
-              <label style="font-size:11px; font-weight:bold; color:#555;">留言回答</label>
+              <label style="font-size:13px; font-weight:bold; color:#555;">留言回答</label>
               <textarea id="qa-comment-input" class="input-field" rows="3" placeholder="分享你嘅解題方法…" style="margin-top:4px; resize:vertical;"></textarea>
-              <div style="display:flex; gap:8px; margin-top:8px;">
+              <div style="margin-top:8px;">
+                <label style="font-size:12px; font-weight:bold; color:#555;">附上圖片（最多 3 張）</label>
+                <input type="file" id="qa-comment-photos" accept="image/*" multiple style="margin-top:4px; font-size:13px; width:100%;">
+                <div id="qa-comment-photo-preview" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;"></div>
+              </div>
+              <div style="display:flex; gap:8px; margin-top:10px;">
                 <button class="btn btn-outline" type="button" onclick="closeModal('modal-qa-detail')" style="flex:1;">關閉</button>
-                <button class="btn btn-primary" type="button" onclick="submitQAComment()" style="flex:2;">💬 送出回答</button>
+                <button class="btn btn-primary" type="button" id="qa-comment-submit-btn" onclick="submitQAComment()" style="flex:2;">💬 送出回答</button>
               </div>
             </div>
           </div>
@@ -923,28 +929,28 @@
         <section id="tab-profile" class="tab-content">
           <div class="profile-edit-card">
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:14px;">
-              <h2 style="font-size:16px; font-weight:bold; color:var(--brand-800);">👤 編輯會員個人資料</h2>
+              <h2 style="font-size:18px; font-weight:bold; color:var(--brand-800);">👤 編輯會員個人資料</h2>
               <button class="btn btn-red" type="button" onclick="logoutWithFirebase()">🚪 登出帳號</button>
             </div>
 
             <form id="profile-form" onsubmit="saveUserProfile(event)" style="display:flex; flex-direction:column; gap:12px;">
               <div>
-                <label style="font-size:11px; font-weight:bold; color:#555; display:block;">會員帳號名稱 (Username)</label>
+                <label style="font-size:13px; font-weight:bold; color:#555; display:block;">會員帳號名稱 (Username)</label>
                 <input type="text" id="prof-username" class="input-field" placeholder="例如：Alex Wong">
               </div>
 
               <div>
-                <label style="font-size:11px; font-weight:bold; color:#555; display:block;">電子郵件 (Email)</label>
+                <label style="font-size:13px; font-weight:bold; color:#555; display:block;">電子郵件 (Email)</label>
                 <input type="email" id="prof-email" class="input-field" disabled style="background:#B3D6DE; cursor:not-allowed;">
               </div>
 
               <div>
-                <label style="font-size:11px; font-weight:bold; color:#555; display:block;">學校名稱</label>
+                <label style="font-size:13px; font-weight:bold; color:#555; display:block;">學校名稱</label>
                 <input type="text" id="prof-school" class="input-field" placeholder="例如：聖保羅男女中學">
               </div>
 
               <div>
-                <label style="font-size:11px; font-weight:bold; color:#555; display:block;">現時年級</label>
+                <label style="font-size:13px; font-weight:bold; color:#555; display:block;">現時年級</label>
                 <select id="prof-grade" class="input-field">
                   <option value="中一 (S1)">中一 (S1)</option>
                   <option value="中二 (S2)">中二 (S2)</option>
@@ -958,16 +964,16 @@
               </div>
 
               <div>
-                <label style="font-size:11px; font-weight:bold; color:#555; display:block;">喜愛學科 (可留白)</label>
+                <label style="font-size:13px; font-weight:bold; color:#555; display:block;">喜愛學科 (可留白)</label>
                 <input type="text" id="prof-fav" class="input-field" placeholder="例如：數學, 物理, M2">
               </div>
 
               <div>
-                <label style="font-size:11px; font-weight:bold; color:#555; display:block;">討厭學科 (可留白)</label>
+                <label style="font-size:13px; font-weight:bold; color:#555; display:block;">討厭學科 (可留白)</label>
                 <input type="text" id="prof-dislike" class="input-field" placeholder="例如：中文背誦">
               </div>
 
-              <button class="btn btn-primary" type="submit" style="padding:10px; font-size:13px; margin-top:8px; justify-content:center;">
+              <button class="btn btn-primary" type="submit" style="padding:10px; font-size:15px; margin-top:8px; justify-content:center;">
                 💾 儲存修改資料
               </button>
             </form>
@@ -977,7 +983,7 @@
         <section id="tab-vip" class="tab-content">
           <div class="card" style="background: linear-gradient(135deg, #B3D6DE, #B3D6DE); color:#1E4550;">
             <h2 style="font-size:18px; font-weight:bold;">ConcenMate VIP 專屬方案</h2>
-            <p style="font-size:12px; margin-top:6px; opacity:0.9;">升級解鎖無限次防瞌睡測試、雲端錄影備份與 HD 60FPS 串流！</p>
+            <p style="font-size:14px; margin-top:6px; opacity:0.9;">升級解鎖無限次防瞌睡測試、雲端錄影備份與 HD 60FPS 串流！</p>
           </div>
         </section>
 
@@ -986,10 +992,10 @@
           <!-- 頁首卡片 -->
           <div class="card" style="background: linear-gradient(135deg, #D9EBEF, #D9C9B5); color:#1E4550; text-align:center;">
             <div style="font-size:28px; margin-bottom:4px;">🎰</div>
-            <h2 style="font-size:16px; font-weight:bold;">Ottiee 時數幸運扭蛋機</h2>
-            <p style="font-size:12px; margin-top:4px; opacity:.9;">用積分抽獎，換取學習大獎！</p>
+            <h2 style="font-size:18px; font-weight:bold;">Ottiee 時數幸運扭蛋機</h2>
+            <p style="font-size:14px; margin-top:4px; opacity:.9;">用積分抽獎，換取學習大獎！</p>
             <div style="margin-top:10px; background:rgba(255,255,255,0.2); border-radius:10px; padding:8px; display:inline-block;">
-              <span style="font-size:13px; font-weight:bold;">你的積分：<span id="gacha-pts-display">180</span> PTS</span>
+              <span style="font-size:15px; font-weight:bold;">你的積分：<span id="gacha-pts-display">180</span> PTS</span>
             </div>
           </div>
 
@@ -1042,20 +1048,20 @@
 
             <!-- 費用說明 -->
             <div style="margin:12px auto 16px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
-              <div style="background:#F0F6F8; border:1px solid #7DB8C5; border-radius:10px; padding:6px 12px; font-size:11px;">
+              <div style="background:#F0F6F8; border:1px solid #7DB8C5; border-radius:10px; padding:6px 12px; font-size:13px;">
                 <strong>普通扭蛋</strong><br>30 PTS / 次
               </div>
-              <div style="background:#D9EBEF; border:1px solid #B3D6DE; border-radius:10px; padding:6px 12px; font-size:11px;">
+              <div style="background:#D9EBEF; border:1px solid #B3D6DE; border-radius:10px; padding:6px 12px; font-size:13px;">
                 <strong>幸運扭蛋</strong><br>80 PTS / 次
               </div>
             </div>
 
             <!-- 扭蛋按鈕 -->
             <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
-              <button class="btn btn-amber" type="button" onclick="doGacha('normal')" style="padding:10px 20px; font-size:13px;">
+              <button class="btn btn-amber" type="button" onclick="doGacha('normal')" style="padding:10px 20px; font-size:15px;">
                 🎰 普通扭蛋 (30 PTS)
               </button>
-              <button class="btn btn-primary" type="button" onclick="doGacha('lucky')" style="padding:10px 20px; font-size:13px; background:#D9C9B5; color:#1E4550; border-color:#D9C9B5;">
+              <button class="btn btn-primary" type="button" onclick="doGacha('lucky')" style="padding:10px 20px; font-size:15px; background:#D9C9B5; color:#1E4550; border-color:#D9C9B5;">
                 ✨ 幸運扭蛋 (80 PTS)
               </button>
             </div>
@@ -1063,16 +1069,16 @@
             <!-- 結果顯示區 -->
             <div id="gacha-result-box" style="display:none; margin-top:20px; padding:16px; border-radius:14px; background:#F0F6F8; border:2px solid #B3D6DE; animation: gacha-pop .4s ease;">
               <div id="gacha-result-emoji" style="font-size:40px;"></div>
-              <div id="gacha-result-tier" style="font-size:12px; font-weight:bold; margin-top:4px;"></div>
-              <div id="gacha-result-name" style="font-size:15px; font-weight:bold; margin-top:2px;"></div>
-              <div id="gacha-result-desc" style="font-size:11px; color:#2F6070; margin-top:4px;"></div>
+              <div id="gacha-result-tier" style="font-size:14px; font-weight:bold; margin-top:4px;"></div>
+              <div id="gacha-result-name" style="font-size:17px; font-weight:bold; margin-top:2px;"></div>
+              <div id="gacha-result-desc" style="font-size:13px; color:#2F6070; margin-top:4px;"></div>
             </div>
           </div>
 
           <!-- 獎品列表 -->
           <div class="card">
-            <h3 style="font-size:13px; font-weight:bold; margin-bottom:10px;">🎁 獎品一覽</h3>
-            <div style="display:flex; flex-direction:column; gap:6px; font-size:11px;">
+            <h3 style="font-size:15px; font-weight:bold; margin-bottom:10px;">🎁 獎品一覽</h3>
+            <div style="display:flex; flex-direction:column; gap:6px; font-size:13px;">
               <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; background:#D9EBEF; border-radius:8px;">
                 <span style="font-size:18px;">⭐</span>
                 <div><strong style="color:#2F6070;">普通獎 (55%)</strong><br>溫習貼士卡、Ottiee 表情貼 ×3</div>
@@ -1094,8 +1100,8 @@
 
           <!-- 抽獎歷史 -->
           <div class="card" id="gacha-history-card" style="display:none;">
-            <h3 style="font-size:13px; font-weight:bold; margin-bottom:8px;">📜 最近抽獎記錄</h3>
-            <div id="gacha-history-list" style="display:flex; flex-direction:column; gap:6px; font-size:11px;"></div>
+            <h3 style="font-size:15px; font-weight:bold; margin-bottom:8px;">📜 最近抽獎記錄</h3>
+            <div id="gacha-history-list" style="display:flex; flex-direction:column; gap:6px; font-size:13px;"></div>
           </div>
 
         </section>
@@ -1103,8 +1109,8 @@
 
         <section id="tab-social" class="tab-content">
           <div class="card">
-            <h3 style="font-size:14px; font-weight:bold;">奮鬥夥伴親密度</h3>
-            <p style="font-size:11px; color:#666; margin-top:4px;">
+            <h3 style="font-size:16px; font-weight:bold;">奮鬥夥伴親密度</h3>
+            <p style="font-size:13px; color:#666; margin-top:4px;">
               <span class="clickable-user" onclick="viewUserProfile('Chloe_DSE')">Chloe_DSE</span> (共同溫習 28 小時)
             </p>
           </div>
@@ -1123,18 +1129,18 @@
 
   <div class="modal-backdrop" id="modal-login" style="display:none;">
     <div class="modal-box">
-      <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); text-align:center;">🔑 會員登入</h3>
+      <h3 style="font-size:18px; font-weight:bold; color:var(--brand-800); text-align:center;">🔑 會員登入</h3>
       <form onsubmit="handleLoginSubmit(event)" style="display:flex; flex-direction:column; gap:10px; margin-top:12px;">
         <div>
-          <label style="font-size:11px; font-weight:bold; color:#555;">電子郵件 (Email)</label>
+          <label style="font-size:13px; font-weight:bold; color:#555;">電子郵件 (Email)</label>
           <input type="email" id="login-email" class="input-field" required placeholder="example@school.edu.hk">
         </div>
         <div>
-          <label style="font-size:11px; font-weight:bold; color:#555;">密碼 (Password)</label>
+          <label style="font-size:13px; font-weight:bold; color:#555;">密碼 (Password)</label>
           <input type="password" id="login-password" class="input-field" required placeholder="請輸入密碼">
         </div>
         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
-          <span style="font-size:11px; color:#3E7A8A; cursor:pointer;" onclick="closeModal('modal-login'); openModal('modal-register');">還沒有帳號？點此註冊</span>
+          <span style="font-size:13px; color:#3E7A8A; cursor:pointer;" onclick="closeModal('modal-login'); openModal('modal-register');">還沒有帳號？點此註冊</span>
           <div style="display:flex; gap:6px;">
             <button class="btn btn-outline" type="button" onclick="closeModal('modal-login')">取消</button>
             <button class="btn btn-primary" type="submit">登入</button>
@@ -1146,30 +1152,30 @@
 
   <div class="modal-backdrop" id="modal-register" style="display:none;">
     <div class="modal-box">
-      <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); text-align:center;">📝 註冊 ConcenMate 會員</h3>
+      <h3 style="font-size:18px; font-weight:bold; color:var(--brand-800); text-align:center;">📝 註冊 ConcenMate 會員</h3>
       <form onsubmit="handleRegisterSubmit(event)" style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">
         <div>
-          <label style="font-size:11px; font-weight:bold; color:#555;">1. 會員帳號 *</label>
+          <label style="font-size:13px; font-weight:bold; color:#555;">1. 會員帳號 *</label>
           <input type="text" id="reg-username" class="input-field" required placeholder="例如：AlexWong2026">
         </div>
 
         <div>
-          <label style="font-size:11px; font-weight:bold; color:#555;">2. 電子郵件 (Email) *</label>
+          <label style="font-size:13px; font-weight:bold; color:#555;">2. 電子郵件 (Email) *</label>
           <input type="email" id="reg-email" class="input-field" required placeholder="example@school.edu.hk">
         </div>
 
         <div>
-          <label style="font-size:11px; font-weight:bold; color:#555;">3. 設定密碼 *</label>
+          <label style="font-size:13px; font-weight:bold; color:#555;">3. 設定密碼 *</label>
           <input type="password" id="reg-password" class="input-field" required placeholder="請輸入 6 位或以上的密碼">
         </div>
 
         <div>
-          <label style="font-size:11px; font-weight:bold; color:#555;">4. 學校名稱 *</label>
+          <label style="font-size:13px; font-weight:bold; color:#555;">4. 學校名稱 *</label>
           <input type="text" id="reg-school" class="input-field" required placeholder="例如：屯門官立中學">
         </div>
 
         <div>
-          <label style="font-size:11px; font-weight:bold; color:#555;">5. 現時年級 *</label>
+          <label style="font-size:13px; font-weight:bold; color:#555;">5. 現時年級 *</label>
           <select id="reg-grade" class="input-field">
             <option value="中一 (S1)">中一 (S1)</option>
             <option value="中二 (S2)">中二 (S2)</option>
@@ -1183,17 +1189,17 @@
         </div>
 
         <div>
-          <label style="font-size:11px; font-weight:bold; color:#555;">6. 喜愛學科 (可留白)</label>
+          <label style="font-size:13px; font-weight:bold; color:#555;">6. 喜愛學科 (可留白)</label>
           <input type="text" id="reg-fav" class="input-field" placeholder="例如：數學, 物理">
         </div>
 
         <div>
-          <label style="font-size:11px; font-weight:bold; color:#555;">7. 討厭學科 (可留白)</label>
+          <label style="font-size:13px; font-weight:bold; color:#555;">7. 討厭學科 (可留白)</label>
           <input type="text" id="reg-dislike" class="input-field" placeholder="例如：中文範文">
         </div>
 
         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-          <span style="font-size:11px; color:#3E7A8A; cursor:pointer;" onclick="closeModal('modal-register'); openModal('modal-login');">已有帳號？點此登入</span>
+          <span style="font-size:13px; color:#3E7A8A; cursor:pointer;" onclick="closeModal('modal-register'); openModal('modal-login');">已有帳號？點此登入</span>
           <div style="display:flex; gap:6px;">
             <button class="btn btn-outline" type="button" onclick="closeModal('modal-register')">取消</button>
             <button class="btn btn-primary" type="submit">完成註冊並登入</button>
@@ -1207,18 +1213,18 @@
     <div class="modal-box">
       <div style="text-align:center; margin-bottom:12px;">
         <div style="font-size:32px;">🦦📚</div>
-        <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800);">建立公開溫習房</h3>
-        <p style="font-size:11px; color:#666; margin-top:2px;">讓其他同學在公開大廳看到並加入你的房間</p>
+        <h3 style="font-size:18px; font-weight:bold; color:var(--brand-800);">建立公開溫習房</h3>
+        <p style="font-size:13px; color:#666; margin-top:2px;">讓其他同學在公開大廳看到並加入你的房間</p>
       </div>
 
       <form onsubmit="handleCreateRoomSubmit(event)" style="display:flex; flex-direction:column; gap:10px;">
         <div>
-          <label style="font-size:11px; font-weight:bold; color:#555; display:block;">溫習房間名稱 *</label>
+          <label style="font-size:13px; font-weight:bold; color:#555; display:block;">溫習房間名稱 *</label>
           <input type="text" id="modal-room-name" class="input-field" required value="DSE 衝刺專注房">
         </div>
 
         <div>
-          <label style="font-size:11px; font-weight:bold; color:#555; display:block;">溫習學科 *</label>
+          <label style="font-size:13px; font-weight:bold; color:#555; display:block;">溫習學科 *</label>
           <select id="modal-room-subject" class="input-field">
             <option value="數學">DSE 數學 (Math)</option>
             <option value="英國語文">DSE 英國語文 (English)</option>
@@ -1232,7 +1238,7 @@
         </div>
 
         <div>
-          <label style="font-size:11px; font-weight:bold; color:#555; display:block;">溫習目標時間 (分鐘)</label>
+          <label style="font-size:13px; font-weight:bold; color:#555; display:block;">溫習目標時間 (分鐘)</label>
           <select id="modal-room-duration" class="input-field">
             <option value="15">15 分鐘</option>
             <option value="30" selected>30 分鐘</option>
@@ -1252,10 +1258,10 @@
   <div class="modal-backdrop" id="modal-view-profile" style="display:none;">
     <div class="modal-box" style="text-align:center;">
       <div class="avatar-circle" style="margin:0 auto 10px; width:64px; height:64px; font-size:26px; background:var(--brand-500); border-color:var(--brand-200);" id="pop-user-avatar">A</div>
-      <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800);" id="pop-user-name">Alex Wong</h3>
-      <p style="font-size:11px; color:#3E7A8A; font-weight:bold; margin-bottom:12px;" id="pop-user-verified">✓ 學生身份已驗證</p>
+      <h3 style="font-size:18px; font-weight:bold; color:var(--brand-800);" id="pop-user-name">Alex Wong</h3>
+      <p style="font-size:13px; color:#3E7A8A; font-weight:bold; margin-bottom:12px;" id="pop-user-verified">✓ 學生身份已驗證</p>
 
-      <div style="background:var(--brand-50); border:1px solid var(--brand-200); border-radius:12px; padding:12px; text-align:left; font-size:12px; display:flex; flex-direction:column; gap:6px; margin-bottom:14px;">
+      <div style="background:var(--brand-50); border:1px solid var(--brand-200); border-radius:12px; padding:12px; text-align:left; font-size:14px; display:flex; flex-direction:column; gap:6px; margin-bottom:14px;">
         <div><strong>🏫 就讀學校：</strong><span id="pop-user-school">屯門官立中學</span></div>
         <div><strong>🎓 現時年級：</strong><span id="pop-user-grade">中六 (S6 DSE)</span></div>
         <div><strong>❤️ 喜愛學科：</strong><span id="pop-user-fav">數學, 物理, M2</span></div>
@@ -1271,7 +1277,7 @@
     <div class="modal-box" style="text-align:center;">
       <div style="font-size:36px;">🦦⚡</div>
       <h3>醒下啦~ Ottiee 防瞌睡小測驗！</h3>
-      <p style="font-size:11px; color:#555; margin-bottom:10px;">DSE 數學：sin²θ + cos²θ 等於多少？</p>
+      <p style="font-size:13px; color:#555; margin-bottom:10px;">DSE 數學：sin²θ + cos²θ 等於多少？</p>
       <div style="display:flex; flex-direction:column; gap:6px;">
         <button class="btn btn-outline" type="button" onclick="answerQuiz(true)">等於 1 (正確)</button>
         <button class="btn btn-outline" type="button" onclick="answerQuiz(false)">等於 0</button>
@@ -1499,11 +1505,16 @@
       openModal('modal-qa-post');
     };
 
-    // Photo preview
+    // Photo preview for both post and comment
     document.addEventListener('change', function(e) {
-      if (e.target.id !== 'qa-photos') return;
+      const isPost = e.target.id === 'qa-photos';
+      const isComment = e.target.id === 'qa-comment-photos';
+      if (!isPost && !isComment) return;
+
       const files = Array.from(e.target.files).slice(0, 3);
-      const preview = document.getElementById('qa-photo-preview');
+      const previewId = isPost ? 'qa-photo-preview' : 'qa-comment-photo-preview';
+      const preview = document.getElementById(previewId);
+      if (!preview) return;
       preview.innerHTML = '';
       files.forEach(file => {
         const reader = new FileReader();
@@ -1584,6 +1595,10 @@
     window.openQADetail = async function(postId) {
       qaCurrentPostId = postId;
       document.getElementById('qa-comment-input').value = '';
+      const cp = document.getElementById('qa-comment-photos');
+      if (cp) cp.value = '';
+      const cpp = document.getElementById('qa-comment-photo-preview');
+      if (cpp) cpp.innerHTML = '';
       openModal('modal-qa-detail');
 
       const docSnap = await window.fs.getDoc(window.fs.doc(window.db, 'qa_posts', postId));
@@ -1621,13 +1636,18 @@
           commentList.innerHTML = '<div style="font-size:12px; color:#aaa; text-align:center; padding:10px;">未有回答，你係第一個！</div>';
           return;
         }
-        commentList.innerHTML = comments.map(c => `
-          <div style="background:var(--brand-50); border-radius:10px; padding:10px; border:1px solid var(--brand-200);">
-            <div style="font-size:11px; font-weight:bold; color:var(--brand-700);">👤 ${escapeHtml(c.authorName || '匿名')}</div>
-            <p style="font-size:12px; color:#333; margin-top:4px; line-height:1.5;">${escapeHtml(c.body)}</p>
-            <div style="font-size:10px; color:#aaa; margin-top:4px;">${formatTime(c.createdAt)}</div>
+        commentList.innerHTML = comments.map(c => {
+          const cPhotos = (c.photos || []).map(src =>
+            `<img src="${src}" class="qa-photo-thumb" style="width:70px;height:70px;" onclick="openLightbox('${src}')">`
+          ).join('');
+          return `
+          <div style="background:var(--brand-50); border-radius:12px; padding:12px; border:1px solid var(--brand-200);">
+            <div style="font-size:13px; font-weight:bold; color:var(--brand-700);">👤 ${escapeHtml(c.authorName || '匿名')}</div>
+            <p style="font-size:13px; color:#333; margin-top:5px; line-height:1.6;">${escapeHtml(c.body)}</p>
+            ${cPhotos ? `<div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;">${cPhotos}</div>` : ''}
+            <div style="font-size:12px; color:#aaa; margin-top:5px;">${formatTime(c.createdAt)}</div>
           </div>
-        `).join('');
+        `}).join('');
       });
     };
 
@@ -1637,19 +1657,47 @@
       if (!body) { window.showToast('請填寫回答內容', '⚠️'); return; }
       if (!qaCurrentPostId) return;
 
+      const submitBtn = document.getElementById('qa-comment-submit-btn');
+      const origText = submitBtn ? submitBtn.innerText : '';
+      if (submitBtn) { submitBtn.innerText = '⏳ 送出中…'; submitBtn.disabled = true; }
+
       try {
+        const files = Array.from((document.getElementById('qa-comment-photos') || {}).files || []).slice(0, 3);
+        const photos = await Promise.all(files.map(file => new Promise(res => {
+          const img = new Image();
+          const url = URL.createObjectURL(file);
+          img.onload = () => {
+            const maxW = 600;
+            const scale = Math.min(1, maxW / img.width);
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(img.width * scale);
+            canvas.height = Math.round(img.height * scale);
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+            URL.revokeObjectURL(url);
+            res(canvas.toDataURL('image/jpeg', 0.7));
+          };
+          img.src = url;
+        })));
+
         await window.fs.addDoc(window.fs.collection(window.db, 'qa_posts', qaCurrentPostId, 'comments'), {
           uid: window.currentUser.uid,
           authorName: window.currentUser.username || '匿名同學',
-          body, createdAt: Date.now()
+          body, photos, createdAt: Date.now()
         });
         await window.fs.updateDoc(window.fs.doc(window.db, 'qa_posts', qaCurrentPostId), {
           commentCount: window.fs.increment(1)
         });
         document.getElementById('qa-comment-input').value = '';
+        const commentPhotos = document.getElementById('qa-comment-photos');
+        if (commentPhotos) commentPhotos.value = '';
+        const commentPreview = document.getElementById('qa-comment-photo-preview');
+        if (commentPreview) commentPreview.innerHTML = '';
         window.showToast('回答已送出！', '💬');
       } catch(e) {
-        console.error(e); window.showToast('送出失敗，請稍後再試', '❌');
+        console.error(e);
+        window.showToast('送出失敗，請稍後再試', '❌');
+      } finally {
+        if (submitBtn) { submitBtn.innerText = origText; submitBtn.disabled = false; }
       }
     };
 
