@@ -7,7 +7,7 @@
   
   <!-- 👇👇👇 每次推送到 GitHub 前，請在這裡修改版號 👇👇👇 -->
   <script>
-    window.APP_VERSION = "v1.0.3"; // 在這裡修改測試版號
+    window.APP_VERSION = "v1.0.2"; // 在這裡修改測試版號
   </script>
   <!-- 👆👆👆 每次推送到 GitHub 前，請在這裡修改版號 👆👆👆 -->
 
@@ -65,7 +65,7 @@
       .user-stats { display: none; }
       .nav-btn { justify-content: center; padding: 11px 0; font-size: 16px; }
       main { padding: 10px; }
-      .home-feature-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; max-width: 400px; }
+      .home-feature-grid { grid-template-columns: repeat(3, minmax(0, 160px)); gap: 10px; }
       .video-grid-container { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
       .logo-title { font-size: 13px; }
       .rooms-grid { grid-template-columns: 1fr; }
@@ -83,7 +83,7 @@
       .nav-btn { padding: 10px 0; font-size: 15px; border-radius: 8px; }
       main { padding: 8px; }
       .card { padding: 10px; border-radius: 12px; }
-      .home-feature-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; max-width: 320px; }
+      .home-feature-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
       .home-feature-btn { padding: 8px; border-radius: 16px; }
       .home-feature-btn .btn-icon { font-size: 22px; }
       .home-feature-btn .btn-label { font-size: 12px; }
@@ -401,10 +401,9 @@
     /* 主頁大功能按鈕 */
     .home-feature-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(3, minmax(0, 160px));
       gap: 14px;
       padding: 4px 0 16px;
-      max-width: 480px;       /* 限制最大寬度，按鈕唔會無限放大 */
     }
     .home-feature-btn {
       display: flex;
@@ -433,16 +432,30 @@
     .home-feature-btn .btn-label { font-size: 13px; font-weight: 700; line-height: 1.2; }
     .home-feature-btn .btn-sub { font-size: 10px; opacity: .82; font-weight: 400; margin-top: 2px; }
 
-    /* 主頁歡迎卡片 */
+    /* 主頁兩欄版面 */
+    .home-layout {
+      display: grid;
+      grid-template-columns: auto 1fr;  /* 左欄：按鈕格自然寬度；右欄：填滿剩餘空間 */
+      gap: 20px;
+      align-items: start;
+    }
+    .home-right-col {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
     .home-welcome-card {
-      background: linear-gradient(135deg, #E0D0BC, #A8845C);
+      background: linear-gradient(135deg, #C9B49A, #A8845C);
       border-radius: 20px;
       padding: 20px;
       color: white;
-      margin-bottom: 16px;
       display: flex;
       align-items: center;
       gap: 16px;
+    }
+    @media (max-width: 640px) {
+      .home-layout { grid-template-columns: 1fr; }  /* 手機單欄：按鈕在上，資訊在下 */
+      .home-feature-grid { grid-template-columns: repeat(3, 1fr); max-width: none; }
     }
     .clickable-user { text-decoration: underline; cursor: pointer; color: #8B6642; }
 
@@ -591,8 +604,8 @@
         <!-- ===== 主頁 ===== -->
         <section id="tab-home" class="tab-content active">
 
-          <!-- 歡迎卡片 -->
-          <div class="home-welcome-card">
+          <!-- 歡迎卡片：全寬，在按鈕上方 -->
+          <div class="home-welcome-card" style="margin-bottom:16px;">
             <div style="font-size:44px; line-height:1; flex-shrink:0;">🦦</div>
             <div>
               <div style="font-size:17px; font-weight:800; letter-spacing:-.3px;">
@@ -600,85 +613,90 @@
               </div>
               <div style="font-size:11px; opacity:.85; margin-top:3px;">準備好今日嘅溫習了嗎？</div>
               <div style="display:flex; gap:12px; margin-top:10px; font-size:11px;">
-                <span style="background:rgba(255,255,255,.18); padding:3px 10px; border-radius:20px;">
+                <span style="background:rgba(255,255,255,.28); padding:3px 10px; border-radius:20px;">
                   ⏱️ <span id="home-stat-hours">0.0</span>h
                 </span>
-                <span style="background:rgba(255,255,255,.18); padding:3px 10px; border-radius:20px;">
+                <span style="background:rgba(255,255,255,.28); padding:3px 10px; border-radius:20px;">
                   🪙 <span id="home-stat-pts">0</span> PTS
                 </span>
               </div>
             </div>
           </div>
 
-          <!-- 大按鈕格</s -->
-          <div class="home-feature-grid">
+          <!-- 功能按鈕格 + 右側小測驗（桌面兩欄，手機單欄） -->
+          <div class="home-layout">
+            <div>
+              <div class="home-feature-grid">
 
-            <button class="home-feature-btn" style="background:linear-gradient(135deg,var(--tone-a),var(--tone-a-d)); color:var(--brand-800);"
-              onclick="switchTab('room')">
-              <span class="btn-icon">📹</span>
-              <div>
-                <div class="btn-label">視訊溫習室</div>
-                <div class="btn-sub">加入房間，一起專注</div>
+                <button class="home-feature-btn" style="background:linear-gradient(135deg,var(--tone-a),var(--tone-a-d)); color:var(--brand-800);"
+                  onclick="switchTab('room')">
+                  <span class="btn-icon">📹</span>
+                  <div>
+                    <div class="btn-label">視訊溫習室</div>
+                    <div class="btn-sub">加入房間，一起專注</div>
+                  </div>
+                </button>
+
+                <button class="home-feature-btn" style="background:linear-gradient(135deg,var(--tone-b),var(--tone-b-d)); color:var(--brand-800);"
+                  onclick="switchTab('store')">
+                  <span class="btn-icon">🎰</span>
+                  <div>
+                    <div class="btn-label">扭蛋機兌換所</div>
+                    <div class="btn-sub">用積分抽大獎</div>
+                  </div>
+                </button>
+
+                <button class="home-feature-btn" style="background:linear-gradient(135deg,var(--tone-c),var(--tone-c-d)); color:var(--brand-800);"
+                  onclick="switchTab('qa')">
+                  <span class="btn-icon">❓</span>
+                  <div>
+                    <div class="btn-label">疑難解答區</div>
+                    <div class="btn-sub">有問題就發問</div>
+                  </div>
+                </button>
+
+                <button class="home-feature-btn" style="background:linear-gradient(135deg,var(--tone-d),var(--tone-d-d)); color:var(--brand-800);"
+                  onclick="switchTab('vip')">
+                  <span class="btn-icon">👑</span>
+                  <div>
+                    <div class="btn-label">溫習資源 & VIP</div>
+                    <div class="btn-sub">精選筆記及升級</div>
+                  </div>
+                </button>
+
+                <button class="home-feature-btn" style="background:linear-gradient(135deg,var(--tone-e),var(--tone-e-d)); color:var(--brand-800);"
+                  onclick="switchTab('social')">
+                  <span class="btn-icon">👥</span>
+                  <div>
+                    <div class="btn-label">夥伴與讀書會</div>
+                    <div class="btn-sub">揾書友一齊讀</div>
+                  </div>
+                </button>
+
+                <button class="home-feature-btn" style="background:linear-gradient(135deg,var(--tone-f),var(--tone-f-d)); color:var(--brand-800);"
+                  onclick="switchTab('profile')">
+                  <span class="btn-icon">👤</span>
+                  <div>
+                    <div class="btn-label">個人檔案</div>
+                    <div class="btn-sub">編輯個人資料</div>
+                  </div>
+                </button>
+
               </div>
-            </button>
-
-            <button class="home-feature-btn" style="background:linear-gradient(135deg,var(--tone-b),var(--tone-b-d)); color:var(--brand-800);"
-              onclick="switchTab('store')">
-              <span class="btn-icon">🎰</span>
-              <div>
-                <div class="btn-label">扭蛋機兌換所</div>
-                <div class="btn-sub">用積分抽大獎</div>
-              </div>
-            </button>
-
-            <button class="home-feature-btn" style="background:linear-gradient(135deg,var(--tone-c),var(--tone-c-d)); color:var(--brand-800);"
-              onclick="switchTab('qa')">
-              <span class="btn-icon">❓</span>
-              <div>
-                <div class="btn-label">疑難解答區</div>
-                <div class="btn-sub">有問題就發問</div>
-              </div>
-            </button>
-
-            <button class="home-feature-btn" style="background:linear-gradient(135deg,var(--tone-d),var(--tone-d-d)); color:var(--brand-800);"
-              onclick="switchTab('vip')">
-              <span class="btn-icon">👑</span>
-              <div>
-                <div class="btn-label">溫習資源 & VIP</div>
-                <div class="btn-sub">精選筆記及升級</div>
-              </div>
-            </button>
-
-            <button class="home-feature-btn" style="background:linear-gradient(135deg,var(--tone-e),var(--tone-e-d)); color:var(--brand-800);"
-              onclick="switchTab('social')">
-              <span class="btn-icon">👥</span>
-              <div>
-                <div class="btn-label">夥伴與讀書會</div>
-                <div class="btn-sub">揾書友一齊讀</div>
-              </div>
-            </button>
-
-            <button class="home-feature-btn" style="background:linear-gradient(135deg,var(--tone-f),var(--tone-f-d)); color:var(--brand-800);"
-              onclick="switchTab('profile')">
-              <span class="btn-icon">👤</span>
-              <div>
-                <div class="btn-label">個人檔案</div>
-                <div class="btn-sub">編輯個人資料</div>
-              </div>
-            </button>
-
-          </div>
-
-          <!-- Ottiee 小測驗快捷 -->
-          <div style="background:var(--brand-50); border:1px solid var(--brand-200); border-radius:16px; padding:14px 16px; display:flex; align-items:center; gap:12px;">
-            <div style="font-size:28px;">🧠</div>
-            <div style="flex:1;">
-              <div style="font-size:12px; font-weight:700; color:var(--brand-800);">Ottiee 防瞌睡小測驗</div>
-              <div style="font-size:11px; color:#666; margin-top:2px;">隨機一題，保持精神！</div>
             </div>
-            <button class="btn btn-primary" type="button" style="font-size:11px; padding:6px 12px; flex-shrink:0;" onclick="triggerQuiz()">
-              開始
-            </button>
+
+            <div class="home-right-col">
+              <div style="background:var(--brand-50); border:1px solid var(--brand-200); border-radius:16px; padding:14px 16px; display:flex; align-items:center; gap:12px;">
+                <div style="font-size:28px;">🧠</div>
+                <div style="flex:1;">
+                  <div style="font-size:12px; font-weight:700; color:var(--brand-800);">Ottiee 防瞌睡小測驗</div>
+                  <div style="font-size:11px; color:#8B6642; margin-top:2px;">隨機一題，保持精神！</div>
+                </div>
+                <button class="btn btn-primary" type="button" style="font-size:11px; padding:6px 12px; flex-shrink:0;" onclick="triggerQuiz()">
+                  開始
+                </button>
+              </div>
+            </div>
           </div>
 
         </section>
