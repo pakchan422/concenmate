@@ -7,7 +7,7 @@
   
   <!-- 👇👇👇 每次推送到 GitHub 前，請在這裡修改版號 👇👇👇 -->
   <script>
-    window.APP_VERSION = "v1.0.6"; // 在這裡修改測試版號
+    window.APP_VERSION = "v1.0.7"; // 在這裡修改測試版號
   </script>
   <!-- 👆👆👆 每次推送到 GitHub 前，請在這裡修改版號 👆👆👆 -->
 
@@ -1301,6 +1301,7 @@
       candidatesUnsubscribe: null,
       pendingCandidates: {}, // { uid: [candidateInit, ...] } 尚未能加入的 ICE candidate 佇列
       participantsUnsubscribe: null,
+      roomDocUnsubscribe: null,
       reactionsUnsubscribe: null,
       slotAssignments: {} // { uid: 2|3|4 } 遠端用家目前佔用的視窗格 (格1固定留給自己)
     };
@@ -1517,6 +1518,34 @@
 
         updateParticipantCountUI(snapshot.size);
       });
+
+      // 同時監聽房間文件本身：若房主選擇「關閉房間」刪咗個文件，
+      // 其他仍然在房的成員會即時被踢返大廳
+      if (state.roomDocUnsubscribe) state.roomDocUnsubscribe();
+      const roomDocRef = window.fs.doc(window.db, "rooms", roomId);
+      let isFirstRoomSnapshot = true;
+      state.roomDocUnsubscribe = window.fs.onSnapshot(roomDocRef, (docSnap) => {
+        if (isFirstRoomSnapshot) { isFirstRoomSnapshot = false; return; }
+        if (!docSnap.exists()) {
+          // 房間文件被刪除（房主關閉房間）
+          cleanupRoomConnections();
+          document.getElementById('room-active').style.display = 'none';
+          document.getElementById('room-lobby').style.display = 'block';
+          window.showToast('房主已關閉房間，你已被移返大廳', '🚪');
+        } else {
+          // 房主轉移：更新畫面上顯示嘅房主名稱
+          const data = docSnap.data();
+          if (data && data.hostName) {
+            const hostTag = document.getElementById('room-host-tag');
+            if (hostTag && window.currentUser && data.hostUid === window.currentUser.uid) {
+              hostTag.innerText = '你是房主 👑';
+              state.isHost = true;
+            } else if (hostTag) {
+              hostTag.innerText = `房主: ${data.hostName}`;
+            }
+          }
+        }
+      });
     }
 
     // 離開房間時，移除自己的 participants 紀錄並停止監聽
@@ -1655,7 +1684,63 @@
     }
 
     window.leaveRoom = async function() {
-      if (state.isHost && state.currentRoomId && window.fs && window.db) {
+      // 房主特別處理：先彈出選擇視窗，問佢想保留定係關閉房間
+      if (state.isHost) {
+        const participantsRef = window.fs.collection(window.db, "rooms", state.currentRoomId, "participants");
+        const snap = await window.fs.getDocs(participantsRef);
+        const othersCount = snap.docs.filter(d => d.id !== window.currentUser.uid).length;
+
+        if (othersCount > 0) {
+          // 仲有其他人喺房：問房主點處理
+          openModal('modal-host-leave');
+          return;
+        }
+        // 冇其他人：直接刪除房間同退出（唔使問）
+        await hostLeaveDeleteRoom();
+        return;
+      }
+
+      // 普通成員：直接退出
+      await doLeaveRoom(false);
+    };
+
+    // 房主選擇：保留房間，自己退出並轉移房主身份
+    window.hostLeaveKeepRoom = async function() {
+      closeModal('modal-host-leave');
+
+      try {
+        // 找出除自己以外加入最早嘅用家，升佢做新房主
+        const participantsRef = window.fs.collection(window.db, "rooms", state.currentRoomId, "participants");
+        const snap = await window.fs.getDocs(participantsRef);
+        const others = snap.docs
+          .map(d => d.data())
+          .filter(p => p.uid !== window.currentUser.uid)
+          .sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0));
+
+        if (others.length > 0) {
+          const newHost = others[0];
+          await window.fs.setDoc(window.fs.doc(window.db, "rooms", state.currentRoomId), {
+            hostName: newHost.name,
+            hostUid: newHost.uid
+          }, { merge: true });
+          window.showToast(`房主已移交給 ${newHost.name}，房間繼續開放`, '👑');
+        }
+      } catch (e) {
+        console.error("移交房主失敗:", e);
+      }
+
+      await doLeaveRoom(false);
+    };
+
+    // 房主選擇：關閉房間，踢走所有人
+    window.hostLeaveDeleteRoom = async function() {
+      closeModal('modal-host-leave');
+      await doLeaveRoom(true);
+    };
+
+    // 共用嘅退出邏輯
+    async function doLeaveRoom(deleteRoom) {
+      if (deleteRoom && state.currentRoomId && window.fs && window.db) {
         try {
           await window.fs.deleteDoc(window.fs.doc(window.db, "rooms", state.currentRoomId));
         } catch(e) { console.error("刪除房間失敗", e); }
@@ -1663,8 +1748,8 @@
       await cleanupRoomConnections();
       document.getElementById('room-active').style.display = 'none';
       document.getElementById('room-lobby').style.display = 'block';
-      window.showToast('已退出溫習房間', '🚪');
-    };
+      window.showToast(deleteRoom ? '已關閉房間' : '已退出溫習房間', '🚪');
+    }
 
     async function cleanupRoomConnections() {
       if (state.renderFrameId) cancelAnimationFrame(state.renderFrameId);
@@ -1716,6 +1801,10 @@
       if (state.reactionsUnsubscribe) {
         state.reactionsUnsubscribe();
         state.reactionsUnsubscribe = null;
+      }
+      if (state.roomDocUnsubscribe) {
+        state.roomDocUnsubscribe();
+        state.roomDocUnsubscribe = null;
       }
       state.pendingCandidates = {};
       state.lastProcessedOfferTs = {};
@@ -2400,5 +2489,25 @@
       }
     }
   </script>
+  <!-- 房主退出房間選擇彈窗 -->
+  <div class="modal-backdrop" id="modal-host-leave" style="display:none;">
+    <div class="modal-box" style="text-align:center;">
+      <div style="font-size:32px; margin-bottom:8px;">🚪</div>
+      <h3 style="font-size:16px; font-weight:bold; margin-bottom:6px;">你係房主，想點處理呢個房間？</h3>
+      <p style="font-size:12px; color:#666; margin-bottom:20px;">其他成員仍然喺度，你可以選擇保留房間讓佢哋繼續使用，或者直接關閉整個房間。</p>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <button class="btn btn-primary" type="button" onclick="hostLeaveKeepRoom()" style="padding:12px;">
+          ✅ 保留房間，自己退出
+        </button>
+        <button class="btn btn-red" type="button" onclick="hostLeaveDeleteRoom()" style="padding:12px;">
+          🗑️ 關閉房間，所有人踢走
+        </button>
+        <button class="btn btn-outline" type="button" onclick="closeModal('modal-host-leave')" style="padding:10px;">
+          取消
+        </button>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>
