@@ -7,7 +7,7 @@
   
   <!-- 👇👇👇 每次推送到 GitHub 前，請在這裡修改版號 👇👇👇 -->
   <script>
-    window.APP_VERSION = "v1.0.3"; // 在這裡修改測試版號
+    window.APP_VERSION = "v1.0.4"; // 在這裡修改測試版號
   </script>
   <!-- 👆👆👆 每次推送到 GitHub 前，請在這裡修改版號 👆👆👆 -->
 
@@ -1782,14 +1782,25 @@
       const audioTrack = state.mediaStream.getAudioTracks()[0] || null;
 
       Object.values(state.peerConnections).forEach(pc => {
-        pc.getTransceivers().forEach(transceiver => {
-          const kind = transceiver.receiver && transceiver.receiver.track ? transceiver.receiver.track.kind : null;
+        const transceivers = pc.getTransceivers();
 
-          if (kind === 'video' && videoTrack) {
+        transceivers.forEach(transceiver => {
+          // 配對優先順序：
+          // 1. receiver.track.kind（最準確，正常連線後都有）
+          // 2. sender.track.kind（如果已經有送緊嘅軌道）
+          // 3. 按順序（第一個係 video，第二個係 audio）——
+          //    呢個係用 addTransceiver 建立嘅連線特有情況：
+          //    連線建立時對方仲未開鏡頭，receiver.track 係 null
+          const receiverKind = transceiver.receiver?.track?.kind;
+          const senderKind = transceiver.sender?.track?.kind;
+          const idx = transceivers.indexOf(transceiver);
+          const inferredKind = receiverKind ?? senderKind ?? (idx === 0 ? 'video' : idx === 1 ? 'audio' : null);
+
+          if (inferredKind === 'video' && videoTrack) {
             transceiver.sender.replaceTrack(videoTrack);
             if (transceiver.direction !== 'sendrecv') transceiver.direction = 'sendrecv';
           }
-          if (kind === 'audio' && audioTrack) {
+          if (inferredKind === 'audio' && audioTrack) {
             transceiver.sender.replaceTrack(audioTrack);
             if (transceiver.direction !== 'sendrecv') transceiver.direction = 'sendrecv';
           }
@@ -1967,8 +1978,15 @@
 
           syncLocalTracksToPeers();
           startCanvasRenderLoop();
-          await broadcastPresenceAndConnect();
-          await connectToExistingPeers(state.currentRoomId);
+
+          // 一入房就已經廣播咗上線通知同掃描過現有用家，
+          // 開鏡頭時只需要將新嘅軌道塞入已有連線（syncLocalTracksToPeers 已做）。
+          // 如果意外地仲未有任何連線，先補一次廣播+掃描。
+          if (Object.keys(state.peerConnections).length === 0 && state.currentRoomId) {
+            await broadcastPresenceAndConnect();
+            await connectToExistingPeers(state.currentRoomId);
+          }
+
           updateMyCameraStatus(true);
           window.showToast('鏡頭與 P2P 串流已順利啟動！', '📹');
         } catch (err) {
