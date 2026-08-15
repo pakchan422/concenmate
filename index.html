@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.0.1"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.0.2"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -1320,6 +1320,18 @@
 
     function openModal(id) { document.getElementById(id).style.display = 'flex'; }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+    // 撳視窗外面（背景黑色半透明部分）就關閉彈出視窗
+    document.addEventListener('click', function(e) {
+      if (!e.target.classList.contains('modal-backdrop')) return;
+      // 得返直接撳到 backdrop 本身（唔係裡面嘅 modal-box）先關閉
+      e.target.style.display = 'none';
+      // 如果關閉嘅係 QA 詳情視窗，同時停止留言監聽器
+      if (e.target.id === 'modal-qa-detail' && typeof qaCommentUnsubscribe === 'function') {
+        qaCommentUnsubscribe();
+        qaCommentUnsubscribe = null;
+      }
+    });
     window.openModal = openModal;
     window.closeModal = closeModal;
 
