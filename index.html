@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.2.5"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.2.6"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -398,6 +398,11 @@
       0%   { transform: scale(.5); opacity: 0; }
       70%  { transform: scale(1.08); }
       100% { transform: scale(1); opacity: 1; }
+    }
+    @keyframes gacha-pop-center {
+      0%   { transform: translate(-50%,-50%) scale(.5); opacity: 0; }
+      70%  { transform: translate(-50%,-50%) scale(1.08); }
+      100% { transform: translate(-50%,-50%) scale(1); opacity: 1; }
     }
     @keyframes gacha-shake {
       0%,100% { transform: rotate(0deg); }
@@ -1116,7 +1121,7 @@
             <!-- 扭蛋機動畫區 -->
             <div id="gacha-machine" style="position:relative; display:inline-block; user-select:none;">
               <!-- 中獎結果彈出視窗（懸浮於扭蛋機上方） -->
-              <div id="gacha-result-box" style="display:none; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:20; width:200px; max-width:80vw; padding:14px; border-radius:14px; background:rgba(240,246,248,.97); border:2px solid #B3D6DE; box-shadow:0 6px 24px rgba(0,0,0,.25); animation: gacha-pop .4s ease; text-align:center;">
+              <div id="gacha-result-box" style="display:none; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:20; width:200px; max-width:80vw; padding:14px; border-radius:14px; background:rgba(240,246,248,.97); border:2px solid #B3D6DE; box-shadow:0 6px 24px rgba(0,0,0,.25); animation: gacha-pop-center .4s ease; text-align:center;">
                 <div id="gacha-result-emoji" style="font-size:36px;"></div>
                 <div id="gacha-result-tier" style="font-size:13px; font-weight:bold; margin-top:4px;"></div>
                 <div id="gacha-result-name" style="font-size:15px; font-weight:bold; margin-top:2px;"></div>
@@ -2013,7 +2018,7 @@
       resultBox.style.borderColor = prize.tierColor;
       resultBox.style.animation = 'none';
       void resultBox.offsetWidth;
-      resultBox.style.animation = 'gacha-pop .4s ease';
+      resultBox.style.animation = 'gacha-pop-center .4s ease';
       resultBox.style.display = 'block';
       // 如果管理員有幫呢個獎品上傳圖片，優先展示相片；冇嘅話就繼續用返 emoji
       const resultEmojiEl = document.getElementById('gacha-result-emoji');
