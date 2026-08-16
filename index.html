@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.0.1"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.0.2"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -1334,7 +1334,7 @@
 
         <div style="display:flex; gap:8px; margin-top:10px; justify-content:flex-end;">
           <button class="btn btn-outline" type="button" onclick="closeModal('modal-create-room')">取消</button>
-          <button class="btn btn-primary" type="submit">🚀 立即建立並廣播</button>
+          <button class="btn btn-primary" type="submit" id="btn-create-room-submit">🚀 立即建立並廣播</button>
         </div>
       </form>
     </div>
@@ -2211,7 +2211,7 @@
               </div>
 
               <div style="display:flex; gap:6px; margin-top:12px;">
-                <button class="btn btn-primary" style="flex:1; justify-content:center; font-size:11px; padding:6px;" onclick="joinPublicRoom('${roomId}', '${room.name.replace(/'/g, "\\'")}', '${room.subject}', ${room.duration}, '${room.hostName}', ${isMyRoom}, ${createdAtMs})">
+                <button class="btn btn-primary" style="flex:1; justify-content:center; font-size:11px; padding:6px;" onclick="joinPublicRoom('${roomId}', '${room.name.replace(/'/g, "\\'")}', '${room.subject}', ${room.duration}, '${room.hostName}', ${isMyRoom}, ${createdAtMs}, '${room.hostUid || ''}')">
                   🚪 加入房間
                 </button>
                 ${isMyRoom ? `<button class="btn btn-red" style="font-size:11px; padding:6px;" onclick="deleteRoomQuick('${roomId}')">刪除</button>` : ''}
@@ -2393,7 +2393,9 @@
       participantsUnsubscribe: null,
       roomDocUnsubscribe: null,
       reactionsUnsubscribe: null,
-      slotAssignments: {} // { uid: 2|3|4 } 遠端用家目前佔用的視窗格 (格1固定留給自己)
+      slotAssignments: {}, // { uid: 2|3|4 } 遠端用家目前佔用的視窗格 (格1固定留給自己)
+      creatingRoom: false, // 防止「立即建立並廣播」撳得太快／撳多次，開出多過一間房間
+      currentRoomHostUid: null // 現時房間嘅房主 uid，方便隨時知道要喺邊一格顯示「👑 房主」牌
     };
 
     const ROOM_CAPACITY = 4; // 同一房間最多同時容納的用家人數（包括自己）
@@ -2498,12 +2500,42 @@
           </div>
           <div class="video-header">
             <span class="video-tag">📹 ${name || '其他用家'}</span>
+            <span class="video-tag" id="remote-host-badge-${slotNum}" style="background:#D9EBEF; color:#1E4550; display:none;">👑 房主</span>
             <span class="video-tag" id="stream-status-${uid}" style="background:#3E7A8A; color:#fff;">🔗 連線中...</span>
           </div>
           <div class="sticker-container-box"></div>
         `;
+        // 呢個格岩岩先建立，如果佔用呢格嘅正正就係目前嘅房主，
+        // 要即刻幫佢掛返個「👑 房主」牌，唔使等落一次房主轉移先反映到
+        updateHostBadge();
       }
       return el.querySelector('video');
+    }
+
+    // 統一管理「👑 房主」牌應該掛喺邊一格：自己個格（isMyRoom）或者相應嘅
+    // 遠端格（依 state.slotAssignments 揾返邊個 uid 對應邊一格）。每次房主
+    // 轉移、有人新入房、或者岩岩開好房間嗰陣都要 call 呢個 function 重新整理一次。
+    function updateHostBadge() {
+      const hostUid = state.currentRoomHostUid;
+      const myUid = window.currentUser ? window.currentUser.uid : null;
+
+      const selfHostTag = document.getElementById('room-host-tag');
+      if (selfHostTag) {
+        if (hostUid && myUid && hostUid === myUid) {
+          selfHostTag.style.display = 'flex';
+          selfHostTag.innerText = '你是房主 👑';
+        } else {
+          selfHostTag.style.display = 'none';
+          selfHostTag.innerText = '';
+        }
+      }
+
+      [2, 3, 4].forEach(slotNum => {
+        const badge = document.getElementById('remote-host-badge-' + slotNum);
+        if (!badge) return;
+        const uidInThisSlot = Object.keys(state.slotAssignments).find(u => state.slotAssignments[u] === slotNum);
+        badge.style.display = (hostUid && uidInThisSlot && uidInThisSlot === hostUid) ? 'flex' : 'none';
+      });
     }
 
     // 依對方目前的鏡頭開關狀態，顯示／隱藏「對方鏡頭已關閉」的黑色遮罩
@@ -2618,6 +2650,10 @@
           updateRemoteSlotCameraState(p.uid, !!p.cameraOn);
         });
 
+        // 保險起見再掃一次：格子分配一有變動（新人入房／有人走咗），
+        // 就重新確認「👑 房主」牌仍然掛喺啱嘅格度
+        updateHostBadge();
+
         updateParticipantCountUI(snapshot.size);
       });
 
@@ -2635,16 +2671,13 @@
           document.getElementById('room-lobby').style.display = 'block';
           window.showToast('房主已關閉房間，你已被移返大廳', '🚪');
         } else {
-          // 房主轉移：更新畫面上顯示嘅房主名稱
+          // 房主轉移：更新邊個係房主，「👑 房主」牌會由 updateHostBadge()
+          // 自動掛去返正確嗰一格（自己個格或者相應嘅遠端格）
           const data = docSnap.data();
-          if (data && data.hostName) {
-            const hostTag = document.getElementById('room-host-tag');
-            if (hostTag && window.currentUser && data.hostUid === window.currentUser.uid) {
-              hostTag.innerText = '你是房主 👑';
-              state.isHost = true;
-            } else if (hostTag) {
-              hostTag.innerText = `房主: ${data.hostName}`;
-            }
+          if (data && data.hostUid) {
+            state.isHost = !!(window.currentUser && data.hostUid === window.currentUser.uid);
+            state.currentRoomHostUid = data.hostUid;
+            updateHostBadge();
           }
         }
       });
@@ -2680,46 +2713,71 @@
 
     window.handleCreateRoomSubmit = async function(e) {
       e.preventDefault();
+
+      // 防止撳「立即建立並廣播」撳得太快／連撳幾下：第一下撳落嗰陣，
+      // setDoc 仲未完成（await 緊）之前，畫面上個掣睇落去同平時冇分別，
+      // 好易再撳多一兩下，每一下都各自跑一次呢個 function、各自建立多一間
+      // 房間，於是大廳度就會同時出現幾間內容一模一樣嘅房。而家加返個鎖，
+      // 建立緊嗰陣期間嘅任何額外呼叫都直接忽略；同時將個掣停用並改文字，
+      // 等使用者都睇得出「已經處理緊，唔使再撳」。
+      if (state.creatingRoom) {
+        return;
+      }
+
       if (!window.currentUser || !window.db || !window.fs) {
         window.showToast("請先登入會員", "⚠️");
         return;
       }
 
-      const roomName = document.getElementById('modal-room-name').value.trim();
-      const subject = document.getElementById('modal-room-subject').value;
-      const durationMins = parseInt(document.getElementById('modal-room-duration').value, 10);
-
-      const roomId = 'room_' + Date.now();
-      const createdAt = Date.now();
-      const roomData = {
-        name: roomName,
-        subject: subject,
-        duration: durationMins,
-        hostUid: window.currentUser.uid,
-        hostName: window.currentUser.username || '匿名同學',
-        participantCount: 0,
-        createdAt: createdAt
-      };
+      state.creatingRoom = true;
+      const submitBtn = document.getElementById('btn-create-room-submit');
+      const originalBtnText = submitBtn ? submitBtn.innerText : '';
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerText = '⏳ 建立緊…';
+      }
 
       try {
+        const roomName = document.getElementById('modal-room-name').value.trim();
+        const subject = document.getElementById('modal-room-subject').value;
+        const durationMins = parseInt(document.getElementById('modal-room-duration').value, 10);
+
+        const roomId = 'room_' + Date.now();
+        const createdAt = Date.now();
+        const roomData = {
+          name: roomName,
+          subject: subject,
+          duration: durationMins,
+          hostUid: window.currentUser.uid,
+          hostName: window.currentUser.username || '匿名同學',
+          participantCount: 0,
+          createdAt: createdAt
+        };
+
         await window.fs.setDoc(window.fs.doc(window.db, "rooms", roomId), roomData);
         closeModal('modal-create-room');
 
-        await enterRoomSetup(roomId, roomName, subject, durationMins, window.currentUser.username || '匿名同學', true, createdAt);
+        await enterRoomSetup(roomId, roomName, subject, durationMins, window.currentUser.username || '匿名同學', true, createdAt, window.currentUser.uid);
         window.showToast("🚀 溫習房建立成功並已廣播至公開大廳！", "✨");
       } catch (err) {
         window.showToast("建立房間失敗: " + err.message, "❌");
+      } finally {
+        state.creatingRoom = false;
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerText = originalBtnText || '🚀 立即建立並廣播';
+        }
       }
     };
 
-    window.joinPublicRoom = async function(roomId, roomName, subject, durationMins, hostName, isMyRoom, createdAt) {
-      const success = await enterRoomSetup(roomId, roomName, subject, durationMins, hostName, isMyRoom, createdAt);
+    window.joinPublicRoom = async function(roomId, roomName, subject, durationMins, hostName, isMyRoom, createdAt, hostUid) {
+      const success = await enterRoomSetup(roomId, roomName, subject, durationMins, hostName, isMyRoom, createdAt, hostUid);
       if (success) {
         window.showToast(`成功加入「${roomName}」！`, "🦦");
       }
     };
 
-    async function enterRoomSetup(roomId, roomName, subject, durationMins, hostName, isMyRoom, createdAt) {
+    async function enterRoomSetup(roomId, roomName, subject, durationMins, hostName, isMyRoom, createdAt, hostUid) {
       if (!window.currentUser || !window.db || !window.fs) {
         window.showToast("請先登入會員", "⚠️");
         return false;
@@ -2734,10 +2792,13 @@
 
       state.currentRoomId = roomId;
       state.isHost = isMyRoom;
+      // 「👑 房主」牌而家改為掛喺真正房主本人嗰一格（自己或者遠端），
+      // 唔再淨係得自己個格出現一句固定文字，見返 updateHostBadge()
+      state.currentRoomHostUid = isMyRoom ? window.currentUser.uid : (hostUid || null);
 
       document.getElementById('active-room-title').innerText = roomName;
       document.getElementById('active-room-subject').innerText = subject;
-      document.getElementById('room-host-tag').innerText = isMyRoom ? "你是房主 👑" : `房主: ${hostName}`;
+      updateHostBadge();
 
       // 用「房間建立時間」而非「進入房間時間」起計倒數，確保所有人睇到一致嘅剩餘時間
       const totalSeconds = (durationMins || 30) * 60;
@@ -2988,6 +3049,7 @@
 
       state.currentRoomId = null;
       state.isHost = false;
+      state.currentRoomHostUid = null;
     }
 
     window.wakeVideoEngine = function() {
