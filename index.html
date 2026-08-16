@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.3.3"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.3.4"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -37,7 +37,8 @@
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
     body { background-color: var(--brand-50); color: var(--text-dark); min-height: 100vh; display: flex; flex-direction: column; }
 
-    header { background: rgba(255, 255, 255, 0.95); border-bottom: 1px solid var(--brand-200); padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 40; backdrop-filter: blur(8px); }
+    #app-top-sticky { position: sticky; top: 0; z-index: 40; }
+    header { background: rgba(255, 255, 255, 0.95); border-bottom: 1px solid var(--brand-200); padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; backdrop-filter: blur(8px); }
     .logo-box { display: flex; align-items: center; gap: 8px; cursor: pointer; }
     .logo-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--brand-500); color: white; display: flex; align-items: center; justify-content: center; font-size: 20px; border: 2px solid var(--brand-200); }
     .logo-title { font-weight: bold; font-size: 17px; }
@@ -630,6 +631,7 @@
     <span id="toast-msg">訊息</span>
   </div>
 
+  <div id="app-top-sticky">
   <header>
     <div class="logo-box" onclick="switchTab('home')">
       <div class="logo-avatar" style="background:transparent; border:none; padding:0; width:40px; height:40px;"><img src="logo.png" width="36" height="36" alt="ConcenMate" style="border-radius:50%; object-fit:cover;"></div>
@@ -658,6 +660,17 @@
       </button>
     </div>
   </header>
+
+  <!-- 全站置頂嘅等級/EXP狀態列：唔理你揭緊邊個分頁都會見到，登入先顯示 -->
+  <div id="global-level-bar" style="display:none; background:linear-gradient(135deg, #4A8FA0, #7DB8C5); padding:6px 16px;">
+    <div style="max-width:480px; margin:0 auto; text-align:center; cursor:pointer;" onclick="switchTab('profile')" title="睇你嘅溫習等級">
+      <div id="global-level-badge" style="color:#fff; font-size:13px; font-weight:bold;">🌱 Lv.1 溫習新手 · 重欠 20 EXP 升級</div>
+      <div style="background:rgba(255,255,255,.3); border-radius:6px; height:5px; margin-top:4px; overflow:hidden;">
+        <div id="global-exp-bar" style="background:#fff; height:100%; width:0%; transition:width .4s ease;"></div>
+      </div>
+    </div>
+  </div>
+  </div>
 
   <div class="app-container">
 
@@ -706,10 +719,6 @@
               <div>
                 <div class="home-hero-greeting">你好，<span id="home-username">同學</span>👋</div>
                 <div class="home-hero-sub">今日準備好溫習了嗎？</div>
-                <div id="home-level-badge" style="display:inline-block; margin-top:6px; font-size:12px; font-weight:bold; background:rgba(255,255,255,.25); padding:3px 10px; border-radius:20px;">🌱 Lv.1 溫習新手 · 重欠 20 EXP 升級</div>
-                <div style="background:rgba(255,255,255,.25); border-radius:6px; height:6px; margin-top:4px; max-width:220px; overflow:hidden;">
-                  <div id="home-exp-bar" style="background:#fff; height:100%; width:0%; transition:width .4s ease;"></div>
-                </div>
               </div>
             </div>
             <div class="home-hero-stats">
@@ -1564,10 +1573,10 @@
         headerBadge.title = `${rank.title}（${rank.titleEn}）｜重欠 ${info.expRemaining} EXP 就升到 Lv.${info.level + 1}`;
       }
 
-      const homeLevelBadge = document.getElementById('home-level-badge');
-      if (homeLevelBadge) homeLevelBadge.innerText = `${rank.emoji} Lv.${info.level} ${rank.title} · 重欠 ${info.expRemaining} EXP 升級`;
-      const homeExpBar = document.getElementById('home-exp-bar');
-      if (homeExpBar) homeExpBar.style.width = info.pctToNext + '%';
+      const globalLevelBadge = document.getElementById('global-level-badge');
+      if (globalLevelBadge) globalLevelBadge.innerText = `${rank.emoji} Lv.${info.level} ${rank.title} · 重欠 ${info.expRemaining} EXP 升級`;
+      const globalExpBar = document.getElementById('global-exp-bar');
+      if (globalExpBar) globalExpBar.style.width = info.pctToNext + '%';
 
       const profLevelNum = document.getElementById('profile-level-num');
       const profRankTitle = document.getElementById('profile-rank-title');
@@ -1596,6 +1605,8 @@
         unauthScreen.style.display = 'none';
         authContent.style.display = 'block';
         headerStats.style.display = 'flex';
+        const globalLevelBar = document.getElementById('global-level-bar');
+        if (globalLevelBar) globalLevelBar.style.display = 'block';
 
         headerAuthBtn.className = "btn btn-outline";
         headerAuthBtn.style.borderRadius = "20px";
@@ -1645,6 +1656,8 @@
         unauthScreen.style.display = 'block';
         authContent.style.display = 'none';
         headerStats.style.display = 'none';
+        const globalLevelBarHidden = document.getElementById('global-level-bar');
+        if (globalLevelBarHidden) globalLevelBarHidden.style.display = 'none';
 
         headerAuthBtn.className = "btn btn-primary";
         headerAuthBtn.innerHTML = `🔑 登入 / 註冊`;
