@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.0.2"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.1.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -80,6 +80,7 @@
       .badge { display: none; }
       .header-vip-text { display: none; }    /* 只保留 👑 emoji */
       .header-auth-text { display: none; }   /* 只保留 🔑 emoji */
+      .header-admin-text { display: none; }  /* 只保留 ⚙️ emoji */
       aside { width: 48px; padding: 4px; }
       .nav-btn { padding: 10px 0; font-size: 17px; border-radius: 8px; }
       main { padding: 8px; }
@@ -643,6 +644,7 @@
     </div>
 
     <div style="display:flex; gap:6px; align-items:center; flex-shrink:0;">
+      <button class="btn btn-outline" id="header-admin-btn" type="button" onclick="window.location.hash='admin'" style="padding:6px 10px; display:none;">⚙️ <span class="header-admin-text">管理後台</span></button>
       <button class="btn btn-amber" type="button" onclick="switchTab('vip')" style="padding:6px 10px;">👑 <span class="header-vip-text">VIP</span></button>
       <button class="btn btn-primary" id="header-auth-btn" type="button" onclick="handleHeaderUserClick()" style="padding:6px 10px;">
         🔑 <span class="header-auth-text">登入</span>
@@ -1134,20 +1136,20 @@
             <!-- 費用說明 -->
             <div style="margin:12px auto 16px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
               <div style="background:#F0F6F8; border:1px solid #7DB8C5; border-radius:10px; padding:6px 12px; font-size:13px;">
-                <strong>普通扭蛋</strong><br>30 PTS / 次
+                <strong>普通扭蛋</strong><br><span id="gacha-cost-normal-label">30</span> PTS / 次
               </div>
               <div style="background:#D9EBEF; border:1px solid #B3D6DE; border-radius:10px; padding:6px 12px; font-size:13px;">
-                <strong>幸運扭蛋</strong><br>80 PTS / 次
+                <strong>幸運扭蛋</strong><br><span id="gacha-cost-lucky-label">80</span> PTS / 次
               </div>
             </div>
 
             <!-- 扭蛋按鈕 -->
             <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
               <button class="btn btn-amber" type="button" onclick="doGacha('normal')" style="padding:10px 20px; font-size:15px;">
-                🎰 普通扭蛋 (30 PTS)
+                🎰 普通扭蛋 (<span id="gacha-cost-normal-btn">30</span> PTS)
               </button>
               <button class="btn btn-primary" type="button" onclick="doGacha('lucky')" style="padding:10px 20px; font-size:15px; background:#D9C9B5; color:#1E4550; border-color:#D9C9B5;">
-                ✨ 幸運扭蛋 (80 PTS)
+                ✨ 幸運扭蛋 (<span id="gacha-cost-lucky-btn">80</span> PTS)
               </button>
             </div>
 
@@ -2247,12 +2249,32 @@
         } catch (e) {
           console.error("讀取用戶 Firebase 資料失敗:", e);
         }
+
+        // 停權檢查：管理員可以喺「管理後台 → 用戶管理」停權濫用嘅帳戶，
+        // 一旦帳戶被停權，登入嗰刻即刻強制登出，唔可以再用。signOut() 會
+        // 觸發多一次 onAuthStateChanged（user=null），到時先處理登出後
+        // 嘅畫面更新，所以呢度可以直接 return。
+        if (window.currentUser && window.currentUser.suspended) {
+          window.showToast('你嘅帳戶已被管理員停權，如有疑問請聯絡管理員', '🚫');
+          await signOut(auth);
+          return;
+        }
+
         listenToPublicRooms();
+        if (typeof window.loadGachaConfigFromFirestore === 'function') {
+          window.loadGachaConfigFromFirestore();
+        }
       } else {
         window.currentUser = null;
       }
       if (typeof window.updateUserAuthUI === 'function') {
         window.updateUserAuthUI();
+      }
+      if (typeof window.updateAdminEntryButton === 'function') {
+        window.updateAdminEntryButton();
+      }
+      if (typeof window.checkAdminHashRoute === 'function') {
+        window.checkAdminHashRoute();
       }
     });
 
@@ -3791,6 +3813,479 @@
              box-shadow:0 8px 40px rgba(0,0,0,.6);"
       onclick="event.stopPropagation()">
   </div>
+
+  <!-- ============================================================
+       ⚙️ 管理後台（Admin Panel）
+       獨立隱藏頁面：網址加 #admin 先會顯示，一般用戶睇唔到入口。
+       前端呢度嘅白名單淨係控制「顯唔顯示介面」，真正防止未經授權讀寫
+       資料嘅係 Firestore 安全規則（見交俾你嘅規則更新，記得去 Firebase
+       Console 貼返新版規則，否則管理員都會因為權限不足而讀寫失敗）。
+       ============================================================ -->
+  <style>
+    .admin-tab-btn.active { font-weight: 700; }
+    .admin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .admin-table th, .admin-table td { padding: 8px 10px; border-bottom: 1px solid #eee; text-align: left; vertical-align: middle; }
+    .admin-table th { background: #F7FAFB; color: #555; font-weight: 700; white-space: nowrap; }
+    .admin-card { background: #fff; border: 1px solid #E5EEF0; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+    .admin-input-sm { border: 1px solid #ccc; border-radius: 6px; padding: 4px 8px; font-size: 13px; width: 100%; box-sizing: border-box; }
+  </style>
+
+  <div id="admin-panel-container" style="display:none; background:#F5F7F8; min-height:100vh;">
+    <div style="max-width:1100px; margin:0 auto; padding:20px 16px 60px;">
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+        <div>
+          <h1 style="font-size:20px; font-weight:bold; color:var(--brand-800);">⚙️ ConcenMate 管理後台</h1>
+          <p style="font-size:12px; color:#888; margin-top:2px;" id="admin-panel-user-email"></p>
+        </div>
+        <button class="btn btn-outline" type="button" onclick="window.location.hash=''">🏠 返回主頁</button>
+      </div>
+
+      <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;" id="admin-tab-nav">
+        <button class="btn btn-primary admin-tab-btn active" data-tab="gacha" onclick="switchAdminTab('gacha')">🎰 扭蛋機獎品</button>
+        <button class="btn btn-outline admin-tab-btn" data-tab="rooms" onclick="switchAdminTab('rooms')">🎥 房間管理</button>
+        <button class="btn btn-outline admin-tab-btn" data-tab="qa" onclick="switchAdminTab('qa')">❓ 疑難解答區</button>
+        <button class="btn btn-outline admin-tab-btn" data-tab="users" onclick="switchAdminTab('users')">👤 用戶管理</button>
+      </div>
+
+      <div id="admin-tab-gacha" class="admin-tab-panel"></div>
+      <div id="admin-tab-rooms" class="admin-tab-panel" style="display:none;"></div>
+      <div id="admin-tab-qa" class="admin-tab-panel" style="display:none;"></div>
+      <div id="admin-tab-users" class="admin-tab-panel" style="display:none;"></div>
+
+    </div>
+  </div>
+
+  <div id="admin-denied-container" style="display:none; min-height:100vh;">
+    <div style="max-width:420px; margin:0 auto; padding-top:80px; text-align:center; padding-left:24px; padding-right:24px;">
+      <div style="font-size:40px;">🚫</div>
+      <h2 style="font-size:18px; font-weight:bold; color:var(--brand-800); margin-top:8px;">冇權限進入呢個頁面</h2>
+      <p style="font-size:13px; color:#666; margin-top:6px;">呢個係管理員專用頁面，如有需要請聯絡系統管理員。</p>
+      <button class="btn btn-primary" type="button" style="margin-top:16px;" onclick="window.location.hash=''">返回主頁</button>
+    </div>
+  </div>
+
+  <script>
+    // ===================== 管理後台（Admin Panel）=====================
+
+    // 邊個 email 先算係管理員：想加多個管理員嘅話，喺呢個陣列加多一行
+    // email 就得，唔使改任何其他地方。呢個名單淨係控制「前端顯唔顯示管理
+    // 後台呢個介面」；真正防止未授權用戶讀寫資料嘅係 Firestore 安全規則，
+    // 要記得喺 Firebase Console 度將呢個 email 名單同步埋落去先真正安全。
+    const ADMIN_EMAILS = [
+      'alvischanpakto@gmail.com'
+    ];
+
+    function isCurrentUserAdmin() {
+      return !!(window.currentUser && window.currentUser.email && ADMIN_EMAILS.includes(window.currentUser.email));
+    }
+    window.isCurrentUserAdmin = isCurrentUserAdmin;
+
+    // 更新 header 度嗰粒「⚙️ 管理後台」入口掣顯唔顯示（淨係俾管理員睇到）
+    function updateAdminEntryButton() {
+      const btn = document.getElementById('header-admin-btn');
+      if (btn) btn.style.display = isCurrentUserAdmin() ? 'inline-flex' : 'none';
+    }
+    window.updateAdminEntryButton = updateAdminEntryButton;
+
+    let adminAuthCheckTimer = null;
+    let adminRoomsUnsubscribe = null;
+    let adminQaUnsubscribe = null;
+    let adminUsersUnsubscribe = null;
+    let currentAdminTab = 'gacha';
+
+    // 網址 hash 路由：#admin 先顯示管理後台，離開就切返正常介面。
+    // 未登入／auth 仲未 resolve 之前 window.currentUser 係 undefined，
+    // 呢度會短時間輪詢等一等，避免一入嚟就即刻誤判做「冇權限」。
+    function checkAdminHashRoute() {
+      const wantsAdmin = window.location.hash === '#admin';
+      const appEl = document.querySelector('.app-container');
+      const adminEl = document.getElementById('admin-panel-container');
+      const deniedEl = document.getElementById('admin-denied-container');
+
+      if (!wantsAdmin) {
+        if (appEl) appEl.style.display = '';
+        if (adminEl) adminEl.style.display = 'none';
+        if (deniedEl) deniedEl.style.display = 'none';
+        if (adminRoomsUnsubscribe) { adminRoomsUnsubscribe(); adminRoomsUnsubscribe = null; }
+        if (adminQaUnsubscribe) { adminQaUnsubscribe(); adminQaUnsubscribe = null; }
+        if (adminUsersUnsubscribe) { adminUsersUnsubscribe(); adminUsersUnsubscribe = null; }
+        return;
+      }
+
+      if (typeof window.currentUser === 'undefined') {
+        clearTimeout(adminAuthCheckTimer);
+        adminAuthCheckTimer = setTimeout(checkAdminHashRoute, 200);
+        return;
+      }
+
+      if (!isCurrentUserAdmin()) {
+        if (appEl) appEl.style.display = 'none';
+        if (adminEl) adminEl.style.display = 'none';
+        if (deniedEl) deniedEl.style.display = 'block';
+        return;
+      }
+
+      if (appEl) appEl.style.display = 'none';
+      if (deniedEl) deniedEl.style.display = 'none';
+      if (adminEl) adminEl.style.display = 'block';
+
+      const emailTag = document.getElementById('admin-panel-user-email');
+      if (emailTag) emailTag.innerText = `登入身份：${window.currentUser.email}`;
+
+      switchAdminTab(currentAdminTab || 'gacha');
+    }
+    window.checkAdminHashRoute = checkAdminHashRoute;
+    window.addEventListener('hashchange', checkAdminHashRoute);
+
+    window.switchAdminTab = function(tab) {
+      currentAdminTab = tab;
+      document.querySelectorAll('.admin-tab-btn').forEach(btn => {
+        const active = btn.getAttribute('data-tab') === tab;
+        btn.className = 'btn admin-tab-btn ' + (active ? 'btn-primary active' : 'btn-outline');
+      });
+      document.querySelectorAll('.admin-tab-panel').forEach(panel => {
+        panel.style.display = (panel.id === 'admin-tab-' + tab) ? 'block' : 'none';
+      });
+
+      if (tab === 'gacha') renderAdminGachaTab();
+      else if (tab === 'rooms') renderAdminRoomsTab();
+      else if (tab === 'qa') renderAdminQaTab();
+      else if (tab === 'users') renderAdminUsersTab();
+    };
+
+    // ---------- 扭蛋機獎品管理 ----------
+    // 扭蛋機獎品／收費而家改為由 Firestore（admin_config/gacha 文件）讀取，
+    // 管理員喺呢度改完撳「儲存」，全站用戶即時生效，唔使再改碼、推 GitHub。
+    let adminGachaDraft = null;
+
+    function renderAdminGachaTab() {
+      const container = document.getElementById('admin-tab-gacha');
+      if (!container) return;
+
+      if (!adminGachaDraft) {
+        adminGachaDraft = {
+          normal: JSON.parse(JSON.stringify(GACHA_PRIZES.normal)),
+          lucky: JSON.parse(JSON.stringify(GACHA_PRIZES.lucky)),
+          costNormal: GACHA_COST.normal,
+          costLucky: GACHA_COST.lucky
+        };
+      }
+
+      function renderPoolTable(poolKey, poolLabel) {
+        const rows = adminGachaDraft[poolKey].map((p, idx) => `
+          <tr>
+            <td><input class="admin-input-sm" style="width:50px;" value="${escapeHtml(p.emoji || '')}" onchange="adminUpdateGachaField('${poolKey}',${idx},'emoji',this.value)"></td>
+            <td><input class="admin-input-sm" style="width:70px;" value="${escapeHtml(p.tier || '')}" onchange="adminUpdateGachaField('${poolKey}',${idx},'tier',this.value)"></td>
+            <td><input class="admin-input-sm" value="${escapeHtml(p.name || '')}" onchange="adminUpdateGachaField('${poolKey}',${idx},'name',this.value)"></td>
+            <td><input class="admin-input-sm" value="${escapeHtml(p.desc || '')}" onchange="adminUpdateGachaField('${poolKey}',${idx},'desc',this.value)"></td>
+            <td><input class="admin-input-sm" type="number" min="0" style="width:70px;" value="${p.weight || 0}" onchange="adminUpdateGachaField('${poolKey}',${idx},'weight',parseFloat(this.value)||0)"></td>
+            <td><button class="btn btn-red" style="padding:3px 8px; font-size:11px;" onclick="adminRemoveGachaPrize('${poolKey}',${idx})">🗑️</button></td>
+          </tr>
+        `).join('');
+
+        const totalWeight = adminGachaDraft[poolKey].reduce((s, p) => s + (parseFloat(p.weight) || 0), 0);
+
+        return `
+          <div class="admin-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+              <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800);">${poolLabel}</h3>
+              <button class="btn btn-outline" style="font-size:12px; padding:4px 10px;" onclick="adminAddGachaPrize('${poolKey}')">➕ 新增獎品</button>
+            </div>
+            <div style="overflow-x:auto;">
+              <table class="admin-table">
+                <thead><tr><th>Emoji</th><th>等級</th><th>獎品名稱</th><th>描述</th><th>機率權重</th><th></th></tr></thead>
+                <tbody>${rows || '<tr><td colspan="6" style="text-align:center; color:#999; padding:16px;">未有獎品，撳「新增獎品」開始</td></tr>'}</tbody>
+              </table>
+            </div>
+            <p style="font-size:11px; color:#888; margin-top:8px;">總權重：${totalWeight}（每個獎品抽中機率 = 該獎品權重 ÷ 總權重，唔使加埋等於 100）</p>
+          </div>
+        `;
+      }
+
+      container.innerHTML = `
+        <div class="admin-card">
+          <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;">💰 扭蛋收費</h3>
+          <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:center;">
+            <label style="font-size:13px; color:#555; display:flex; align-items:center; gap:6px;">普通扭蛋 (PTS)：<input class="admin-input-sm" type="number" min="0" style="width:80px;" value="${adminGachaDraft.costNormal}" onchange="adminGachaDraft.costNormal = parseInt(this.value)||0"></label>
+            <label style="font-size:13px; color:#555; display:flex; align-items:center; gap:6px;">幸運扭蛋 (PTS)：<input class="admin-input-sm" type="number" min="0" style="width:80px;" value="${adminGachaDraft.costLucky}" onchange="adminGachaDraft.costLucky = parseInt(this.value)||0"></label>
+          </div>
+        </div>
+
+        ${renderPoolTable('normal', '🎰 普通扭蛋獎池')}
+        ${renderPoolTable('lucky', '✨ 幸運扭蛋獎池')}
+
+        <div style="display:flex; gap:8px; justify-content:flex-end;">
+          <button class="btn btn-outline" type="button" onclick="adminResetGachaDraft()">↩️ 還原未儲存嘅改動</button>
+          <button class="btn btn-primary" type="button" id="btn-admin-save-gacha" onclick="adminSaveGachaConfig()">💾 儲存全部改動</button>
+        </div>
+      `;
+    }
+    window.renderAdminGachaTab = renderAdminGachaTab;
+
+    window.adminUpdateGachaField = function(poolKey, idx, field, value) {
+      if (!adminGachaDraft || !adminGachaDraft[poolKey] || !adminGachaDraft[poolKey][idx]) return;
+      adminGachaDraft[poolKey][idx][field] = value;
+    };
+
+    window.adminAddGachaPrize = function(poolKey) {
+      if (!adminGachaDraft) return;
+      adminGachaDraft[poolKey].push({ tier: '普通獎', tierColor: '#2F6070', bg: '#D9EBEF', emoji: '🎁', name: '新獎品', desc: '', weight: 10 });
+      renderAdminGachaTab();
+    };
+
+    window.adminRemoveGachaPrize = function(poolKey, idx) {
+      if (!adminGachaDraft) return;
+      if (!confirm('確定刪除呢個獎品？')) return;
+      adminGachaDraft[poolKey].splice(idx, 1);
+      renderAdminGachaTab();
+    };
+
+    window.adminResetGachaDraft = function() {
+      adminGachaDraft = null;
+      renderAdminGachaTab();
+      window.showToast('已還原返上次儲存嘅版本', '↩️');
+    };
+
+    window.adminSaveGachaConfig = async function() {
+      if (!adminGachaDraft || !window.db || !window.fs) return;
+      if (adminGachaDraft.normal.length === 0 || adminGachaDraft.lucky.length === 0) {
+        window.showToast('兩個獎池都最少要有一個獎品先可以儲存', '⚠️');
+        return;
+      }
+      const btn = document.getElementById('btn-admin-save-gacha');
+      if (btn) { btn.disabled = true; btn.innerText = '⏳ 儲存緊…'; }
+      try {
+        await window.fs.setDoc(window.fs.doc(window.db, 'admin_config', 'gacha'), {
+          normal: adminGachaDraft.normal,
+          lucky: adminGachaDraft.lucky,
+          costNormal: adminGachaDraft.costNormal,
+          costLucky: adminGachaDraft.costLucky,
+          updatedAt: Date.now(),
+          updatedBy: window.currentUser ? window.currentUser.email : null
+        });
+        window.showToast('✅ 扭蛋機設定已儲存，即時對所有用戶生效！', '🎉');
+      } catch (err) {
+        window.showToast('儲存失敗：' + (err.message || err), '❌');
+      } finally {
+        if (btn) { btn.disabled = false; btn.innerText = '💾 儲存全部改動'; }
+      }
+    };
+
+    // 讀取 Firestore 度嘅扭蛋機設定，覆蓋返 GACHA_PRIZES／GACHA_COST（如果未曾
+    // 由管理員儲存過任何設定，就繼續用返程式碼入面寫死嘅預設值）。呢個要喺
+    // 登入之後（有 window.db／window.fs）先可以叫，一開始 Firebase 未初始化
+    // 之前無得讀。
+    let gachaConfigUnsubscribe = null;
+    function loadGachaConfigFromFirestore() {
+      if (!window.db || !window.fs) return;
+      if (gachaConfigUnsubscribe) gachaConfigUnsubscribe();
+      const ref = window.fs.doc(window.db, 'admin_config', 'gacha');
+      gachaConfigUnsubscribe = window.fs.onSnapshot(ref, (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          if (Array.isArray(data.normal) && data.normal.length) GACHA_PRIZES.normal = data.normal;
+          if (Array.isArray(data.lucky) && data.lucky.length) GACHA_PRIZES.lucky = data.lucky;
+          if (typeof data.costNormal === 'number') GACHA_COST.normal = data.costNormal;
+          if (typeof data.costLucky === 'number') GACHA_COST.lucky = data.costLucky;
+        }
+        applyGachaCostToUI();
+      }, (err) => console.error('讀取扭蛋機設定失敗:', err));
+    }
+    window.loadGachaConfigFromFirestore = loadGachaConfigFromFirestore;
+
+    function applyGachaCostToUI() {
+      const setText = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
+      setText('gacha-cost-normal-label', GACHA_COST.normal);
+      setText('gacha-cost-lucky-label', GACHA_COST.lucky);
+      setText('gacha-cost-normal-btn', GACHA_COST.normal);
+      setText('gacha-cost-lucky-btn', GACHA_COST.lucky);
+    }
+    window.applyGachaCostToUI = applyGachaCostToUI;
+
+    // ---------- 房間管理 ----------
+    function renderAdminRoomsTab() {
+      const container = document.getElementById('admin-tab-rooms');
+      if (!container || !window.db || !window.fs) return;
+      container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入緊房間資料...</p>';
+
+      if (adminRoomsUnsubscribe) adminRoomsUnsubscribe();
+      adminRoomsUnsubscribe = window.fs.onSnapshot(window.fs.collection(window.db, 'rooms'), (snapshot) => {
+        if (snapshot.empty) {
+          container.innerHTML = '<div class="admin-card" style="text-align:center; color:#999;">目前冇任何溫習房</div>';
+          return;
+        }
+        const rows = snapshot.docs.map(docSnap => {
+          const r = docSnap.data();
+          const createdMs = typeof r.createdAt === 'number' ? r.createdAt : (r.createdAt ? new Date(r.createdAt).getTime() : 0);
+          const created = createdMs ? formatTime(createdMs) : '—';
+          return `
+            <tr>
+              <td>${escapeHtml(r.name || '')}</td>
+              <td>${escapeHtml(r.subject || '')}</td>
+              <td>${escapeHtml(r.hostName || '匿名')}</td>
+              <td>${r.participantCount || 0}/${window.ROOM_CAPACITY || 4}</td>
+              <td>${r.duration || 30} 分鐘</td>
+              <td>${created}</td>
+              <td><button class="btn btn-red" style="font-size:11px; padding:3px 8px;" onclick="adminDeleteRoom('${docSnap.id}', '${(r.name || '').replace(/'/g, "\\'")}')">🗑️ 強制關閉</button></td>
+            </tr>
+          `;
+        }).join('');
+        container.innerHTML = `
+          <div class="admin-card">
+            <div style="overflow-x:auto;">
+              <table class="admin-table">
+                <thead><tr><th>房間名稱</th><th>科目</th><th>房主</th><th>人數</th><th>目標時間</th><th>建立時間</th><th></th></tr></thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      }, (err) => {
+        container.innerHTML = `<div class="admin-card" style="color:#c0392b;">載入失敗：${err.message || err}</div>`;
+      });
+    }
+    window.renderAdminRoomsTab = renderAdminRoomsTab;
+
+    window.adminDeleteRoom = async function(roomId, roomName) {
+      if (!confirm(`確定要強制關閉房間「${roomName}」？裡面嘅同學會即時被移返大廳。`)) return;
+      try {
+        await window.fs.deleteDoc(window.fs.doc(window.db, 'rooms', roomId));
+        window.showToast('已強制關閉該房間', '🗑️');
+      } catch (err) {
+        window.showToast('操作失敗：' + (err.message || err), '❌');
+      }
+    };
+
+    // ---------- 疑難解答區管理 ----------
+    function renderAdminQaTab() {
+      const container = document.getElementById('admin-tab-qa');
+      if (!container || !window.db || !window.fs) return;
+      container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入緊帖子資料...</p>';
+
+      if (adminQaUnsubscribe) adminQaUnsubscribe();
+      adminQaUnsubscribe = window.fs.onSnapshot(window.fs.collection(window.db, 'qa_posts'), (snapshot) => {
+        if (snapshot.empty) {
+          container.innerHTML = '<div class="admin-card" style="text-align:center; color:#999;">目前冇任何提問</div>';
+          return;
+        }
+        const docs = snapshot.docs.slice().sort((a, b) => (b.data().createdAt || 0) - (a.data().createdAt || 0));
+        const rows = docs.map(docSnap => {
+          const p = docSnap.data();
+          return `
+            <tr>
+              <td>${escapeHtml(p.subject || '')}</td>
+              <td style="max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(p.title || '')}</td>
+              <td>${escapeHtml(p.authorName || '匿名')}</td>
+              <td>${formatTime(p.createdAt)}</td>
+              <td><button class="btn btn-red" style="font-size:11px; padding:3px 8px;" onclick="adminDeleteQaPost('${docSnap.id}')">🗑️ 刪除</button></td>
+            </tr>
+          `;
+        }).join('');
+        container.innerHTML = `
+          <div class="admin-card">
+            <div style="overflow-x:auto;">
+              <table class="admin-table">
+                <thead><tr><th>科目</th><th>標題</th><th>作者</th><th>發帖時間</th><th></th></tr></thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      }, (err) => {
+        container.innerHTML = `<div class="admin-card" style="color:#c0392b;">載入失敗：${err.message || err}</div>`;
+      });
+    }
+    window.renderAdminQaTab = renderAdminQaTab;
+
+    window.adminDeleteQaPost = async function(postId) {
+      if (!confirm('確定刪除呢個提問？裡面嘅留言都會一齊清埋。')) return;
+      try {
+        // 先刪晒 comments 呢個 subcollection 入面嘅所有文件，先刪返個 post 本身
+        // （Firestore 刪除文件唔會自動連 subcollection 一齊刪，要自己手動清）
+        const commentsRef = window.fs.collection(window.db, 'qa_posts', postId, 'comments');
+        const commentsSnap = await window.fs.getDocs(commentsRef);
+        await Promise.all(commentsSnap.docs.map(c => window.fs.deleteDoc(c.ref)));
+        await window.fs.deleteDoc(window.fs.doc(window.db, 'qa_posts', postId));
+        window.showToast('提問已刪除', '🗑️');
+      } catch (err) {
+        window.showToast('刪除失敗：' + (err.message || err), '❌');
+      }
+    };
+
+    // ---------- 用戶管理 ----------
+    function renderAdminUsersTab() {
+      const container = document.getElementById('admin-tab-users');
+      if (!container || !window.db || !window.fs) return;
+      container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入緊用戶資料...</p>';
+
+      if (adminUsersUnsubscribe) adminUsersUnsubscribe();
+      adminUsersUnsubscribe = window.fs.onSnapshot(window.fs.collection(window.db, 'users'), (snapshot) => {
+        if (snapshot.empty) {
+          container.innerHTML = '<div class="admin-card" style="text-align:center; color:#999;">目前冇任何用戶</div>';
+          return;
+        }
+        const rows = snapshot.docs.map(docSnap => {
+          const u = docSnap.data();
+          const uid = docSnap.id;
+          const suspended = !!u.suspended;
+          return `
+            <tr style="${suspended ? 'opacity:.55;' : ''}">
+              <td>${escapeHtml(u.username || '—')}${suspended ? ' <span style="color:#c0392b; font-size:11px;">(已停權)</span>' : ''}</td>
+              <td>${escapeHtml(u.email || '—')}</td>
+              <td>${escapeHtml(u.school || '—')}</td>
+              <td><input class="admin-input-sm" type="number" style="width:70px;" value="${u.points || 0}" id="admin-user-points-${uid}"></td>
+              <td><input class="admin-input-sm" style="width:60px;" value="${u.hours || '0.0'}" id="admin-user-hours-${uid}"></td>
+              <td style="display:flex; gap:4px; flex-wrap:wrap;">
+                <button class="btn btn-outline" style="font-size:11px; padding:3px 8px;" onclick="adminSaveUserStats('${uid}')">💾 儲存</button>
+                <button class="btn ${suspended ? 'btn-primary' : 'btn-red'}" style="font-size:11px; padding:3px 8px;" onclick="adminToggleSuspendUser('${uid}', ${!suspended})">${suspended ? '✅ 解除停權' : '🚫 停權'}</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+        container.innerHTML = `
+          <div class="admin-card">
+            <p style="font-size:11px; color:#888; margin-bottom:10px;">改完積分／時數之後記得逐行撳「💾 儲存」；「停權」會令該用戶下次登入時被強制登出。</p>
+            <div style="overflow-x:auto;">
+              <table class="admin-table">
+                <thead><tr><th>用戶名</th><th>Email</th><th>學校</th><th>積分</th><th>時數</th><th></th></tr></thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      }, (err) => {
+        container.innerHTML = `<div class="admin-card" style="color:#c0392b;">載入失敗：${err.message || err}</div>`;
+      });
+    }
+    window.renderAdminUsersTab = renderAdminUsersTab;
+
+    window.adminSaveUserStats = async function(uid) {
+      const ptsEl = document.getElementById('admin-user-points-' + uid);
+      const hoursEl = document.getElementById('admin-user-hours-' + uid);
+      const points = parseInt(ptsEl && ptsEl.value, 10) || 0;
+      const hours = (hoursEl && hoursEl.value) || '0.0';
+      try {
+        await window.fs.updateDoc(window.fs.doc(window.db, 'users', uid), { points, hours });
+        window.showToast('已更新用戶資料', '✅');
+      } catch (err) {
+        window.showToast('更新失敗：' + (err.message || err), '❌');
+      }
+    };
+
+    window.adminToggleSuspendUser = async function(uid, suspend) {
+      if (!confirm(suspend ? '確定停權呢個帳戶？佢下次登入會被強制登出。' : '確定解除呢個帳戶嘅停權？')) return;
+      try {
+        await window.fs.updateDoc(window.fs.doc(window.db, 'users', uid), { suspended: suspend });
+        window.showToast(suspend ? '已停權該帳戶' : '已解除停權', suspend ? '🚫' : '✅');
+      } catch (err) {
+        window.showToast('操作失敗：' + (err.message || err), '❌');
+      }
+    };
+
+    // 頁面一載入就檢查一次（處理直接開 #admin 網址嘅情況）
+    checkAdminHashRoute();
+  </script>
 
 </body>
 </html>
