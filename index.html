@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.1.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.2.1"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -2015,7 +2015,14 @@
       void resultBox.offsetWidth;
       resultBox.style.animation = 'gacha-pop .4s ease';
       resultBox.style.display = 'block';
-      document.getElementById('gacha-result-emoji').innerText = prize.emoji;
+      // 如果管理員有幫呢個獎品上傳圖片，優先展示相片；冇嘅話就繼續用返 emoji
+      const resultEmojiEl = document.getElementById('gacha-result-emoji');
+      if (prize.photo) {
+        resultEmojiEl.innerHTML = `<img src="${prize.photo}" alt="${escapeHtml(prize.name || '')}" style="width:88px; height:88px; object-fit:cover; border-radius:12px; border:2px solid ${prize.tierColor || '#2F6070'}; box-shadow:0 2px 8px rgba(0,0,0,.15);">`;
+      } else {
+        resultEmojiEl.innerHTML = '';
+        resultEmojiEl.innerText = prize.emoji;
+      }
       document.getElementById('gacha-result-tier').innerText = prize.tier;
       document.getElementById('gacha-result-tier').style.color = prize.tierColor;
       document.getElementById('gacha-result-name').innerText = prize.name;
@@ -3973,32 +3980,53 @@
       }
 
       function renderPoolTable(poolKey, poolLabel) {
-        const rows = adminGachaDraft[poolKey].map((p, idx) => `
+        const totalWeight = adminGachaDraft[poolKey].reduce((s, p) => s + (parseFloat(p.weight) || 0), 0);
+
+        const rows = adminGachaDraft[poolKey].map((p, idx) => {
+          const pct = totalWeight > 0 ? ((parseFloat(p.weight) || 0) / totalWeight * 100).toFixed(1) : '0.0';
+          const thumbId = `admin-gacha-thumb-${poolKey}-${idx}`;
+          const inputId = `admin-gacha-photo-input-${poolKey}-${idx}`;
+          const thumbInner = p.photo
+            ? `<img src="${p.photo}" style="width:44px; height:44px; object-fit:cover; border-radius:8px;">`
+            : `<span style="font-size:20px;">${escapeHtml(p.emoji || '🎁')}</span>`;
+          return `
           <tr>
+            <td>
+              <div style="display:flex; flex-direction:column; align-items:center; gap:3px;">
+                <div id="${thumbId}" onclick="document.getElementById('${inputId}').click()" title="撳呢度上傳圖片" style="width:44px; height:44px; border-radius:8px; background:#F0F6F8; border:1px dashed #B3D6DE; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden;">${thumbInner}</div>
+                <input type="file" accept="image/*" id="${inputId}" style="display:none;" onchange="adminUploadGachaPhoto('${poolKey}',${idx},this)">
+                ${p.photo ? `<button type="button" class="btn btn-outline" style="font-size:9px; padding:1px 6px;" onclick="adminRemoveGachaPhoto('${poolKey}',${idx})">移除圖片</button>` : ''}
+              </div>
+            </td>
             <td><input class="admin-input-sm" style="width:50px;" value="${escapeHtml(p.emoji || '')}" onchange="adminUpdateGachaField('${poolKey}',${idx},'emoji',this.value)"></td>
             <td><input class="admin-input-sm" style="width:70px;" value="${escapeHtml(p.tier || '')}" onchange="adminUpdateGachaField('${poolKey}',${idx},'tier',this.value)"></td>
             <td><input class="admin-input-sm" value="${escapeHtml(p.name || '')}" onchange="adminUpdateGachaField('${poolKey}',${idx},'name',this.value)"></td>
             <td><input class="admin-input-sm" value="${escapeHtml(p.desc || '')}" onchange="adminUpdateGachaField('${poolKey}',${idx},'desc',this.value)"></td>
-            <td><input class="admin-input-sm" type="number" min="0" style="width:70px;" value="${p.weight || 0}" onchange="adminUpdateGachaField('${poolKey}',${idx},'weight',parseFloat(this.value)||0)"></td>
+            <td>
+              <input class="admin-input-sm" type="number" min="0" style="width:70px;" value="${p.weight || 0}" onchange="adminUpdateGachaField('${poolKey}',${idx},'weight',parseFloat(this.value)||0)">
+              <div style="font-size:10px; color:#888; margin-top:2px; white-space:nowrap;">≈ ${pct}%</div>
+            </td>
             <td><button class="btn btn-red" style="padding:3px 8px; font-size:11px;" onclick="adminRemoveGachaPrize('${poolKey}',${idx})">🗑️</button></td>
           </tr>
-        `).join('');
-
-        const totalWeight = adminGachaDraft[poolKey].reduce((s, p) => s + (parseFloat(p.weight) || 0), 0);
+        `;
+        }).join('');
 
         return `
           <div class="admin-card">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
               <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800);">${poolLabel}</h3>
-              <button class="btn btn-outline" style="font-size:12px; padding:4px 10px;" onclick="adminAddGachaPrize('${poolKey}')">➕ 新增獎品</button>
+              <div style="display:flex; gap:6px;">
+                <button class="btn btn-outline" style="font-size:12px; padding:4px 10px;" onclick="adminNormalizeGachaWeights('${poolKey}')">⚖️ 調整做啱好 100</button>
+                <button class="btn btn-outline" style="font-size:12px; padding:4px 10px;" onclick="adminAddGachaPrize('${poolKey}')">➕ 新增獎品</button>
+              </div>
             </div>
             <div style="overflow-x:auto;">
               <table class="admin-table">
-                <thead><tr><th>Emoji</th><th>等級</th><th>獎品名稱</th><th>描述</th><th>機率權重</th><th></th></tr></thead>
-                <tbody>${rows || '<tr><td colspan="6" style="text-align:center; color:#999; padding:16px;">未有獎品，撳「新增獎品」開始</td></tr>'}</tbody>
+                <thead><tr><th>圖片</th><th>Emoji</th><th>等級</th><th>獎品名稱</th><th>描述</th><th>機率權重</th><th></th></tr></thead>
+                <tbody>${rows || '<tr><td colspan="7" style="text-align:center; color:#999; padding:16px;">未有獎品，撳「新增獎品」開始</td></tr>'}</tbody>
               </table>
             </div>
-            <p style="font-size:11px; color:#888; margin-top:8px;">總權重：${totalWeight}（每個獎品抽中機率 = 該獎品權重 ÷ 總權重，唔使加埋等於 100）</p>
+            <p style="font-size:11px; color:#888; margin-top:8px;">總權重：${totalWeight}（右邊「≈ %」欄係即時計算返每個獎品實際中獎機率；撳「調整做啱好 100」會將所有權重等比例縮放到啱啱好加埋等於 100，之後嗰個 % 就會同權重數字一致）</p>
           </div>
         `;
       }
@@ -4028,6 +4056,76 @@
       adminGachaDraft[poolKey][idx][field] = value;
     };
 
+    // 讀取圖片檔案 → 縮圖 → 壓縮做 JPEG base64（同疑難解答區上傳相片用緊嘅
+    // 手法一致），避免原圖太大令 Firestore 文件超出大小限制
+    function compressImageFileToDataURL(file, maxWidth, quality) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        img.onload = () => {
+          const scale = Math.min(1, maxWidth / img.width);
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          URL.revokeObjectURL(url);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
+        img.src = url;
+      });
+    }
+
+    window.adminUploadGachaPhoto = async function(poolKey, idx, inputEl) {
+      if (!adminGachaDraft || !adminGachaDraft[poolKey] || !adminGachaDraft[poolKey][idx]) return;
+      const file = inputEl.files && inputEl.files[0];
+      if (!file) return;
+      if (!file.type.startsWith('image/')) {
+        window.showToast('請選擇圖片檔案', '⚠️');
+        return;
+      }
+      try {
+        const dataUrl = await compressImageFileToDataURL(file, 300, 0.75);
+        adminGachaDraft[poolKey][idx].photo = dataUrl;
+        renderAdminGachaTab();
+      } catch (err) {
+        window.showToast('圖片讀取失敗，請再試一次', '❌');
+      }
+    };
+
+    window.adminRemoveGachaPhoto = function(poolKey, idx) {
+      if (!adminGachaDraft || !adminGachaDraft[poolKey] || !adminGachaDraft[poolKey][idx]) return;
+      delete adminGachaDraft[poolKey][idx].photo;
+      renderAdminGachaTab();
+    };
+
+    // 將某個獎池嘅所有權重等比例縮放，令佢哋啱啱好加埋等於 100，
+    // 令「權重」同「機率 %」睇落一致，滿足想用 percentage 睇嘅需要，
+    // 同時內部繼續用返權重運算，加/減獎品都唔使手動重新分配其他行。
+    window.adminNormalizeGachaWeights = function(poolKey) {
+      if (!adminGachaDraft || !adminGachaDraft[poolKey] || !adminGachaDraft[poolKey].length) return;
+      const pool = adminGachaDraft[poolKey];
+      const total = pool.reduce((s, p) => s + (parseFloat(p.weight) || 0), 0);
+      if (total <= 0) {
+        window.showToast('所有權重都係 0，冇得調整', '⚠️');
+        return;
+      }
+      let runningTotal = 0;
+      pool.forEach((p, i) => {
+        if (i === pool.length - 1) {
+          // 最後一項用「100 減去其他項總和」嚟湊夠 100，避免四捨五入之後
+          // 加埋唔啱好係 100（例如 33.3+33.3+33.3=99.9 呢種情況）
+          p.weight = Math.max(0, 100 - runningTotal);
+        } else {
+          const w = Math.round((parseFloat(p.weight) || 0) / total * 100);
+          p.weight = w;
+          runningTotal += w;
+        }
+      });
+      renderAdminGachaTab();
+      window.showToast('已將權重調整做啱好加埋等於 100', '⚖️');
+    };
+
     window.adminAddGachaPrize = function(poolKey) {
       if (!adminGachaDraft) return;
       adminGachaDraft[poolKey].push({ tier: '普通獎', tierColor: '#2F6070', bg: '#D9EBEF', emoji: '🎁', name: '新獎品', desc: '', weight: 10 });
@@ -4053,17 +4151,30 @@
         window.showToast('兩個獎池都最少要有一個獎品先可以儲存', '⚠️');
         return;
       }
+      const payload = {
+        normal: adminGachaDraft.normal,
+        lucky: adminGachaDraft.lucky,
+        costNormal: adminGachaDraft.costNormal,
+        costLucky: adminGachaDraft.costLucky,
+        updatedAt: Date.now(),
+        updatedBy: window.currentUser ? window.currentUser.email : null
+      };
+
+      // Firestore 單一文件上限係 1MiB（呢個係 Firestore 硬性規定，冇得經設定
+      // 提高），而全部獎品（連圖片）而家都儲存喺同一份文件度。上傳圖片嗰陣
+      // 已經自動壓縮到好細，但如果一次過幫好多個獎品都上傳晒相片，加埋都
+      // 可能踩線，所以呢度先計一計成份文件大約幾大，太大就即刻話俾你知，
+      // 好過真係俾 Firestore 拒絕先發現。
+      const approxBytes = new Blob([JSON.stringify(payload)]).size;
+      if (approxBytes > 900000) {
+        window.showToast(`資料太大（約 ${(approxBytes / 1024).toFixed(0)}KB，Firestore 單一文件上限係 1024KB），請幫少幾個獎品換相或者揀細啲嘅相`, '⚠️');
+        return;
+      }
+
       const btn = document.getElementById('btn-admin-save-gacha');
       if (btn) { btn.disabled = true; btn.innerText = '⏳ 儲存緊…'; }
       try {
-        await window.fs.setDoc(window.fs.doc(window.db, 'admin_config', 'gacha'), {
-          normal: adminGachaDraft.normal,
-          lucky: adminGachaDraft.lucky,
-          costNormal: adminGachaDraft.costNormal,
-          costLucky: adminGachaDraft.costLucky,
-          updatedAt: Date.now(),
-          updatedBy: window.currentUser ? window.currentUser.email : null
-        });
+        await window.fs.setDoc(window.fs.doc(window.db, 'admin_config', 'gacha'), payload);
         window.showToast('✅ 扭蛋機設定已儲存，即時對所有用戶生效！', '🎉');
       } catch (err) {
         window.showToast('儲存失敗：' + (err.message || err), '❌');
