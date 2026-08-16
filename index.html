@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.3.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.3.1"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -707,7 +707,10 @@
               <div>
                 <div class="home-hero-greeting">你好，<span id="home-username">同學</span>👋</div>
                 <div class="home-hero-sub">今日準備好溫習了嗎？</div>
-                <div id="home-level-badge" style="display:inline-block; margin-top:6px; font-size:12px; font-weight:bold; background:rgba(255,255,255,.25); padding:3px 10px; border-radius:20px;">🌱 Lv.1 溫習新手</div>
+                <div id="home-level-badge" style="display:inline-block; margin-top:6px; font-size:12px; font-weight:bold; background:rgba(255,255,255,.25); padding:3px 10px; border-radius:20px;">🌱 Lv.1 溫習新手 · 重欠 20 EXP 升級</div>
+                <div style="background:rgba(255,255,255,.25); border-radius:6px; height:6px; margin-top:4px; max-width:220px; overflow:hidden;">
+                  <div id="home-exp-bar" style="background:#fff; height:100%; width:0%; transition:width .4s ease;"></div>
+                </div>
               </div>
             </div>
             <div class="home-hero-stats">
@@ -1470,11 +1473,28 @@
 
     // ===================== EXP / Level / 段位系統 =====================
     // EXP 只升不跌，代表用家「總溫習成就」；PTS 會升會跌，用嚟扭蛋消費。
-    // 公式：升到 Level L 總共需要嘅 EXP = 10 × L × (L−1)（即每一級所需 EXP 遞增 20）
+    // 呢度嘅 EXP 賺取速度、升級難度、段位稱號全部由 LEVEL_CONFIG 控制，
+    // 管理員可以喺「管理後台 → 🎮 等級系統」隨時調整，唔使再改程式碼、推 GitHub。
+    // 呢度啲數值只係喺 Firestore 未載入完之前用嘅預設值。
+    const DEFAULT_LEVEL_CONFIG = {
+      expPerMinute: 1,
+      levelCurveFactor: 10, // 公式：升到 Level L 總共需要嘅 EXP = 難度係數 × L × (L−1)
+      ranks: [
+        { minLevel: 1,  emoji: '🌱', title: '溫習新手', titleEn: 'Novice',     color: '#6FA96F' },
+        { minLevel: 10, emoji: '📚', title: '專注學徒', titleEn: 'Apprentice', color: '#4A8FA0' },
+        { minLevel: 20, emoji: '🔥', title: '自律達人', titleEn: 'Expert',     color: '#D9764A' },
+        { minLevel: 40, emoji: '👑', title: '專注大師', titleEn: 'Master',     color: '#D9A441' },
+        { minLevel: 60, emoji: '🌌', title: '傳說學霸', titleEn: 'Legend',     color: '#8B5FBF' }
+      ]
+    };
+    let LEVEL_CONFIG = JSON.parse(JSON.stringify(DEFAULT_LEVEL_CONFIG));
+    window.LEVEL_CONFIG = LEVEL_CONFIG;
+
     function calcLevelInfo(exp) {
       exp = Math.max(0, parseInt(exp) || 0);
-      const cumForLevel = (L) => 10 * L * (L - 1);
-      let level = Math.max(1, Math.floor((10 + Math.sqrt(100 + 40 * exp)) / 20));
+      const f = (LEVEL_CONFIG && LEVEL_CONFIG.levelCurveFactor) || 10;
+      const cumForLevel = (L) => f * L * (L - 1);
+      let level = Math.max(1, Math.floor((f + Math.sqrt(f * f + 4 * f * exp)) / (2 * f)));
       while (cumForLevel(level + 1) <= exp) level++;
       while (level > 1 && cumForLevel(level) > exp) level--;
       const curFloor = cumForLevel(level);
@@ -1484,31 +1504,39 @@
         exp,
         expIntoLevel: exp - curFloor,
         expNeededForNext: nextFloor - curFloor,
+        expRemaining: Math.max(0, nextFloor - exp),
         pctToNext: nextFloor > curFloor ? Math.min(100, ((exp - curFloor) / (nextFloor - curFloor)) * 100) : 100
       };
     }
     window.calcLevelInfo = calcLevelInfo;
 
     function getRankTitle(level) {
-      if (level >= 60) return { emoji: '🌌', title: '傳說學霸', titleEn: 'Legend', color: '#8B5FBF' };
-      if (level >= 40) return { emoji: '👑', title: '專注大師', titleEn: 'Master', color: '#D9A441' };
-      if (level >= 20) return { emoji: '🔥', title: '自律達人', titleEn: 'Expert', color: '#D9764A' };
-      if (level >= 10) return { emoji: '📚', title: '專注學徒', titleEn: 'Apprentice', color: '#4A8FA0' };
-      return { emoji: '🌱', title: '溫習新手', titleEn: 'Novice', color: '#6FA96F' };
+      const ranks = (LEVEL_CONFIG && Array.isArray(LEVEL_CONFIG.ranks) && LEVEL_CONFIG.ranks.length)
+        ? LEVEL_CONFIG.ranks : DEFAULT_LEVEL_CONFIG.ranks;
+      const sorted = ranks.slice().sort((a, b) => (b.minLevel || 0) - (a.minLevel || 0));
+      for (const r of sorted) {
+        if (level >= (r.minLevel || 0)) return r;
+      }
+      return sorted[sorted.length - 1] || DEFAULT_LEVEL_CONFIG.ranks[0];
     }
     window.getRankTitle = getRankTitle;
 
-    // 更新頭部徽章 / 主頁 Hero / 個人資料頁嘅 Level 顯示
+    // 更新頭部徽章 / 主頁 Hero / 個人資料頁嘅 Level 顯示（全部都會顯示重欠幾多 EXP 先可以升級）
     function updateLevelDisplay() {
       if (!window.currentUser) return;
       const info = calcLevelInfo(window.currentUser.exp || 0);
       const rank = getRankTitle(info.level);
 
       const headerBadge = document.getElementById('header-level-badge');
-      if (headerBadge) headerBadge.innerText = `${rank.emoji} Lv.${info.level}`;
+      if (headerBadge) {
+        headerBadge.innerText = `${rank.emoji} Lv.${info.level}`;
+        headerBadge.title = `${rank.title}（${rank.titleEn}）｜重欠 ${info.expRemaining} EXP 就升到 Lv.${info.level + 1}`;
+      }
 
       const homeLevelBadge = document.getElementById('home-level-badge');
-      if (homeLevelBadge) homeLevelBadge.innerText = `${rank.emoji} Lv.${info.level} ${rank.title}`;
+      if (homeLevelBadge) homeLevelBadge.innerText = `${rank.emoji} Lv.${info.level} ${rank.title} · 重欠 ${info.expRemaining} EXP 升級`;
+      const homeExpBar = document.getElementById('home-exp-bar');
+      if (homeExpBar) homeExpBar.style.width = info.pctToNext + '%';
 
       const profLevelNum = document.getElementById('profile-level-num');
       const profRankTitle = document.getElementById('profile-rank-title');
@@ -1519,7 +1547,7 @@
         profRankTitle.innerText = `${rank.emoji} ${rank.title} (${rank.titleEn})`;
         profRankTitle.style.color = rank.color;
       }
-      if (profExpText) profExpText.innerText = `${info.expIntoLevel} / ${info.expNeededForNext} EXP（總計 ${info.exp} EXP）`;
+      if (profExpText) profExpText.innerText = `${info.expIntoLevel} / ${info.expNeededForNext} EXP · 重欠 ${info.expRemaining} EXP 就升到 Lv.${info.level + 1}（總計 ${info.exp} EXP）`;
       if (profExpBar) profExpBar.style.width = info.pctToNext + '%';
     }
     window.updateLevelDisplay = updateLevelDisplay;
@@ -2402,6 +2430,9 @@
         if (typeof window.loadGachaConfigFromFirestore === 'function') {
           window.loadGachaConfigFromFirestore();
         }
+        if (typeof window.loadLevelConfigFromFirestore === 'function') {
+          window.loadLevelConfigFromFirestore();
+        }
       } else {
         window.currentUser = null;
       }
@@ -3047,15 +3078,16 @@
       // 寫入 Firestore（atomic increment，就算多頁面同時開都唔會出問題）
       if (!window.currentUser || !window.db || !window.fs) return;
       try {
+        const expGain = (LEVEL_CONFIG && typeof LEVEL_CONFIG.expPerMinute === 'number') ? LEVEL_CONFIG.expPerMinute : 1;
         const userRef = window.fs.doc(window.db, "users", window.currentUser.uid);
         await window.fs.updateDoc(userRef, {
           points: window.fs.increment(1),
-          exp: window.fs.increment(1)
+          exp: window.fs.increment(expGain)
         });
         if (window.currentUser) {
           window.currentUser.points = (window.currentUser.points || 0) + 1;
           const prevLevel = calcLevelInfo(window.currentUser.exp || 0).level;
-          window.currentUser.exp = (window.currentUser.exp || 0) + 1;
+          window.currentUser.exp = (window.currentUser.exp || 0) + expGain;
           updateLevelDisplay();
           const newLevel = calcLevelInfo(window.currentUser.exp).level;
           if (newLevel > prevLevel) {
@@ -3997,12 +4029,14 @@
         <button class="btn btn-outline admin-tab-btn" data-tab="rooms" onclick="switchAdminTab('rooms')">🎥 房間管理</button>
         <button class="btn btn-outline admin-tab-btn" data-tab="qa" onclick="switchAdminTab('qa')">❓ 疑難解答區</button>
         <button class="btn btn-outline admin-tab-btn" data-tab="users" onclick="switchAdminTab('users')">👤 用戶管理</button>
+        <button class="btn btn-outline admin-tab-btn" data-tab="level" onclick="switchAdminTab('level')">🎮 等級系統</button>
       </div>
 
       <div id="admin-tab-gacha" class="admin-tab-panel"></div>
       <div id="admin-tab-rooms" class="admin-tab-panel" style="display:none;"></div>
       <div id="admin-tab-qa" class="admin-tab-panel" style="display:none;"></div>
       <div id="admin-tab-users" class="admin-tab-panel" style="display:none;"></div>
+      <div id="admin-tab-level" class="admin-tab-panel" style="display:none;"></div>
 
     </div>
   </div>
@@ -4104,6 +4138,7 @@
       else if (tab === 'rooms') renderAdminRoomsTab();
       else if (tab === 'qa') renderAdminQaTab();
       else if (tab === 'users') renderAdminUsersTab();
+      else if (tab === 'level') renderAdminLevelTab();
     };
 
     // ---------- 扭蛋機獎品管理 ----------
@@ -4401,6 +4436,148 @@
       });
     }
     window.loadGachaConfigFromFirestore = loadGachaConfigFromFirestore;
+
+    // ---------- 等級系統設定 ----------
+    // EXP 賺取速度／升級難度／段位稱號而家改為由 Firestore（admin_config/levelSystem 文件）讀取，
+    // 管理員喺呢度改完撳「儲存」，全站用戶即時生效，唔使再改碼、推 GitHub。
+    let adminLevelDraft = null;
+    let levelConfigLoaded = false;
+    let levelConfigUnsubscribe = null;
+
+    function renderAdminLevelTab() {
+      const container = document.getElementById('admin-tab-level');
+      if (!container) return;
+      if (!adminLevelDraft) {
+        if (!levelConfigLoaded) {
+          container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入緊等級系統設定...</p>';
+          return;
+        }
+        adminLevelDraft = JSON.parse(JSON.stringify(LEVEL_CONFIG));
+      }
+
+      const ranksRows = adminLevelDraft.ranks.map((r, idx) => `
+        <tr>
+          <td><input class="admin-input-sm" type="number" min="1" style="width:60px;" value="${r.minLevel}" onchange="adminLevelDraft.ranks[${idx}].minLevel = parseInt(this.value)||1"></td>
+          <td><input class="admin-input-sm" style="width:50px; text-align:center;" value="${escapeHtml(r.emoji || '')}" onchange="adminLevelDraft.ranks[${idx}].emoji = this.value"></td>
+          <td><input class="admin-input-sm" style="width:100px;" value="${escapeHtml(r.title || '')}" onchange="adminLevelDraft.ranks[${idx}].title = this.value"></td>
+          <td><input class="admin-input-sm" style="width:110px;" value="${escapeHtml(r.titleEn || '')}" onchange="adminLevelDraft.ranks[${idx}].titleEn = this.value"></td>
+          <td><input type="color" style="width:40px; height:28px; padding:1px; border:1px solid #ccc; border-radius:4px;" value="${r.color || '#4A8FA0'}" onchange="adminLevelDraft.ranks[${idx}].color = this.value"></td>
+          <td><button class="btn btn-red" style="font-size:11px; padding:3px 8px;" onclick="adminRemoveLevelRank(${idx})">🗑</button></td>
+        </tr>
+      `).join('');
+
+      container.innerHTML = `
+        <div class="admin-card">
+          <h3 style="font-size:14px; font-weight:bold; margin-bottom:8px;">⚙️ 基本設定</h3>
+          <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:10px;">
+            <label style="font-size:13px; color:#555; display:flex; align-items:center; gap:6px;">
+              每溫習 1 分鐘可得 EXP：
+              <input class="admin-input-sm" type="number" min="0" step="0.1" style="width:70px;" value="${adminLevelDraft.expPerMinute}" oninput="adminLevelDraft.expPerMinute = parseFloat(this.value)||0; adminRefreshLevelPreview();">
+            </label>
+            <label style="font-size:13px; color:#555; display:flex; align-items:center; gap:6px;">
+              升級難度係數：
+              <input class="admin-input-sm" type="number" min="1" step="1" style="width:70px;" value="${adminLevelDraft.levelCurveFactor}" oninput="adminLevelDraft.levelCurveFactor = parseFloat(this.value)||10; adminRefreshLevelPreview();">
+            </label>
+          </div>
+          <p style="font-size:11px; color:#888;">公式：升到第 L 級總共需要嘅 EXP = 難度係數 × L × (L−1)。難度係數越大，升級越慢。</p>
+          <p id="admin-level-preview" style="font-size:12px; color:#4A8FA0; font-weight:bold; margin-top:6px;"></p>
+        </div>
+
+        <div class="admin-card" style="margin-top:12px;">
+          <h3 style="font-size:14px; font-weight:bold; margin-bottom:8px;">🏅 段位稱號（由低到高，建議第一行等級門檻＝1）</h3>
+          <div style="overflow-x:auto;">
+            <table class="admin-table">
+              <thead><tr><th>等級門檻</th><th>Emoji</th><th>稱號(中)</th><th>稱號(英)</th><th>顏色</th><th></th></tr></thead>
+              <tbody>${ranksRows}</tbody>
+            </table>
+          </div>
+          <button class="btn btn-outline" style="margin-top:8px; font-size:12px;" onclick="adminAddLevelRank()">➕ 新增段位</button>
+        </div>
+
+        <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="adminSaveLevelConfig()">💾 儲存全部改動</button>
+          <button class="btn btn-outline" onclick="adminResetLevelDraft()">↩️ 還原未儲存嘅改動</button>
+        </div>
+      `;
+      adminRefreshLevelPreview();
+    }
+    window.renderAdminLevelTab = renderAdminLevelTab;
+
+    window.adminRefreshLevelPreview = function() {
+      const el = document.getElementById('admin-level-preview');
+      if (!el || !adminLevelDraft) return;
+      const f = adminLevelDraft.levelCurveFactor || 10;
+      const perMin = adminLevelDraft.expPerMinute || 0;
+      const sample = [10, 20, 40, 60].map(L => {
+        const needExp = f * L * (L - 1);
+        const mins = perMin > 0 ? needExp / perMin : Infinity;
+        const hrs = isFinite(mins) ? (mins / 60).toFixed(0) : '∞';
+        return `Lv.${L}≈${hrs}h`;
+      }).join('　');
+      el.innerText = `預覽：溫習到 ${sample}`;
+    };
+
+    window.adminAddLevelRank = function() {
+      if (!adminLevelDraft) return;
+      adminLevelDraft.ranks.push({ minLevel: 1, emoji: '🌟', title: '新段位', titleEn: 'NewRank', color: '#4A8FA0' });
+      renderAdminLevelTab();
+    };
+
+    window.adminRemoveLevelRank = function(idx) {
+      if (!adminLevelDraft) return;
+      if (adminLevelDraft.ranks.length <= 1) { window.showToast('最少要留返一個段位', '⚠️'); return; }
+      adminLevelDraft.ranks.splice(idx, 1);
+      renderAdminLevelTab();
+    };
+
+    window.adminResetLevelDraft = function() {
+      adminLevelDraft = null;
+      renderAdminLevelTab();
+    };
+
+    window.adminSaveLevelConfig = async function() {
+      if (!adminLevelDraft || !window.db || !window.fs) return;
+      if (!adminLevelDraft.ranks.length) { window.showToast('最少要有一個段位', '❌'); return; }
+      try {
+        await window.fs.setDoc(window.fs.doc(window.db, 'admin_config', 'levelSystem'), {
+          expPerMinute: adminLevelDraft.expPerMinute,
+          levelCurveFactor: adminLevelDraft.levelCurveFactor,
+          ranks: adminLevelDraft.ranks
+        });
+        window.showToast('✅ 已儲存等級系統設定', '✅');
+      } catch (err) {
+        window.showToast('儲存失敗：' + (err.message || err), '❌');
+      }
+    };
+
+    function loadLevelConfigFromFirestore() {
+      if (!window.db || !window.fs) return;
+      if (levelConfigUnsubscribe) levelConfigUnsubscribe();
+      const ref = window.fs.doc(window.db, 'admin_config', 'levelSystem');
+      levelConfigUnsubscribe = window.fs.onSnapshot(ref, (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          if (typeof data.expPerMinute === 'number') LEVEL_CONFIG.expPerMinute = data.expPerMinute;
+          if (typeof data.levelCurveFactor === 'number') LEVEL_CONFIG.levelCurveFactor = data.levelCurveFactor;
+          if (Array.isArray(data.ranks) && data.ranks.length) LEVEL_CONFIG.ranks = data.ranks;
+        }
+        levelConfigLoaded = true;
+        if (window.currentUser) updateLevelDisplay();
+        if (currentAdminTab === 'level' && !adminLevelDraft) {
+          const adminPanelEl = document.getElementById('admin-panel-container');
+          if (adminPanelEl && adminPanelEl.style.display !== 'none') {
+            renderAdminLevelTab();
+          }
+        }
+      }, (err) => {
+        console.error('讀取等級系統設定失敗:', err);
+        levelConfigLoaded = true;
+        if (typeof window.isCurrentUserAdmin === 'function' && window.isCurrentUserAdmin()) {
+          window.showToast('讀取等級系統設定失敗（可能係 Firestore 規則未生效）：' + (err.message || err), '⚠️');
+        }
+      });
+    }
+    window.loadLevelConfigFromFirestore = loadLevelConfigFromFirestore;
 
     function applyGachaCostToUI() {
       const setText = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
