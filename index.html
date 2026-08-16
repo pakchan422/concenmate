@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.0.1"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.0.3"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -2189,6 +2189,14 @@
           const room = roomDoc.data();
           const roomId = roomDoc.id;
           const isMyRoom = window.currentUser && room.hostUid === window.currentUser.uid;
+          // 兼容修復前用 ISO 字串儲存嘅 createdAt（舊房間），統一轉做數字 timestamp
+          let createdAtMs = 0;
+          if (typeof room.createdAt === 'number') {
+            createdAtMs = room.createdAt;
+          } else if (room.createdAt) {
+            const parsed = new Date(room.createdAt).getTime();
+            createdAtMs = isNaN(parsed) ? 0 : parsed;
+          }
 
           roomsHtml += `
             <div class="room-item-card">
@@ -2199,11 +2207,11 @@
                 </div>
                 <h4 style="font-size:14px; font-weight:bold; color:var(--brand-800); margin-bottom:4px;">${room.name}</h4>
                 <p style="font-size:11px; color:#666;">房主：<strong>${room.hostName || '匿名同學'}</strong></p>
-                <p style="font-size:10px; color:#888; margin-top:2px;">目標時間：${room.duration || 30} 分鐘</p>
+                <p style="font-size:10px; color:#888; margin-top:2px;">👥 ${room.participantCount || 0}/${window.ROOM_CAPACITY || 4} 人 · 目標時間：${room.duration || 30} 分鐘</p>
               </div>
 
               <div style="display:flex; gap:6px; margin-top:12px;">
-                <button class="btn btn-primary" style="flex:1; justify-content:center; font-size:11px; padding:6px;" onclick="joinPublicRoom('${roomId}', '${room.name.replace(/'/g, "\\'")}', '${room.subject}', ${room.duration}, '${room.hostName}', ${isMyRoom})">
+                <button class="btn btn-primary" style="flex:1; justify-content:center; font-size:11px; padding:6px;" onclick="joinPublicRoom('${roomId}', '${room.name.replace(/'/g, "\\'")}', '${room.subject}', ${room.duration}, '${room.hostName}', ${isMyRoom}, ${createdAtMs})">
                   🚪 加入房間
                 </button>
                 ${isMyRoom ? `<button class="btn btn-red" style="font-size:11px; padding:6px;" onclick="deleteRoomQuick('${roomId}')">刪除</button>` : ''}
@@ -2389,6 +2397,7 @@
     };
 
     const ROOM_CAPACITY = 4; // 同一房間最多同時容納的用家人數（包括自己）
+    window.ROOM_CAPACITY = ROOM_CAPACITY; // 開放俾其他 <script> 區塊（例如大廳房間卡片）讀取
 
     // 之前一直用純 STUN，喺部分網路環境（例如其中一方喺較嚴格嘅 NAT／防火牆後面）
     // 好可能完全連唔通——訊號（Offer/Answer）交換得晒，但實際媒體流永遠過唔到，
@@ -2557,6 +2566,17 @@
         cameraOn: false
       });
 
+      // 同步更新房間文件的人數統計，等大廳嘅房間卡片可以即時顯示「👥 X/4 人」
+      if (!alreadyIn) {
+        try {
+          await window.fs.updateDoc(window.fs.doc(window.db, "rooms", roomId), {
+            participantCount: window.fs.increment(1)
+          });
+        } catch (e) {
+          console.error("更新房間人數失敗:", e);
+        }
+      }
+
       return true;
     }
 
@@ -2639,6 +2659,9 @@
       if (state.currentRoomId && window.currentUser && window.db && window.fs) {
         try {
           await window.fs.deleteDoc(window.fs.doc(window.db, "rooms", state.currentRoomId, "participants", window.currentUser.uid));
+          await window.fs.updateDoc(window.fs.doc(window.db, "rooms", state.currentRoomId), {
+            participantCount: window.fs.increment(-1)
+          });
         } catch (e) {
           console.error("移除房間人數紀錄失敗:", e);
         }
@@ -2649,6 +2672,9 @@
     window.addEventListener('beforeunload', () => {
       if (state.currentRoomId && window.currentUser && window.db && window.fs) {
         window.fs.deleteDoc(window.fs.doc(window.db, "rooms", state.currentRoomId, "participants", window.currentUser.uid)).catch(() => {});
+        window.fs.updateDoc(window.fs.doc(window.db, "rooms", state.currentRoomId), {
+          participantCount: window.fs.increment(-1)
+        }).catch(() => {});
       }
     });
 
@@ -2664,34 +2690,36 @@
       const durationMins = parseInt(document.getElementById('modal-room-duration').value, 10);
 
       const roomId = 'room_' + Date.now();
+      const createdAt = Date.now();
       const roomData = {
         name: roomName,
         subject: subject,
         duration: durationMins,
         hostUid: window.currentUser.uid,
         hostName: window.currentUser.username || '匿名同學',
-        createdAt: new Date().toISOString()
+        participantCount: 0,
+        createdAt: createdAt
       };
 
       try {
         await window.fs.setDoc(window.fs.doc(window.db, "rooms", roomId), roomData);
         closeModal('modal-create-room');
 
-        await enterRoomSetup(roomId, roomName, subject, durationMins, window.currentUser.username || '匿名同學', true);
+        await enterRoomSetup(roomId, roomName, subject, durationMins, window.currentUser.username || '匿名同學', true, createdAt);
         window.showToast("🚀 溫習房建立成功並已廣播至公開大廳！", "✨");
       } catch (err) {
         window.showToast("建立房間失敗: " + err.message, "❌");
       }
     };
 
-    window.joinPublicRoom = async function(roomId, roomName, subject, durationMins, hostName, isMyRoom) {
-      const success = await enterRoomSetup(roomId, roomName, subject, durationMins, hostName, isMyRoom);
+    window.joinPublicRoom = async function(roomId, roomName, subject, durationMins, hostName, isMyRoom, createdAt) {
+      const success = await enterRoomSetup(roomId, roomName, subject, durationMins, hostName, isMyRoom, createdAt);
       if (success) {
         window.showToast(`成功加入「${roomName}」！`, "🦦");
       }
     };
 
-    async function enterRoomSetup(roomId, roomName, subject, durationMins, hostName, isMyRoom) {
+    async function enterRoomSetup(roomId, roomName, subject, durationMins, hostName, isMyRoom, createdAt) {
       if (!window.currentUser || !window.db || !window.fs) {
         window.showToast("請先登入會員", "⚠️");
         return false;
@@ -2711,7 +2739,14 @@
       document.getElementById('active-room-subject').innerText = subject;
       document.getElementById('room-host-tag').innerText = isMyRoom ? "你是房主 👑" : `房主: ${hostName}`;
 
-      state.remainingSeconds = (durationMins || 30) * 60;
+      // 用「房間建立時間」而非「進入房間時間」起計倒數，確保所有人睇到一致嘅剩餘時間
+      const totalSeconds = (durationMins || 30) * 60;
+      let remainingSeconds = totalSeconds;
+      if (createdAt) {
+        const elapsedSeconds = Math.floor((Date.now() - createdAt) / 1000);
+        remainingSeconds = Math.max(0, totalSeconds - elapsedSeconds);
+      }
+      state.remainingSeconds = remainingSeconds;
       updateTimerDisplay();
 
       resetVideoSlots();
