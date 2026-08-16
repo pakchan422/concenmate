@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.2.7"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.3.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -643,6 +643,8 @@
     </div>
 
     <div class="user-stats" id="header-user-stats" style="display:none;">
+      <span id="header-level-badge" style="font-weight:bold; color:#4A8FA0;" onclick="switchTab('profile')" title="睇你嘅溫習等級">🌱 Lv.1</span>
+      <span style="color:#ccc">|</span>
       <span>⏱️ <span id="stat-hours">0.0</span>h</span>
       <span style="color:#ccc">|</span>
       <span>🪙 <span id="stat-points">180</span> PTS</span>
@@ -705,6 +707,7 @@
               <div>
                 <div class="home-hero-greeting">你好，<span id="home-username">同學</span>👋</div>
                 <div class="home-hero-sub">今日準備好溫習了嗎？</div>
+                <div id="home-level-badge" style="display:inline-block; margin-top:6px; font-size:12px; font-weight:bold; background:rgba(255,255,255,.25); padding:3px 10px; border-radius:20px;">🌱 Lv.1 溫習新手</div>
               </div>
             </div>
             <div class="home-hero-stats">
@@ -1090,6 +1093,17 @@
             </form>
           </div>
 
+          <div class="card" style="margin-top:16px; text-align:center;">
+            <h3 style="font-size:15px; font-weight:bold; margin-bottom:10px;">🎮 溫習等級</h3>
+            <div id="profile-level-num" style="font-size:32px; font-weight:900; color:var(--brand-800);">Lv.1</div>
+            <div id="profile-rank-title" style="font-size:14px; font-weight:bold; margin-top:2px;">🌱 溫習新手 (Novice)</div>
+            <div style="background:#E5EEF0; border-radius:8px; height:10px; margin-top:12px; overflow:hidden;">
+              <div id="profile-exp-bar" style="background:linear-gradient(90deg,#4A8FA0,#7DB8C5); height:100%; width:0%; transition:width .4s ease;"></div>
+            </div>
+            <div id="profile-exp-text" style="font-size:11px; color:#999; margin-top:4px;">0 / 20 EXP</div>
+            <p style="font-size:11px; color:#aaa; margin-top:8px;">💡 每溫習 1 分鐘就會賺 1 點 EXP，EXP 只升唔跌，記錄你嘅總溫習成就；PTS 就用嚟扭蛋。</p>
+          </div>
+
           <div class="card" style="margin-top:16px;">
             <h3 style="font-size:15px; font-weight:bold; margin-bottom:10px;">🎁 我的中獎記錄</h3>
             <div id="profile-gacha-history-list" style="display:flex; flex-direction:column; gap:6px; font-size:13px;"></div>
@@ -1454,6 +1468,62 @@
     }
     window.switchTab = switchTab;
 
+    // ===================== EXP / Level / 段位系統 =====================
+    // EXP 只升不跌，代表用家「總溫習成就」；PTS 會升會跌，用嚟扭蛋消費。
+    // 公式：升到 Level L 總共需要嘅 EXP = 10 × L × (L−1)（即每一級所需 EXP 遞增 20）
+    function calcLevelInfo(exp) {
+      exp = Math.max(0, parseInt(exp) || 0);
+      const cumForLevel = (L) => 10 * L * (L - 1);
+      let level = Math.max(1, Math.floor((10 + Math.sqrt(100 + 40 * exp)) / 20));
+      while (cumForLevel(level + 1) <= exp) level++;
+      while (level > 1 && cumForLevel(level) > exp) level--;
+      const curFloor = cumForLevel(level);
+      const nextFloor = cumForLevel(level + 1);
+      return {
+        level,
+        exp,
+        expIntoLevel: exp - curFloor,
+        expNeededForNext: nextFloor - curFloor,
+        pctToNext: nextFloor > curFloor ? Math.min(100, ((exp - curFloor) / (nextFloor - curFloor)) * 100) : 100
+      };
+    }
+    window.calcLevelInfo = calcLevelInfo;
+
+    function getRankTitle(level) {
+      if (level >= 60) return { emoji: '🌌', title: '傳說學霸', titleEn: 'Legend', color: '#8B5FBF' };
+      if (level >= 40) return { emoji: '👑', title: '專注大師', titleEn: 'Master', color: '#D9A441' };
+      if (level >= 20) return { emoji: '🔥', title: '自律達人', titleEn: 'Expert', color: '#D9764A' };
+      if (level >= 10) return { emoji: '📚', title: '專注學徒', titleEn: 'Apprentice', color: '#4A8FA0' };
+      return { emoji: '🌱', title: '溫習新手', titleEn: 'Novice', color: '#6FA96F' };
+    }
+    window.getRankTitle = getRankTitle;
+
+    // 更新頭部徽章 / 主頁 Hero / 個人資料頁嘅 Level 顯示
+    function updateLevelDisplay() {
+      if (!window.currentUser) return;
+      const info = calcLevelInfo(window.currentUser.exp || 0);
+      const rank = getRankTitle(info.level);
+
+      const headerBadge = document.getElementById('header-level-badge');
+      if (headerBadge) headerBadge.innerText = `${rank.emoji} Lv.${info.level}`;
+
+      const homeLevelBadge = document.getElementById('home-level-badge');
+      if (homeLevelBadge) homeLevelBadge.innerText = `${rank.emoji} Lv.${info.level} ${rank.title}`;
+
+      const profLevelNum = document.getElementById('profile-level-num');
+      const profRankTitle = document.getElementById('profile-rank-title');
+      const profExpText = document.getElementById('profile-exp-text');
+      const profExpBar = document.getElementById('profile-exp-bar');
+      if (profLevelNum) profLevelNum.innerText = `Lv.${info.level}`;
+      if (profRankTitle) {
+        profRankTitle.innerText = `${rank.emoji} ${rank.title} (${rank.titleEn})`;
+        profRankTitle.style.color = rank.color;
+      }
+      if (profExpText) profExpText.innerText = `${info.expIntoLevel} / ${info.expNeededForNext} EXP（總計 ${info.exp} EXP）`;
+      if (profExpBar) profExpBar.style.width = info.pctToNext + '%';
+    }
+    window.updateLevelDisplay = updateLevelDisplay;
+
     function updateUserAuthUI() {
       const unauthScreen = document.getElementById('unauth-screen');
       const authContent = document.getElementById('authenticated-app-content');
@@ -1479,6 +1549,7 @@
         document.getElementById('stat-hours').innerText = window.currentUser.hours || "0.0";
         document.getElementById('stat-points').innerText = window.currentUser.points ?? 0;
         syncGachaPtsDisplay();
+        updateLevelDisplay();
 
         // 主頁歡迎卡片
         const displayName = window.currentUser.username || window.currentUser.email?.split('@')[0] || '同學';
@@ -2309,7 +2380,8 @@
               school: '未設定',
               grade: '中六 (S6 DSE)',
               hours: '0.0',
-              points: 0
+              points: 0,
+              exp: 0
             };
           }
         } catch (e) {
@@ -2358,6 +2430,8 @@
           favSubjects: profileData.favSubjects || '無',
           dislikeSubjects: profileData.dislikeSubjects || '無',
           hours: "0.0",
+          points: 0,
+          exp: 0,
           createdAt: new Date().toISOString()
         };
 
@@ -2975,9 +3049,20 @@
       try {
         const userRef = window.fs.doc(window.db, "users", window.currentUser.uid);
         await window.fs.updateDoc(userRef, {
-          points: window.fs.increment(1)
+          points: window.fs.increment(1),
+          exp: window.fs.increment(1)
         });
-        if (window.currentUser) window.currentUser.points = (window.currentUser.points || 0) + 1;
+        if (window.currentUser) {
+          window.currentUser.points = (window.currentUser.points || 0) + 1;
+          const prevLevel = calcLevelInfo(window.currentUser.exp || 0).level;
+          window.currentUser.exp = (window.currentUser.exp || 0) + 1;
+          updateLevelDisplay();
+          const newLevel = calcLevelInfo(window.currentUser.exp).level;
+          if (newLevel > prevLevel) {
+            const rank = getRankTitle(newLevel);
+            window.showToast(`🎉 升級喇！而家係 Lv.${newLevel} ${rank.emoji} ${rank.title}！`, '⬆️');
+          }
+        }
       } catch (e) {
         console.warn("積分更新失敗（唔影響使用）:", e);
       }
@@ -4459,6 +4544,7 @@
               <td>${escapeHtml(u.school || '—')}</td>
               <td><input class="admin-input-sm" type="number" style="width:70px;" value="${u.points || 0}" id="admin-user-points-${uid}"></td>
               <td><input class="admin-input-sm" style="width:60px;" value="${u.hours || '0.0'}" id="admin-user-hours-${uid}"></td>
+              <td><input class="admin-input-sm" type="number" style="width:70px;" value="${u.exp || 0}" id="admin-user-exp-${uid}"></td>
               <td style="display:flex; gap:4px; flex-wrap:wrap;">
                 <button class="btn btn-outline" style="font-size:11px; padding:3px 8px;" onclick="adminSaveUserStats('${uid}')">💾 儲存</button>
                 <button class="btn ${suspended ? 'btn-primary' : 'btn-red'}" style="font-size:11px; padding:3px 8px;" onclick="adminToggleSuspendUser('${uid}', ${!suspended})">${suspended ? '✅ 解除停權' : '🚫 停權'}</button>
@@ -4468,10 +4554,10 @@
         }).join('');
         container.innerHTML = `
           <div class="admin-card">
-            <p style="font-size:11px; color:#888; margin-bottom:10px;">改完積分／時數之後記得逐行撳「💾 儲存」；「停權」會令該用戶下次登入時被強制登出。</p>
+            <p style="font-size:11px; color:#888; margin-bottom:10px;">改完積分／時數／EXP 之後記得逐行撳「💾 儲存」；EXP 決定用戶嘅溫習等級同段位，一般唔使人手改，特殊情況（例如補發）先用。「停權」會令該用戶下次登入時被強制登出。</p>
             <div style="overflow-x:auto;">
               <table class="admin-table">
-                <thead><tr><th>用戶名</th><th>Email</th><th>學校</th><th>積分</th><th>時數</th><th></th></tr></thead>
+                <thead><tr><th>用戶名</th><th>Email</th><th>學校</th><th>積分</th><th>時數</th><th>EXP</th><th></th></tr></thead>
                 <tbody>${rows}</tbody>
               </table>
             </div>
@@ -4486,10 +4572,12 @@
     window.adminSaveUserStats = async function(uid) {
       const ptsEl = document.getElementById('admin-user-points-' + uid);
       const hoursEl = document.getElementById('admin-user-hours-' + uid);
+      const expEl = document.getElementById('admin-user-exp-' + uid);
       const points = parseInt(ptsEl && ptsEl.value, 10) || 0;
       const hours = (hoursEl && hoursEl.value) || '0.0';
+      const exp = parseInt(expEl && expEl.value, 10) || 0;
       try {
-        await window.fs.updateDoc(window.fs.doc(window.db, 'users', uid), { points, hours });
+        await window.fs.updateDoc(window.fs.doc(window.db, 'users', uid), { points, hours, exp });
         window.showToast('已更新用戶資料', '✅');
       } catch (err) {
         window.showToast('更新失敗：' + (err.message || err), '❌');
