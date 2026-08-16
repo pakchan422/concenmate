@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.0.3"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.0.4"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -3038,29 +3038,43 @@
 
         // 將本地媒體軌道加入連線（如果未加過嘅話）
         const existingSenderKinds = new Set(pc.getSenders().filter(s => s.track).map(s => s.track.kind));
+        let addedNewTrack = false;
         for (const track of state.mediaStream.getTracks()) {
           if (!existingSenderKinds.has(track.kind)) {
             pc.addTrack(track, state.mediaStream);
             wrtcLog(`加入 ${track.kind} track 到與 ${remoteUid} 嘅連線`);
+            addedNewTrack = true;
           }
         }
 
-        // 只有當我係呢條連線嘅 Offer 發起方先重新協商，
-        // 否則等對方發過嚟（避免雙方同時 renegotiate）
-        if (myUid < remoteUid) {
-          try {
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            await window.fs.setDoc(window.fs.doc(window.db, "rooms", roomId, "signals", myUid + "_to_" + remoteUid), {
-              from: myUid,
-              to: remoteUid,
-              offer: JSON.parse(JSON.stringify(offer)),
-              timestamp: Date.now()
-            });
-            wrtcLog(`重新協商 Offer 已送出 → ${remoteUid}`);
-          } catch (err) {
-            console.error(`重新協商失敗 (${remoteUid}):`, err);
-          }
+        if (!addedNewTrack) continue; // 冇新軌道要送出，唔使重新協商
+
+        // 之前呢度用「只有 UID 字母序較細嘅一方先可以重新協商」嚟避免雙方同時
+        // 發起造成衝突，但呢個做法有個致命 bug：如果 UID 較細嗰位之後一直冇
+        // 再開／關過自己嘅鏡頭或咪，佢就永遠都唔會再送 Offer，於是 UID 較大
+        // 嗰位新加入嘅視訊／音訊軌道就會永遠停留喺「已加入 sender 但未經
+        // SDP 協商」嘅狀態——對方會永遠見唔到呢個人嘅畫面（呢個正正就係
+        // 「房主見唔到某位同學鏡頭」嘅成因）。而家改為雙方都可以主動發起
+        // 重新協商，只用 signalingState 嚟避免喺傾緊嘢嗰陣重複再發一次；
+        // 如果兩邊真係撞正同時發 Offer，就交俾 handleIncomingOffer 嗰邊嘅
+        // polite/impolite 邏輯去化解（一方讓步、一方堅持）。
+        if (pc.signalingState !== 'stable') {
+          wrtcLog(`與 ${remoteUid} 嘅連線暫時未 stable（${pc.signalingState}），跳過呢次重新協商`);
+          continue;
+        }
+
+        try {
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          await window.fs.setDoc(window.fs.doc(window.db, "rooms", roomId, "signals", myUid + "_to_" + remoteUid), {
+            from: myUid,
+            to: remoteUid,
+            offer: JSON.parse(JSON.stringify(offer)),
+            timestamp: Date.now()
+          });
+          wrtcLog(`重新協商 Offer 已送出 → ${remoteUid}`);
+        } catch (err) {
+          console.error(`重新協商失敗 (${remoteUid}):`, err);
         }
       }
     }
@@ -3445,17 +3459,35 @@
     async function handleIncomingOffer(roomId, fromUid, offer) {
       wrtcLog(`收到 Offer ← ${fromUid}`);
 
-      // 如果之前已經有一條連線（例如對方啱啱重新入房，呢個係一次全新嘅協商），
-      // 為咗避免新舊 SDP 混淆搞亂晒，直接捨棄舊連線，乾淨咁用新 offer 重新建立
-      const existing = state.peerConnections[fromUid];
-      if (existing) {
-        wrtcLog(`與 ${fromUid} 已經有舊連線，捨棄並用新 Offer 重新建立`);
-        existing.close();
-        delete state.peerConnections[fromUid];
-      }
+      const myUid = window.currentUser.uid;
+      // 撞正兩邊同時重新協商（glare）時邊個讓步嘅 tie-break：UID 較大嘅一方係
+      // 「polite」，會捨棄自己未完成嘅 Offer 改為接受對方嗰個；UID 較細嗰位
+      // 係「impolite」，會堅持自己嘅 Offer、忽略呢個撞埋嚟嘅對方 Offer。
+      const polite = myUid > fromUid;
 
-      const pc = createPeerConnection(fromUid, null);
-      state.peerConnections[fromUid] = pc;
+      let pc = state.peerConnections[fromUid];
+      const isDead = pc && (pc.connectionState === 'failed' || pc.connectionState === 'closed');
+
+      if (!pc || isDead) {
+        // 之前呢度不論任何情況，一收到 Offer 就無條件關咗舊連線再重新建立，
+        // 結果連「純粹加多條 track 嘅重新協商」都會被當成「對方重新入房」，
+        // 令已經傾掂、運作緊嘅連線白白斷咗再重連一次。而家只喺完全冇連線，
+        // 或者舊連線已經死咗（failed／closed，即真係代表對方重新入房）嗰陣，
+        // 先重新建立；如果連線仲生生猛猛，就沿用返同一個 pc 做正常重新協商。
+        if (pc) {
+          wrtcLog(`與 ${fromUid} 嘅舊連線已經死咗，捨棄並用新 Offer 重新建立`);
+          pc.close();
+        }
+        pc = createPeerConnection(fromUid, null);
+        state.peerConnections[fromUid] = pc;
+      } else if (pc.signalingState === 'have-local-offer') {
+        if (!polite) {
+          wrtcLog(`⚠️ 與 ${fromUid} 嘅重新協商撞正，我方 UID 較細，忽略對方呢個 Offer`);
+          return;
+        }
+        wrtcLog(`⚠️ 與 ${fromUid} 嘅重新協商撞正，我方讓步，捨棄自己未完成嘅 Offer`);
+        await pc.setLocalDescription({ type: 'rollback' });
+      }
 
       try {
         await pc.setRemoteDescription(new RTCSessionDescription(offer));
