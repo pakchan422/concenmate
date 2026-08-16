@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.3.2"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.3.3"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -666,7 +666,6 @@
         <button class="nav-btn active" id="nav-btn-home" type="button" onclick="switchTab('home', this)">🏠 <span class="nav-text">主頁</span></button>
         <button class="nav-btn" id="nav-btn-room" type="button" onclick="switchTab('room', this)">📹 <span class="nav-text">視訊溫習室</span></button>
         <button class="nav-btn" id="nav-btn-qa" type="button" onclick="switchTab('qa', this)">❓ <span class="nav-text">疑難解答區</span></button>
-        <button class="nav-btn" id="nav-btn-profile" type="button" onclick="switchTab('profile', this)">👤 <span class="nav-text">個人檔案編輯</span></button>
         <button class="nav-btn" id="nav-btn-vip" type="button" onclick="switchTab('vip', this)">👑 <span class="nav-text">溫習資源 & VIP</span></button>
         <button class="nav-btn" id="nav-btn-store" type="button" onclick="switchTab('store', this)">🎁 <span class="nav-text">時數兌換所</span></button>
         <button class="nav-btn" id="nav-btn-social" type="button" onclick="switchTab('social', this)">👥 <span class="nav-text">夥伴與讀書會</span></button>
@@ -1388,6 +1387,38 @@
     </div>
   </div>
 
+  <!-- 撳自己個名彈出嘅「我的帳號」資料卡（睇資料為主，編輯要撳裡面嗰粒掣） -->
+  <div class="modal-backdrop" id="modal-my-account" style="display:none;">
+    <div class="modal-box" style="text-align:center;">
+      <div class="avatar-circle" style="margin:0 auto 10px; width:64px; height:64px; font-size:26px; background:var(--brand-500); border-color:var(--brand-200);" id="myacc-avatar">A</div>
+      <h3 style="font-size:18px; font-weight:bold; color:var(--brand-800);" id="myacc-username">同學</h3>
+      <p style="font-size:12px; color:#888; margin-bottom:8px;" id="myacc-email"></p>
+
+      <div style="margin-bottom:12px;">
+        <div id="myacc-level-badge" style="font-size:15px; font-weight:bold;">🌱 Lv.1 溫習新手</div>
+        <div style="background:#E5EEF0; border-radius:8px; height:8px; margin-top:6px; overflow:hidden;">
+          <div id="myacc-exp-bar" style="background:linear-gradient(90deg,#4A8FA0,#7DB8C5); height:100%; width:0%; transition:width .4s ease;"></div>
+        </div>
+        <div id="myacc-exp-text" style="font-size:11px; color:#999; margin-top:3px;"></div>
+      </div>
+
+      <div style="background:var(--brand-50); border:1px solid var(--brand-200); border-radius:12px; padding:12px; text-align:left; font-size:14px; display:flex; flex-direction:column; gap:6px; margin-bottom:14px;">
+        <div><strong>🏫 就讀學校：</strong><span id="myacc-school">未填寫</span></div>
+        <div><strong>🎓 現時年級：</strong><span id="myacc-grade">未填寫</span></div>
+        <div><strong>❤️ 喜愛學科：</strong><span id="myacc-fav">未填寫</span></div>
+        <div><strong>💔 討厭學科：</strong><span id="myacc-dislike">未填寫</span></div>
+        <div><strong>⏱️ 累積時數：</strong><span id="myacc-hours">0.0 小時</span></div>
+        <div><strong>🪙 積分：</strong><span id="myacc-points">0 PTS</span></div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <button class="btn btn-primary" type="button" style="width:100%; justify-content:center;" onclick="goEditProfileFromAccountModal()">✏️ 編輯個人資料</button>
+        <button class="btn btn-red" type="button" style="width:100%; justify-content:center;" onclick="closeModal('modal-my-account'); logoutWithFirebase();">🚪 登出帳號</button>
+        <button class="btn btn-outline" type="button" style="width:100%; justify-content:center;" onclick="closeModal('modal-my-account')">關閉</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="modal-quiz" style="display:none;">
     <div class="modal-box" style="text-align:center;">
       <div style="font-size:36px;">🦦⚡</div>
@@ -1623,12 +1654,50 @@
 
     function handleHeaderUserClick() {
       if (window.currentUser) {
-        switchTab('profile');
+        openMyAccountModal();
       } else {
         openModal('modal-login');
       }
     }
     window.handleHeaderUserClick = handleHeaderUserClick;
+
+    // 撳自己個名彈出「我的帳號」資料卡：睇返自己嘅等級/積分/資料，
+    // 想真正修改資料就要撳入面嗰粒「✏️ 編輯個人資料」先會去返編輯頁面。
+    function openMyAccountModal() {
+      if (!window.currentUser) { openModal('modal-login'); return; }
+      const u = window.currentUser;
+      const setText = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
+
+      setText('myacc-avatar', (u.username || 'U').charAt(0).toUpperCase());
+      setText('myacc-username', u.username || '同學');
+      setText('myacc-email', u.email || '—');
+      setText('myacc-school', u.school || '未填寫');
+      setText('myacc-grade', u.grade || '未填寫');
+      setText('myacc-fav', u.favSubjects || '未填寫');
+      setText('myacc-dislike', u.dislikeSubjects || '未填寫');
+      setText('myacc-hours', (u.hours || '0.0') + ' 小時');
+      setText('myacc-points', (u.points ?? 0) + ' PTS');
+
+      const info = calcLevelInfo(u.exp || 0);
+      const rank = getRankTitle(info.level);
+      const levelBadge = document.getElementById('myacc-level-badge');
+      if (levelBadge) {
+        levelBadge.innerText = `${rank.emoji} Lv.${info.level} ${rank.title}`;
+        levelBadge.style.color = rank.color;
+      }
+      const expBar = document.getElementById('myacc-exp-bar');
+      if (expBar) expBar.style.width = info.pctToNext + '%';
+      setText('myacc-exp-text', `${info.expIntoLevel} / ${info.expNeededForNext} EXP · 重欠 ${info.expRemaining} EXP 升級`);
+
+      openModal('modal-my-account');
+    }
+    window.openMyAccountModal = openMyAccountModal;
+
+    function goEditProfileFromAccountModal() {
+      closeModal('modal-my-account');
+      switchTab('profile');
+    }
+    window.goEditProfileFromAccountModal = goEditProfileFromAccountModal;
 
     // 產生一個飄浮嘅表情動畫，放入指定嘅容器（自己或其他人嘅視訊卡片皆可用）
     function spawnSticker(container, emoji) {
