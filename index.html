@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.2.6"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.2.7"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -1089,6 +1089,12 @@
               </button>
             </form>
           </div>
+
+          <div class="card" style="margin-top:16px;">
+            <h3 style="font-size:15px; font-weight:bold; margin-bottom:10px;">🎁 我的中獎記錄</h3>
+            <div id="profile-gacha-history-list" style="display:flex; flex-direction:column; gap:6px; font-size:13px;"></div>
+            <p id="profile-gacha-history-empty" style="display:none; text-align:center; color:#999; font-size:13px; padding:10px;">你仲未扭過蛋，去「時數兌換所」試吓手氣啦！</p>
+          </div>
         </section>
 
         <section id="tab-vip" class="tab-content">
@@ -1980,7 +1986,9 @@
       syncGachaPtsDisplay();
 
       // 隱藏上次結果
-      document.getElementById('gacha-result-box').style.display = 'none';
+      const resultBox = document.getElementById('gacha-result-box');
+      resultBox.style.display = 'none';
+      clearTimeout(window._gachaResultAutoCloseTimer);
 
       // 扭蛋機震動動畫
       const machine = document.getElementById('gacha-machine');
@@ -1988,37 +1996,15 @@
       void machine.offsetWidth; // reflow to restart animation
       machine.classList.add('gacha-shaking');
 
-      // 膠囊飛出動畫
-      const capsuleAnim = document.getElementById('gacha-capsule-anim');
-      const capsuleInner = document.getElementById('gacha-capsule-inner');
-      capsuleInner.innerText = '🥚';
-      capsuleAnim.style.opacity = '1';
-      capsuleAnim.style.animation = 'none';
-      void capsuleAnim.offsetWidth;
-      capsuleAnim.style.animation = 'gacha-bounce 0.7s ease 0.3s both';
-
-      // 等動畫完成
-      await new Promise(r => setTimeout(r, 1000));
+      // 等震動動畫完成
+      await new Promise(r => setTimeout(r, 500));
 
       // 抽獎
       const prize = gachaRoll(type);
 
-      // 變成獎品表情 + 旋轉
-      capsuleInner.innerText = prize.emoji;
-      capsuleInner.classList.remove('gacha-spinning');
-      void capsuleInner.offsetWidth;
-      capsuleInner.classList.add('gacha-spinning');
-
-      await new Promise(r => setTimeout(r, 700));
-      capsuleAnim.style.opacity = '0';
-
-      // 顯示結果
-      const resultBox = document.getElementById('gacha-result-box');
+      // 顯示結果（唔再有膠囊彈出/旋轉動畫，震動完即刻顯示結果）
       resultBox.style.background = prize.bg;
       resultBox.style.borderColor = prize.tierColor;
-      resultBox.style.animation = 'none';
-      void resultBox.offsetWidth;
-      resultBox.style.animation = 'gacha-pop-center .4s ease';
       resultBox.style.display = 'block';
       // 如果管理員有幫呢個獎品上傳圖片，優先展示相片；冇嘅話就繼續用返 emoji
       const resultEmojiEl = document.getElementById('gacha-result-emoji');
@@ -2033,6 +2019,11 @@
       document.getElementById('gacha-result-name').innerText = prize.name;
       document.getElementById('gacha-result-desc').innerText = prize.desc;
 
+      // 5 秒後自動關閉結果彈出視窗
+      window._gachaResultAutoCloseTimer = setTimeout(() => {
+        resultBox.style.display = 'none';
+      }, 5000);
+
       // 傳說獎撒花
       if (prize.tier === '傳說獎') {
         window.showToast(`🎊 恭喜！抽到傳說獎「${prize.name}」！！`, '👑');
@@ -2040,8 +2031,70 @@
         window.showToast(`✨ 稀有！抽到「${prize.name}」！`, '💎');
       }
 
-      // 加入歷史記錄
+      // 加入歷史記錄（本頁顯示 + 儲存去 Firestore 俾個人資料頁查閱）
       addGachaHistory(prize, type);
+      saveGachaHistoryToFirestore(prize, type);
+    };
+
+    // 將中獎記錄寫入 Firestore，俾用家可以喺「個人資料」頁隨時查返自己嘅中獎記錄
+    async function saveGachaHistoryToFirestore(prize, type) {
+      try {
+        if (!window.currentUser || !window.currentUser.uid || !window.fs || !window.db) return;
+        await window.fs.addDoc(
+          window.fs.collection(window.db, 'users', window.currentUser.uid, 'gachaHistory'),
+          {
+            tier: prize.tier || '',
+            name: prize.name || '',
+            desc: prize.desc || '',
+            emoji: prize.emoji || '🎁',
+            tierColor: prize.tierColor || '#2F6070',
+            type: type,
+            cost: GACHA_COST[type] || 0,
+            ts: Date.now()
+          }
+        );
+      } catch (e) {
+        console.error('儲存中獎記錄失敗', e);
+      }
+    }
+
+    // 載入並顯示目前用家自己嘅中獎記錄（喺「個人資料」分頁使用）
+    window.loadMyGachaHistory = async function() {
+      const listEl = document.getElementById('profile-gacha-history-list');
+      const emptyEl = document.getElementById('profile-gacha-history-empty');
+      if (!listEl) return;
+      if (!window.currentUser || !window.currentUser.uid || !window.fs || !window.db) {
+        listEl.innerHTML = '';
+        if (emptyEl) emptyEl.style.display = 'block';
+        return;
+      }
+      listEl.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:10px;">載入緊中獎記錄...</p>';
+      if (emptyEl) emptyEl.style.display = 'none';
+      try {
+        const snap = await window.fs.getDocs(window.fs.collection(window.db, 'users', window.currentUser.uid, 'gachaHistory'));
+        let entries = snap.docs.map(d => d.data());
+        entries.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+        entries = entries.slice(0, 30);
+        if (entries.length === 0) {
+          listEl.innerHTML = '';
+          if (emptyEl) emptyEl.style.display = 'block';
+          return;
+        }
+        listEl.innerHTML = entries.map(e => {
+          const time = e.ts ? new Date(e.ts).toLocaleString('zh-HK', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+          return `
+            <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px; background:#F0F6F8; border:1px solid #B3D6DE55;">
+              <span style="font-size:20px;">${escapeHtml(e.emoji || '🎁')}</span>
+              <div style="flex:1;">
+                <strong style="color:${escapeHtml(e.tierColor || '#2F6070')};">${escapeHtml(e.tier || '')}</strong> · ${escapeHtml(e.name || '')}
+                <div style="color:#7DB8C5; font-size:10px;">${e.type === 'lucky' ? '✨ 幸運扭蛋' : '🎰 普通扭蛋'} · ${time} · -${e.cost || 0} PTS</div>
+              </div>
+            </div>`;
+        }).join('');
+      } catch (e) {
+        console.error('載入中獎記錄失敗', e);
+        listEl.innerHTML = '<p style="text-align:center; color:#e55; font-size:13px; padding:10px;">載入中獎記錄失敗，請稍後再試</p>';
+      }
     };
 
     function addGachaHistory(prize, type) {
@@ -2065,12 +2118,13 @@
       while (list.children.length > 10) list.removeChild(list.lastChild);
     }
 
-    // 切換到 store tab 時更新積分顯示
+    // 切換到 store tab 時更新積分顯示；切換到 profile tab 時載入中獎記錄
     const _origSwitchTab = window.switchTab;
     if (typeof _origSwitchTab === 'function') {
       window.switchTab = function(tab, el) {
         _origSwitchTab(tab, el);
         if (tab === 'store') syncGachaPtsDisplay();
+        if (tab === 'profile') window.loadMyGachaHistory();
       };
     }
 
