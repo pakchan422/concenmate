@@ -457,30 +457,90 @@
     .home-feature-btn .btn-label { font-size: 15px; font-weight: 700; line-height: 1.2; }
     .home-feature-btn .btn-sub { font-size: 12px; opacity: .82; font-weight: 400; margin-top: 2px; }
 
-    /* 主頁兩欄版面 */
-    .home-layout {
-      display: grid;
-      grid-template-columns: auto 1fr;  /* 左欄：按鈕格自然寬度；右欄：填滿剩餘空間 */
-      gap: 20px;
-      align-items: start;
+    /* ── 主頁 Hero ── */
+    .home-hero {
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+      background: linear-gradient(135deg, #4A8FA0, #2F6070);
+      border-radius: 20px; padding: 18px 24px; margin-bottom: 16px; color: white;
     }
-    .home-right-col {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
+    .home-hero-left { display: flex; align-items: center; gap: 14px; }
+    .home-hero-greeting { font-size: 20px; font-weight: 800; letter-spacing: -.3px; }
+    .home-hero-sub { font-size: 13px; opacity: .8; margin-top: 2px; }
+    .home-hero-stats { display: flex; gap: 10px; flex-wrap: wrap; }
+    .home-stat-pill {
+      display: flex; align-items: center; gap: 8px;
+      background: rgba(255,255,255,.18); border-radius: 14px; padding: 8px 14px;
     }
-    .home-welcome-card {
-      background: linear-gradient(135deg, #7DB8C5, #4A8FA0);
-      border-radius: 20px;
-      padding: 20px;
-      color: white;
-      display: flex;
-      align-items: center;
-      gap: 16px;
+    .home-stat-icon { font-size: 20px; }
+    .home-stat-val { font-size: 16px; font-weight: 800; line-height: 1; }
+    .home-stat-label { font-size: 10px; opacity: .75; margin-top: 1px; }
+    /* ── 主體兩欄 ── */
+    .home-body {
+      display: grid; grid-template-columns: 1fr 290px; gap: 14px; align-items: start;
     }
-    @media (max-width: 640px) {
-      .home-layout { grid-template-columns: 1fr; }  /* 手機單欄：按鈕在上，資訊在下 */
-      .home-feature-grid { grid-template-columns: repeat(3, 1fr); max-width: none; }
+    .home-main-col { display: flex; flex-direction: column; gap: 12px; }
+    .home-side-col { display: flex; flex-direction: column; gap: 12px; }
+    .home-side-card {
+      background: white; border: 1px solid var(--brand-200); border-radius: 16px; padding: 14px 16px;
+    }
+    .home-side-card-head { display: flex; align-items: center; gap: 10px; }
+    /* ── 主打功能卡 ── */
+    .home-primary-card {
+      display: flex; align-items: center; gap: 16px; width: 100%;
+      border: 1.5px solid var(--brand-200); cursor: pointer; text-align: left;
+      background: linear-gradient(135deg, #EAE6E1, #D5CFC7);
+      border-radius: 18px; padding: 18px 20px;
+      transition: transform .15s, box-shadow .15s;
+    }
+    .home-primary-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(74,143,160,.18); }
+    .home-primary-icon { font-size: 36px; flex-shrink: 0; }
+    .home-primary-title { font-size: 17px; font-weight: 800; color: var(--brand-800); }
+    .home-primary-desc { font-size: 13px; color: var(--brand-600); margin-top: 3px; }
+    .home-primary-badge {
+      margin-left: auto; flex-shrink: 0; background: #4A8FA0; color: white;
+      font-size: 12px; font-weight: 700; padding: 6px 14px; border-radius: 20px;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .live-dot {
+      width: 7px; height: 7px; border-radius: 50%; background: #86EFAC;
+      box-shadow: 0 0 0 2px rgba(134,239,172,.4); animation: pulse-live 1.5s ease infinite;
+      display: inline-block;
+    }
+    @keyframes pulse-live {
+      0%,100% { box-shadow: 0 0 0 2px rgba(134,239,172,.4); }
+      50%      { box-shadow: 0 0 0 5px rgba(134,239,172,.1); }
+    }
+    /* ── 次要功能 2×2 ── */
+    .home-secondary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .home-sec-card {
+      background: white; border: 1.5px solid var(--brand-200); border-radius: 16px;
+      padding: 14px 16px; cursor: pointer; text-align: left;
+      transition: transform .15s, box-shadow .15s, border-color .15s;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .home-sec-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(74,143,160,.14); border-color: var(--brand-300); }
+    .home-sec-head { display: flex; align-items: center; gap: 6px; }
+    .home-sec-icon { font-size: 24px; }
+    .home-sec-badge { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px; background: #FDA4AF; color: #881337; }
+    .home-sec-title { font-size: 13px; font-weight: 700; color: var(--brand-800); }
+    .home-sec-desc { font-size: 11px; color: var(--brand-600); }
+    /* ── 快速功能 ── */
+    .home-quick-btn {
+      display: block; width: 100%; text-align: left; background: none; border: none;
+      cursor: pointer; font-size: 13px; color: var(--brand-700); font-weight: 600;
+      padding: 7px 10px; border-radius: 8px; transition: background .12s;
+    }
+    .home-quick-btn:hover { background: var(--brand-100); }
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      .home-body { grid-template-columns: 1fr; }
+      .home-side-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    }
+    @media (max-width: 540px) {
+      .home-hero { flex-direction: column; align-items: flex-start; }
+      .home-hero-stats { width: 100%; }
+      .home-primary-badge { display: none; }
+      .home-side-col { grid-template-columns: 1fr; }
     }
     .clickable-user { text-decoration: underline; cursor: pointer; color: #3E7A8A; }
 
@@ -630,102 +690,145 @@
         <!-- ===== 主頁 ===== -->
         <section id="tab-home" class="tab-content active">
 
-          <!-- 歡迎卡片：全寬，在按鈕上方 -->
-          <div class="home-welcome-card" style="margin-bottom:16px;">
-            <div style="flex-shrink:0;"><img src="logo.png" width="60" height="60" alt="ConcenMate" style="border-radius:50%; object-fit:cover; flex-shrink:0;"></div>
-            <div>
-              <div style="font-size:19px; font-weight:800; letter-spacing:-.3px;">
-                你好，<span id="home-username">同學</span>！
+          <!-- ── Hero 歡迎列 ── -->
+          <div class="home-hero">
+            <div class="home-hero-left">
+              <img src="logo.png" width="52" height="52" alt="ConcenMate"
+                style="border-radius:50%; object-fit:cover; flex-shrink:0; border:2px solid rgba(255,255,255,.4);">
+              <div>
+                <div class="home-hero-greeting">你好，<span id="home-username">同學</span>👋</div>
+                <div class="home-hero-sub">今日準備好溫習了嗎？</div>
               </div>
-              <div style="font-size:13px; opacity:.85; margin-top:3px;">準備好今日嘅溫習了嗎？</div>
-              <div style="display:flex; gap:12px; margin-top:10px; font-size:13px;">
-                <span style="background:rgba(255,255,255,.28); padding:3px 10px; border-radius:20px;">
-                  ⏱️ <span id="home-stat-hours">0.0</span>h
-                </span>
-                <span style="background:rgba(255,255,255,.28); padding:3px 10px; border-radius:20px;">
-                  🪙 <span id="home-stat-pts">0</span> PTS
-                </span>
+            </div>
+            <div class="home-hero-stats">
+              <div class="home-stat-pill">
+                <span class="home-stat-icon">⏱️</span>
+                <div>
+                  <div class="home-stat-val"><span id="home-stat-hours">0.0</span>h</div>
+                  <div class="home-stat-label">本日時數</div>
+                </div>
+              </div>
+              <div class="home-stat-pill">
+                <span class="home-stat-icon">🪙</span>
+                <div>
+                  <div class="home-stat-val"><span id="home-stat-pts">0</span></div>
+                  <div class="home-stat-label">積分</div>
+                </div>
+              </div>
+              <div class="home-stat-pill" id="home-stat-streak-pill">
+                <span class="home-stat-icon">🔥</span>
+                <div>
+                  <div class="home-stat-val" id="home-stat-streak">1</div>
+                  <div class="home-stat-label">連續天</div>
+                </div>
               </div>
             </div>
           </div>
 
-          <!-- 功能按鈕格 + 右側小測驗（桌面兩欄，手機單欄） -->
-          <div class="home-layout">
-            <div>
-              <div class="home-feature-grid">
+          <!-- ── 主體兩欄 ── -->
+          <div class="home-body">
 
-                <button class="home-feature-btn" style="background:linear-gradient(135deg,var(--tone-a),var(--tone-a-d)); color:#1E4550;"
-                  onclick="switchTab('room')">
-                  <span class="btn-icon">📹</span>
-                  <div>
-                    <div class="btn-label">視訊溫習室</div>
-                    <div class="btn-sub">加入房間，一起專注</div>
+            <!-- 左欄：功能卡 -->
+            <div class="home-main-col">
+
+              <!-- 主打功能：視訊溫習室 -->
+              <button class="home-primary-card" onclick="switchTab('room')">
+                <div class="home-primary-icon">📹</div>
+                <div class="home-primary-text">
+                  <div class="home-primary-title">視訊溫習室</div>
+                  <div class="home-primary-desc">與同學一起專注溫習，每分鐘賺取積分</div>
+                </div>
+                <div class="home-primary-badge" id="home-room-badge">
+                  <span class="live-dot"></span>立即加入
+                </div>
+              </button>
+
+              <!-- 次要功能 2×2 格 -->
+              <div class="home-secondary-grid">
+
+                <button class="home-sec-card" onclick="switchTab('qa')">
+                  <div class="home-sec-head">
+                    <span class="home-sec-icon">❓</span>
+                    <span class="home-sec-badge" id="home-qa-badge" style="display:none;"></span>
                   </div>
+                  <div class="home-sec-title">疑難解答區</div>
+                  <div class="home-sec-desc">發問 · 回答 · 共同進步</div>
                 </button>
 
-                <button class="home-feature-btn" style="background:linear-gradient(135deg,var(--tone-b),var(--tone-b-d)); color:#1E4550;"
-                  onclick="switchTab('store')">
-                  <span class="btn-icon">🎰</span>
-                  <div>
-                    <div class="btn-label">扭蛋機兌換所</div>
-                    <div class="btn-sub">用積分抽大獎</div>
+                <button class="home-sec-card" onclick="switchTab('store')">
+                  <div class="home-sec-head">
+                    <span class="home-sec-icon">🎰</span>
+                    <span class="home-sec-badge" id="home-gacha-badge" style="display:none; background:#4A8FA0; color:white;">可扭蛋</span>
                   </div>
+                  <div class="home-sec-title">扭蛋機兌換所</div>
+                  <div class="home-sec-desc">用積分抽取學習大獎</div>
                 </button>
 
-                <button class="home-feature-btn" style="background:linear-gradient(135deg,var(--tone-c),var(--tone-c-d)); color:#1E4550;"
-                  onclick="switchTab('qa')">
-                  <span class="btn-icon">❓</span>
-                  <div>
-                    <div class="btn-label">疑難解答區</div>
-                    <div class="btn-sub">有問題就發問</div>
+                <button class="home-sec-card" onclick="switchTab('social')">
+                  <div class="home-sec-head">
+                    <span class="home-sec-icon">👥</span>
                   </div>
+                  <div class="home-sec-title">夥伴與讀書會</div>
+                  <div class="home-sec-desc">揾書友，一齊讀</div>
                 </button>
 
-                <button class="home-feature-btn" style="background:linear-gradient(135deg,var(--tone-d),var(--tone-d-d)); color:#1E4550;"
-                  onclick="switchTab('vip')">
-                  <span class="btn-icon">👑</span>
-                  <div>
-                    <div class="btn-label">溫習資源 & VIP</div>
-                    <div class="btn-sub">精選筆記及升級</div>
+                <button class="home-sec-card" onclick="switchTab('vip')">
+                  <div class="home-sec-head">
+                    <span class="home-sec-icon">👑</span>
                   </div>
-                </button>
-
-                <button class="home-feature-btn" style="background:linear-gradient(135deg,var(--tone-e),var(--tone-e-d)); color:#1E4550;"
-                  onclick="switchTab('social')">
-                  <span class="btn-icon">👥</span>
-                  <div>
-                    <div class="btn-label">夥伴與讀書會</div>
-                    <div class="btn-sub">揾書友一齊讀</div>
-                  </div>
-                </button>
-
-                <button class="home-feature-btn" style="background:linear-gradient(135deg,var(--tone-f),var(--tone-f-d)); color:white;"
-                  onclick="switchTab('profile')">
-                  <span class="btn-icon">👤</span>
-                  <div>
-                    <div class="btn-label">個人檔案</div>
-                    <div class="btn-sub">編輯個人資料</div>
-                  </div>
+                  <div class="home-sec-title">溫習資源 & VIP</div>
+                  <div class="home-sec-desc">精選筆記及升級方案</div>
                 </button>
 
               </div>
             </div>
 
-            <div class="home-right-col">
-              <div style="background:var(--brand-50); border:1px solid var(--brand-200); border-radius:16px; padding:14px 16px; display:flex; align-items:center; gap:12px;">
-                <div style="font-size:28px;">🧠</div>
-                <div style="flex:1;">
-                  <div style="font-size:14px; font-weight:700; color:var(--brand-800);">Ottiee 防瞌睡小測驗</div>
-                  <div style="font-size:13px; color:#3E7A8A; margin-top:2px;">隨機一題，保持精神！</div>
+            <!-- 右欄：動態資訊 -->
+            <div class="home-side-col">
+
+              <!-- 防瞌睡小測驗 -->
+              <div class="home-side-card">
+                <div class="home-side-card-head">
+                  <span style="font-size:20px;">🧠</span>
+                  <div>
+                    <div style="font-size:14px; font-weight:700; color:var(--brand-800);">Ottiee 防瞌睡測驗</div>
+                    <div style="font-size:12px; color:var(--brand-600);">隨機一題，保持精神！</div>
+                  </div>
+                  <button class="btn btn-primary" type="button"
+                    style="font-size:13px; padding:5px 14px; margin-left:auto; flex-shrink:0;"
+                    onclick="triggerQuiz()">開始</button>
                 </div>
-                <button class="btn btn-primary" type="button" style="font-size:13px; padding:6px 12px; flex-shrink:0;" onclick="triggerQuiz()">
-                  開始
-                </button>
               </div>
+
+              <!-- 積分進度 -->
+              <div class="home-side-card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                  <span style="font-size:14px; font-weight:700; color:var(--brand-800);">🎯 今日目標</span>
+                  <span style="font-size:12px; color:var(--brand-600);" id="home-goal-label">0 / 60 分鐘</span>
+                </div>
+                <div style="background:var(--brand-200); border-radius:99px; height:8px; overflow:hidden;">
+                  <div id="home-goal-bar" style="height:100%; background:linear-gradient(90deg,#4A8FA0,#7DB8C5); border-radius:99px; width:0%; transition:width .6s ease;"></div>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-top:6px; font-size:11px; color:#aaa;">
+                  <span>0 min</span><span>60 min</span>
+                </div>
+              </div>
+
+              <!-- 快捷入口 -->
+              <div class="home-side-card" style="padding:10px;">
+                <div style="font-size:12px; font-weight:700; color:#aaa; margin-bottom:8px; text-transform:uppercase; letter-spacing:.05em;">快速功能</div>
+                <div style="display:flex; flex-direction:column; gap:2px;">
+                  <button class="home-quick-btn" onclick="switchTab('profile')">👤 編輯個人資料</button>
+                  <button class="home-quick-btn" onclick="switchTab('verification')">🎓 學生身份驗證</button>
+                  <button class="home-quick-btn" onclick="triggerQuiz()">🧠 防瞌睡小測驗</button>
+                </div>
+              </div>
+
             </div>
           </div>
 
         </section>
+
 
         <!-- ===== 視訊溫習室 ===== -->
         <section id="tab-room" class="tab-content">
@@ -1372,6 +1475,20 @@
         if (homeUser) homeUser.innerText = displayName;
         if (homeHours) homeHours.innerText = window.currentUser.hours || '0.0';
         if (homePts) homePts.innerText = window.currentUser.points ?? 0;
+
+        // 動態徽章：積分夠扭蛋就提示
+        const pts = window.currentUser.points ?? 0;
+        const gachaBadge = document.getElementById('home-gacha-badge');
+        if (gachaBadge) gachaBadge.style.display = pts >= 30 ? 'inline-block' : 'none';
+
+        // 今日目標進度條（以今日溫習時數/60分鐘計）
+        const hoursToday = parseFloat(window.currentUser.hours ?? 0);
+        const minsToday = hoursToday * 60;
+        const pct = Math.min(100, (minsToday / 60) * 100).toFixed(1);
+        const goalBar = document.getElementById('home-goal-bar');
+        const goalLabel = document.getElementById('home-goal-label');
+        if (goalBar) goalBar.style.width = pct + '%';
+        if (goalLabel) goalLabel.innerText = `${Math.round(minsToday)} / 60 分鐘`;
 
         document.getElementById('prof-username').value = window.currentUser.username || '';
         document.getElementById('prof-email').value = window.currentUser.email || '';
