@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.3.1"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.3.2"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -4021,7 +4021,6 @@
           <h1 style="font-size:20px; font-weight:bold; color:var(--brand-800);">⚙️ ConcenMate 管理後台</h1>
           <p style="font-size:12px; color:#888; margin-top:2px;" id="admin-panel-user-email"></p>
         </div>
-        <button class="btn btn-outline" type="button" onclick="window.location.hash=''">🏠 返回主頁</button>
       </div>
 
       <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;" id="admin-tab-nav">
@@ -4083,6 +4082,21 @@
     // 網址 hash 路由：#admin 先顯示管理後台，離開就切返正常介面。
     // 未登入／auth 仲未 resolve 之前 window.currentUser 係 undefined，
     // 呢度會短時間輪詢等一等，避免一入嚟就即刻誤判做「冇權限」。
+    // 頭部「⚙️ 管理後台」按鈕：喺管理後台入面就變成「🏠 返回主頁」，唔使再靠
+    // 後台入面嗰粒獨立返回鍵（已移除），減少畫面重複嘅按鈕。
+    function setHeaderAdminBtnMode(isOnAdminPage) {
+      const btn = document.getElementById('header-admin-btn');
+      if (!btn) return;
+      if (isOnAdminPage) {
+        btn.setAttribute('onclick', "window.location.hash=''");
+        btn.innerHTML = `🏠 <span class="header-admin-text">返回主頁</span>`;
+      } else {
+        btn.setAttribute('onclick', "window.location.hash='admin'");
+        btn.innerHTML = `⚙️ <span class="header-admin-text">管理後台</span>`;
+      }
+    }
+    window.setHeaderAdminBtnMode = setHeaderAdminBtnMode;
+
     function checkAdminHashRoute() {
       const wantsAdmin = window.location.hash === '#admin';
       const appEl = document.querySelector('.app-container');
@@ -4096,6 +4110,7 @@
         if (adminRoomsUnsubscribe) { adminRoomsUnsubscribe(); adminRoomsUnsubscribe = null; }
         if (adminQaUnsubscribe) { adminQaUnsubscribe(); adminQaUnsubscribe = null; }
         if (adminUsersUnsubscribe) { adminUsersUnsubscribe(); adminUsersUnsubscribe = null; }
+        setHeaderAdminBtnMode(false);
         return;
       }
 
@@ -4115,6 +4130,7 @@
       if (appEl) appEl.style.display = 'none';
       if (deniedEl) deniedEl.style.display = 'none';
       if (adminEl) adminEl.style.display = 'block';
+      setHeaderAdminBtnMode(true);
 
       const emailTag = document.getElementById('admin-panel-user-email');
       if (emailTag) emailTag.innerText = `登入身份：${window.currentUser.email}`;
