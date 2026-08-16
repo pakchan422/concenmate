@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.0.4"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.0.1"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -3038,26 +3038,38 @@
 
         // 將本地媒體軌道加入連線（如果未加過嘅話）
         const existingSenderKinds = new Set(pc.getSenders().filter(s => s.track).map(s => s.track.kind));
-        let addedNewTrack = false;
         for (const track of state.mediaStream.getTracks()) {
           if (!existingSenderKinds.has(track.kind)) {
             pc.addTrack(track, state.mediaStream);
             wrtcLog(`加入 ${track.kind} track 到與 ${remoteUid} 嘅連線`);
-            addedNewTrack = true;
           }
         }
 
-        if (!addedNewTrack) continue; // 冇新軌道要送出，唔使重新協商
+        // 判斷呢條連線係咪仲有「本機已經加咗 track 做 sender，但從未真正經
+        // Offer/Answer 協商過」嘅情況。呢個唔淨止喺岩岩呢次 call 先會出現——
+        // 例如喺 handleIncomingOffer／createPeerConnection 建立新連線嗰陣，
+        // 如果自己已經開咗鏡頭，會將現有 track 自動 addTrack 落新連線，但如果
+        // 嗰次負責主動發 Offer 嘅係對方（而對方仲未開自己鏡頭，Offer 入面
+        // 根本冇對應嘅 media m-line），咁自己呢邊自動加落嘅 track 就會停留喺
+        // 「已加咗 sender，但 transceiver.currentDirection 仍然係 null（未曾
+        // 出現喺任何一次完整協商入面）」嘅狀態，對方永遠都收唔到。所以呢度
+        // 唔可以淨係睇「岩岩呢次 call 咗 addTrack 冇」，要直接睇返 transceiver
+        // 本身有冇真正協商過先準確。
+        const needsRenegotiation = pc.getTransceivers().some(t =>
+          t.sender && t.sender.track &&
+          (t.currentDirection === null || t.currentDirection === 'recvonly' || t.currentDirection === 'inactive')
+        );
+        if (!needsRenegotiation) continue;
 
         // 之前呢度用「只有 UID 字母序較細嘅一方先可以重新協商」嚟避免雙方同時
         // 發起造成衝突，但呢個做法有個致命 bug：如果 UID 較細嗰位之後一直冇
         // 再開／關過自己嘅鏡頭或咪，佢就永遠都唔會再送 Offer，於是 UID 較大
-        // 嗰位新加入嘅視訊／音訊軌道就會永遠停留喺「已加入 sender 但未經
-        // SDP 協商」嘅狀態——對方會永遠見唔到呢個人嘅畫面（呢個正正就係
-        // 「房主見唔到某位同學鏡頭」嘅成因）。而家改為雙方都可以主動發起
-        // 重新協商，只用 signalingState 嚟避免喺傾緊嘢嗰陣重複再發一次；
-        // 如果兩邊真係撞正同時發 Offer，就交俾 handleIncomingOffer 嗰邊嘅
-        // polite/impolite 邏輯去化解（一方讓步、一方堅持）。
+        // 嗰位新加入嘅視訊／音訊軌道就會永遠停留喺未協商嘅狀態——對方會永遠
+        // 見唔到呢個人嘅畫面（呢個正正就係「房主見唔到某位同學鏡頭」嘅成因）。
+        // 而家改為雙方都可以主動發起重新協商，只用 signalingState 嚟避免喺
+        // 傾緊嘢嗰陣重複再發一次；如果兩邊真係撞正同時發 Offer，就交俾
+        // handleIncomingOffer 嗰邊嘅 polite/impolite 邏輯去化解（一方讓步、
+        // 一方堅持）。
         if (pc.signalingState !== 'stable') {
           wrtcLog(`與 ${remoteUid} 嘅連線暫時未 stable（${pc.signalingState}），跳過呢次重新協商`);
           continue;
@@ -3503,6 +3515,15 @@
           timestamp: Date.now()
         });
         wrtcLog(`Answer 已送出 → ${fromUid}`);
+
+        // 呢個 Answer 一定跟返對方個 Offer 嘅 m-line 數量／次序，唔可以喺
+        // Answer 入面私自加多啲對方冇問過嘅 media。如果自己之前已經開咗鏡頭
+        // ／咪，但對方個 Offer（例如佢仲未開自己鏡頭時發嘅）根本冇包含相應
+        // 嘅 m-line，噉自己已有嘅畫面／聲音就會停留喺「已加咗 sender 但未經
+        // 協商」嘅狀態，永遠傳唔到出去。所以呢度答完 Answer 之後，主動行多
+        // 一次 renegotiateWithPeers() 掃描一次，如果發現有track仲未真正協商
+        // 過，就即刻由自己呢邊補發一個新嘅 Offer 補上。
+        await renegotiateWithPeers();
       } catch (err) {
         console.error("處理 Offer / 建立 Answer 失敗:", err);
       }
