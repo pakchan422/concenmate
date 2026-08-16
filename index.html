@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.2.1"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.2.2"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -3966,11 +3966,23 @@
     // 管理員喺呢度改完撳「儲存」，全站用戶即時生效，唔使再改碼、推 GitHub。
     let adminGachaDraft = null;
 
+    // Firestore 個 onSnapshot 監聽係非同步嘅，一入嚟 #admin 嗰刻（尤其係
+    // 重新整理成頁之後）好可能仲未攞到最新資料返嚟。如果呢個時候就即刻用
+    // 「當下嗰吓」嘅 GACHA_PRIZES/GACHA_COST 去起草稿，就會執到程式碼入面
+    // 寫死嘅預設值，唔係你之前儲存低嗰份——睇落好似「撳完儲存但冇儲到」，
+    // 其實係讀返嗰下捉錯咗時機。用呢個 flag 確保一定要等 Firestore 真係
+    // 讀完一次先起草稿。
+    let gachaConfigLoaded = false;
+
     function renderAdminGachaTab() {
       const container = document.getElementById('admin-tab-gacha');
       if (!container) return;
 
       if (!adminGachaDraft) {
+        if (!gachaConfigLoaded) {
+          container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入緊扭蛋機設定...</p>';
+          return; // Firestore 資料一到，loadGachaConfigFromFirestore() 會自動再 render 多次
+        }
         adminGachaDraft = {
           normal: JSON.parse(JSON.stringify(GACHA_PRIZES.normal)),
           lucky: JSON.parse(JSON.stringify(GACHA_PRIZES.lucky)),
@@ -4200,8 +4212,25 @@
           if (typeof data.costNormal === 'number') GACHA_COST.normal = data.costNormal;
           if (typeof data.costLucky === 'number') GACHA_COST.lucky = data.costLucky;
         }
+        gachaConfigLoaded = true;
         applyGachaCostToUI();
-      }, (err) => console.error('讀取扭蛋機設定失敗:', err));
+        // 如果管理員岩岩好打開緊「扭蛋機獎品」呢個分頁、又仲未開始編輯
+        // （adminGachaDraft 仲係 null，即係岩岩好卡喺「載入緊...」嗰個畫面），
+        // 而家攞到資料喇，即刻幫佢用返最新（剛儲存低嗰份）資料重新 render 一次，
+        // 唔使佢自己撳一撳個分頁先會刷新
+        if (currentAdminTab === 'gacha' && !adminGachaDraft) {
+          const adminPanelEl = document.getElementById('admin-panel-container');
+          if (adminPanelEl && adminPanelEl.style.display !== 'none') {
+            renderAdminGachaTab();
+          }
+        }
+      }, (err) => {
+        console.error('讀取扭蛋機設定失敗:', err);
+        gachaConfigLoaded = true; // 唔好卡死喺「載入緊...」畫面，起碼俾程式碼入面嘅預設值可以用
+        if (typeof window.isCurrentUserAdmin === 'function' && window.isCurrentUserAdmin()) {
+          window.showToast('讀取扭蛋機設定失敗（可能係 Firestore 規則未生效）：' + (err.message || err), '⚠️');
+        }
+      });
     }
     window.loadGachaConfigFromFirestore = loadGachaConfigFromFirestore;
 
