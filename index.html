@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.2.2"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.2.3"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -4015,8 +4015,8 @@
             <td><input class="admin-input-sm" value="${escapeHtml(p.name || '')}" onchange="adminUpdateGachaField('${poolKey}',${idx},'name',this.value)"></td>
             <td><input class="admin-input-sm" value="${escapeHtml(p.desc || '')}" onchange="adminUpdateGachaField('${poolKey}',${idx},'desc',this.value)"></td>
             <td>
-              <input class="admin-input-sm" type="number" min="0" style="width:70px;" value="${p.weight || 0}" onchange="adminUpdateGachaField('${poolKey}',${idx},'weight',parseFloat(this.value)||0)">
-              <div style="font-size:10px; color:#888; margin-top:2px; white-space:nowrap;">≈ ${pct}%</div>
+              <input class="admin-input-sm" type="number" min="0" style="width:70px;" value="${p.weight || 0}" oninput="adminUpdateGachaWeightLive('${poolKey}',${idx},this.value)">
+              <div id="admin-gacha-pct-${poolKey}-${idx}" style="font-size:10px; color:#888; margin-top:2px; white-space:nowrap;">≈ ${pct}%</div>
             </td>
             <td><button class="btn btn-red" style="padding:3px 8px; font-size:11px;" onclick="adminRemoveGachaPrize('${poolKey}',${idx})">🗑️</button></td>
           </tr>
@@ -4038,7 +4038,7 @@
                 <tbody>${rows || '<tr><td colspan="7" style="text-align:center; color:#999; padding:16px;">未有獎品，撳「新增獎品」開始</td></tr>'}</tbody>
               </table>
             </div>
-            <p style="font-size:11px; color:#888; margin-top:8px;">總權重：${totalWeight}（右邊「≈ %」欄係即時計算返每個獎品實際中獎機率；撳「調整做啱好 100」會將所有權重等比例縮放到啱啱好加埋等於 100，之後嗰個 % 就會同權重數字一致）</p>
+            <p style="font-size:11px; color:#888; margin-top:8px;">總權重：<span id="admin-gacha-total-${poolKey}">${totalWeight}</span>（右邊「≈ %」欄會喺你打緊數字嗰陣即時更新，撳「調整做啱好 100」會將所有權重等比例縮放到啱啱好加埋等於 100，之後嗰個 % 就會同權重數字一致）</p>
           </div>
         `;
       }
@@ -4066,6 +4066,29 @@
     window.adminUpdateGachaField = function(poolKey, idx, field, value) {
       if (!adminGachaDraft || !adminGachaDraft[poolKey] || !adminGachaDraft[poolKey][idx]) return;
       adminGachaDraft[poolKey][idx][field] = value;
+    };
+
+    // 權重輸入格用 oninput（打緊字每一下都觸發，唔使等 blur 先算），
+    // 即時更新草稿數值，再直接用 DOM 改返個 pool 入面每一行嘅「≈ %」同
+    // 「總權重」文字——特登唔用重新 render 成個表格嘅方式，否則打緊字
+    // 嗰陣個輸入格會因為 innerHTML 被重寫而失去焦點／游標位置。
+    window.adminUpdateGachaWeightLive = function(poolKey, idx, rawValue) {
+      if (!adminGachaDraft || !adminGachaDraft[poolKey] || !adminGachaDraft[poolKey][idx]) return;
+      adminGachaDraft[poolKey][idx].weight = parseFloat(rawValue) || 0;
+
+      const pool = adminGachaDraft[poolKey];
+      const total = pool.reduce((s, p) => s + (parseFloat(p.weight) || 0), 0);
+
+      pool.forEach((p, i) => {
+        const pctEl = document.getElementById(`admin-gacha-pct-${poolKey}-${i}`);
+        if (pctEl) {
+          const pct = total > 0 ? ((parseFloat(p.weight) || 0) / total * 100).toFixed(1) : '0.0';
+          pctEl.innerText = `≈ ${pct}%`;
+        }
+      });
+
+      const totalEl = document.getElementById(`admin-gacha-total-${poolKey}`);
+      if (totalEl) totalEl.innerText = total;
     };
 
     // 讀取圖片檔案 → 縮圖 → 壓縮做 JPEG base64（同疑難解答區上傳相片用緊嘅
