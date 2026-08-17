@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.3.4"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.4.1"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -424,6 +424,23 @@
     }
     .gacha-shaking  { animation: gacha-shake .5s ease; }
     .gacha-spinning { animation: gacha-spin .6s ease; }
+
+    /* 水獺寵物：浮動/擺動動畫，心情越好個幅度越大、越快 */
+    @keyframes otter-float-happy {
+      0%, 100% { transform: translateY(0) rotate(-3deg); }
+      50%      { transform: translateY(-10px) rotate(3deg); }
+    }
+    @keyframes otter-float-neutral {
+      0%, 100% { transform: translateY(0) rotate(-2deg); }
+      50%      { transform: translateY(-5px) rotate(2deg); }
+    }
+    @keyframes otter-float-hungry {
+      0%, 100% { transform: translateY(0) rotate(-1deg); }
+      50%      { transform: translateY(-2px) rotate(1deg); }
+    }
+    .otter-mood-happy   { animation: otter-float-happy 2s ease-in-out infinite; }
+    .otter-mood-neutral { animation: otter-float-neutral 2.8s ease-in-out infinite; }
+    .otter-mood-hungry  { animation: otter-float-hungry 3.6s ease-in-out infinite; }
     .input-field { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--brand-300); background: var(--brand-50); font-size: 14px; margin-top: 4px; outline: none; transition: 0.2s; }
     .input-field:focus { border-color: var(--brand-500); background: white; box-shadow: 0 0 0 2px rgba(176,137,91,0.2); }
     
@@ -744,6 +761,63 @@
                 </div>
               </div>
             </div>
+          </div>
+
+          <!-- ── 我的水獺 Ottiee（寵物系統）── -->
+          <div class="card" id="otter-pet-card" style="text-align:center;">
+            <h3 style="font-size:15px; font-weight:bold; margin-bottom:6px; color:var(--brand-800);">🦦 我的水獺 Ottiee</h3>
+            <div id="otter-pet-wrap" class="otter-mood-happy" style="display:inline-block; margin:4px 0;">
+              <!-- 管理員如果有上傳自訂水獺相片，會優先顯示呢張相，取代下面嘅插畫 -->
+              <img id="otter-photo-img" style="display:none; width:120px; height:120px; object-fit:cover; border-radius:50%; border:3px solid #C08B57; box-shadow:0 2px 10px rgba(0,0,0,.15);" alt="我的水獺">
+              <svg id="otter-pet-svg" width="120" height="120" viewBox="0 0 140 140">
+                <!-- 尾巴 -->
+                <ellipse cx="112" cy="100" rx="18" ry="10" fill="#A9764F" transform="rotate(25 112 100)"/>
+                <!-- 身體 -->
+                <ellipse cx="70" cy="80" rx="46" ry="42" fill="#C08B57"/>
+                <!-- 肚仔 -->
+                <ellipse cx="70" cy="92" rx="28" ry="26" fill="#F3E2C7"/>
+                <!-- 前腳 -->
+                <ellipse cx="50" cy="112" rx="11" ry="8" fill="#C08B57"/>
+                <ellipse cx="90" cy="112" rx="11" ry="8" fill="#C08B57"/>
+                <!-- 耳仔 -->
+                <circle cx="42" cy="38" r="12" fill="#A9764F"/>
+                <circle cx="98" cy="38" r="12" fill="#A9764F"/>
+                <circle cx="42" cy="38" r="6" fill="#7A5636"/>
+                <circle cx="98" cy="38" r="6" fill="#7A5636"/>
+                <!-- 頭 -->
+                <ellipse cx="70" cy="55" rx="34" ry="30" fill="#C08B57"/>
+                <ellipse cx="70" cy="64" rx="20" ry="15" fill="#F3E2C7"/>
+                <!-- 鼻仔 -->
+                <ellipse cx="70" cy="60" rx="4" ry="3" fill="#5C3A22"/>
+                <!-- 開心表情 -->
+                <g id="otter-face-happy">
+                  <circle cx="58" cy="50" r="4" fill="#3A2A1B"/>
+                  <circle cx="82" cy="50" r="4" fill="#3A2A1B"/>
+                  <circle cx="50" cy="60" r="5" fill="#F2A9A0" opacity=".6"/>
+                  <circle cx="90" cy="60" r="5" fill="#F2A9A0" opacity=".6"/>
+                  <path d="M62 68 Q70 75 78 68" stroke="#5C3A22" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                </g>
+                <!-- 普通表情 -->
+                <g id="otter-face-neutral" style="display:none;">
+                  <circle cx="58" cy="50" r="4" fill="#3A2A1B"/>
+                  <circle cx="82" cy="50" r="4" fill="#3A2A1B"/>
+                  <path d="M63 70 L77 70" stroke="#5C3A22" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                </g>
+                <!-- 肚餓表情 -->
+                <g id="otter-face-hungry" style="display:none;">
+                  <path d="M53 48 Q58 53 63 48" stroke="#3A2A1B" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                  <path d="M77 48 Q82 53 87 48" stroke="#3A2A1B" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                  <path d="M62 76 Q70 69 78 76" stroke="#5C3A22" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                  <ellipse cx="48" cy="58" rx="2.5" ry="4.5" fill="#7FC7E0" opacity=".85"/>
+                </g>
+              </svg>
+            </div>
+            <div id="otter-mood-label" style="font-size:13px; font-weight:bold; color:#4A8FA0;">😊 好開心</div>
+            <div style="background:#E5EEF0; border-radius:8px; height:10px; margin:10px auto 0; max-width:260px; overflow:hidden;">
+              <div id="otter-hunger-bar" style="background:linear-gradient(90deg,#6FA96F,#A9D18E); height:100%; width:100%; transition:width .4s ease;"></div>
+            </div>
+            <div id="otter-hunger-text" style="font-size:11px; color:#999; margin-top:4px;">飽足度 100%</div>
+            <button class="btn btn-primary" type="button" style="margin-top:12px;" onclick="feedOtter()">🐟 餵食（<span id="otter-feed-cost-label">10</span> PTS）</button>
           </div>
 
           <!-- ── 主體兩欄 ── -->
@@ -1592,6 +1666,111 @@
     }
     window.updateLevelDisplay = updateLevelDisplay;
 
+    // ===================== 水獺寵物系統（Tamagotchi 式飼養）=====================
+    // 而家係 MVP：靜態水獺（純CSS浮動/擺動，未有行走同進化造型）+ 飽足度 + 餵食。
+    // 冇餵水獺會隨時間肚餓（由呢度嘅 OTTER_HUNGER_DECAY_HOURS 控制跌幾快），
+    // 餵一次會用返家用嘅 PTS 積分、飽足度即刻回滿。想改費用/跌速直接改呢兩個常數就得。
+    const OTTER_FEED_COST = 10;            // 餵一次水獺使幾多 PTS
+    const OTTER_HUNGER_DECAY_HOURS = 24;   // 由 100% 飽足跌到 0% 要幾耐（小時）
+
+    // 水獺造型設定：管理員可以喺後台上傳自訂相片取代預設插畫（Firestore admin_config/otterPet），
+    // 呢度嘅 { photo: null } 只係 Firestore 未載入完之前用嘅預設值。
+    let OTTER_CONFIG = { photo: null };
+    window.OTTER_CONFIG = OTTER_CONFIG;
+
+    function calcOtterHunger(lastFedMs) {
+      if (!lastFedMs) return 100;
+      const hoursSince = (Date.now() - lastFedMs) / (1000 * 60 * 60);
+      const hunger = 100 - (hoursSince / OTTER_HUNGER_DECAY_HOURS) * 100;
+      return Math.max(0, Math.min(100, Math.round(hunger)));
+    }
+    window.calcOtterHunger = calcOtterHunger;
+
+    function getOtterMood(hunger) {
+      if (hunger >= 60) return { key: 'happy', label: '😊 好開心', barColor: 'linear-gradient(90deg,#6FA96F,#A9D18E)' };
+      if (hunger >= 30) return { key: 'neutral', label: '😐 普普通通', barColor: 'linear-gradient(90deg,#D9A441,#E8C97A)' };
+      return { key: 'hungry', label: '😢 肚好餓', barColor: 'linear-gradient(90deg,#C0574A,#E08A7D)' };
+    }
+    window.getOtterMood = getOtterMood;
+
+    function updateOtterDisplay() {
+      if (!window.currentUser) return;
+      const hunger = calcOtterHunger(window.currentUser.otterLastFed);
+      const mood = getOtterMood(hunger);
+
+      const wrap = document.getElementById('otter-pet-wrap');
+      if (wrap) wrap.className = 'otter-mood-' + mood.key;
+
+      // 管理員如果上傳咗自訂水獺相片，就用返嗰張相；冇嘅話用返預設插畫（會有心情表情變化）
+      const photoImg = document.getElementById('otter-photo-img');
+      const svgEl = document.getElementById('otter-pet-svg');
+      const customPhoto = window.OTTER_CONFIG && window.OTTER_CONFIG.photo;
+      if (customPhoto) {
+        if (photoImg) { photoImg.src = customPhoto; photoImg.style.display = 'block'; }
+        if (svgEl) svgEl.style.display = 'none';
+      } else {
+        if (photoImg) photoImg.style.display = 'none';
+        if (svgEl) svgEl.style.display = '';
+      }
+
+      ['happy', 'neutral', 'hungry'].forEach(k => {
+        const g = document.getElementById('otter-face-' + k);
+        if (g) g.style.display = (k === mood.key) ? '' : 'none';
+      });
+
+      const moodLabel = document.getElementById('otter-mood-label');
+      if (moodLabel) moodLabel.innerText = mood.label;
+
+      const hungerBar = document.getElementById('otter-hunger-bar');
+      if (hungerBar) { hungerBar.style.width = hunger + '%'; hungerBar.style.background = mood.barColor; }
+
+      const hungerText = document.getElementById('otter-hunger-text');
+      if (hungerText) hungerText.innerText = `飽足度 ${hunger}%`;
+
+      const feedCostLabel = document.getElementById('otter-feed-cost-label');
+      if (feedCostLabel) feedCostLabel.innerText = OTTER_FEED_COST;
+    }
+    window.updateOtterDisplay = updateOtterDisplay;
+
+    window.feedOtter = async function() {
+      if (!window.currentUser) { window.showToast('請先登入先可以餵水獺', '🔒'); return; }
+      const hunger = calcOtterHunger(window.currentUser.otterLastFed);
+      if (hunger >= 95) {
+        window.showToast('水獺仲好飽，唔使而家餵佢喇🦦', '😋');
+        return;
+      }
+      const pts = window.currentUser.points || 0;
+      if (pts < OTTER_FEED_COST) {
+        window.showToast(`積分不足！餵食需要 ${OTTER_FEED_COST} PTS`, '❌');
+        return;
+      }
+      if (!window.db || !window.fs) return;
+      try {
+        const now = Date.now();
+        const userRef = window.fs.doc(window.db, 'users', window.currentUser.uid);
+        await window.fs.updateDoc(userRef, {
+          points: window.fs.increment(-OTTER_FEED_COST),
+          otterLastFed: now
+        });
+        window.currentUser.points = pts - OTTER_FEED_COST;
+        window.currentUser.otterLastFed = now;
+
+        const ptsEl = document.getElementById('stat-points');
+        if (ptsEl) ptsEl.innerText = window.currentUser.points;
+        const homePts = document.getElementById('home-stat-pts');
+        if (homePts) homePts.innerText = window.currentUser.points;
+        syncGachaPtsDisplay();
+
+        updateOtterDisplay();
+        window.showToast('🐟 水獺食得好開心！', '🦦');
+      } catch (e) {
+        window.showToast('餵食失敗，請再試：' + (e.message || e), '❌');
+      }
+    };
+
+    // 每 5 分鐘悄悄刷新一次飽足度顯示，唔使用家一定要重新整理成頁先見到轉變
+    setInterval(() => { if (window.currentUser) updateOtterDisplay(); }, 5 * 60 * 1000);
+
     function updateUserAuthUI() {
       const unauthScreen = document.getElementById('unauth-screen');
       const authContent = document.getElementById('authenticated-app-content');
@@ -1620,6 +1799,7 @@
         document.getElementById('stat-points').innerText = window.currentUser.points ?? 0;
         syncGachaPtsDisplay();
         updateLevelDisplay();
+        updateOtterDisplay();
 
         // 主頁歡迎卡片
         const displayName = window.currentUser.username || window.currentUser.email?.split('@')[0] || '同學';
@@ -2162,9 +2342,20 @@
         return;
       }
 
-      // 扣分
+      // 扣分：畫面即刻扣，同時寫入 Firestore（背景執行、唔阻住動畫），
+      // 之前呢度淨係改咗畫面文字、冇真正寫入資料庫，導致用家淨係reload個網就會「回血」，而家修正咗。
       if (ptsEl) ptsEl.innerText = pts - cost;
       syncGachaPtsDisplay();
+      const gachaHomePtsEl = document.getElementById('home-stat-pts');
+      if (gachaHomePtsEl) gachaHomePtsEl.innerText = pts - cost;
+      if (window.currentUser) window.currentUser.points = pts - cost;
+      if (window.currentUser && window.db && window.fs) {
+        window.fs.updateDoc(window.fs.doc(window.db, 'users', window.currentUser.uid), {
+          points: window.fs.increment(-cost)
+        }).catch((e) => {
+          console.warn('扭蛋扣分未能同步去 Firestore：', e);
+        });
+      }
 
       // 隱藏上次結果
       const resultBox = document.getElementById('gacha-result-box');
@@ -2482,6 +2673,12 @@
           const userDoc = await getDoc(userDocRef);
           if (userDoc.exists()) {
             window.currentUser = userDoc.data();
+            // 舊用戶冇 otterLastFed 呢個新欄位嘅話，畀佢由「啱啱餵飽」開始，
+            // 避免一上線隻水獺就即刻肚餓，順便補寫落 Firestore 咁下次都一致
+            if (!window.currentUser.otterLastFed) {
+              window.currentUser.otterLastFed = Date.now();
+              updateDoc(userDocRef, { otterLastFed: window.currentUser.otterLastFed }).catch(() => {});
+            }
           } else {
             window.currentUser = {
               uid: user.uid,
@@ -2491,7 +2688,8 @@
               grade: '中六 (S6 DSE)',
               hours: '0.0',
               points: 0,
-              exp: 0
+              exp: 0,
+              otterLastFed: Date.now()
             };
           }
         } catch (e) {
@@ -2514,6 +2712,9 @@
         }
         if (typeof window.loadLevelConfigFromFirestore === 'function') {
           window.loadLevelConfigFromFirestore();
+        }
+        if (typeof window.loadOtterConfigFromFirestore === 'function') {
+          window.loadOtterConfigFromFirestore();
         }
       } else {
         window.currentUser = null;
@@ -2545,6 +2746,7 @@
           hours: "0.0",
           points: 0,
           exp: 0,
+          otterLastFed: Date.now(),
           createdAt: new Date().toISOString()
         };
 
@@ -4111,6 +4313,7 @@
         <button class="btn btn-outline admin-tab-btn" data-tab="qa" onclick="switchAdminTab('qa')">❓ 疑難解答區</button>
         <button class="btn btn-outline admin-tab-btn" data-tab="users" onclick="switchAdminTab('users')">👤 用戶管理</button>
         <button class="btn btn-outline admin-tab-btn" data-tab="level" onclick="switchAdminTab('level')">🎮 等級系統</button>
+        <button class="btn btn-outline admin-tab-btn" data-tab="otter" onclick="switchAdminTab('otter')">🦦 水獺造型</button>
       </div>
 
       <div id="admin-tab-gacha" class="admin-tab-panel"></div>
@@ -4118,6 +4321,7 @@
       <div id="admin-tab-qa" class="admin-tab-panel" style="display:none;"></div>
       <div id="admin-tab-users" class="admin-tab-panel" style="display:none;"></div>
       <div id="admin-tab-level" class="admin-tab-panel" style="display:none;"></div>
+      <div id="admin-tab-otter" class="admin-tab-panel" style="display:none;"></div>
 
     </div>
   </div>
@@ -4237,6 +4441,7 @@
       else if (tab === 'qa') renderAdminQaTab();
       else if (tab === 'users') renderAdminUsersTab();
       else if (tab === 'level') renderAdminLevelTab();
+      else if (tab === 'otter') renderAdminOtterTab();
     };
 
     // ---------- 扭蛋機獎品管理 ----------
@@ -4676,6 +4881,102 @@
       });
     }
     window.loadLevelConfigFromFirestore = loadLevelConfigFromFirestore;
+
+    // ---------- 水獺造型設定 ----------
+    // 管理員可以喺呢度上傳一張自訂水獺相片，取代預設插畫，全站即時生效
+    // （用返同扭蛋機獎品相片一樣嘅壓縮上傳邏輯，見 compressImageFileToDataURL）。
+    let adminOtterDraft = null;
+    let otterConfigLoaded = false;
+    let otterConfigUnsubscribe = null;
+
+    function renderAdminOtterTab() {
+      const container = document.getElementById('admin-tab-otter');
+      if (!container) return;
+      if (!adminOtterDraft) {
+        if (!otterConfigLoaded) {
+          container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入緊水獺造型設定...</p>';
+          return;
+        }
+        adminOtterDraft = { photo: OTTER_CONFIG.photo || null };
+      }
+
+      container.innerHTML = `
+        <div class="admin-card" style="text-align:center;">
+          <h3 style="font-size:14px; font-weight:bold; margin-bottom:8px;">🦦 水獺造型</h3>
+          <p style="font-size:12px; color:#888; margin-bottom:10px;">上傳一張水獺相片，全站用家個「我的水獺」都會即時換成呢張相；唔上傳就用返預設插畫（會有心情表情變化）。</p>
+          <div style="margin-bottom:10px;">
+            ${adminOtterDraft.photo
+              ? `<img src="${adminOtterDraft.photo}" style="width:120px; height:120px; object-fit:cover; border-radius:50%; border:3px solid #C08B57;">`
+              : `<div style="width:120px; height:120px; border-radius:50%; background:#eee; margin:0 auto; display:flex; align-items:center; justify-content:center; color:#999; font-size:12px;">預設插畫</div>`}
+          </div>
+          <input type="file" accept="image/*" id="admin-otter-photo-input" onchange="adminUploadOtterPhoto(this)">
+          ${adminOtterDraft.photo ? `<div><button class="btn btn-outline" style="margin-top:10px; font-size:12px;" onclick="adminRemoveOtterPhoto()">🗑 移除相片（改用預設插畫）</button></div>` : ''}
+          <div style="margin-top:14px;">
+            <button class="btn btn-primary" onclick="adminSaveOtterConfig()">💾 儲存</button>
+          </div>
+        </div>
+      `;
+    }
+    window.renderAdminOtterTab = renderAdminOtterTab;
+
+    window.adminUploadOtterPhoto = async function(inputEl) {
+      if (!adminOtterDraft) return;
+      const file = inputEl.files && inputEl.files[0];
+      if (!file) return;
+      if (!file.type.startsWith('image/')) {
+        window.showToast('請選擇圖片檔案', '⚠️');
+        return;
+      }
+      try {
+        const dataUrl = await compressImageFileToDataURL(file, 300, 0.8);
+        adminOtterDraft.photo = dataUrl;
+        renderAdminOtterTab();
+      } catch (err) {
+        window.showToast('圖片讀取失敗，請再試一次', '❌');
+      }
+    };
+
+    window.adminRemoveOtterPhoto = function() {
+      if (!adminOtterDraft) return;
+      adminOtterDraft.photo = null;
+      renderAdminOtterTab();
+    };
+
+    window.adminSaveOtterConfig = async function() {
+      if (!adminOtterDraft || !window.db || !window.fs) return;
+      try {
+        await window.fs.setDoc(window.fs.doc(window.db, 'admin_config', 'otterPet'), {
+          photo: adminOtterDraft.photo || null
+        });
+        window.showToast('✅ 已儲存水獺造型', '✅');
+      } catch (err) {
+        window.showToast('儲存失敗：' + (err.message || err), '❌');
+      }
+    };
+
+    function loadOtterConfigFromFirestore() {
+      if (!window.db || !window.fs) return;
+      if (otterConfigUnsubscribe) otterConfigUnsubscribe();
+      const ref = window.fs.doc(window.db, 'admin_config', 'otterPet');
+      otterConfigUnsubscribe = window.fs.onSnapshot(ref, (snap) => {
+        OTTER_CONFIG.photo = (snap.exists() && snap.data().photo) ? snap.data().photo : null;
+        otterConfigLoaded = true;
+        if (window.currentUser) updateOtterDisplay();
+        if (currentAdminTab === 'otter' && !adminOtterDraft) {
+          const adminPanelEl = document.getElementById('admin-panel-container');
+          if (adminPanelEl && adminPanelEl.style.display !== 'none') {
+            renderAdminOtterTab();
+          }
+        }
+      }, (err) => {
+        console.error('讀取水獺造型設定失敗:', err);
+        otterConfigLoaded = true;
+        if (typeof window.isCurrentUserAdmin === 'function' && window.isCurrentUserAdmin()) {
+          window.showToast('讀取水獺造型設定失敗（可能係 Firestore 規則未生效）：' + (err.message || err), '⚠️');
+        }
+      });
+    }
+    window.loadOtterConfigFromFirestore = loadOtterConfigFromFirestore;
 
     function applyGachaCostToUI() {
       const setText = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
