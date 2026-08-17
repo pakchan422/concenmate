@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.4.7"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.5.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -695,6 +695,7 @@
       <div>
         <button class="nav-btn active" id="nav-btn-home" type="button" onclick="switchTab('home', this)">🏠 <span class="nav-text">主頁</span></button>
         <button class="nav-btn" id="nav-btn-room" type="button" onclick="switchTab('room', this)">📹 <span class="nav-text">視訊溫習室</span></button>
+        <button class="nav-btn" id="nav-btn-study" type="button" onclick="switchTab('study', this)">🍅 <span class="nav-text">學習工具</span></button>
         <button class="nav-btn" id="nav-btn-qa" type="button" onclick="switchTab('qa', this)">❓ <span class="nav-text">疑難解答區</span></button>
         <button class="nav-btn" id="nav-btn-vip" type="button" onclick="switchTab('vip', this)">👑 <span class="nav-text">溫習資源 & VIP</span></button>
         <button class="nav-btn" id="nav-btn-store" type="button" onclick="switchTab('store', this)">🎁 <span class="nav-text">時數兌換所</span></button>
@@ -877,6 +878,14 @@
                   <div class="home-sec-desc">精選筆記及升級方案</div>
                 </button>
 
+                <button class="home-sec-card" onclick="switchTab('study')">
+                  <div class="home-sec-head">
+                    <span class="home-sec-icon">🍅</span>
+                  </div>
+                  <div class="home-sec-title">學習工具</div>
+                  <div class="home-sec-desc">番茄鐘 · 抽認卡複習</div>
+                </button>
+
               </div>
             </div>
 
@@ -1031,6 +1040,99 @@
                   <div class="slot-empty-icon">➕</div>
                   <p>等待用家加入...</p>
                 </div>
+              </div>
+            </div>
+
+          </div>
+
+        </section>
+
+        <section id="tab-study" class="tab-content">
+
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+            <div>
+              <h2 style="font-size:18px; font-weight:bold; color:var(--brand-800);">🧰 學習工具</h2>
+              <p style="font-size:13px; color:#666;">除咗視訊溫習室，仲有呢啲溫習方法，一樣可以賺取積分同經驗值！</p>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;">
+            <button class="btn btn-primary" id="study-subtab-btn-pomodoro" type="button" onclick="switchStudyToolSubTab('pomodoro')">🍅 番茄鐘專注</button>
+            <button class="btn btn-outline" id="study-subtab-btn-flashcards" type="button" onclick="switchStudyToolSubTab('flashcards')">🗂 抽認卡複習</button>
+          </div>
+
+          <!-- ── 番茄鐘專注計時器 ── -->
+          <div id="study-sub-pomodoro">
+            <div class="card" style="text-align:center; max-width:420px; margin:0 auto;">
+              <div id="pomodoro-phase-label" style="font-size:13px; font-weight:bold; color:var(--brand-600); letter-spacing:.05em;">🍅 專注時段</div>
+              <div id="pomodoro-display" style="font-size:56px; font-weight:800; color:var(--brand-800); font-family:monospace; margin:10px 0;">25:00</div>
+
+              <div style="background:var(--brand-200); border-radius:99px; height:8px; overflow:hidden; max-width:280px; margin:0 auto 14px;">
+                <div id="pomodoro-progress-bar" style="height:100%; background:linear-gradient(90deg,#D9764A,#D9A441); border-radius:99px; width:0%; transition:width 1s linear;"></div>
+              </div>
+
+              <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-bottom:12px;">
+                <button class="btn btn-primary" type="button" id="pomodoro-btn-start" onclick="startPomodoro()">▶️ 開始專注</button>
+                <button class="btn btn-outline" type="button" id="pomodoro-btn-pause" style="display:none;" onclick="pausePomodoro()">⏸️ 暫停</button>
+                <button class="btn btn-outline" type="button" onclick="resetPomodoro()">🔄 重設</button>
+                <button class="btn btn-outline" type="button" id="pomodoro-btn-skip" style="display:none;" onclick="skipPomodoroPhase()">⏭️ 跳過小休</button>
+              </div>
+
+              <div style="display:flex; gap:16px; justify-content:center; flex-wrap:wrap; font-size:13px; color:var(--brand-700); margin-bottom:6px;">
+                <label>專注分鐘：<input type="number" id="pomodoro-focus-min" class="input-field" style="width:64px; display:inline-block; margin-top:0;" value="25" min="5" max="90" onchange="resetPomodoro()"></label>
+                <label>小休分鐘：<input type="number" id="pomodoro-break-min" class="input-field" style="width:64px; display:inline-block; margin-top:0;" value="5" min="1" max="30" onchange="resetPomodoro()"></label>
+              </div>
+
+              <p style="font-size:12px; color:#999; margin-top:8px;">✅ 專注時段每滿 1 分鐘就會自動 +1 PTS，同視訊溫習室嘅獎勵速度一樣</p>
+              <p style="font-size:13px; color:var(--brand-700); font-weight:bold; margin-top:10px;">🍅 今節已完成：<span id="pomodoro-today-count">0</span> 個番茄鐘</p>
+            </div>
+          </div>
+
+          <!-- ── 抽認卡（間隔重複記憶） ── -->
+          <div id="study-sub-flashcards" style="display:none;">
+
+            <div id="flashcards-manage-view">
+              <div class="card" style="max-width:520px; margin:0 auto 14px;">
+                <h3 style="font-size:15px; font-weight:bold; margin-bottom:8px; color:var(--brand-800);" id="flashcard-form-title">➕ 新增抽認卡</h3>
+                <label style="font-size:13px; font-weight:600; color:var(--brand-700);">問題（正面）</label>
+                <textarea id="flashcard-front-input" class="input-field" rows="2" placeholder="例如：牛頓第二定律係咩？"></textarea>
+                <label style="font-size:13px; font-weight:600; color:var(--brand-700); margin-top:8px; display:block;">答案（背面）</label>
+                <textarea id="flashcard-back-input" class="input-field" rows="2" placeholder="例如：F = ma"></textarea>
+                <label style="font-size:13px; font-weight:600; color:var(--brand-700); margin-top:8px; display:block;">科目（可選）</label>
+                <input type="text" id="flashcard-subject-input" class="input-field" placeholder="例如：物理">
+                <div style="display:flex; gap:8px; margin-top:10px;">
+                  <button class="btn btn-primary" type="button" onclick="saveFlashcard()" id="flashcard-save-btn">💾 儲存</button>
+                  <button class="btn btn-outline" type="button" onclick="cancelEditFlashcard()" id="flashcard-cancel-btn" style="display:none;">✖️ 取消編輯</button>
+                </div>
+              </div>
+
+              <div style="display:flex; justify-content:space-between; align-items:center; margin:14px 0 8px; max-width:520px; margin-left:auto; margin-right:auto; flex-wrap:wrap; gap:8px;">
+                <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800);">🗂 我的卡片（<span id="flashcards-total-count">0</span>）</h3>
+                <button class="btn btn-primary" type="button" onclick="startFlashcardReview()">🚀 開始複習（<span id="flashcards-due-count">0</span> 張待複習）</button>
+              </div>
+
+              <div id="flashcards-list-container" style="max-width:520px; margin:0 auto;">
+                <p style="text-align:center; color:#999; font-size:13px; padding:20px;">🔄 載入緊你嘅抽認卡...</p>
+              </div>
+            </div>
+
+            <div id="flashcards-review-view" style="display:none;">
+              <div class="card" style="max-width:460px; margin:0 auto; text-align:center;">
+                <div style="display:flex; justify-content:space-between; font-size:12px; color:#999; margin-bottom:10px;">
+                  <span id="flashcard-review-progress">1 / 5</span>
+                  <span id="flashcard-review-subject" class="tag"></span>
+                </div>
+                <div id="flashcard-review-card" style="background:var(--brand-50); border:1px solid var(--brand-200); border-radius:14px; padding:24px 16px; min-height:120px; display:flex; align-items:center; justify-content:center; font-size:17px; font-weight:600; color:var(--brand-800); margin-bottom:14px; white-space:pre-wrap;">
+                  卡片內容
+                </div>
+                <div id="flashcard-review-actions-front">
+                  <button class="btn btn-primary" type="button" onclick="flipFlashcard()">👀 顯示答案</button>
+                </div>
+                <div id="flashcard-review-actions-back" style="display:none; gap:10px; justify-content:center;">
+                  <button class="btn btn-red" type="button" onclick="gradeFlashcard(false)">😵 唔記得</button>
+                  <button class="btn btn-primary" type="button" onclick="gradeFlashcard(true)">😎 記得！</button>
+                </div>
+                <button class="btn btn-outline" type="button" style="margin-top:14px;" onclick="endFlashcardReview()">⏹️ 結束複習</button>
               </div>
             </div>
 
@@ -1536,6 +1638,9 @@
       if (versionBadge && window.APP_VERSION) {
         versionBadge.innerText = window.APP_VERSION;
       }
+
+      // 初始化番茄鐘畫面（未登入都可以睇到 25:00 嘅預設畫面）
+      if (typeof updatePomodoroDisplay === 'function') updatePomodoroDisplay();
     });
 
     window.currentUser = null;
@@ -3387,6 +3492,394 @@
         console.warn("積分更新失敗（唔影響使用）:", e);
       }
     }
+
+    // ===================== 學習工具：番茄鐘專注計時器 =====================
+    // 同視訊溫習室嘅計時器獨立，唔使開鏡頭都可以用嚟溫習賺分。
+    // 專注時段每滿 60 秒都會叫返 awardStudyPoint()（同視訊溫習室共用同一個函數），
+    // 令兩種溫習方法嘅積分/經驗值獎勵速度完全一致。
+    const pomodoroState = {
+      phase: 'focus',        // 'focus' | 'break'
+      remainingSeconds: 25 * 60,
+      timer: null,
+      running: false,
+      secondsElapsedInPhase: 0,
+      todayCount: 0
+    };
+
+    function getPomodoroFocusSeconds() {
+      const el = document.getElementById('pomodoro-focus-min');
+      const v = el ? parseInt(el.value) : 25;
+      return (v > 0 ? v : 25) * 60;
+    }
+    function getPomodoroBreakSeconds() {
+      const el = document.getElementById('pomodoro-break-min');
+      const v = el ? parseInt(el.value) : 5;
+      return (v > 0 ? v : 5) * 60;
+    }
+
+    function updatePomodoroDisplay() {
+      const mins = Math.floor(pomodoroState.remainingSeconds / 60);
+      const secs = pomodoroState.remainingSeconds % 60;
+      const disp = document.getElementById('pomodoro-display');
+      if (disp) disp.innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+      const label = document.getElementById('pomodoro-phase-label');
+      if (label) label.innerText = pomodoroState.phase === 'focus' ? '🍅 專注時段' : '☕ 小休時段';
+
+      const totalSeconds = pomodoroState.phase === 'focus' ? getPomodoroFocusSeconds() : getPomodoroBreakSeconds();
+      const bar = document.getElementById('pomodoro-progress-bar');
+      if (bar && totalSeconds > 0) {
+        const pct = Math.max(0, Math.min(100, ((totalSeconds - pomodoroState.remainingSeconds) / totalSeconds) * 100));
+        bar.style.width = pct + '%';
+        bar.style.background = pomodoroState.phase === 'focus'
+          ? 'linear-gradient(90deg,#D9764A,#D9A441)'
+          : 'linear-gradient(90deg,#6FA96F,#A9D18E)';
+      }
+
+      const skipBtn = document.getElementById('pomodoro-btn-skip');
+      if (skipBtn) skipBtn.style.display = pomodoroState.phase === 'break' ? '' : 'none';
+
+      const countEl = document.getElementById('pomodoro-today-count');
+      if (countEl) countEl.innerText = pomodoroState.todayCount;
+    }
+
+    window.startPomodoro = function() {
+      if (pomodoroState.running) return;
+      if (!window.currentUser) { openModal('modal-login'); return; }
+      pomodoroState.running = true;
+
+      const startBtn = document.getElementById('pomodoro-btn-start');
+      const pauseBtn = document.getElementById('pomodoro-btn-pause');
+      const focusInput = document.getElementById('pomodoro-focus-min');
+      const breakInput = document.getElementById('pomodoro-break-min');
+      if (startBtn) startBtn.style.display = 'none';
+      if (pauseBtn) pauseBtn.style.display = '';
+      if (focusInput) focusInput.disabled = true;
+      if (breakInput) breakInput.disabled = true;
+
+      if (pomodoroState.timer) clearInterval(pomodoroState.timer);
+      pomodoroState.timer = setInterval(() => {
+        if (pomodoroState.remainingSeconds > 0) {
+          pomodoroState.remainingSeconds--;
+          pomodoroState.secondsElapsedInPhase++;
+          updatePomodoroDisplay();
+
+          // 專注時段：每滿 60 秒 +1 PTS（同視訊溫習室一樣嘅速度）
+          if (pomodoroState.phase === 'focus' && pomodoroState.secondsElapsedInPhase % 60 === 0) {
+            awardStudyPoint();
+          }
+        } else {
+          pomodoroCompletePhase(false);
+        }
+      }, 1000);
+    };
+
+    window.pausePomodoro = function() {
+      pomodoroState.running = false;
+      if (pomodoroState.timer) clearInterval(pomodoroState.timer);
+      const startBtn = document.getElementById('pomodoro-btn-start');
+      const pauseBtn = document.getElementById('pomodoro-btn-pause');
+      if (startBtn) { startBtn.style.display = ''; startBtn.innerText = '▶️ 繼續'; }
+      if (pauseBtn) pauseBtn.style.display = 'none';
+    };
+
+    window.resetPomodoro = function() {
+      pomodoroState.running = false;
+      pomodoroState.phase = 'focus';
+      pomodoroState.secondsElapsedInPhase = 0;
+      if (pomodoroState.timer) clearInterval(pomodoroState.timer);
+      pomodoroState.remainingSeconds = getPomodoroFocusSeconds();
+
+      const startBtn = document.getElementById('pomodoro-btn-start');
+      const pauseBtn = document.getElementById('pomodoro-btn-pause');
+      const focusInput = document.getElementById('pomodoro-focus-min');
+      const breakInput = document.getElementById('pomodoro-break-min');
+      if (startBtn) { startBtn.style.display = ''; startBtn.innerText = '▶️ 開始專注'; }
+      if (pauseBtn) pauseBtn.style.display = 'none';
+      if (focusInput) focusInput.disabled = false;
+      if (breakInput) breakInput.disabled = false;
+
+      updatePomodoroDisplay();
+    };
+
+    window.skipPomodoroPhase = function() {
+      if (pomodoroState.phase === 'break') {
+        pomodoroCompletePhase(true);
+      }
+    };
+
+    function pomodoroCompletePhase(skipped) {
+      if (pomodoroState.timer) clearInterval(pomodoroState.timer);
+      pomodoroState.running = false;
+
+      if (pomodoroState.phase === 'focus') {
+        pomodoroState.todayCount++;
+        if (!skipped) window.showToast('🍅 完成一個番茄鐘！去小休一下啦～', '🎉');
+        pomodoroState.phase = 'break';
+        pomodoroState.remainingSeconds = getPomodoroBreakSeconds();
+      } else {
+        if (!skipped) window.showToast('☕ 小休完畢，準備好就開始下一個番茄鐘！', '🍅');
+        pomodoroState.phase = 'focus';
+        pomodoroState.remainingSeconds = getPomodoroFocusSeconds();
+      }
+      pomodoroState.secondsElapsedInPhase = 0;
+
+      const startBtn = document.getElementById('pomodoro-btn-start');
+      const pauseBtn = document.getElementById('pomodoro-btn-pause');
+      if (startBtn) { startBtn.style.display = ''; startBtn.innerText = pomodoroState.phase === 'focus' ? '▶️ 開始專注' : '▶️ 開始小休'; }
+      if (pauseBtn) pauseBtn.style.display = 'none';
+
+      updatePomodoroDisplay();
+    }
+
+    // ===================== 學習工具：抽認卡（間隔重複記憶法） =====================
+    // 用簡化版 Leitner Box 演算法：答啱就跳去下一級（複習間隔拉長），
+    // 答錯就打番落第一級（好快再見到嗰張卡）。
+    let flashcardsCache = [];
+    let editingFlashcardId = null;
+    let flashcardReviewQueue = [];
+    let flashcardReviewIndex = 0;
+    let flashcardReviewFlipped = false;
+    let flashcardsReviewedSinceAward = 0;
+
+    const FLASHCARD_BOX_INTERVALS_MS = [
+      0,
+      10 * 60 * 1000,          // Box 1 → 10 分鐘後（未熟，好快再見）
+      24 * 60 * 60 * 1000,     // Box 2 → 1 日後
+      3 * 24 * 60 * 60 * 1000, // Box 3 → 3 日後
+      7 * 24 * 60 * 60 * 1000, // Box 4 → 7 日後
+      14 * 24 * 60 * 60 * 1000 // Box 5 → 14 日後
+    ];
+
+    async function loadFlashcards() {
+      if (!window.currentUser || !window.currentUser.uid || !window.fs || !window.db) return;
+      const listEl = document.getElementById('flashcards-list-container');
+      if (listEl) listEl.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:20px;">🔄 載入緊你嘅抽認卡...</p>';
+      try {
+        const snap = await window.fs.getDocs(window.fs.collection(window.db, 'users', window.currentUser.uid, 'flashcards'));
+        flashcardsCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        flashcardsCache.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        renderFlashcardsList();
+      } catch (e) {
+        console.error('載入抽認卡失敗', e);
+        if (listEl) listEl.innerHTML = '<p style="text-align:center; color:#D9764A; font-size:13px; padding:20px;">載入失敗，請重新整理頁面再試</p>';
+      }
+    }
+    window.loadFlashcards = loadFlashcards;
+
+    function renderFlashcardsList() {
+      const listEl = document.getElementById('flashcards-list-container');
+      const totalEl = document.getElementById('flashcards-total-count');
+      const dueEl = document.getElementById('flashcards-due-count');
+      if (totalEl) totalEl.innerText = flashcardsCache.length;
+      const now = Date.now();
+      const dueCount = flashcardsCache.filter(c => (c.nextReviewAt || 0) <= now).length;
+      if (dueEl) dueEl.innerText = dueCount;
+
+      if (!listEl) return;
+      if (flashcardsCache.length === 0) {
+        listEl.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:20px;">仲未有抽認卡，喺上面新增第一張啦！</p>';
+        return;
+      }
+
+      listEl.innerHTML = flashcardsCache.map(c => {
+        const due = (c.nextReviewAt || 0) <= now;
+        const boxLabel = '記憶等級 ' + (c.box || 1) + '/5';
+        const nextLabel = due ? '✅ 現在可複習' : ('⏳ ' + new Date(c.nextReviewAt).toLocaleDateString('zh-HK', { month: '2-digit', day: '2-digit' }) + ' 再複習');
+        return `
+          <div class="card" style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;">
+            <div style="flex:1; min-width:180px;">
+              <div style="font-weight:bold; color:var(--brand-800); font-size:14px;">${escapeHtml(c.front)}</div>
+              <div style="font-size:12px; color:#999; margin-top:4px;">${escapeHtml(c.back)}</div>
+              <div style="margin-top:6px; display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+                ${c.subject ? `<span class="tag">${escapeHtml(c.subject)}</span>` : ''}
+                <span class="tag" style="background:${due ? '#D9EBEF' : '#F0E9DF'};">${boxLabel}</span>
+                <span style="font-size:11px; color:#999;">${nextLabel}</span>
+              </div>
+            </div>
+            <div style="display:flex; gap:6px; flex-shrink:0;">
+              <button class="btn btn-outline" type="button" style="padding:4px 8px; font-size:12px;" onclick="editFlashcard('${c.id}')">✏️</button>
+              <button class="btn btn-red" type="button" style="padding:4px 8px; font-size:12px;" onclick="deleteFlashcard('${c.id}')">🗑</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    window.saveFlashcard = async function() {
+      if (!window.currentUser || !window.currentUser.uid || !window.fs || !window.db) { openModal('modal-login'); return; }
+      const frontEl = document.getElementById('flashcard-front-input');
+      const backEl = document.getElementById('flashcard-back-input');
+      const subjectEl = document.getElementById('flashcard-subject-input');
+      const front = frontEl ? frontEl.value.trim() : '';
+      const back = backEl ? backEl.value.trim() : '';
+      const subject = subjectEl ? subjectEl.value.trim() : '';
+      if (!front || !back) { window.showToast('問題同答案都要填㗎', '⚠️'); return; }
+
+      try {
+        if (editingFlashcardId) {
+          await window.fs.updateDoc(
+            window.fs.doc(window.db, 'users', window.currentUser.uid, 'flashcards', editingFlashcardId),
+            { front, back, subject }
+          );
+          window.showToast('✅ 已更新抽認卡', '✅');
+        } else {
+          await window.fs.addDoc(
+            window.fs.collection(window.db, 'users', window.currentUser.uid, 'flashcards'),
+            { front, back, subject, box: 1, nextReviewAt: Date.now(), createdAt: Date.now() }
+          );
+          window.showToast('✅ 已新增抽認卡', '🗂');
+        }
+        cancelEditFlashcard();
+        loadFlashcards();
+      } catch (e) {
+        console.error('儲存抽認卡失敗', e);
+        window.showToast('儲存失敗：' + (e.message || e), '❌');
+      }
+    };
+
+    window.editFlashcard = function(id) {
+      const c = flashcardsCache.find(x => x.id === id);
+      if (!c) return;
+      editingFlashcardId = id;
+      const frontEl = document.getElementById('flashcard-front-input');
+      const backEl = document.getElementById('flashcard-back-input');
+      const subjectEl = document.getElementById('flashcard-subject-input');
+      if (frontEl) frontEl.value = c.front || '';
+      if (backEl) backEl.value = c.back || '';
+      if (subjectEl) subjectEl.value = c.subject || '';
+      const titleEl = document.getElementById('flashcard-form-title');
+      if (titleEl) titleEl.innerText = '✏️ 編輯抽認卡';
+      const cancelBtn = document.getElementById('flashcard-cancel-btn');
+      if (cancelBtn) cancelBtn.style.display = '';
+      const formCard = frontEl ? frontEl.closest('.card') : null;
+      if (formCard) formCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+
+    window.cancelEditFlashcard = function() {
+      editingFlashcardId = null;
+      const frontEl = document.getElementById('flashcard-front-input');
+      const backEl = document.getElementById('flashcard-back-input');
+      const subjectEl = document.getElementById('flashcard-subject-input');
+      if (frontEl) frontEl.value = '';
+      if (backEl) backEl.value = '';
+      if (subjectEl) subjectEl.value = '';
+      const titleEl = document.getElementById('flashcard-form-title');
+      if (titleEl) titleEl.innerText = '➕ 新增抽認卡';
+      const cancelBtn = document.getElementById('flashcard-cancel-btn');
+      if (cancelBtn) cancelBtn.style.display = 'none';
+    };
+
+    window.deleteFlashcard = async function(id) {
+      if (!window.currentUser || !window.fs || !window.db) return;
+      try {
+        await window.fs.deleteDoc(window.fs.doc(window.db, 'users', window.currentUser.uid, 'flashcards', id));
+        window.showToast('🗑 已刪除抽認卡', '🗑');
+        loadFlashcards();
+      } catch (e) {
+        console.error('刪除抽認卡失敗', e);
+        window.showToast('刪除失敗：' + (e.message || e), '❌');
+      }
+    };
+
+    window.startFlashcardReview = function() {
+      const now = Date.now();
+      flashcardReviewQueue = flashcardsCache.filter(c => (c.nextReviewAt || 0) <= now);
+      if (flashcardReviewQueue.length === 0) {
+        window.showToast('而家冇待複習嘅卡片，遲啲再返嚟啦！', 'ℹ️');
+        return;
+      }
+      flashcardReviewIndex = 0;
+      flashcardsReviewedSinceAward = 0;
+      document.getElementById('flashcards-manage-view').style.display = 'none';
+      document.getElementById('flashcards-review-view').style.display = '';
+      showFlashcardReviewCard();
+    };
+
+    function showFlashcardReviewCard() {
+      const c = flashcardReviewQueue[flashcardReviewIndex];
+      if (!c) { endFlashcardReview(); return; }
+      flashcardReviewFlipped = false;
+      const cardEl = document.getElementById('flashcard-review-card');
+      if (cardEl) cardEl.innerText = c.front;
+      const progressEl = document.getElementById('flashcard-review-progress');
+      if (progressEl) progressEl.innerText = (flashcardReviewIndex + 1) + ' / ' + flashcardReviewQueue.length;
+      const subjectEl = document.getElementById('flashcard-review-subject');
+      if (subjectEl) subjectEl.innerText = c.subject || '';
+      document.getElementById('flashcard-review-actions-front').style.display = '';
+      document.getElementById('flashcard-review-actions-back').style.display = 'none';
+    }
+
+    window.flipFlashcard = function() {
+      const c = flashcardReviewQueue[flashcardReviewIndex];
+      if (!c) return;
+      flashcardReviewFlipped = true;
+      const cardEl = document.getElementById('flashcard-review-card');
+      if (cardEl) cardEl.innerText = c.back;
+      document.getElementById('flashcard-review-actions-front').style.display = 'none';
+      document.getElementById('flashcard-review-actions-back').style.display = 'flex';
+    };
+
+    window.gradeFlashcard = async function(known) {
+      const c = flashcardReviewQueue[flashcardReviewIndex];
+      if (!c) return;
+      const newBox = known ? Math.min(5, (c.box || 1) + 1) : 1;
+      const nextReviewAt = Date.now() + FLASHCARD_BOX_INTERVALS_MS[newBox];
+
+      try {
+        if (window.currentUser && window.fs && window.db) {
+          await window.fs.updateDoc(
+            window.fs.doc(window.db, 'users', window.currentUser.uid, 'flashcards', c.id),
+            { box: newBox, nextReviewAt }
+          );
+        }
+        c.box = newBox;
+        c.nextReviewAt = nextReviewAt;
+      } catch (e) {
+        console.warn('更新抽認卡複習進度失敗（唔影響繼續複習）:', e);
+      }
+
+      // 每複習 5 張卡先 +1 PTS（同 awardStudyPoint 共用，避免用家瘋狂撳掣洗積分）
+      flashcardsReviewedSinceAward++;
+      if (flashcardsReviewedSinceAward >= 5) {
+        flashcardsReviewedSinceAward = 0;
+        awardStudyPoint();
+      }
+
+      flashcardReviewIndex++;
+      if (flashcardReviewIndex >= flashcardReviewQueue.length) {
+        window.showToast('🎉 呢輪複習完成！做得好！', '🗂');
+        endFlashcardReview();
+      } else {
+        showFlashcardReviewCard();
+      }
+    };
+
+    window.endFlashcardReview = function() {
+      document.getElementById('flashcards-manage-view').style.display = '';
+      document.getElementById('flashcards-review-view').style.display = 'none';
+      loadFlashcards();
+    };
+
+    window.switchStudyToolSubTab = function(sub) {
+      const pomo = document.getElementById('study-sub-pomodoro');
+      const fc = document.getElementById('study-sub-flashcards');
+      const btnP = document.getElementById('study-subtab-btn-pomodoro');
+      const btnF = document.getElementById('study-subtab-btn-flashcards');
+      if (sub === 'pomodoro') {
+        if (pomo) pomo.style.display = '';
+        if (fc) fc.style.display = 'none';
+        if (btnP) { btnP.classList.add('btn-primary'); btnP.classList.remove('btn-outline'); }
+        if (btnF) { btnF.classList.remove('btn-primary'); btnF.classList.add('btn-outline'); }
+        updatePomodoroDisplay();
+      } else {
+        if (pomo) pomo.style.display = 'none';
+        if (fc) fc.style.display = '';
+        if (btnF) { btnF.classList.add('btn-primary'); btnF.classList.remove('btn-outline'); }
+        if (btnP) { btnP.classList.remove('btn-primary'); btnP.classList.add('btn-outline'); }
+        loadFlashcards();
+      }
+    };
 
     function updateTimerDisplay() {
       const mins = Math.floor(state.remainingSeconds / 60);
