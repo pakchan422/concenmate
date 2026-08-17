@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.4.1"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.4.2"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -1673,10 +1673,9 @@
     const OTTER_FEED_COST = 10;            // 餵一次水獺使幾多 PTS
     const OTTER_HUNGER_DECAY_HOURS = 24;   // 由 100% 飽足跌到 0% 要幾耐（小時）
 
-    // 水獺造型設定：管理員可以喺後台上傳自訂相片取代預設插畫（Firestore admin_config/otterPet），
-    // 呢度嘅 { photo: null } 只係 Firestore 未載入完之前用嘅預設值。
-    let OTTER_CONFIG = { photo: null };
-    window.OTTER_CONFIG = OTTER_CONFIG;
+    // 水獺造型（進化）：跟返「等級系統」嗰邊嘅段位設定，每個段位可以喺
+    // Admin後台「🎮 等級系統」分頁上傳專屬相片，用家等級去到邊個段位就顯示邊張相；
+    // 冇上傳就用返預設插畫（會有開心/普通/肚餓表情變化）。
 
     function calcOtterHunger(lastFedMs) {
       if (!lastFedMs) return 100;
@@ -1697,14 +1696,17 @@
       if (!window.currentUser) return;
       const hunger = calcOtterHunger(window.currentUser.otterLastFed);
       const mood = getOtterMood(hunger);
+      const levelInfo = calcLevelInfo(window.currentUser.exp || 0);
+      const rankTier = getRankTitle(levelInfo.level);
 
       const wrap = document.getElementById('otter-pet-wrap');
       if (wrap) wrap.className = 'otter-mood-' + mood.key;
 
-      // 管理員如果上傳咗自訂水獺相片，就用返嗰張相；冇嘅話用返預設插畫（會有心情表情變化）
+      // 而家段位（跟等級）如果有管理員上傳嘅專屬相片，就用返嗰張相；
+      // 冇嘅話用返預設插畫（會有心情表情變化）
       const photoImg = document.getElementById('otter-photo-img');
       const svgEl = document.getElementById('otter-pet-svg');
-      const customPhoto = window.OTTER_CONFIG && window.OTTER_CONFIG.photo;
+      const customPhoto = rankTier && rankTier.photo;
       if (customPhoto) {
         if (photoImg) { photoImg.src = customPhoto; photoImg.style.display = 'block'; }
         if (svgEl) svgEl.style.display = 'none';
@@ -2712,9 +2714,6 @@
         }
         if (typeof window.loadLevelConfigFromFirestore === 'function') {
           window.loadLevelConfigFromFirestore();
-        }
-        if (typeof window.loadOtterConfigFromFirestore === 'function') {
-          window.loadOtterConfigFromFirestore();
         }
       } else {
         window.currentUser = null;
@@ -4313,7 +4312,6 @@
         <button class="btn btn-outline admin-tab-btn" data-tab="qa" onclick="switchAdminTab('qa')">❓ 疑難解答區</button>
         <button class="btn btn-outline admin-tab-btn" data-tab="users" onclick="switchAdminTab('users')">👤 用戶管理</button>
         <button class="btn btn-outline admin-tab-btn" data-tab="level" onclick="switchAdminTab('level')">🎮 等級系統</button>
-        <button class="btn btn-outline admin-tab-btn" data-tab="otter" onclick="switchAdminTab('otter')">🦦 水獺造型</button>
       </div>
 
       <div id="admin-tab-gacha" class="admin-tab-panel"></div>
@@ -4321,7 +4319,6 @@
       <div id="admin-tab-qa" class="admin-tab-panel" style="display:none;"></div>
       <div id="admin-tab-users" class="admin-tab-panel" style="display:none;"></div>
       <div id="admin-tab-level" class="admin-tab-panel" style="display:none;"></div>
-      <div id="admin-tab-otter" class="admin-tab-panel" style="display:none;"></div>
 
     </div>
   </div>
@@ -4441,7 +4438,6 @@
       else if (tab === 'qa') renderAdminQaTab();
       else if (tab === 'users') renderAdminUsersTab();
       else if (tab === 'level') renderAdminLevelTab();
-      else if (tab === 'otter') renderAdminOtterTab();
     };
 
     // ---------- 扭蛋機獎品管理 ----------
@@ -4758,15 +4754,34 @@
         adminLevelDraft = JSON.parse(JSON.stringify(LEVEL_CONFIG));
       }
 
-      const ranksRows = adminLevelDraft.ranks.map((r, idx) => `
-        <tr>
-          <td><input class="admin-input-sm" type="number" min="1" style="width:60px;" value="${r.minLevel}" onchange="adminLevelDraft.ranks[${idx}].minLevel = parseInt(this.value)||1"></td>
-          <td><input class="admin-input-sm" style="width:50px; text-align:center;" value="${escapeHtml(r.emoji || '')}" onchange="adminLevelDraft.ranks[${idx}].emoji = this.value"></td>
-          <td><input class="admin-input-sm" style="width:100px;" value="${escapeHtml(r.title || '')}" onchange="adminLevelDraft.ranks[${idx}].title = this.value"></td>
-          <td><input class="admin-input-sm" style="width:110px;" value="${escapeHtml(r.titleEn || '')}" onchange="adminLevelDraft.ranks[${idx}].titleEn = this.value"></td>
-          <td><input type="color" style="width:40px; height:28px; padding:1px; border:1px solid #ccc; border-radius:4px;" value="${r.color || '#4A8FA0'}" onchange="adminLevelDraft.ranks[${idx}].color = this.value"></td>
-          <td><button class="btn btn-red" style="font-size:11px; padding:3px 8px;" onclick="adminRemoveLevelRank(${idx})">🗑</button></td>
-        </tr>
+      const ranksCards = adminLevelDraft.ranks.map((r, idx) => `
+        <div style="display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap; padding:12px; border:1px solid var(--brand-200); border-radius:10px; margin-bottom:10px; background:#fff;">
+          <div style="text-align:center; flex-shrink:0;">
+            ${r.photo
+              ? `<img src="${r.photo}" style="width:64px; height:64px; object-fit:cover; border-radius:50%; border:2px solid #C08B57;">`
+              : `<div style="width:64px; height:64px; border-radius:50%; background:#eee; display:flex; align-items:center; justify-content:center; font-size:10px; color:#999; text-align:center;">預設插畫</div>`}
+            <input type="file" accept="image/*" style="font-size:10px; margin-top:4px; max-width:100px;" onchange="adminUploadRankPhoto(${idx}, this)">
+            ${r.photo ? `<button class="btn btn-outline" style="font-size:10px; padding:2px 6px; margin-top:2px;" onclick="adminRemoveRankPhoto(${idx})">🗑移除</button>` : ''}
+          </div>
+          <div style="flex:1; min-width:240px; display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+            <label style="font-size:12px; color:#555; display:flex; align-items:center; gap:4px;">等級門檻
+              <input class="admin-input-sm" type="number" min="1" style="width:55px;" value="${r.minLevel}" onchange="adminLevelDraft.ranks[${idx}].minLevel = parseInt(this.value)||1">
+            </label>
+            <label style="font-size:12px; color:#555; display:flex; align-items:center; gap:4px;">Emoji
+              <input class="admin-input-sm" style="width:44px; text-align:center;" value="${escapeHtml(r.emoji || '')}" onchange="adminLevelDraft.ranks[${idx}].emoji = this.value">
+            </label>
+            <label style="font-size:12px; color:#555; display:flex; align-items:center; gap:4px;">稱號(中)
+              <input class="admin-input-sm" style="width:90px;" value="${escapeHtml(r.title || '')}" onchange="adminLevelDraft.ranks[${idx}].title = this.value">
+            </label>
+            <label style="font-size:12px; color:#555; display:flex; align-items:center; gap:4px;">稱號(英)
+              <input class="admin-input-sm" style="width:100px;" value="${escapeHtml(r.titleEn || '')}" onchange="adminLevelDraft.ranks[${idx}].titleEn = this.value">
+            </label>
+            <label style="font-size:12px; color:#555; display:flex; align-items:center; gap:4px;">顏色
+              <input type="color" style="width:36px; height:26px; padding:1px; border:1px solid #ccc; border-radius:4px;" value="${r.color || '#4A8FA0'}" onchange="adminLevelDraft.ranks[${idx}].color = this.value">
+            </label>
+          </div>
+          <button class="btn btn-red" style="font-size:11px; padding:3px 8px; flex-shrink:0;" onclick="adminRemoveLevelRank(${idx})">🗑 刪除段位</button>
+        </div>
       `).join('');
 
       container.innerHTML = `
@@ -4787,14 +4802,10 @@
         </div>
 
         <div class="admin-card" style="margin-top:12px;">
-          <h3 style="font-size:14px; font-weight:bold; margin-bottom:8px;">🏅 段位稱號（由低到高，建議第一行等級門檻＝1）</h3>
-          <div style="overflow-x:auto;">
-            <table class="admin-table">
-              <thead><tr><th>等級門檻</th><th>Emoji</th><th>稱號(中)</th><th>稱號(英)</th><th>顏色</th><th></th></tr></thead>
-              <tbody>${ranksRows}</tbody>
-            </table>
-          </div>
-          <button class="btn btn-outline" style="margin-top:8px; font-size:12px;" onclick="adminAddLevelRank()">➕ 新增段位</button>
+          <h3 style="font-size:14px; font-weight:bold; margin-bottom:4px;">🏅 段位稱號 + 水獺造型（由低到高，建議第一行等級門檻＝1）</h3>
+          <p style="font-size:11px; color:#888; margin-bottom:10px;">每個段位可以上傳專屬水獺相片，用家升到嗰個等級，主頁「我的水獺」就會自動換成嗰張相；唔上傳就用返共用嘅預設插畫（有心情表情變化）。</p>
+          <div>${ranksCards}</div>
+          <button class="btn btn-outline" style="margin-top:4px; font-size:12px;" onclick="adminAddLevelRank()">➕ 新增段位</button>
         </div>
 
         <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">
@@ -4838,15 +4849,44 @@
       renderAdminLevelTab();
     };
 
+    window.adminUploadRankPhoto = async function(idx, inputEl) {
+      if (!adminLevelDraft || !adminLevelDraft.ranks[idx]) return;
+      const file = inputEl.files && inputEl.files[0];
+      if (!file) return;
+      if (!file.type.startsWith('image/')) {
+        window.showToast('請選擇圖片檔案', '⚠️');
+        return;
+      }
+      try {
+        const dataUrl = await compressImageFileToDataURL(file, 300, 0.8);
+        adminLevelDraft.ranks[idx].photo = dataUrl;
+        renderAdminLevelTab();
+      } catch (err) {
+        window.showToast('圖片讀取失敗，請再試一次', '❌');
+      }
+    };
+
+    window.adminRemoveRankPhoto = function(idx) {
+      if (!adminLevelDraft || !adminLevelDraft.ranks[idx]) return;
+      delete adminLevelDraft.ranks[idx].photo;
+      renderAdminLevelTab();
+    };
+
     window.adminSaveLevelConfig = async function() {
       if (!adminLevelDraft || !window.db || !window.fs) return;
       if (!adminLevelDraft.ranks.length) { window.showToast('最少要有一個段位', '❌'); return; }
+      const payload = {
+        expPerMinute: adminLevelDraft.expPerMinute,
+        levelCurveFactor: adminLevelDraft.levelCurveFactor,
+        ranks: adminLevelDraft.ranks
+      };
+      const approxBytes = new Blob([JSON.stringify(payload)]).size;
+      if (approxBytes > 900000) {
+        window.showToast(`資料太大（約 ${(approxBytes / 1024).toFixed(0)}KB，Firestore 單一文件上限係 1024KB），請幫少幾個段位換相或者揀細啲嘅相`, '⚠️');
+        return;
+      }
       try {
-        await window.fs.setDoc(window.fs.doc(window.db, 'admin_config', 'levelSystem'), {
-          expPerMinute: adminLevelDraft.expPerMinute,
-          levelCurveFactor: adminLevelDraft.levelCurveFactor,
-          ranks: adminLevelDraft.ranks
-        });
+        await window.fs.setDoc(window.fs.doc(window.db, 'admin_config', 'levelSystem'), payload);
         window.showToast('✅ 已儲存等級系統設定', '✅');
       } catch (err) {
         window.showToast('儲存失敗：' + (err.message || err), '❌');
@@ -4881,102 +4921,6 @@
       });
     }
     window.loadLevelConfigFromFirestore = loadLevelConfigFromFirestore;
-
-    // ---------- 水獺造型設定 ----------
-    // 管理員可以喺呢度上傳一張自訂水獺相片，取代預設插畫，全站即時生效
-    // （用返同扭蛋機獎品相片一樣嘅壓縮上傳邏輯，見 compressImageFileToDataURL）。
-    let adminOtterDraft = null;
-    let otterConfigLoaded = false;
-    let otterConfigUnsubscribe = null;
-
-    function renderAdminOtterTab() {
-      const container = document.getElementById('admin-tab-otter');
-      if (!container) return;
-      if (!adminOtterDraft) {
-        if (!otterConfigLoaded) {
-          container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入緊水獺造型設定...</p>';
-          return;
-        }
-        adminOtterDraft = { photo: OTTER_CONFIG.photo || null };
-      }
-
-      container.innerHTML = `
-        <div class="admin-card" style="text-align:center;">
-          <h3 style="font-size:14px; font-weight:bold; margin-bottom:8px;">🦦 水獺造型</h3>
-          <p style="font-size:12px; color:#888; margin-bottom:10px;">上傳一張水獺相片，全站用家個「我的水獺」都會即時換成呢張相；唔上傳就用返預設插畫（會有心情表情變化）。</p>
-          <div style="margin-bottom:10px;">
-            ${adminOtterDraft.photo
-              ? `<img src="${adminOtterDraft.photo}" style="width:120px; height:120px; object-fit:cover; border-radius:50%; border:3px solid #C08B57;">`
-              : `<div style="width:120px; height:120px; border-radius:50%; background:#eee; margin:0 auto; display:flex; align-items:center; justify-content:center; color:#999; font-size:12px;">預設插畫</div>`}
-          </div>
-          <input type="file" accept="image/*" id="admin-otter-photo-input" onchange="adminUploadOtterPhoto(this)">
-          ${adminOtterDraft.photo ? `<div><button class="btn btn-outline" style="margin-top:10px; font-size:12px;" onclick="adminRemoveOtterPhoto()">🗑 移除相片（改用預設插畫）</button></div>` : ''}
-          <div style="margin-top:14px;">
-            <button class="btn btn-primary" onclick="adminSaveOtterConfig()">💾 儲存</button>
-          </div>
-        </div>
-      `;
-    }
-    window.renderAdminOtterTab = renderAdminOtterTab;
-
-    window.adminUploadOtterPhoto = async function(inputEl) {
-      if (!adminOtterDraft) return;
-      const file = inputEl.files && inputEl.files[0];
-      if (!file) return;
-      if (!file.type.startsWith('image/')) {
-        window.showToast('請選擇圖片檔案', '⚠️');
-        return;
-      }
-      try {
-        const dataUrl = await compressImageFileToDataURL(file, 300, 0.8);
-        adminOtterDraft.photo = dataUrl;
-        renderAdminOtterTab();
-      } catch (err) {
-        window.showToast('圖片讀取失敗，請再試一次', '❌');
-      }
-    };
-
-    window.adminRemoveOtterPhoto = function() {
-      if (!adminOtterDraft) return;
-      adminOtterDraft.photo = null;
-      renderAdminOtterTab();
-    };
-
-    window.adminSaveOtterConfig = async function() {
-      if (!adminOtterDraft || !window.db || !window.fs) return;
-      try {
-        await window.fs.setDoc(window.fs.doc(window.db, 'admin_config', 'otterPet'), {
-          photo: adminOtterDraft.photo || null
-        });
-        window.showToast('✅ 已儲存水獺造型', '✅');
-      } catch (err) {
-        window.showToast('儲存失敗：' + (err.message || err), '❌');
-      }
-    };
-
-    function loadOtterConfigFromFirestore() {
-      if (!window.db || !window.fs) return;
-      if (otterConfigUnsubscribe) otterConfigUnsubscribe();
-      const ref = window.fs.doc(window.db, 'admin_config', 'otterPet');
-      otterConfigUnsubscribe = window.fs.onSnapshot(ref, (snap) => {
-        OTTER_CONFIG.photo = (snap.exists() && snap.data().photo) ? snap.data().photo : null;
-        otterConfigLoaded = true;
-        if (window.currentUser) updateOtterDisplay();
-        if (currentAdminTab === 'otter' && !adminOtterDraft) {
-          const adminPanelEl = document.getElementById('admin-panel-container');
-          if (adminPanelEl && adminPanelEl.style.display !== 'none') {
-            renderAdminOtterTab();
-          }
-        }
-      }, (err) => {
-        console.error('讀取水獺造型設定失敗:', err);
-        otterConfigLoaded = true;
-        if (typeof window.isCurrentUserAdmin === 'function' && window.isCurrentUserAdmin()) {
-          window.showToast('讀取水獺造型設定失敗（可能係 Firestore 規則未生效）：' + (err.message || err), '⚠️');
-        }
-      });
-    }
-    window.loadOtterConfigFromFirestore = loadOtterConfigFromFirestore;
 
     function applyGachaCostToUI() {
       const setText = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
