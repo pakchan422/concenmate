@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.4.2"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.4.3"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -4905,7 +4905,11 @@
           if (Array.isArray(data.ranks) && data.ranks.length) LEVEL_CONFIG.ranks = data.ranks;
         }
         levelConfigLoaded = true;
-        if (window.currentUser) updateLevelDisplay();
+        if (window.currentUser) {
+          updateLevelDisplay();
+          // 段位嘅水獺相片就係喺呢個設定入面，一齊刷新，唔使等5分鐘嗰個定時器先見到
+          updateOtterDisplay();
+        }
         if (currentAdminTab === 'level' && !adminLevelDraft) {
           const adminPanelEl = document.getElementById('admin-panel-container');
           if (adminPanelEl && adminPanelEl.style.display !== 'none') {
