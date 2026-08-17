@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.4.3"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.4.5"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -769,7 +769,9 @@
             <div id="otter-pet-wrap" class="otter-mood-happy" style="display:inline-block; margin:4px 0;">
               <!-- 管理員如果有上傳自訂水獺相片，會優先顯示呢張相，取代下面嘅插畫 -->
               <img id="otter-photo-img" style="display:none; width:120px; height:120px; object-fit:cover; border-radius:50%; border:3px solid #C08B57; box-shadow:0 2px 10px rgba(0,0,0,.15);" alt="我的水獺">
-              <svg id="otter-pet-svg" width="120" height="120" viewBox="0 0 140 140">
+              <!-- 管理員未上傳呢個等級嘅相片時，顯示呢個簡單佔位圖示，唔會用返預設插畫 -->
+              <div id="otter-blank-placeholder" style="display:none; width:120px; height:120px; border-radius:50%; background:#EFEAE0; border:3px solid #C08B57; box-shadow:0 2px 10px rgba(0,0,0,.15); align-items:center; justify-content:center; font-size:44px;">🦦</div>
+              <svg id="otter-pet-svg" width="120" height="120" viewBox="0 0 140 140" style="display:none;">
                 <!-- 尾巴 -->
                 <ellipse cx="112" cy="100" rx="18" ry="10" fill="#A9764F" transform="rotate(25 112 100)"/>
                 <!-- 身體 -->
@@ -1703,16 +1705,19 @@
       if (wrap) wrap.className = 'otter-mood-' + mood.key;
 
       // 而家段位（跟等級）如果有管理員上傳嘅專屬相片，就用返嗰張相；
-      // 冇嘅話用返預設插畫（會有心情表情變化）
+      // 冇嘅話顯示簡單佔位圖示（唔會再用返手繪預設插畫）
       const photoImg = document.getElementById('otter-photo-img');
       const svgEl = document.getElementById('otter-pet-svg');
+      const blankEl = document.getElementById('otter-blank-placeholder');
       const customPhoto = rankTier && rankTier.photo;
       if (customPhoto) {
         if (photoImg) { photoImg.src = customPhoto; photoImg.style.display = 'block'; }
         if (svgEl) svgEl.style.display = 'none';
+        if (blankEl) blankEl.style.display = 'none';
       } else {
         if (photoImg) photoImg.style.display = 'none';
-        if (svgEl) svgEl.style.display = '';
+        if (svgEl) svgEl.style.display = 'none';
+        if (blankEl) blankEl.style.display = 'flex';
       }
 
       ['happy', 'neutral', 'hungry'].forEach(k => {
@@ -4570,12 +4575,15 @@
       if (totalEl) totalEl.innerText = total;
     };
 
-    // 讀取圖片檔案 → 縮圖 → 壓縮做 JPEG base64（同疑難解答區上傳相片用緊嘅
-    // 手法一致），避免原圖太大令 Firestore 文件超出大小限制
+    // 讀取圖片檔案 → 縮圖 → 壓縮做 base64（同疑難解答區上傳相片用緊嘅
+    // 手法一致），避免原圖太大令 Firestore 文件超出大小限制。
+    // PNG／GIF／WebP 呢啲支援透明背景嘅格式會保留做 PNG 輸出（保住透明），
+    // 其他（例如相機影嘅 JPEG）先會壓縮做 JPEG 減檔案大小。
     function compressImageFileToDataURL(file, maxWidth, quality) {
       return new Promise((resolve, reject) => {
         const img = new Image();
         const url = URL.createObjectURL(file);
+        const keepTransparency = /^image\/(png|gif|webp|svg\+xml)$/.test(file.type);
         img.onload = () => {
           const scale = Math.min(1, maxWidth / img.width);
           const canvas = document.createElement('canvas');
@@ -4583,7 +4591,7 @@
           canvas.height = Math.round(img.height * scale);
           canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
           URL.revokeObjectURL(url);
-          resolve(canvas.toDataURL('image/jpeg', quality));
+          resolve(keepTransparency ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', quality));
         };
         img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
         img.src = url;
