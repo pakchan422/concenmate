@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.16.1"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.17.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -382,6 +382,19 @@
     .qa-subject-btn.active, .qa-subject-btn:hover {
       background: var(--brand-500); color: white; border-color: var(--brand-500);
     }
+    /* 學科溫習卡：學科 Tab 未有內容時 disable（顯示咗個 tab 出嚟，但暫時撳唔到） */
+    .qa-subject-btn.disabled, .flashcard-category-btn.disabled {
+      opacity: .4; cursor: not-allowed; background: white; color: var(--brand-700); border-color: var(--brand-200);
+    }
+    /* 學科溫習卡：英文專屬嘅「範疇」次一級 Tab，樣式同學科 Tab 一致但細一級 */
+    .flashcard-category-btn {
+      padding: 5px 10px; border-radius: 16px; border: 1.5px solid var(--brand-200);
+      background: white; color: var(--brand-700); font-size: 12px; font-weight: 600;
+      cursor: pointer; transition: .15s;
+    }
+    .flashcard-category-btn.active, .flashcard-category-btn:hover:not(.disabled) {
+      background: var(--brand-500); color: white; border-color: var(--brand-500);
+    }
     .qa-post-card {
       background: white; border: 1px solid var(--brand-200); border-radius: 14px;
       padding: 14px; margin-bottom: 10px; cursor: pointer; transition: box-shadow .15s;
@@ -696,7 +709,7 @@
       <div>
         <button class="nav-btn active" id="nav-btn-home" type="button" onclick="switchTab('home', this)">🏠 <span class="nav-text">主頁</span></button>
         <button class="nav-btn" id="nav-btn-room" type="button" onclick="switchTab('room', this)">📹 <span class="nav-text">視訊溫習室</span></button>
-        <button class="nav-btn" id="nav-btn-study" type="button" onclick="switchTab('study', this)">🗂 <span class="nav-text">抽認卡複習</span></button>
+        <button class="nav-btn" id="nav-btn-study" type="button" onclick="switchTab('study', this)">🗂 <span class="nav-text">學科溫習卡</span></button>
         <button class="nav-btn" id="nav-btn-qa" type="button" onclick="switchTab('qa', this)">❓ <span class="nav-text">疑難解答區</span></button>
         <button class="nav-btn" id="nav-btn-vip" type="button" onclick="switchTab('vip', this)">👑 <span class="nav-text">溫習資源 & VIP</span></button>
         <button class="nav-btn" id="nav-btn-store" type="button" onclick="switchTab('store', this)">🎁 <span class="nav-text">時數兌換所</span></button>
@@ -878,7 +891,7 @@
                   <div class="home-sec-head">
                     <span class="home-sec-icon">🗂</span>
                   </div>
-                  <div class="home-sec-title">抽認卡複習</div>
+                  <div class="home-sec-title">學科溫習卡</div>
                   <div class="home-sec-desc">間隔重複記憶法溫習</div>
                 </button>
 
@@ -1050,33 +1063,30 @@
 
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
             <div>
-              <h2 style="font-size:18px; font-weight:bold; color:var(--brand-800);">🗂 抽認卡複習</h2>
+              <h2 style="font-size:18px; font-weight:bold; color:var(--brand-800);">🗂 學科溫習卡</h2>
               <p style="font-size:13px; color:#666;">用間隔重複記憶法溫習，複習完都可以賺取積分同經驗值！</p>
             </div>
           </div>
 
-          <!-- ── 抽認卡（間隔重複記憶） ── -->
+          <!-- ── 溫習卡（間隔重複記憶） ── -->
           <div id="study-sub-flashcards">
 
             <div id="flashcards-manage-view">
-              <p style="text-align:center; font-size:12px; color:#999; max-width:520px; margin:0 auto 10px;">呢啲抽認卡由老師／管理員準備，你只需要負責複習就得㗎喇！</p>
+              <p style="text-align:center; font-size:12px; color:#999; max-width:520px; margin:0 auto 10px;">呢啲溫習卡由老師／管理員準備，你只需要負責複習就得㗎喇！</p>
 
-              <div style="display:flex; gap:8px; flex-wrap:wrap; max-width:520px; margin:0 auto 10px;">
-                <select id="flashcards-filter-subject" class="input-field" style="flex:1; min-width:120px;" onchange="onFlashcardsFilterChange()">
-                  <option value="all">📚 全部科目</option>
-                </select>
-                <select id="flashcards-filter-category" class="input-field" style="flex:1; min-width:160px; display:none;" onchange="onFlashcardsFilterChange()">
-                  <option value="all">🗂 全部範疇</option>
-                </select>
-              </div>
+              <!-- 學科 Tab 列，格局同「疑難解答區」一致：未有內容嘅學科都會顯示個 tab 出嚟，
+                   但暫時撳唔到，等學生知道呢科將來會有溫習卡 -->
+              <div id="flashcards-subject-tabs" style="display:flex; gap:6px; flex-wrap:wrap; justify-content:center; max-width:560px; margin:0 auto 8px;"></div>
+              <!-- 英文專屬：範疇 Tab 列，淨係揀咗「英文」先會顯示 -->
+              <div id="flashcards-category-tabs" style="display:none; gap:6px; flex-wrap:wrap; justify-content:center; max-width:560px; margin:0 auto 14px;"></div>
 
               <div style="display:flex; justify-content:space-between; align-items:center; margin:14px 0 8px; max-width:520px; margin-left:auto; margin-right:auto; flex-wrap:wrap; gap:8px;">
-                <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800);">🗂 抽認卡（<span id="flashcards-total-count">0</span>）</h3>
+                <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800);">🗂 溫習卡（<span id="flashcards-total-count">0</span>）</h3>
                 <button class="btn btn-primary" type="button" onclick="startFlashcardReview()">🚀 開始複習（<span id="flashcards-due-count">0</span> 張待複習）</button>
               </div>
 
               <div id="flashcards-list-container" style="max-width:520px; margin:0 auto;">
-                <p style="text-align:center; color:#999; font-size:13px; padding:20px;">🔄 載入緊抽認卡...</p>
+                <p style="text-align:center; color:#999; font-size:13px; padding:20px;">🔄 載入緊溫習卡...</p>
               </div>
             </div>
 
@@ -1641,7 +1651,7 @@
         if (targetBtn) targetBtn.classList.add('active');
       }
 
-      // 「抽認卡複習」分頁一開就即刻攞返最新卡片（同用家自己嘅複習進度）
+      // 「學科溫習卡」分頁一開就即刻攞返最新卡片（同用家自己嘅複習進度）
       if (tabId === 'study' && typeof loadFlashcards === 'function') loadFlashcards();
     }
     window.switchTab = switchTab;
@@ -3559,7 +3569,7 @@
     }
 
     // hoursIncrement：呢次要累加幾多小時到「累積溫習時數」（users.hours），
-    // 淨係房入面實際專注嘅每一分鐘先會傳呢個值（1/60），其他獎勵（例如抽認卡
+    // 淨係房入面實際專注嘅每一分鐘先會傳呢個值（1/60），其他獎勵（例如溫習卡
     // 複習、「仲喺度嗎」確認嘅額外 PTS）唔代表真正流逝咗嘅專注時間，所以預設
     // 唔會影響時數，避免將時數同「賺咗幾多分」混埋一齊。
     async function awardStudyPoint(pointsAmount, hoursIncrement) {
@@ -3640,7 +3650,7 @@
       }
     }
 
-    // ===================== 學習工具：抽認卡（間隔重複記憶法） =====================
+    // ===================== 學習工具：溫習卡（間隔重複記憶法） =====================
     // 用簡化版 Leitner Box 演算法：答啱就跳去下一級（複習間隔拉長），
     // 答錯就打番落第一級（好快再見到嗰張卡）。
     let flashcardsCache = [];
@@ -3658,6 +3668,23 @@
       14 * 24 * 60 * 60 * 1000 // Box 5 → 14 日後
     ];
 
+    // 學科溫習卡：固定嘅學科 Tab 列表，格局同「疑難解答區」嗰套學科 Tab 一致。
+    // 未喺 FLASHCARD_KNOWN_SUBJECTS 入面嘅科目（或者未填科目）一律歸入「其他」，
+    // 等就算 admin 手動輸入自訂科目名，都唔會冇 tab 收容佢。
+    const FLASHCARD_SUBJECT_TABS = [
+      { key: 'all',  label: '📚 全部' },
+      { key: '數學', label: '➕ 數學' },
+      { key: '中文', label: '📝 中文' },
+      { key: '英文', label: '🔤 英文' },
+      { key: '科學', label: '🔬 科學' },
+      { key: '經濟', label: '💹 經濟' },
+      { key: '其他', label: '💬 其他' }
+    ];
+    const FLASHCARD_KNOWN_SUBJECTS = ['數學', '中文', '英文', '科學', '經濟'];
+    function getFlashcardSubjectBucket(subject) {
+      return FLASHCARD_KNOWN_SUBJECTS.includes(subject) ? subject : '其他';
+    }
+
     // ===================== 英文詞彙庫（DSE 8 大議題範疇）=====================
     // 畀 admin 喺後台「一鍵匯入」用嘅預備內容：8 個 DSE 常見議題範疇，每個範疇
     // 20 個詞彙，包含詞性、中文意思、例句同例句中文翻譯。匯入之後 admin 仍然
@@ -3674,17 +3701,17 @@
     ];
 
     // 呢個 const 掛喺 window 度，等後台管理員嗰個 <script> 區塊（另一個獨立
-    // scope）都可以攞到（畀「新增抽認卡」同「批量貼上匯入」嘅範疇下拉選單用）
+    // scope）都可以攞到（畀「新增溫習卡」同「批量貼上匯入」嘅範疇下拉選單用）
     window.ENGLISH_VOCAB_CATEGORIES = ENGLISH_VOCAB_CATEGORIES;
 
-    // 抽認卡內容而家由管理員喺後台統一管理（Firestore 頂層 flashcards 集合），
+    // 溫習卡內容而家由管理員喺後台統一管理（Firestore 頂層 flashcards 集合），
     // 學生淨係讀取內容，唔可以自己新增/編輯/刪除。每個學生自己嘅複習進度
     // （記憶等級、下次複習時間）就分開存喺 users/{uid}/flashcardProgress，
     // 咁樣就算大家睇緊同一批卡，各自嘅複習排程都唔會撞埋一齊。
     async function loadFlashcards() {
       if (!window.currentUser || !window.currentUser.uid || !window.fs || !window.db) return;
       const listEl = document.getElementById('flashcards-list-container');
-      if (listEl) listEl.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:20px;">🔄 載入緊抽認卡...</p>';
+      if (listEl) listEl.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:20px;">🔄 載入緊溫習卡...</p>';
       try {
         const [cardsSnap, progressSnap] = await Promise.all([
           window.fs.getDocs(window.fs.collection(window.db, 'flashcards')),
@@ -3706,10 +3733,10 @@
           };
         });
         flashcardsCache.sort((a, b) => (a.nextReviewAt || 0) - (b.nextReviewAt || 0));
-        populateFlashcardsFilters();
+        renderFlashcardSubjectTabs();
         renderFlashcardsList();
       } catch (e) {
-        console.error('載入抽認卡失敗', e);
+        console.error('載入溫習卡失敗', e);
         if (listEl) listEl.innerHTML = '<p style="text-align:center; color:#D9764A; font-size:13px; padding:20px;">載入失敗，請重新整理頁面再試</p>';
       }
     }
@@ -3722,47 +3749,96 @@
 
     function getVisibleFlashcards() {
       return flashcardsCache.filter(c => {
-        if (flashcardsFilterSubject !== 'all' && (c.subject || '') !== flashcardsFilterSubject) return false;
+        const bucket = getFlashcardSubjectBucket(c.subject);
+        if (flashcardsFilterSubject !== 'all' && bucket !== flashcardsFilterSubject) return false;
         if (flashcardsFilterSubject === '英文' && flashcardsFilterCategory !== 'all' && (c.category || '') !== flashcardsFilterCategory) return false;
         return true;
       });
     }
 
-    // 根據目前 flashcardsCache 入面實際存在嘅科目／範疇，動態更新篩選下拉選單
-    // 嘅選項（唔係寫死），保留用家原本揀緊嗰個選項（如果仲有效）
-    function populateFlashcardsFilters() {
-      const subjectEl = document.getElementById('flashcards-filter-subject');
-      const categoryEl = document.getElementById('flashcards-filter-category');
-      if (!subjectEl) return;
+    // 學科 Tab 列：格局同「疑難解答區」一致。每次 flashcardsCache 更新完都要重新
+    // 計返每個學科有幾多張卡——未有內容嘅學科都照樣顯示個 tab，但 disable 撳唔到，
+    // 等學生知道呢科將來會有溫習卡，唔會以為個功能壞咗／唔存在。
+    function renderFlashcardSubjectTabs() {
+      const container = document.getElementById('flashcards-subject-tabs');
+      if (!container) return;
 
-      const subjects = Array.from(new Set(flashcardsCache.map(c => c.subject).filter(Boolean))).sort();
-      const prevSubject = subjectEl.value || 'all';
-      subjectEl.innerHTML = '<option value="all">📚 全部科目</option>' +
-        subjects.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
-      subjectEl.value = subjects.includes(prevSubject) ? prevSubject : 'all';
-      flashcardsFilterSubject = subjectEl.value;
+      const countsBySubject = {};
+      flashcardsCache.forEach(c => {
+        const bucket = getFlashcardSubjectBucket(c.subject);
+        countsBySubject[bucket] = (countsBySubject[bucket] || 0) + 1;
+      });
 
-      if (categoryEl) {
-        categoryEl.style.display = flashcardsFilterSubject === '英文' ? '' : 'none';
-        const categories = Array.from(new Set(
-          flashcardsCache.filter(c => c.subject === '英文').map(c => c.category).filter(Boolean)
-        )).sort();
-        const prevCategory = categoryEl.value || 'all';
-        categoryEl.innerHTML = '<option value="all">🗂 全部範疇</option>' +
-          categories.map(cat => `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`).join('');
-        categoryEl.value = categories.includes(prevCategory) ? prevCategory : 'all';
-        flashcardsFilterCategory = categoryEl.value;
+      // 如果目前揀緊嘅學科而家冇卡（例如 admin 啱啱刪走晒），自動退返去「全部」，
+      // 避免學生停留喺一個已經 disable 咗嘅 tab 度
+      if (flashcardsFilterSubject !== 'all' && !countsBySubject[flashcardsFilterSubject]) {
+        flashcardsFilterSubject = 'all';
+        flashcardsFilterCategory = 'all';
       }
+
+      container.innerHTML = FLASHCARD_SUBJECT_TABS.map(s => {
+        const count = s.key === 'all' ? flashcardsCache.length : (countsBySubject[s.key] || 0);
+        const disabled = s.key !== 'all' && count === 0;
+        const active = flashcardsFilterSubject === s.key;
+        const cls = 'qa-subject-btn' + (active ? ' active' : '') + (disabled ? ' disabled' : '');
+        return disabled
+          ? `<button type="button" class="${cls}" disabled title="呢科暫時未有溫習卡">${s.label}</button>`
+          : `<button type="button" class="${cls}" onclick="switchFlashcardSubject('${s.key}')">${s.label}</button>`;
+      }).join('');
+
+      renderFlashcardCategoryTabs();
     }
 
-    window.onFlashcardsFilterChange = function() {
-      const subjectEl = document.getElementById('flashcards-filter-subject');
-      const categoryEl = document.getElementById('flashcards-filter-category');
-      flashcardsFilterSubject = subjectEl ? subjectEl.value : 'all';
-      if (categoryEl) {
-        categoryEl.style.display = flashcardsFilterSubject === '英文' ? '' : 'none';
-        flashcardsFilterCategory = categoryEl.value;
+    // 英文專屬嘅「範疇」次一級 Tab（8 大 DSE 議題範疇），淨係揀咗「英文」呢個
+    // 學科 Tab 先會顯示；同樣，未有內容嘅範疇會顯示但 disable。
+    function renderFlashcardCategoryTabs() {
+      const wrap = document.getElementById('flashcards-category-tabs');
+      if (!wrap) return;
+
+      if (flashcardsFilterSubject !== '英文') {
+        wrap.style.display = 'none';
+        wrap.innerHTML = '';
+        return;
       }
+      wrap.style.display = 'flex';
+
+      const englishCards = flashcardsCache.filter(c => getFlashcardSubjectBucket(c.subject) === '英文');
+      const countsByCategory = {};
+      englishCards.forEach(c => {
+        const cat = c.category || '';
+        if (!cat) return;
+        countsByCategory[cat] = (countsByCategory[cat] || 0) + 1;
+      });
+
+      if (flashcardsFilterCategory !== 'all' && !countsByCategory[flashcardsFilterCategory]) {
+        flashcardsFilterCategory = 'all';
+      }
+
+      const categories = window.ENGLISH_VOCAB_CATEGORIES || [];
+      const allActive = flashcardsFilterCategory === 'all';
+      const allBtn = `<button type="button" class="flashcard-category-btn${allActive ? ' active' : ''}" onclick="switchFlashcardCategory('all')">🗂 全部範疇（${englishCards.length}）</button>`;
+      const catBtns = categories.map(cat => {
+        const count = countsByCategory[cat.label] || 0;
+        const disabled = count === 0;
+        const active = flashcardsFilterCategory === cat.label;
+        const cls = 'flashcard-category-btn' + (active ? ' active' : '') + (disabled ? ' disabled' : '');
+        return disabled
+          ? `<button type="button" class="${cls}" disabled title="呢個範疇暫時未有詞卡">${escapeHtml(cat.label)}（0）</button>`
+          : `<button type="button" class="${cls}" onclick="switchFlashcardCategory('${cat.label}')">${escapeHtml(cat.label)}（${count}）</button>`;
+      }).join('');
+      wrap.innerHTML = allBtn + catBtns;
+    }
+
+    window.switchFlashcardSubject = function(subject) {
+      flashcardsFilterSubject = subject;
+      flashcardsFilterCategory = 'all';
+      renderFlashcardSubjectTabs();
+      renderFlashcardsList();
+    };
+
+    window.switchFlashcardCategory = function(category) {
+      flashcardsFilterCategory = category;
+      renderFlashcardCategoryTabs();
       renderFlashcardsList();
     };
 
@@ -3792,11 +3868,11 @@
 
       if (!listEl) return;
       if (flashcardsCache.length === 0) {
-        listEl.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:20px;">而家仲未有抽認卡，等下老師／管理員新增啦！</p>';
+        listEl.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:20px;">而家仲未有溫習卡，等下老師／管理員新增啦！</p>';
         return;
       }
       if (visible.length === 0) {
-        listEl.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:20px;">呢個篩選範圍暫時未有抽認卡，試吓揀返「全部」睇吓！</p>';
+        listEl.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:20px;">呢個篩選範圍暫時未有溫習卡，試吓揀返「全部」睇吓！</p>';
         return;
       }
 
@@ -3876,7 +3952,7 @@
         c.box = newBox;
         c.nextReviewAt = nextReviewAt;
       } catch (e) {
-        console.warn('更新抽認卡複習進度失敗（唔影響繼續複習）:', e);
+        console.warn('更新學科溫習卡進度失敗（唔影響繼續複習）:', e);
       }
 
       // 每複習 5 張卡先 +1 PTS（同 awardStudyPoint 共用，避免用家瘋狂撳掣洗積分）
@@ -4954,7 +5030,7 @@
         <button class="btn btn-outline admin-tab-btn" data-tab="qa" onclick="switchAdminTab('qa')">❓ 疑難解答區</button>
         <button class="btn btn-outline admin-tab-btn" data-tab="users" onclick="switchAdminTab('users')">👤 用戶管理</button>
         <button class="btn btn-outline admin-tab-btn" data-tab="level" onclick="switchAdminTab('level')">🎮 等級系統</button>
-        <button class="btn btn-outline admin-tab-btn" data-tab="flashcards" onclick="switchAdminTab('flashcards')">🗂 抽認卡管理</button>
+        <button class="btn btn-outline admin-tab-btn" data-tab="flashcards" onclick="switchAdminTab('flashcards')">🗂 溫習卡管理</button>
       </div>
 
       <div id="admin-tab-gacha" class="admin-tab-panel"></div>
@@ -5695,11 +5771,11 @@
       }
     };
 
-    // ---------- 抽認卡管理 ----------
-    // 抽認卡內容統一由管理員喺呢度新增/編輯/刪除，存喺 Firestore 頂層
+    // ---------- 溫習卡管理 ----------
+    // 溫習卡內容統一由管理員喺呢度新增/編輯/刪除，存喺 Firestore 頂層
     // 「flashcards」集合，所有已登入用戶得（read-only）睇到內容，但淨係
     // 管理員先可以寫入（要記得喺 Firestore 安全規則加返對應嘅權限）。
-    let adminFlashcardsAllDocs = []; // 快取最新一次 onSnapshot 嘅全部抽認卡，畀篩選下拉選單即時重新渲染用，唔使再拉一次 Firestore
+    let adminFlashcardsAllDocs = []; // 快取最新一次 onSnapshot 嘅全部溫習卡，畀篩選下拉選單即時重新渲染用，唔使再拉一次 Firestore
 
     function renderAdminFlashcardsTab() {
       const container = document.getElementById('admin-tab-flashcards');
@@ -5709,7 +5785,7 @@
 
       container.innerHTML = `
         <div class="admin-card">
-          <h3 style="font-size:15px; font-weight:bold; margin-bottom:8px; color:var(--brand-800);">➕ 新增抽認卡</h3>
+          <h3 style="font-size:15px; font-weight:bold; margin-bottom:8px; color:var(--brand-800);">➕ 新增溫習卡</h3>
 
           <label style="font-size:13px; font-weight:600; color:#555;">科目</label>
           <select id="admin-flashcard-subject-select" class="input-field" onchange="toggleFlashcardSubjectMode()">
@@ -5744,7 +5820,7 @@
           </div>
 
           <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
-            <button class="btn btn-primary" type="button" onclick="adminAddFlashcard()">💾 新增抽認卡</button>
+            <button class="btn btn-primary" type="button" onclick="adminAddFlashcard()">💾 新增溫習卡</button>
           </div>
         </div>
 
@@ -5768,7 +5844,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
               <option value="all">🗂 全部範疇</option>
             </select>
           </div>
-          <div id="admin-flashcards-list-container"><p style="text-align:center; color:#999; padding:20px;">載入緊抽認卡...</p></div>
+          <div id="admin-flashcards-list-container"><p style="text-align:center; color:#999; padding:20px;">載入緊溫習卡...</p></div>
         </div>
       `;
       toggleFlashcardSubjectMode();
@@ -5795,7 +5871,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
       if (genFields) genFields.style.display = mode === 'english' ? 'none' : '';
     };
 
-    // 根據目前快取嘅 adminFlashcardsAllDocs + 篩選下拉選單，重新渲染管理員嘅抽認卡列表
+    // 根據目前快取嘅 adminFlashcardsAllDocs + 篩選下拉選單，重新渲染管理員嘅溫習卡列表
     // （純本地重新渲染，唔使再打 Firestore，切換篩選即時反應）
     function renderAdminFlashcardsTable() {
       const listContainer = document.getElementById('admin-flashcards-list-container');
@@ -5822,7 +5898,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
       }
 
       if (adminFlashcardsAllDocs.length === 0) {
-        listContainer.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">目前冇任何抽認卡，喺上面新增第一張啦！</div>';
+        listContainer.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">目前冇任何溫習卡，喺上面新增第一張啦！</div>';
         return;
       }
 
@@ -5836,7 +5912,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
       });
 
       if (docs.length === 0) {
-        listContainer.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">呢個篩選範圍暫時未有抽認卡</div>';
+        listContainer.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">呢個篩選範圍暫時未有溫習卡</div>';
         return;
       }
 
@@ -5885,7 +5961,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
       }).join('');
 
       listContainer.innerHTML = `
-        <p style="font-size:12px; color:#888; margin-bottom:10px;">共 ${adminFlashcardsAllDocs.length} 張抽認卡（篩選後顯示 ${docs.length} 張），全部學生都會睇到（下面直接改欄位會即時儲存）</p>
+        <p style="font-size:12px; color:#888; margin-bottom:10px;">共 ${adminFlashcardsAllDocs.length} 張溫習卡（篩選後顯示 ${docs.length} 張），全部學生都會睇到（下面直接改欄位會即時儲存）</p>
         <div style="overflow-x:auto;">
           <table class="admin-table">
             <thead><tr><th>問題（正面）</th><th>答案（背面）</th><th>科目</th><th>範疇</th><th></th></tr></thead>
@@ -5947,7 +6023,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
         if (frontEl) frontEl.value = '';
         if (backEl) backEl.value = '';
         if (subjectEl) subjectEl.value = '';
-        window.showToast('✅ 已新增抽認卡，所有學生即時見到', '🗂');
+        window.showToast('✅ 已新增溫習卡，所有學生即時見到', '🗂');
       } catch (err) {
         window.showToast('新增失敗：' + (err.message || err), '❌');
       }
@@ -6028,10 +6104,10 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
     };
 
     window.adminDeleteFlashcard = async function(cardId) {
-      if (!confirm('確定要刪除呢張抽認卡？刪除之後所有學生都唔會再見到呢張卡。')) return;
+      if (!confirm('確定要刪除呢張溫習卡？刪除之後所有學生都唔會再見到呢張卡。')) return;
       try {
         await window.fs.deleteDoc(window.fs.doc(window.db, 'flashcards', cardId));
-        window.showToast('🗑️ 已刪除抽認卡', '🗑️');
+        window.showToast('🗑️ 已刪除溫習卡', '🗑️');
       } catch (err) {
         window.showToast('刪除失敗：' + (err.message || err), '❌');
       }
