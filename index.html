@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.15.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.16.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -949,9 +949,18 @@
                 <button class="btn btn-primary" type="button" id="btn-camera" onclick="toggleCamera()">📹 開啟鏡頭</button>
                 <button class="btn btn-red" type="button" id="btn-mic" onclick="toggleMic()">🔇 已靜音</button>
 
-                <div style="background:#111; color:white; font-family:monospace; padding:4px 8px; border-radius:8px; font-size:13px; display:flex; align-items:center; gap:6px;">
-                  <span id="room-timer-phase" style="font-family:inherit;">🍅 專注中</span>
-                  <span id="room-timer">30:00</span>
+                <div id="pomodoro-widget" style="background:#111; color:white; padding:6px 10px; border-radius:10px; font-size:12px; display:flex; flex-direction:column; gap:4px; min-width:150px;">
+                  <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                    <span id="room-timer-phase" style="font-weight:bold;">🍅 專注中</span>
+                    <span id="room-timer" style="font-family:monospace; font-size:14px;">30:00</span>
+                  </div>
+                  <div style="background:#333; border-radius:6px; height:5px; overflow:hidden;">
+                    <div id="room-timer-progress-bar" style="background:#F2A65A; height:100%; width:0%; transition:width 1s linear;"></div>
+                  </div>
+                  <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; font-size:11px; color:#ccc;">
+                    <span id="pomodoro-cycle-dots" title="已完成嘅番茄鐘">—</span>
+                    <span id="pomodoro-cycle-count">已完成 0 個番茄鐘</span>
+                  </div>
                 </div>
                 <button class="btn btn-red" type="button" id="btn-presence-back" onclick="confirmStillHere()" style="display:none; font-size:11px; padding:5px 8px;">⏸️ 已暫停計分，撳返嚟</button>
 
@@ -2993,6 +3002,7 @@
       currentRoomHostUid: null, // 現時房間嘅房主 uid，方便隨時知道要喺邊一格顯示「👑 房主」牌
       pomodoroPhase: 'focus', // 'focus' | 'break'：房入面嘅計時器而家跑緊邊個階段
       focusDurationSeconds: 1800, // 呢間房嘅「專注時段」長度（跟房主揀嘅目標時間），小休完之後會用返呢個數重新開始新一輪專注
+      pomodoroCyclesCompleted: 0, // 呢次入房到而家已經完成咗幾多個完整嘅「專注」循環，用嚟畀學生睇到自己嘅進度／成就感
       heartbeatTimer: null, // 房間心跳計時器（見 startRoomHeartbeat），畀大廳嘅幽靈房自動清理機制用
       presenceCheckTimer: null, // 定時彈窗確認「仲喺度嗎？」嘅計時器
       presenceTimeoutTimer: null, // 彈窗後 2 分鐘未確認就暫停計分嘅計時器
@@ -3427,6 +3437,7 @@
       // 專注完會自動小休 5 分鐘，再自動開始新一輪專注，一直循環到退房為止
       state.pomodoroPhase = 'focus';
       state.focusDurationSeconds = totalSeconds;
+      state.pomodoroCyclesCompleted = 0; // 每次新入房，「已完成番茄鐘」由 0 開始儲
       updateTimerDisplay();
 
       resetVideoSlots();
@@ -3542,7 +3553,8 @@
           if (state.pomodoroPhase === 'focus') {
             state.pomodoroPhase = 'break';
             state.remainingSeconds = ROOM_POMODORO_BREAK_SECONDS;
-            window.showToast('🍅 呢輪專注完成！小休 5 分鐘啦～', '🎉');
+            state.pomodoroCyclesCompleted = (state.pomodoroCyclesCompleted || 0) + 1;
+            window.showToast(`🍅 第 ${state.pomodoroCyclesCompleted} 個番茄鐘完成！小休 5 分鐘啦～`, '🎉');
           } else {
             state.pomodoroPhase = 'focus';
             state.remainingSeconds = state.focusDurationSeconds;
@@ -3907,6 +3919,37 @@
       if (phaseEl) {
         phaseEl.innerText = state.pomodoroPhase === 'break' ? '☕ 小休中' : '🍅 專注中';
       }
+
+      // 番茄鐘進度條：顯示緊呢一節（專注／小休）行咗幾多 %，等學生對「仲有幾耐」有更直覺嘅視覺感受，
+      // 唔使淨係睇文字倒數。
+      const phaseTotalSeconds = state.pomodoroPhase === 'break' ? ROOM_POMODORO_BREAK_SECONDS : (state.focusDurationSeconds || 1);
+      const elapsedInPhase = Math.max(0, phaseTotalSeconds - state.remainingSeconds);
+      const progressPct = phaseTotalSeconds > 0 ? Math.min(100, (elapsedInPhase / phaseTotalSeconds) * 100) : 0;
+      const progressBarEl = document.getElementById('room-timer-progress-bar');
+      if (progressBarEl) {
+        progressBarEl.style.width = progressPct + '%';
+        progressBarEl.style.background = state.pomodoroPhase === 'break' ? '#7DB8C5' : '#F2A65A';
+      }
+
+      // 已完成番茄鐘數量：用實心番茄 emoji 儲住顯示，等學生一眼睇到自己今次入房
+      // 「儲」咗幾多個完整循環，增加目標感／成就感；太多就摺埋做數字，避免版面爆版。
+      const completed = state.pomodoroCyclesCompleted || 0;
+      const dotsEl = document.getElementById('pomodoro-cycle-dots');
+      if (dotsEl) {
+        const MAX_DOTS = 6;
+        if (completed === 0) {
+          dotsEl.innerText = '—';
+        } else if (completed <= MAX_DOTS) {
+          dotsEl.innerText = '🍅'.repeat(completed);
+        } else {
+          dotsEl.innerText = '🍅'.repeat(MAX_DOTS) + ` +${completed - MAX_DOTS}`;
+        }
+      }
+      const cycleCountEl = document.getElementById('pomodoro-cycle-count');
+      if (cycleCountEl) {
+        cycleCountEl.innerText = `已完成 ${completed} 個番茄鐘`;
+      }
+
       // 被判定為閒置期間，喺計時器旁邊顯示一個顯眼嘅「撳返嚟」掣，
       // 等用家一返嚟就可以即刻恢復計分，唔使等下一次彈窗
       const backBtn = document.getElementById('btn-presence-back');
