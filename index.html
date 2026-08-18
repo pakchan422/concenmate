@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.14.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.15.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -3761,6 +3761,20 @@
       renderFlashcardsList();
     };
 
+    function formatNextReviewLabel(nextReviewAt) {
+      const diffMs = nextReviewAt - Date.now();
+      if (diffMs <= 0) return '✅ 現在可複習';
+      const diffMin = Math.ceil(diffMs / (60 * 1000));
+      if (diffMin < 60) {
+        return `⏳ ${diffMin} 分鐘後可複習`;
+      }
+      const diffHours = Math.ceil(diffMs / (60 * 60 * 1000));
+      if (diffHours < 24) {
+        return `⏳ ${diffHours} 小時後可複習`;
+      }
+      return '⏳ ' + new Date(nextReviewAt).toLocaleDateString('zh-HK', { month: '2-digit', day: '2-digit' }) + ' 再複習';
+    }
+
     function renderFlashcardsList() {
       const listEl = document.getElementById('flashcards-list-container');
       const totalEl = document.getElementById('flashcards-total-count');
@@ -3784,7 +3798,7 @@
       listEl.innerHTML = visible.map(c => {
         const due = (c.nextReviewAt || 0) <= now;
         const boxLabel = '記憶等級 ' + (c.box || 1) + '/5';
-        const nextLabel = due ? '✅ 現在可複習' : ('⏳ ' + new Date(c.nextReviewAt).toLocaleDateString('zh-HK', { month: '2-digit', day: '2-digit' }) + ' 再複習');
+        const nextLabel = formatNextReviewLabel(c.nextReviewAt || 0);
         return `
           <div class="card" style="display:flex; flex-direction:column; gap:4px;">
             <div style="font-weight:bold; color:var(--brand-800); font-size:14px;">${escapeHtml(c.front)}</div>
