@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.13.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.14.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -38,13 +38,15 @@
     body { background-color: var(--brand-50); color: var(--text-dark); min-height: 100vh; display: flex; flex-direction: column; }
 
     #app-top-sticky { position: sticky; top: 0; z-index: 40; }
-    header { background: rgba(255, 255, 255, 0.95); border-bottom: 1px solid var(--brand-200); padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; backdrop-filter: blur(8px); }
+    header { background: rgba(255, 255, 255, 0.95); border-bottom: 1px solid var(--brand-200); padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; backdrop-filter: blur(8px); position: relative; }
     .logo-box { display: flex; align-items: center; gap: 8px; cursor: pointer; }
     .logo-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--brand-500); color: white; display: flex; align-items: center; justify-content: center; font-size: 20px; border: 2px solid var(--brand-200); }
     .logo-title { font-weight: bold; font-size: 17px; }
     .badge { background: var(--brand-100); color: var(--brand-700); font-size: 12px; padding: 2px 5px; border-radius: 4px; font-weight: bold; }
 
-    .user-stats { display: flex; align-items: center; gap: 10px; background: var(--brand-50); padding: 4px 10px; border-radius: 20px; border: 1px solid var(--brand-200); font-size: 13px; font-weight: 600; }
+    /* 用絕對定位令呢個 pill 真正置中喺 header 中間，唔會再因為左邊 logo 同右邊
+       按鈕闊度唔一致（例如二按 space-between 令中間元素被逼歪一邊）而偏側 */
+    .user-stats { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); align-items: center; gap: 10px; background: var(--brand-50); padding: 4px 10px; border-radius: 20px; border: 1px solid var(--brand-200); font-size: 13px; font-weight: 600; }
     
     .btn { border: none; border-radius: 10px; padding: 6px 12px; font-size: 14px; font-weight: bold; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 4px; }
     .btn-primary { background: var(--brand-500); color: white; }
@@ -657,7 +659,6 @@
           <span class="logo-title">ConcenMate</span>
           <span class="badge">書伴</span>
         </div>
-        <p style="font-size:11px; color:#777;">GitHub: pakchan422 | Firebase: concenmate-app</p>
       </div>
     </div>
 
@@ -701,11 +702,6 @@
         <button class="nav-btn" id="nav-btn-store" type="button" onclick="switchTab('store', this)">🎁 <span class="nav-text">時數兌換所</span></button>
         <button class="nav-btn" id="nav-btn-social" type="button" onclick="switchTab('social', this)">👥 <span class="nav-text">夥伴與讀書會</span></button>
         <button class="nav-btn" id="nav-btn-verification" type="button" onclick="switchTab('verification', this)">🎓 <span class="nav-text">學生身份驗證</span></button>
-      </div>
-
-      <div style="background:var(--brand-50); padding:8px; border-radius:12px; border:1px solid var(--brand-200); text-align:center;">
-        <p style="font-size:12px; font-weight:bold; color:var(--brand-800);">Ottiee 小叮嚀：</p>
-        <button class="btn btn-primary" type="button" style="width:100%; margin-top:6px; font-size:12px;" onclick="triggerQuiz()">防瞌睡小測驗</button>
       </div>
     </aside>
 
@@ -892,20 +888,6 @@
             <!-- 右欄：動態資訊 -->
             <div class="home-side-col">
 
-              <!-- 防瞌睡小測驗 -->
-              <div class="home-side-card">
-                <div class="home-side-card-head">
-                  <span style="font-size:20px;">🧠</span>
-                  <div>
-                    <div style="font-size:14px; font-weight:700; color:var(--brand-800);">Ottiee 防瞌睡測驗</div>
-                    <div style="font-size:12px; color:var(--brand-600);">隨機一題，保持精神！</div>
-                  </div>
-                  <button class="btn btn-primary" type="button"
-                    style="font-size:13px; padding:5px 14px; margin-left:auto; flex-shrink:0;"
-                    onclick="triggerQuiz()">開始</button>
-                </div>
-              </div>
-
               <!-- 積分進度 -->
               <div class="home-side-card">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
@@ -926,7 +908,6 @@
                 <div style="display:flex; flex-direction:column; gap:2px;">
                   <button class="home-quick-btn" onclick="switchTab('profile')">👤 編輯個人資料</button>
                   <button class="home-quick-btn" onclick="switchTab('verification')">🎓 學生身份驗證</button>
-                  <button class="home-quick-btn" onclick="triggerQuiz()">🧠 防瞌睡小測驗</button>
                 </div>
               </div>
 
@@ -1588,17 +1569,6 @@
     </div>
   </div>
 
-  <div class="modal-backdrop" id="modal-quiz" style="display:none;">
-    <div class="modal-box" style="text-align:center;">
-      <div style="font-size:36px;">🦦⚡</div>
-      <h3>醒下啦~ Ottiee 防瞌睡小測驗！</h3>
-      <p style="font-size:13px; color:#555; margin-bottom:10px;">DSE 數學：sin²θ + cos²θ 等於多少？</p>
-      <div style="display:flex; flex-direction:column; gap:6px;">
-        <button class="btn btn-outline" type="button" onclick="answerQuiz(true)">等於 1 (正確)</button>
-        <button class="btn btn-outline" type="button" onclick="answerQuiz(false)">等於 0</button>
-      </div>
-    </div>
-  </div>
 
   <script>
     // 開發測試用：自動更新載入時間戳記
@@ -2695,19 +2665,6 @@
         });
       });
     }
-
-    function triggerQuiz() { openModal('modal-quiz'); }
-    window.triggerQuiz = triggerQuiz;
-
-    function answerQuiz(isCorrect) {
-      closeModal('modal-quiz');
-      if (isCorrect) {
-        showToast('🎉 答對了！精神滿滿，獎勵 +10 點數！', '⚡');
-      } else {
-        showToast('答錯囉，快喝口水提提神！', '🥤');
-      }
-    }
-    window.answerQuiz = answerQuiz;
 
     function viewUserProfile(usernameKey) {
       const u = window.currentUser || { username: 'Alex Wong', school: '聖保羅男女中學', grade: '中六 (S6 DSE)', favSubjects: '數學, 物理', dislikeSubjects: '中文', hours: '42.5' };
