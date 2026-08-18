@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.8.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.8.1"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -3410,16 +3410,16 @@
 
     // ===================== 專注背景音（真實錄音 MP3，循環播放）=====================
     // 之前用 Web Audio API 即時合成雜訊，後來改用管理員提供嘅 ElevenLabs
-    // 錄音（放喺 sounds/ 資料夾），音質靚好多，所以呢度改用簡單嘅
+    // 錄音（放喺 sound/ 資料夾），音質靚好多，所以呢度改用簡單嘅
     // <audio loop> 方式播放，唔再需要濾波器/雜訊合成嗰套邏輯。
     const BG_SOUND_FILES = {
-      white: { label: '白噪音',        file: 'sounds/white-noise.mp3' },
-      rain1: { label: '雨聲 1',        file: 'sounds/rain-1.mp3' },
-      rain2: { label: '雨聲 2',        file: 'sounds/rain-2.mp3' },
-      cafe1: { label: '咖啡室環境聲 1', file: 'sounds/cafe-1.mp3' },
-      cafe2: { label: '咖啡室環境聲 2', file: 'sounds/cafe-2.mp3' },
-      train1: { label: '火車聲 1',      file: 'sounds/train-1.mp3' },
-      train2: { label: '火車聲 2',      file: 'sounds/train-2.mp3' }
+      white: { label: '白噪音',        file: 'sound/white-noise.mp3' },
+      rain1: { label: '雨聲 1',        file: 'sound/rain-1.mp3' },
+      rain2: { label: '雨聲 2',        file: 'sound/rain-2.mp3' },
+      cafe1: { label: '咖啡室環境聲 1', file: 'sound/cafe-1.mp3' },
+      cafe2: { label: '咖啡室環境聲 2', file: 'sound/cafe-2.mp3' },
+      train1: { label: '火車聲 1',      file: 'sound/train-1.mp3' },
+      train2: { label: '火車聲 2',      file: 'sound/train-2.mp3' }
     };
 
     let bgAudioEl = null;
