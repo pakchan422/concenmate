@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.8.1"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.9.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -973,6 +973,7 @@
                   <span id="room-timer-phase" style="font-family:inherit;">🍅 專注中</span>
                   <span id="room-timer">30:00</span>
                 </div>
+                <button class="btn btn-red" type="button" id="btn-presence-back" onclick="confirmStillHere()" style="display:none; font-size:11px; padding:5px 8px;">⏸️ 已暫停計分，撳返嚟</button>
 
                 <div style="background:#111; color:white; padding:4px 8px; border-radius:8px; font-size:12px; display:flex; align-items:center; gap:6px;" title="專注背景音，建議戴耳機使用">
                   <span>🔊</span>
@@ -2689,6 +2690,25 @@
     window.db = db;
     window.fs = { doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs, increment };
 
+    // 幽靈房自動清理：房間冇人心跳（見 updateRoomHeartbeat）超過呢個時間，
+    // 就當佢係冇人打理嘅幽靈房（例如房主手機突然關機、瀏覽器崩潰，嚟唔切
+    // 觸發正常嘅退房流程），下次有人打開大廳就會順手刪走，唔使等房主親自嚟關。
+    const ROOM_STALE_MS = 5 * 60 * 1000; // 5 分鐘
+    let lastGcAttempt = 0;
+    async function gcStaleRooms(roomEntries) {
+      const now = Date.now();
+      if (now - lastGcAttempt < 60 * 1000) return; // 至多每分鐘掃一次，避免頻繁寫入
+      lastGcAttempt = now;
+      for (const { id, data } of roomEntries) {
+        const lastActive = typeof data.lastActiveAt === 'number'
+          ? data.lastActiveAt
+          : (typeof data.createdAt === 'number' ? data.createdAt : 0);
+        if (lastActive && (now - lastActive > ROOM_STALE_MS)) {
+          try { await deleteDoc(doc(db, "rooms", id)); } catch (e) { /* 可能已經被其他人清走，忽略 */ }
+        }
+      }
+    }
+
     let unsubscribeRooms = null;
     function listenToPublicRooms() {
       if (unsubscribeRooms) unsubscribeRooms();
@@ -2696,6 +2716,10 @@
       const roomsRef = collection(db, "rooms");
       unsubscribeRooms = onSnapshot(roomsRef, (snapshot) => {
         const roomsListEl = document.getElementById('public-rooms-container');
+
+        // 順手掃一次有冇幽靈房（心跳過期），唔使阻住畫面渲染
+        gcStaleRooms(snapshot.docs.map(d => ({ id: d.id, data: d.data() })));
+
         if (!roomsListEl) return;
 
         let roomsHtml = '';
@@ -2956,7 +2980,13 @@
       creatingRoom: false, // 防止「立即建立並廣播」撳得太快／撳多次，開出多過一間房間
       currentRoomHostUid: null, // 現時房間嘅房主 uid，方便隨時知道要喺邊一格顯示「👑 房主」牌
       pomodoroPhase: 'focus', // 'focus' | 'break'：房入面嘅計時器而家跑緊邊個階段
-      focusDurationSeconds: 1800 // 呢間房嘅「專注時段」長度（跟房主揀嘅目標時間），小休完之後會用返呢個數重新開始新一輪專注
+      focusDurationSeconds: 1800, // 呢間房嘅「專注時段」長度（跟房主揀嘅目標時間），小休完之後會用返呢個數重新開始新一輪專注
+      heartbeatTimer: null, // 房間心跳計時器（見 startRoomHeartbeat），畀大廳嘅幽靈房自動清理機制用
+      presenceCheckTimer: null, // 定時彈窗確認「仲喺度嗎？」嘅計時器
+      presenceTimeoutTimer: null, // 彈窗後 2 分鐘未確認就暫停計分嘅計時器
+      presenceAutoLeaveTimer: null, // 暫停計分後再耐都冇反應，自動退房嘅計時器
+      presenceConfirmed: true, // 呢一輪確認彈窗，用家係咪已經撳咗確認
+      awardingPaused: false // 被判定為閒置期間，暫停 PTS/EXP 獎勵（防止掛機刷分）
     };
 
     const ROOM_POMODORO_BREAK_SECONDS = 5 * 60; // 房入面每輪專注完之後嘅小休長度，暫時定死 5 分鐘
@@ -3253,11 +3283,20 @@
         state.participantsUnsubscribe = null;
       }
       if (state.currentRoomId && window.currentUser && window.db && window.fs) {
+        const roomId = state.currentRoomId;
         try {
-          await window.fs.deleteDoc(window.fs.doc(window.db, "rooms", state.currentRoomId, "participants", window.currentUser.uid));
-          await window.fs.updateDoc(window.fs.doc(window.db, "rooms", state.currentRoomId), {
-            participantCount: window.fs.increment(-1)
-          });
+          await window.fs.deleteDoc(window.fs.doc(window.db, "rooms", roomId, "participants", window.currentUser.uid));
+
+          // 檢查係咪最後一個人走：如果房入面已經冇任何人，就連房間本身都一拼
+          // 刪走，唔好留低一間「0/4 人但仲顯示直播中」嘅幽靈房喺大廳。
+          const remainingSnap = await window.fs.getDocs(window.fs.collection(window.db, "rooms", roomId, "participants"));
+          if (remainingSnap.empty) {
+            await window.fs.deleteDoc(window.fs.doc(window.db, "rooms", roomId)).catch(() => {});
+          } else {
+            await window.fs.updateDoc(window.fs.doc(window.db, "rooms", roomId), {
+              participantCount: window.fs.increment(-1)
+            });
+          }
         } catch (e) {
           console.error("移除房間人數紀錄失敗:", e);
         }
@@ -3314,7 +3353,8 @@
           hostUid: window.currentUser.uid,
           hostName: window.currentUser.username || '匿名同學',
           participantCount: 0,
-          createdAt: createdAt
+          createdAt: createdAt,
+          lastActiveAt: createdAt // 心跳時間戳，畀幽靈房自動清理機制用（見 gcStaleRooms）
         };
 
         await window.fs.setDoc(window.fs.doc(window.db, "rooms", roomId), roomData);
@@ -3385,11 +3425,29 @@
       listenToRoomSignaling(roomId);
       listenToParticipants(roomId);
       listenToReactions(roomId);
+      startRoomHeartbeat();
+      startPresenceCheckLoop();
 
       // 一入房就廣播上線通知並接駁現有用家，唔再要求「一定要開咗鏡頭先可以睇到人」
       await broadcastPresenceAndConnect();
       await connectToExistingPeers(roomId);
       return true;
+    }
+
+    // 房間心跳：每 45 秒更新一次 lastActiveAt，等大廳嗰邊嘅幽靈房自動清理
+    // 機制（gcStaleRooms）識別到「呢間房仲有人喺度」，唔會誤刪。就算冇人特登
+    // 用鏡頭／做嘢，只要個分頁仲開住喺房入面，心跳就會繼續跳。
+    const ROOM_HEARTBEAT_INTERVAL_MS = 45 * 1000;
+    function startRoomHeartbeat() {
+      if (state.heartbeatTimer) clearInterval(state.heartbeatTimer);
+      state.heartbeatTimer = setInterval(async () => {
+        if (!state.currentRoomId || !window.db || !window.fs) return;
+        try {
+          await window.fs.updateDoc(window.fs.doc(window.db, "rooms", state.currentRoomId), {
+            lastActiveAt: Date.now()
+          });
+        } catch (e) { /* 房間可能已經被刪走，忽略 */ }
+      }, ROOM_HEARTBEAT_INTERVAL_MS);
     }
 
     window.returnToLobby = async function() {
@@ -3468,7 +3526,7 @@
           secondsElapsedInPhase++;
           updateTimerDisplay();
 
-          if (state.pomodoroPhase === 'focus' && secondsElapsedInPhase % 60 === 0) {
+          if (state.pomodoroPhase === 'focus' && secondsElapsedInPhase % 60 === 0 && !state.awardingPaused) {
             awardStudyPoint();
           }
         } else {
@@ -3710,7 +3768,73 @@
       if (phaseEl) {
         phaseEl.innerText = state.pomodoroPhase === 'break' ? '☕ 小休中' : '🍅 專注中';
       }
+      // 被判定為閒置期間，喺計時器旁邊顯示一個顯眼嘅「撳返嚟」掣，
+      // 等用家一返嚟就可以即刻恢復計分，唔使等下一次彈窗
+      const backBtn = document.getElementById('btn-presence-back');
+      if (backBtn) backBtn.style.display = state.awardingPaused ? 'inline-flex' : 'none';
     }
+
+    // ===================== 防「開房掛機刷分」：定時確認用家是否真係喺度 =====================
+    // 每 10 分鐘彈窗問一次「仲喺度嗎？」，2 分鐘內冇撳確認就暫停計分（PTS/EXP 唔再累積），
+    // 如果連續耐都完全冇反應（連彈窗都冇理），就當佢真係走咗，系統自動幫佢退出房間，
+    // 咁個房都可以及時釋放返俾其他人，唔會俾人長期霸住個位卻只係掛機唔學嘢。
+    const ROOM_PRESENCE_CHECK_INTERVAL_MS = 10 * 60 * 1000; // 每 10 分鐘check 一次
+    const ROOM_PRESENCE_RESPONSE_MS = 2 * 60 * 1000;        // 彈窗後 2 分鐘內要確認
+    const ROOM_PRESENCE_AUTO_LEAVE_MS = 8 * 60 * 1000;      // 逾時未確認後，再俾 8 分鐘寬限，之後自動退房
+
+    function startPresenceCheckLoop() {
+      if (state.presenceCheckTimer) clearInterval(state.presenceCheckTimer);
+      state.presenceConfirmed = true;
+      state.awardingPaused = false;
+      state.presenceCheckTimer = setInterval(() => {
+        triggerPresenceCheck();
+      }, ROOM_PRESENCE_CHECK_INTERVAL_MS);
+    }
+
+    function stopPresenceCheckLoop() {
+      if (state.presenceCheckTimer) { clearInterval(state.presenceCheckTimer); state.presenceCheckTimer = null; }
+      if (state.presenceTimeoutTimer) { clearTimeout(state.presenceTimeoutTimer); state.presenceTimeoutTimer = null; }
+      if (state.presenceAutoLeaveTimer) { clearTimeout(state.presenceAutoLeaveTimer); state.presenceAutoLeaveTimer = null; }
+      closeModal('modal-presence-check');
+      state.awardingPaused = false;
+    }
+
+    function triggerPresenceCheck() {
+      if (!state.currentRoomId) return;
+      state.presenceConfirmed = false;
+      openModal('modal-presence-check');
+      if (state.presenceTimeoutTimer) clearTimeout(state.presenceTimeoutTimer);
+      state.presenceTimeoutTimer = setTimeout(() => {
+        if (!state.presenceConfirmed) {
+          closeModal('modal-presence-check');
+          handlePresenceTimeout();
+        }
+      }, ROOM_PRESENCE_RESPONSE_MS);
+    }
+
+    function handlePresenceTimeout() {
+      state.awardingPaused = true;
+      updateTimerDisplay();
+      window.showToast('偵測到你可能唔喺度，已暫停計分。返嚟後撳「已暫停計分，撳返嚟」即可恢復', '⏸️');
+
+      if (state.presenceAutoLeaveTimer) clearTimeout(state.presenceAutoLeaveTimer);
+      state.presenceAutoLeaveTimer = setTimeout(() => {
+        if (!state.presenceConfirmed && state.currentRoomId) {
+          window.showToast('你已經閒置太耐，系統已自動幫你退出溫習房', '🚪');
+          doLeaveRoom(false);
+        }
+      }, ROOM_PRESENCE_AUTO_LEAVE_MS);
+    }
+
+    window.confirmStillHere = function() {
+      state.presenceConfirmed = true;
+      state.awardingPaused = false;
+      if (state.presenceTimeoutTimer) { clearTimeout(state.presenceTimeoutTimer); state.presenceTimeoutTimer = null; }
+      if (state.presenceAutoLeaveTimer) { clearTimeout(state.presenceAutoLeaveTimer); state.presenceAutoLeaveTimer = null; }
+      closeModal('modal-presence-check');
+      updateTimerDisplay();
+      window.showToast('歡迎返嚟！繼續加油溫習～', '💪');
+    };
 
     window.leaveRoom = async function() {
       // 房主特別處理：先彈出選擇視窗，問佢想保留定係關閉房間
@@ -3783,6 +3907,8 @@
     async function cleanupRoomConnections() {
       if (state.renderFrameId) cancelAnimationFrame(state.renderFrameId);
       if (state.countdownTimer) clearInterval(state.countdownTimer);
+      if (state.heartbeatTimer) { clearInterval(state.heartbeatTimer); state.heartbeatTimer = null; }
+      stopPresenceCheckLoop();
 
       // 離開房間就要停止背景白噪音，唔可以帶去大廳／其他分頁繼續播
       stopBgNoise();
@@ -4594,6 +4720,18 @@
           取消
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- 防「開房掛機刷分」：定時彈窗確認用家仍然喺度 -->
+  <div class="modal-backdrop" id="modal-presence-check" style="display:none;">
+    <div class="modal-box" style="text-align:center;">
+      <div style="font-size:32px; margin-bottom:8px;">🦦</div>
+      <h3 style="font-size:16px; font-weight:bold; margin-bottom:6px;">仲喺度學緊嘢嗎？</h3>
+      <p style="font-size:12px; color:#666; margin-bottom:20px;">為咗確保積分／經驗值淨係俾真係喺度專注緊嘅同學，請喺 2 分鐘內撳一下確認。逾時未確認會暫停計分，長時間無回應仲會自動幫你退出房間。</p>
+      <button class="btn btn-primary" type="button" onclick="confirmStillHere()" style="width:100%; padding:12px;">
+        ✅ 係，我仲喺度溫緊書
+      </button>
     </div>
   </div>
 
