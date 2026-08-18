@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.10.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.10.1"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -5837,6 +5837,17 @@
         </div>
 
         <div class="admin-card" style="margin-top:12px;">
+          <h3 style="font-size:15px; font-weight:bold; margin-bottom:6px; color:var(--brand-800);">📋 批量貼上匯入（英文詞彙）</h3>
+          <p style="font-size:12px; color:#888; margin-bottom:8px;">日後有大量新詞語想加，唔使一個個手動填：每行一張卡，格式係「<code>英文詞語 | 詞性 | 中文意思 | 例句 | 例句中文翻譯</code>」（例句／翻譯可以留空），成段貼低就得。想要現成內容嘅話，可以叫 Claude 幫手按呢個格式準備一批新詞彙，複製貼落嚟就即刻匯入，唔使再改程式碼或者重新部署。</p>
+          <label style="font-size:13px; font-weight:600; color:#555;">範疇</label>
+          <select id="admin-flashcard-bulk-category-select" class="input-field">${categoryOptions}</select>
+          <label style="font-size:13px; font-weight:600; color:#555; margin-top:8px; display:block;">貼上內容（每行一張卡）</label>
+          <textarea id="admin-flashcard-bulk-input" class="input-field" rows="8" placeholder="Negotiate | Verb | 談判 | Employees should learn how to negotiate for a fair salary. | 僱員應該學習如何為合理的薪金進行談判。
+Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve the dispute. | 雙方需要作出妥協，才能解決爭議。"></textarea>
+          <button class="btn btn-primary" type="button" id="btn-bulk-import-flashcards" style="margin-top:10px;" onclick="adminBulkImportFlashcards()">📥 解析並匯入</button>
+        </div>
+
+        <div class="admin-card" style="margin-top:12px;">
           <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
             <select id="admin-flashcard-filter-subject" class="input-field" style="flex:1; min-width:120px;" onchange="renderAdminFlashcardsTable()">
               <option value="all">📚 全部科目</option>
@@ -5999,6 +6010,26 @@
       }
     };
 
+    // 共用嘅匯入邏輯：畀定一個範疇同一批詞彙項目，跳過已經存在嘅（用「科目＋範疇＋
+    // 英文詞語」做 key 比對），將淨低嘅寫入 Firestore。existingKeys 會直接喺呢度
+    // 更新（mutate），等同一次操作入面匯入多個範疇都唔會撞埋/ 漏檢查。
+    async function importEnglishVocabItems(existingKeys, categoryLabel, items) {
+      const toAdd = items.filter(item => item.word && !existingKeys.has(`英文__${categoryLabel}__${item.word.toLowerCase()}`));
+      await Promise.all(toAdd.map(item => {
+        const front = item.pos ? `${item.word} (${item.pos})` : item.word;
+        let back = item.meaning || '';
+        if (item.example) back += `\n\n例句：${item.example}`;
+        if (item.exampleTranslation) back += `\n中文翻譯：${item.exampleTranslation}`;
+        existingKeys.add(`英文__${categoryLabel}__${item.word.toLowerCase()}`);
+        return window.fs.addDoc(window.fs.collection(window.db, 'flashcards'), {
+          subject: '英文', category: categoryLabel, word: item.word, partOfSpeech: item.pos || '',
+          meaning: item.meaning || '', example: item.example || '', exampleTranslation: item.exampleTranslation || '',
+          front, back, createdAt: Date.now()
+        });
+      }));
+      return { added: toAdd.length, skipped: items.length - toAdd.length };
+    }
+
     // 一鍵匯入 8 大範疇、共 160 個預備好嘅英文詞彙卡（見 ENGLISH_VOCAB_SEED）。
     // 匯入前會攞返現有全部抽認卡嚟比對（科目＋範疇＋詞語），已經存在嘅會自動
     // 跳過，唔會匯入重複嘅卡，可以放心撳多次都唔會炒車。
@@ -6018,25 +6049,61 @@
         let added = 0, skipped = 0;
         for (const cat of window.ENGLISH_VOCAB_CATEGORIES) {
           const items = window.ENGLISH_VOCAB_SEED[cat.key] || [];
-          const toAdd = items.filter(item => !existingKeys.has(`英文__${cat.label}__${item.word.toLowerCase()}`));
-          await Promise.all(toAdd.map(item => {
-            const front = `${item.word} (${item.pos})`;
-            const back = `${item.meaning}\n\n例句：${item.example}\n中文翻譯：${item.exampleTranslation}`;
-            existingKeys.add(`英文__${cat.label}__${item.word.toLowerCase()}`);
-            added++;
-            return window.fs.addDoc(window.fs.collection(window.db, 'flashcards'), {
-              subject: '英文', category: cat.label, word: item.word, partOfSpeech: item.pos,
-              meaning: item.meaning, example: item.example, exampleTranslation: item.exampleTranslation,
-              front, back, createdAt: Date.now()
-            });
-          }));
-          skipped += items.length - toAdd.length;
+          const result = await importEnglishVocabItems(existingKeys, cat.label, items);
+          added += result.added;
+          skipped += result.skipped;
         }
         window.showToast(`✅ 匯入完成！新增 ${added} 張，跳過 ${skipped} 張已存在嘅卡片`, '📥');
       } catch (err) {
         window.showToast('匯入失敗：' + (err.message || err), '❌');
       } finally {
         if (btn) { btn.disabled = false; btn.innerText = originalText || '📥 一鍵匯入 8 大範疇英文詞彙庫（160 個）'; }
+      }
+    };
+
+    // 批量貼上匯入：admin 日後有大量新詞彙，唔使逐個手動填表，亦唔使叫我再改
+    // index.html 重新部署——直接喺呢度貼上「英文詞語 | 詞性 | 中文意思 | 例句 |
+    // 例句中文翻譯」格式嘅文字（每行一張卡），揀返範疇就可以一次過匯入。
+    window.adminBulkImportFlashcards = async function() {
+      const categoryEl = document.getElementById('admin-flashcard-bulk-category-select');
+      const textEl = document.getElementById('admin-flashcard-bulk-input');
+      const category = categoryEl ? categoryEl.value : '';
+      const raw = textEl ? textEl.value : '';
+      const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+      if (lines.length === 0) { window.showToast('未貼咗任何內容，先貼低啲詞卡先啦', '⚠️'); return; }
+
+      const items = [];
+      let badLineCount = 0;
+      lines.forEach(line => {
+        const parts = line.split('|').map(p => p.trim());
+        const word = parts[0] || '';
+        const pos = parts[1] || '';
+        const meaning = parts[2] || '';
+        const example = parts[3] || '';
+        const exampleTranslation = parts[4] || '';
+        if (!word || !meaning) { badLineCount++; return; }
+        items.push({ word, pos, meaning, example, exampleTranslation });
+      });
+
+      if (items.length === 0) { window.showToast('冇解析到任何有效嘅詞卡，檢查吓每行係咪用「 | 」分隔㗎', '⚠️'); return; }
+      if (!confirm(`將會匯入 ${items.length} 張詞卡（範疇：${category}）${badLineCount ? '，另外有 ' + badLineCount + ' 行格式唔啱會跳過' : ''}，確定嗎？`)) return;
+
+      const btn = document.getElementById('btn-bulk-import-flashcards');
+      const originalText = btn ? btn.innerText : '';
+      if (btn) { btn.disabled = true; btn.innerText = '⏳ 匯入緊…'; }
+      try {
+        const existingSnap = await window.fs.getDocs(window.fs.collection(window.db, 'flashcards'));
+        const existingKeys = new Set(existingSnap.docs.map(d => {
+          const c = d.data();
+          return `${c.subject || ''}__${c.category || ''}__${(c.word || c.front || '').toLowerCase()}`;
+        }));
+        const result = await importEnglishVocabItems(existingKeys, category, items);
+        window.showToast(`✅ 匯入完成！新增 ${result.added} 張，跳過 ${result.skipped} 張已存在${badLineCount ? `，${badLineCount} 行格式錯誤已跳過` : ''}`, '📥');
+        if (textEl) textEl.value = '';
+      } catch (err) {
+        window.showToast('匯入失敗：' + (err.message || err), '❌');
+      } finally {
+        if (btn) { btn.disabled = false; btn.innerText = originalText || '📥 解析並匯入'; }
       }
     };
 
