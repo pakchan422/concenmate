@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.9.2"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.10.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -1077,6 +1077,15 @@
 
             <div id="flashcards-manage-view">
               <p style="text-align:center; font-size:12px; color:#999; max-width:520px; margin:0 auto 10px;">呢啲抽認卡由老師／管理員準備，你只需要負責複習就得㗎喇！</p>
+
+              <div style="display:flex; gap:8px; flex-wrap:wrap; max-width:520px; margin:0 auto 10px;">
+                <select id="flashcards-filter-subject" class="input-field" style="flex:1; min-width:120px;" onchange="onFlashcardsFilterChange()">
+                  <option value="all">📚 全部科目</option>
+                </select>
+                <select id="flashcards-filter-category" class="input-field" style="flex:1; min-width:160px; display:none;" onchange="onFlashcardsFilterChange()">
+                  <option value="all">🗂 全部範疇</option>
+                </select>
+              </div>
 
               <div style="display:flex; justify-content:space-between; align-items:center; margin:14px 0 8px; max-width:520px; margin-left:auto; margin-right:auto; flex-wrap:wrap; gap:8px;">
                 <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800);">🗂 抽認卡（<span id="flashcards-total-count">0</span>）</h3>
@@ -3602,6 +3611,204 @@
       14 * 24 * 60 * 60 * 1000 // Box 5 → 14 日後
     ];
 
+    // ===================== 英文詞彙庫（DSE 8 大議題範疇）=====================
+    // 畀 admin 喺後台「一鍵匯入」用嘅預備內容：8 個 DSE 常見議題範疇，每個範疇
+    // 20 個詞彙，包含詞性、中文意思、例句同例句中文翻譯。匯入之後 admin 仍然
+    // 可以喺後台隨時修正／刪除個別詞卡。
+    const ENGLISH_VOCAB_CATEGORIES = [
+      { key: "social",      label: "社會議題與基層民生",   labelEn: "Social Issues & Welfare" },
+      { key: "tech",        label: "科技發展與數位生活",   labelEn: "Technology & Digital Era" },
+      { key: "environment", label: "環境保護與可持續發展", labelEn: "Environment & Sustainability" },
+      { key: "youth",       label: "青少年成長與身心健康", labelEn: "Youth, Education & Well-being" },
+      { key: "workplace",   label: "職場文化與生涯規劃",   labelEn: "Workplace & Professional Communication" },
+      { key: "culture",     label: "文化、娛樂與休閒潮流", labelEn: "Culture, Arts & Pop Trends" },
+      { key: "school",      label: "學校政策與學生活動",   labelEn: "School Life & Policy" },
+      { key: "ethics",      label: "道德倫理與爭議辯論",   labelEn: "Ethics & Global Perspectives" }
+    ];
+
+    const ENGLISH_VOCAB_SEED = {
+      social: [
+        { word: "Disparity", pos: "Noun", meaning: "差距", example: "The wealth disparity between the rich and the poor has widened over the past decade.", exampleTranslation: "過去十年，貧富之間的財富差距不斷擴大。" },
+        { word: "Poverty", pos: "Noun", meaning: "貧窮", example: "The government launched a new scheme to help families living in poverty.", exampleTranslation: "政府推出新計劃，協助生活在貧窮線下的家庭。" },
+        { word: "Underprivileged", pos: "Adjective", meaning: "弱勢的", example: "Many charities provide free tutoring for underprivileged children.", exampleTranslation: "許多慈善機構為弱勢兒童提供免費補習。" },
+        { word: "Elderly", pos: "Noun", meaning: "長者", example: "The community centre offers free health check-ups for the elderly.", exampleTranslation: "社區中心為長者提供免費健康檢查。" },
+        { word: "Ageing", pos: "Adjective", meaning: "老化的", example: "Hong Kong is facing the challenge of a rapidly ageing population.", exampleTranslation: "香港正面對人口急速老化的挑戰。" },
+        { word: "Welfare", pos: "Noun", meaning: "福利", example: "The new policy aims to improve the welfare of low-income families.", exampleTranslation: "新政策旨在改善低收入家庭的福利。" },
+        { word: "Subsidy", pos: "Noun", meaning: "資助／津貼", example: "The elderly can apply for a housing subsidy from the government.", exampleTranslation: "長者可以向政府申請房屋津貼。" },
+        { word: "Affordable", pos: "Adjective", meaning: "負擔得起的", example: "The lack of affordable housing has become a serious social problem.", exampleTranslation: "缺乏可負擔的房屋已成為嚴重的社會問題。" },
+        { word: "Homelessness", pos: "Noun", meaning: "無家可歸", example: "Volunteers distribute food to people suffering from homelessness every weekend.", exampleTranslation: "義工每個週末都會向無家可歸人士派發食物。" },
+        { word: "Inequality", pos: "Noun", meaning: "不平等", example: "Social inequality often leads to a lack of opportunities for the poor.", exampleTranslation: "社會不平等往往導致窮人缺乏機會。" },
+        { word: "Vulnerable", pos: "Adjective", meaning: "脆弱的／易受傷害的", example: "Single-parent families are among the most vulnerable groups in society.", exampleTranslation: "單親家庭是社會上其中一個最脆弱的群體。" },
+        { word: "Livelihood", pos: "Noun", meaning: "生計", example: "The pandemic has severely affected the livelihood of many street vendors.", exampleTranslation: "疫情嚴重影響了許多小販的生計。" },
+        { word: "Deprived", pos: "Adjective", meaning: "匱乏的", example: "Children from deprived backgrounds often struggle to access quality education.", exampleTranslation: "來自匱乏背景的兒童往往難以獲得優質教育。" },
+        { word: "Grassroots", pos: "Adjective", meaning: "基層的", example: "The charity works closely with grassroots communities to identify their needs.", exampleTranslation: "該慈善機構與基層社區緊密合作，了解他們的需要。" },
+        { word: "Marginalized", pos: "Adjective", meaning: "邊緣化的", example: "Ethnic minorities are sometimes marginalized in the job market.", exampleTranslation: "少數族裔有時在就業市場上被邊緣化。" },
+        { word: "Charity", pos: "Noun", meaning: "慈善機構", example: "She donates a portion of her salary to a local charity every month.", exampleTranslation: "她每月都會捐出部分薪金給本地慈善機構。" },
+        { word: "Needy", pos: "Adjective", meaning: "有需要的／貧困的", example: "The programme provides free meals to needy families during the holidays.", exampleTranslation: "該計劃在假期期間為有需要的家庭提供免費膳食。" },
+        { word: "Alleviate", pos: "Verb", meaning: "紓緩", example: "The new subsidy scheme helps alleviate the financial burden on low-income households.", exampleTranslation: "新的資助計劃有助紓緩低收入家庭的經濟負擔。" },
+        { word: "Sustain", pos: "Verb", meaning: "維持", example: "It is difficult for elderly people living alone to sustain a decent standard of living.", exampleTranslation: "獨居長者難以維持像樣的生活水平。" },
+        { word: "Income gap", pos: "Noun Phrase", meaning: "收入差距", example: "The widening income gap has sparked heated debate in society.", exampleTranslation: "不斷擴大的收入差距引起了社會的熱烈討論。" }
+      ],
+      tech: [
+        { word: "Artificial intelligence", pos: "Noun Phrase", meaning: "人工智能", example: "Artificial intelligence is increasingly used to mark students' essays.", exampleTranslation: "人工智能越來越常被用來批改學生的文章。" },
+        { word: "Algorithm", pos: "Noun", meaning: "演算法", example: "Social media platforms use algorithms to recommend content to users.", exampleTranslation: "社交媒體平台利用演算法向用戶推薦內容。" },
+        { word: "Automate", pos: "Verb", meaning: "使自動化", example: "Many factories have automated their production lines to save labour costs.", exampleTranslation: "許多工廠已將生產線自動化，以節省人力成本。" },
+        { word: "Addiction", pos: "Noun", meaning: "上癮", example: "Internet addiction has become a common problem among teenagers.", exampleTranslation: "網絡上癮已成為青少年常見的問題。" },
+        { word: "Cyberbullying", pos: "Noun", meaning: "網絡欺凌", example: "Schools should educate students about the dangers of cyberbullying.", exampleTranslation: "學校應教育學生了解網絡欺凌的危害。" },
+        { word: "Privacy", pos: "Noun", meaning: "私隱", example: "People are becoming more concerned about their privacy online.", exampleTranslation: "人們越來越關注自己在網上的私隱。" },
+        { word: "Virtual", pos: "Adjective", meaning: "虛擬的", example: "Virtual classrooms allow students to attend lessons from home.", exampleTranslation: "虛擬課堂讓學生可以在家上課。" },
+        { word: "Convenient", pos: "Adjective", meaning: "方便的", example: "Mobile payment apps make shopping much more convenient.", exampleTranslation: "手機支付應用程式令購物方便得多。" },
+        { word: "Breakthrough", pos: "Noun", meaning: "突破", example: "Scientists have made a major breakthrough in facial recognition technology.", exampleTranslation: "科學家在人臉識別技術上取得重大突破。" },
+        { word: "Misinformation", pos: "Noun", meaning: "錯誤資訊", example: "Misinformation spreads quickly on social media platforms.", exampleTranslation: "錯誤資訊在社交媒體平台上傳播得很快。" },
+        { word: "Cybersecurity", pos: "Noun", meaning: "網絡安全", example: "Companies invest heavily in cybersecurity to protect customer data.", exampleTranslation: "企業投放大量資源於網絡安全，以保護客戶資料。" },
+        { word: "Overreliance", pos: "Noun", meaning: "過度依賴", example: "Overreliance on smartphones may weaken students' memory skills.", exampleTranslation: "過度依賴智能手機可能削弱學生的記憶能力。" },
+        { word: "Innovate", pos: "Verb", meaning: "創新", example: "Tech companies must constantly innovate to stay competitive.", exampleTranslation: "科技公司必須不斷創新才能保持競爭力。" },
+        { word: "Streamline", pos: "Verb", meaning: "簡化流程", example: "The new app streamlines the process of booking appointments.", exampleTranslation: "這個新應用程式簡化了預約的流程。" },
+        { word: "Connectivity", pos: "Noun", meaning: "連接性", example: "High-speed internet connectivity has changed the way we work and study.", exampleTranslation: "高速的網絡連接性改變了我們工作和學習的方式。" },
+        { word: "Digital footprint", pos: "Noun Phrase", meaning: "數碼足跡", example: "Everything you post online becomes part of your digital footprint.", exampleTranslation: "你在網上發佈的一切都會成為你數碼足跡的一部分。" },
+        { word: "Dependency", pos: "Noun", meaning: "依賴", example: "Excessive dependency on social media can affect face-to-face communication skills.", exampleTranslation: "過度依賴社交媒體可能影響面對面的溝通能力。" },
+        { word: "Distraction", pos: "Noun", meaning: "令人分心的事物", example: "Smartphone notifications are a major distraction in class.", exampleTranslation: "手機通知是課堂上主要的分心事物。" },
+        { word: "Accessible", pos: "Adjective", meaning: "容易獲得的", example: "Online learning resources have made education more accessible to everyone.", exampleTranslation: "網上學習資源令教育對每個人來說都更容易獲得。" },
+        { word: "Exploit", pos: "Verb", meaning: "利用／剝削", example: "Hackers exploit weaknesses in outdated software to steal personal data.", exampleTranslation: "黑客利用過時軟件的漏洞來盜取個人資料。" }
+      ],
+      environment: [
+        { word: "Climate change", pos: "Noun Phrase", meaning: "氣候變化", example: "Climate change is causing more extreme weather events around the world.", exampleTranslation: "氣候變化正導致全球出現更多極端天氣事件。" },
+        { word: "Greenhouse gas", pos: "Noun Phrase", meaning: "溫室氣體", example: "Burning fossil fuels releases large amounts of greenhouse gases into the atmosphere.", exampleTranslation: "燃燒化石燃料會向大氣釋放大量溫室氣體。" },
+        { word: "Carbon footprint", pos: "Noun Phrase", meaning: "碳足跡", example: "Taking public transport instead of driving can reduce your carbon footprint.", exampleTranslation: "乘搭公共交通工具而非駕車可以減少你的碳足跡。" },
+        { word: "Renewable energy", pos: "Noun Phrase", meaning: "可再生能源", example: "The government is encouraging households to switch to renewable energy sources.", exampleTranslation: "政府正鼓勵住戶轉用可再生能源。" },
+        { word: "Recycle", pos: "Verb", meaning: "回收", example: "Schools are teaching students to recycle paper and plastic bottles.", exampleTranslation: "學校正教導學生回收紙張和膠樽。" },
+        { word: "Sustainable", pos: "Adjective", meaning: "可持續的", example: "Companies are adopting more sustainable practices to protect the environment.", exampleTranslation: "企業正採用更可持續的做法以保護環境。" },
+        { word: "Fast fashion", pos: "Noun Phrase", meaning: "快時尚", example: "Fast fashion has led to a huge increase in textile waste.", exampleTranslation: "快時尚導致紡織品廢料大幅增加。" },
+        { word: "Deforestation", pos: "Noun", meaning: "森林砍伐", example: "Deforestation destroys the natural habitats of countless species.", exampleTranslation: "森林砍伐破壞了無數物種的天然棲息地。" },
+        { word: "Pollution", pos: "Noun", meaning: "污染", example: "Air pollution in the city has worsened due to heavy traffic.", exampleTranslation: "由於交通繁忙，市內的空氣污染情況惡化了。" },
+        { word: "Eco-friendly", pos: "Adjective", meaning: "環保的", example: "More consumers are choosing eco-friendly products over conventional ones.", exampleTranslation: "越來越多消費者選擇環保產品而非傳統產品。" },
+        { word: "Emission", pos: "Noun", meaning: "排放", example: "The city aims to cut carbon emissions by half within ten years.", exampleTranslation: "該市目標在十年內將碳排放量減半。" },
+        { word: "Conserve", pos: "Verb", meaning: "保育／節約", example: "Turning off the lights when leaving a room helps conserve energy.", exampleTranslation: "離開房間時關燈有助節約能源。" },
+        { word: "Biodiversity", pos: "Noun", meaning: "生物多樣性", example: "Protecting rainforests is essential for maintaining biodiversity.", exampleTranslation: "保護雨林對維持生物多樣性至關重要。" },
+        { word: "Landfill", pos: "Noun", meaning: "堆填區", example: "Reducing food waste can significantly ease the pressure on landfills.", exampleTranslation: "減少廚餘可以大大紓緩堆填區的壓力。" },
+        { word: "Single-use", pos: "Adjective", meaning: "一次性的", example: "Many restaurants have stopped providing single-use plastic straws.", exampleTranslation: "許多餐廳已停止提供一次性塑膠飲管。" },
+        { word: "Consumption", pos: "Noun", meaning: "消耗／消費", example: "Reducing meat consumption can lower one's carbon footprint.", exampleTranslation: "減少肉類消耗可以降低個人的碳足跡。" },
+        { word: "Degrade", pos: "Verb", meaning: "使惡化／降解", example: "Plastic waste can take hundreds of years to degrade naturally.", exampleTranslation: "塑膠廢物需要數百年才能自然降解。" },
+        { word: "Ecosystem", pos: "Noun", meaning: "生態系統", example: "Coral reefs support a rich and delicate marine ecosystem.", exampleTranslation: "珊瑚礁支撐著豐富而脆弱的海洋生態系統。" },
+        { word: "Initiative", pos: "Noun", meaning: "措施／倡議", example: "The school launched a green initiative to reduce plastic use on campus.", exampleTranslation: "學校推出了一項綠色措施，以減少校園內的塑膠使用。" },
+        { word: "Deplete", pos: "Verb", meaning: "耗盡", example: "Overfishing has depleted many fish stocks in the ocean.", exampleTranslation: "過度捕魚已耗盡海洋中許多魚類資源。" }
+      ],
+      youth: [
+        { word: "Academic pressure", pos: "Noun Phrase", meaning: "學業壓力", example: "Many students in Hong Kong suffer from immense academic pressure.", exampleTranslation: "許多香港學生承受著巨大的學業壓力。" },
+        { word: "Mental health", pos: "Noun Phrase", meaning: "精神健康", example: "Schools are paying more attention to students' mental health nowadays.", exampleTranslation: "現時學校更加重視學生的精神健康。" },
+        { word: "Well-being", pos: "Noun", meaning: "身心健康／福祉", example: "Regular exercise contributes greatly to a teenager's overall well-being.", exampleTranslation: "恆常運動對青少年的整體身心健康有很大幫助。" },
+        { word: "Peer pressure", pos: "Noun Phrase", meaning: "同輩壓力", example: "Peer pressure can lead teenagers to make choices they later regret.", exampleTranslation: "同輩壓力可能令青少年作出後來後悔的選擇。" },
+        { word: "Self-esteem", pos: "Noun", meaning: "自尊", example: "Constant criticism can severely damage a child's self-esteem.", exampleTranslation: "不斷的批評可能嚴重損害孩子的自尊。" },
+        { word: "Resilience", pos: "Noun", meaning: "抗逆力", example: "Facing setbacks helps students build resilience for the future.", exampleTranslation: "面對挫折有助學生建立未來所需的抗逆力。" },
+        { word: "Anxiety", pos: "Noun", meaning: "焦慮", example: "Exam anxiety affects many students during the DSE period.", exampleTranslation: "考試焦慮在文憑試期間影響著許多學生。" },
+        { word: "Burnout", pos: "Noun", meaning: "過勞／精疲力竭", example: "Overloading students with homework can lead to burnout.", exampleTranslation: "給學生過多功課可能導致他們精疲力竭。" },
+        { word: "Positive mindset", pos: "Noun Phrase", meaning: "正向思維", example: "Keeping a positive mindset helps students handle failure better.", exampleTranslation: "保持正向思維有助學生更好地面對失敗。" },
+        { word: "Self-identity", pos: "Noun", meaning: "自我認同", example: "Adolescence is a crucial period for developing one's self-identity.", exampleTranslation: "青春期是發展自我認同的關鍵時期。" },
+        { word: "Cope", pos: "Verb", meaning: "應對", example: "Teenagers need proper guidance to cope with stress effectively.", exampleTranslation: "青少年需要適當的指導，才能有效應對壓力。" },
+        { word: "Stress", pos: "Noun", meaning: "壓力", example: "Too much stress can negatively affect a student's sleep and appetite.", exampleTranslation: "過多的壓力會對學生的睡眠和食慾造成負面影響。" },
+        { word: "Motivation", pos: "Noun", meaning: "動力", example: "A supportive teacher can boost a student's motivation to learn.", exampleTranslation: "一位支持學生的老師能提升學生的學習動力。" },
+        { word: "Counselling", pos: "Noun", meaning: "輔導", example: "The school offers free counselling services for students in need.", exampleTranslation: "學校為有需要的學生提供免費輔導服務。" },
+        { word: "Self-discipline", pos: "Noun", meaning: "自律", example: "Self-discipline is key to managing study time effectively.", exampleTranslation: "自律是有效管理學習時間的關鍵。" },
+        { word: "Procrastination", pos: "Noun", meaning: "拖延", example: "Procrastination often leads to unnecessary stress before deadlines.", exampleTranslation: "拖延往往在限期前造成不必要的壓力。" },
+        { word: "Confidence", pos: "Noun", meaning: "自信", example: "Public speaking practice can help students build confidence.", exampleTranslation: "練習公開演講有助學生建立自信。" },
+        { word: "Isolation", pos: "Noun", meaning: "孤立", example: "Prolonged social isolation can harm a teenager's mental health.", exampleTranslation: "長期的社交孤立可能損害青少年的精神健康。" },
+        { word: "Empathy", pos: "Noun", meaning: "同理心", example: "Teachers who show empathy can build stronger relationships with students.", exampleTranslation: "展現同理心的老師能與學生建立更牢固的關係。" },
+        { word: "Mindfulness", pos: "Noun", meaning: "正念", example: "Practising mindfulness can help students relax before exams.", exampleTranslation: "練習正念有助學生在考試前放鬆。" }
+      ],
+      workplace: [
+        { word: "Work-life balance", pos: "Noun Phrase", meaning: "工作與生活平衡", example: "Many employees value work-life balance more than a high salary nowadays.", exampleTranslation: "現時許多僱員比起高薪更重視工作與生活的平衡。" },
+        { word: "Hybrid work", pos: "Noun Phrase", meaning: "混合工作模式", example: "The company has adopted a hybrid work model, allowing staff to work from home twice a week.", exampleTranslation: "公司採用了混合工作模式，容許員工每星期在家工作兩天。" },
+        { word: "Remote work", pos: "Noun Phrase", meaning: "遙距工作", example: "Remote work became much more common after the pandemic.", exampleTranslation: "疫情過後，遙距工作變得更加普遍。" },
+        { word: "Leadership", pos: "Noun", meaning: "領導才能", example: "Strong leadership is essential for guiding a team through challenges.", exampleTranslation: "強大的領導才能對帶領團隊克服困難至關重要。" },
+        { word: "Teamwork", pos: "Noun", meaning: "團隊合作", example: "Effective teamwork can significantly improve a project's success rate.", exampleTranslation: "有效的團隊合作能大大提高項目的成功率。" },
+        { word: "Cover letter", pos: "Noun Phrase", meaning: "求職信", example: "A well-written cover letter can make your job application stand out.", exampleTranslation: "一封寫得好的求職信能令你的求職申請更加突出。" },
+        { word: "Complaint letter", pos: "Noun Phrase", meaning: "投訴信", example: "She wrote a complaint letter to the manager about the poor service.", exampleTranslation: "她就服務欠佳向經理寫了一封投訴信。" },
+        { word: "Promotion", pos: "Noun", meaning: "晉升", example: "He was offered a promotion after three years of hard work.", exampleTranslation: "經過三年努力，他獲得了晉升的機會。" },
+        { word: "Career prospects", pos: "Noun Phrase", meaning: "事業前景", example: "Studying a professional course can improve your career prospects.", exampleTranslation: "修讀專業課程可以改善你的事業前景。" },
+        { word: "Negotiate", pos: "Verb", meaning: "談判／協商", example: "Employees should learn how to negotiate for a fair salary.", exampleTranslation: "僱員應該學習如何為合理的薪金進行談判。" },
+        { word: "Delegate", pos: "Verb", meaning: "授權／分配任務", example: "A good manager knows how to delegate tasks efficiently.", exampleTranslation: "好的經理懂得如何有效地分配任務。" },
+        { word: "Deadline", pos: "Noun", meaning: "限期", example: "The team worked overtime to meet the project deadline.", exampleTranslation: "團隊加班以趕及項目的限期。" },
+        { word: "Productivity", pos: "Noun", meaning: "生產力", example: "Flexible working hours can actually boost employees' productivity.", exampleTranslation: "彈性上班時間其實可以提升員工的生產力。" },
+        { word: "Feedback", pos: "Noun", meaning: "意見反饋", example: "Constructive feedback helps employees improve their performance.", exampleTranslation: "有建設性的意見反饋有助員工改善表現。" },
+        { word: "Internship", pos: "Noun", meaning: "實習", example: "Completing an internship gives students valuable work experience.", exampleTranslation: "完成實習能讓學生獲得寶貴的工作經驗。" },
+        { word: "Qualification", pos: "Noun", meaning: "資歷", example: "Employers usually look for candidates with relevant qualifications.", exampleTranslation: "僱主通常會尋找具備相關資歷的求職者。" },
+        { word: "Résumé", pos: "Noun", meaning: "履歷表", example: "Make sure your résumé highlights your key achievements clearly.", exampleTranslation: "確保你的履歷表清楚突顯你的主要成就。" },
+        { word: "Interpersonal skills", pos: "Noun Phrase", meaning: "人際溝通技巧", example: "Good interpersonal skills are highly valued in customer service jobs.", exampleTranslation: "良好的人際溝通技巧在客戶服務行業中十分受重視。" },
+        { word: "Flexibility", pos: "Noun", meaning: "彈性", example: "The company offers flexibility in working hours to suit staff needs.", exampleTranslation: "公司在上班時間方面提供彈性，以配合員工需要。" },
+        { word: "Workload", pos: "Noun", meaning: "工作量", example: "An unmanageable workload can lead to stress and burnout.", exampleTranslation: "難以應付的工作量可能導致壓力和過勞。" }
+      ],
+      culture: [
+        { word: "Heritage", pos: "Noun", meaning: "文化遺產", example: "The old temple is regarded as an important piece of cultural heritage.", exampleTranslation: "這座古廟被視為重要的文化遺產。" },
+        { word: "Preserve", pos: "Verb", meaning: "保育／保存", example: "The government has taken steps to preserve traditional Chinese crafts.", exampleTranslation: "政府已採取措施保育傳統中國工藝。" },
+        { word: "E-sports", pos: "Noun", meaning: "電子競技", example: "E-sports has grown into a multi-billion-dollar industry worldwide.", exampleTranslation: "電子競技已發展成全球數十億美元的產業。" },
+        { word: "Tourism", pos: "Noun", meaning: "旅遊業", example: "Tourism is one of the main sources of income for the city.", exampleTranslation: "旅遊業是該城市主要的收入來源之一。" },
+        { word: "Trend", pos: "Noun", meaning: "潮流／趨勢", example: "Short videos have become a popular trend among young people.", exampleTranslation: "短片已成為年輕人之間流行的潮流。" },
+        { word: "Pop culture", pos: "Noun Phrase", meaning: "流行文化", example: "K-pop has had a huge influence on pop culture around the world.", exampleTranslation: "韓國流行音樂對全球流行文化有巨大影響。" },
+        { word: "Souvenir", pos: "Noun", meaning: "紀念品", example: "Tourists often buy souvenirs to remember their trips.", exampleTranslation: "遊客經常購買紀念品來記住他們的旅程。" },
+        { word: "Itinerary", pos: "Noun", meaning: "行程", example: "We planned a detailed itinerary for our week-long trip to Japan.", exampleTranslation: "我們為期一週的日本旅程制定了詳細的行程。" },
+        { word: "Festival", pos: "Noun", meaning: "節慶", example: "The Mid-Autumn Festival is celebrated with lanterns and mooncakes.", exampleTranslation: "中秋節以燈籠和月餅慶祝。" },
+        { word: "Craftsmanship", pos: "Noun", meaning: "工藝技術", example: "The vase is admired for its exquisite craftsmanship.", exampleTranslation: "這個花瓶因其精湛的工藝技術而備受讚賞。" },
+        { word: "Authentic", pos: "Adjective", meaning: "正宗的／真實的", example: "Visitors want to experience authentic local culture, not just tourist attractions.", exampleTranslation: "遊客想體驗正宗的本地文化，而不只是旅遊景點。" },
+        { word: "Exhibition", pos: "Noun", meaning: "展覽", example: "The museum is holding an exhibition on traditional Chinese art.", exampleTranslation: "博物館正舉辦一個關於中國傳統藝術的展覽。" },
+        { word: "Streaming", pos: "Noun", meaning: "串流", example: "Streaming platforms have changed the way people watch movies and dramas.", exampleTranslation: "串流平台改變了人們觀看電影和劇集的方式。" },
+        { word: "Fandom", pos: "Noun", meaning: "粉絲群", example: "The singer's fandom organised a charity event to celebrate her birthday.", exampleTranslation: "該歌手的粉絲群舉辦了一個慈善活動來慶祝她的生日。" },
+        { word: "Mainstream", pos: "Adjective", meaning: "主流的", example: "Anime has become part of mainstream entertainment in recent years.", exampleTranslation: "動畫近年已成為主流娛樂的一部分。" },
+        { word: "Nostalgia", pos: "Noun", meaning: "懷舊", example: "Many old TV shows are being remade to appeal to viewers' nostalgia.", exampleTranslation: "許多舊電視劇正被重拍，以迎合觀眾的懷舊情懷。" },
+        { word: "Immersive", pos: "Adjective", meaning: "沉浸式的", example: "Virtual reality offers a more immersive gaming experience.", exampleTranslation: "虛擬實境提供更沉浸式的遊戲體驗。" },
+        { word: "Influencer", pos: "Noun", meaning: "網絡紅人", example: "Brands often collaborate with influencers to promote their products.", exampleTranslation: "品牌經常與網絡紅人合作，推廣他們的產品。" },
+        { word: "Showcase", pos: "Verb", meaning: "展示", example: "The festival showcases talented young artists from the local community.", exampleTranslation: "這個節慶展示了來自本地社區的年輕才藝人士。" },
+        { word: "Revive", pos: "Verb", meaning: "復興", example: "There have been efforts to revive interest in traditional Cantonese opera among the youth.", exampleTranslation: "有人努力在年輕人之間重新喚起對傳統粵劇的興趣。" }
+      ],
+      school: [
+        { word: "Extracurricular activities", pos: "Noun Phrase", meaning: "課外活動", example: "The school encourages students to join extracurricular activities to develop their interests.", exampleTranslation: "學校鼓勵學生參加課外活動，以發展他們的興趣。" },
+        { word: "Student union", pos: "Noun Phrase", meaning: "學生會", example: "The student union organised a debate on the new uniform policy.", exampleTranslation: "學生會就新的校服政策舉辦了一場辯論。" },
+        { word: "Campus facilities", pos: "Noun Phrase", meaning: "校園設施", example: "The school plans to upgrade its campus facilities, including the library and sports hall.", exampleTranslation: "學校計劃提升校園設施，包括圖書館和運動館。" },
+        { word: "School regulations", pos: "Noun Phrase", meaning: "校規", example: "Students are expected to follow the school regulations at all times.", exampleTranslation: "學生應時刻遵守校規。" },
+        { word: "Proposal", pos: "Noun", meaning: "建議書", example: "The student council submitted a proposal to extend the lunch break.", exampleTranslation: "學生會提交了一份建議書，要求延長午膳時間。" },
+        { word: "Allocate", pos: "Verb", meaning: "分配", example: "The school will allocate more funding to support arts programmes.", exampleTranslation: "學校將分配更多資金以支持藝術課程。" },
+        { word: "Renovate", pos: "Verb", meaning: "翻新", example: "The canteen will be renovated during the summer holidays.", exampleTranslation: "飯堂將在暑假期間進行翻新。" },
+        { word: "Enforce", pos: "Verb", meaning: "執行", example: "The new mobile phone policy will be strictly enforced from next term.", exampleTranslation: "新的手機政策將由下學期起嚴格執行。" },
+        { word: "Disciplinary", pos: "Adjective", meaning: "紀律的", example: "Students who break the rules may face disciplinary action.", exampleTranslation: "違反校規的學生可能面臨紀律處分。" },
+        { word: "Curriculum", pos: "Noun", meaning: "課程", example: "The school has added coding lessons to its curriculum.", exampleTranslation: "學校已在課程中加入編程課。" },
+        { word: "Uniform policy", pos: "Noun Phrase", meaning: "校服政策", example: "Some students think the uniform policy should be more flexible.", exampleTranslation: "一些學生認為校服政策應該更具彈性。" },
+        { word: "Budget", pos: "Noun", meaning: "預算", example: "The student union has a limited budget for organising events.", exampleTranslation: "學生會舉辦活動的預算有限。" },
+        { word: "Survey", pos: "Noun", meaning: "問卷調查", example: "The school conducted a survey to collect students' views on the new timetable.", exampleTranslation: "學校進行了一項問卷調查，收集學生對新時間表的意見。" },
+        { word: "Petition", pos: "Noun", meaning: "請願書", example: "Students signed a petition asking for more water dispensers on campus.", exampleTranslation: "學生簽署了一份請願書，要求校園內增設更多飲水機。" },
+        { word: "Implement", pos: "Verb", meaning: "實施", example: "The school decided to implement a new recycling scheme this year.", exampleTranslation: "學校決定今年實施一項新的回收計劃。" },
+        { word: "Scheme", pos: "Noun", meaning: "計劃", example: "The mentorship scheme pairs senior students with junior ones.", exampleTranslation: "導師計劃將高年級學生與低年級學生配對。" },
+        { word: "Participation", pos: "Noun", meaning: "參與", example: "Active participation in school activities can improve students' social skills.", exampleTranslation: "積極參與學校活動可以改善學生的社交能力。" },
+        { word: "Volunteer", pos: "Verb", meaning: "自願參與／當義工", example: "Many students volunteer to help organise the annual sports day.", exampleTranslation: "許多學生自願協助籌辦一年一度的運動會。" },
+        { word: "Membership", pos: "Noun", meaning: "會員資格", example: "Joining the debate club requires an annual membership fee.", exampleTranslation: "加入辯論學會需要繳交年度會員費。" },
+        { word: "Ban", pos: "Verb", meaning: "禁止", example: "The school has decided to ban the use of mobile phones during lessons.", exampleTranslation: "學校已決定禁止在課堂上使用手機。" }
+      ],
+      ethics: [
+        { word: "Animal rights", pos: "Noun Phrase", meaning: "動物權益", example: "Animal rights activists protested against the use of animals in circus shows.", exampleTranslation: "動物權益人士抗議馬戲團表演中使用動物。" },
+        { word: "Consumerism", pos: "Noun", meaning: "消費主義", example: "Consumerism encourages people to buy more than they actually need.", exampleTranslation: "消費主義鼓勵人們購買多於他們實際需要的東西。" },
+        { word: "Food safety", pos: "Noun Phrase", meaning: "食品安全", example: "The government has tightened regulations on food safety after the incident.", exampleTranslation: "事件發生後，政府收緊了食品安全的規例。" },
+        { word: "Generation gap", pos: "Noun Phrase", meaning: "代溝", example: "The generation gap often leads to misunderstandings between parents and children.", exampleTranslation: "代溝經常導致父母與子女之間的誤解。" },
+        { word: "Controversial", pos: "Adjective", meaning: "具爭議性的", example: "Whether animal testing should be banned remains a controversial topic.", exampleTranslation: "應否禁止動物實驗仍然是一個具爭議性的話題。" },
+        { word: "Ethical", pos: "Adjective", meaning: "合乎道德的", example: "Consumers are increasingly demanding ethical treatment of animals in the food industry.", exampleTranslation: "消費者越來越要求食品行業合乎道德地對待動物。" },
+        { word: "Moral obligation", pos: "Noun Phrase", meaning: "道德義務", example: "Some people believe we have a moral obligation to help those in need.", exampleTranslation: "有些人認為我們有道德義務去幫助有需要的人。" },
+        { word: "Abuse", pos: "Verb", meaning: "虐待／濫用", example: "Laws have been introduced to punish those who abuse animals.", exampleTranslation: "法律已經制定，用以懲罰虐待動物的人。" },
+        { word: "Boycott", pos: "Verb", meaning: "杯葛／抵制", example: "Consumers decided to boycott the brand after the scandal broke out.", exampleTranslation: "醜聞爆發後，消費者決定杯葛該品牌。" },
+        { word: "Dilemma", pos: "Noun", meaning: "兩難局面", example: "Doctors sometimes face an ethical dilemma when treating terminally ill patients.", exampleTranslation: "醫生在治療末期病人時，有時會面對道德上的兩難局面。" },
+        { word: "Justify", pos: "Verb", meaning: "證明合理", example: "Some people try to justify animal testing by pointing to medical advances.", exampleTranslation: "有些人試圖以醫學進步為由，證明動物實驗的合理性。" },
+        { word: "Compromise", pos: "Verb", meaning: "妥協", example: "Both sides need to compromise in order to resolve the dispute.", exampleTranslation: "雙方需要作出妥協，才能解決爭議。" },
+        { word: "Perspective", pos: "Noun", meaning: "觀點", example: "It is important to consider different perspectives before making a judgement.", exampleTranslation: "在作出判斷之前，考慮不同的觀點十分重要。" },
+        { word: "Prejudice", pos: "Noun", meaning: "偏見", example: "Education can help reduce prejudice against people from different backgrounds.", exampleTranslation: "教育有助減少對不同背景人士的偏見。" },
+        { word: "Stereotype", pos: "Noun", meaning: "刻板印象", example: "The media often reinforces gender stereotypes through advertisements.", exampleTranslation: "媒體經常透過廣告強化性別刻板印象。" },
+        { word: "Responsibility", pos: "Noun", meaning: "責任", example: "Companies have a responsibility to ensure their products are safe for consumers.", exampleTranslation: "企業有責任確保其產品對消費者來說是安全的。" },
+        { word: "Advocate", pos: "Verb", meaning: "提倡／主張", example: "Many environmentalists advocate for stricter food safety regulations.", exampleTranslation: "許多環保人士提倡更嚴格的食品安全規例。" },
+        { word: "Cruelty", pos: "Noun", meaning: "殘忍", example: "Animal cruelty in the fashion industry has drawn global attention.", exampleTranslation: "時裝業中的動物殘忍行為已引起全球關注。" },
+        { word: "Regulation", pos: "Noun", meaning: "規例／規管", example: "Stricter regulation is needed to prevent the spread of unsafe food products.", exampleTranslation: "需要更嚴格的規管，以防止不安全食品的流通。" },
+        { word: "Debate", pos: "Noun", meaning: "辯論", example: "The ethics of eating meat is a long-standing debate among scholars.", exampleTranslation: "吃肉的道德問題是學者之間長期爭論的議題。" }
+      ]
+    };
+    // 呢兩個 const 掛喺 window 度，等後台管理員嗰個 <script> 區塊（另一個獨立
+    // scope）都可以攞到，唔使將成份詞彙庫再複製多一次
+    window.ENGLISH_VOCAB_CATEGORIES = ENGLISH_VOCAB_CATEGORIES;
+    window.ENGLISH_VOCAB_SEED = ENGLISH_VOCAB_SEED;
+
     // 抽認卡內容而家由管理員喺後台統一管理（Firestore 頂層 flashcards 集合），
     // 學生淨係讀取內容，唔可以自己新增/編輯/刪除。每個學生自己嘅複習進度
     // （記憶等級、下次複習時間）就分開存喺 users/{uid}/flashcardProgress，
@@ -3625,11 +3832,13 @@
             front: data.front || '',
             back: data.back || '',
             subject: data.subject || '',
+            category: data.category || '',
             box: prog.box || 1,
             nextReviewAt: (typeof prog.nextReviewAt === 'number') ? prog.nextReviewAt : 0
           };
         });
         flashcardsCache.sort((a, b) => (a.nextReviewAt || 0) - (b.nextReviewAt || 0));
+        populateFlashcardsFilters();
         renderFlashcardsList();
       } catch (e) {
         console.error('載入抽認卡失敗', e);
@@ -3638,13 +3847,65 @@
     }
     window.loadFlashcards = loadFlashcards;
 
+    // 學生揀嘅科目／範疇篩選（唔同科目適合唔同溫習方法，例如英文詞彙可以再細分
+    // 8 大 DSE 議題範疇，方便針對性溫習）
+    let flashcardsFilterSubject = 'all';
+    let flashcardsFilterCategory = 'all';
+
+    function getVisibleFlashcards() {
+      return flashcardsCache.filter(c => {
+        if (flashcardsFilterSubject !== 'all' && (c.subject || '') !== flashcardsFilterSubject) return false;
+        if (flashcardsFilterSubject === '英文' && flashcardsFilterCategory !== 'all' && (c.category || '') !== flashcardsFilterCategory) return false;
+        return true;
+      });
+    }
+
+    // 根據目前 flashcardsCache 入面實際存在嘅科目／範疇，動態更新篩選下拉選單
+    // 嘅選項（唔係寫死），保留用家原本揀緊嗰個選項（如果仲有效）
+    function populateFlashcardsFilters() {
+      const subjectEl = document.getElementById('flashcards-filter-subject');
+      const categoryEl = document.getElementById('flashcards-filter-category');
+      if (!subjectEl) return;
+
+      const subjects = Array.from(new Set(flashcardsCache.map(c => c.subject).filter(Boolean))).sort();
+      const prevSubject = subjectEl.value || 'all';
+      subjectEl.innerHTML = '<option value="all">📚 全部科目</option>' +
+        subjects.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+      subjectEl.value = subjects.includes(prevSubject) ? prevSubject : 'all';
+      flashcardsFilterSubject = subjectEl.value;
+
+      if (categoryEl) {
+        categoryEl.style.display = flashcardsFilterSubject === '英文' ? '' : 'none';
+        const categories = Array.from(new Set(
+          flashcardsCache.filter(c => c.subject === '英文').map(c => c.category).filter(Boolean)
+        )).sort();
+        const prevCategory = categoryEl.value || 'all';
+        categoryEl.innerHTML = '<option value="all">🗂 全部範疇</option>' +
+          categories.map(cat => `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`).join('');
+        categoryEl.value = categories.includes(prevCategory) ? prevCategory : 'all';
+        flashcardsFilterCategory = categoryEl.value;
+      }
+    }
+
+    window.onFlashcardsFilterChange = function() {
+      const subjectEl = document.getElementById('flashcards-filter-subject');
+      const categoryEl = document.getElementById('flashcards-filter-category');
+      flashcardsFilterSubject = subjectEl ? subjectEl.value : 'all';
+      if (categoryEl) {
+        categoryEl.style.display = flashcardsFilterSubject === '英文' ? '' : 'none';
+        flashcardsFilterCategory = categoryEl.value;
+      }
+      renderFlashcardsList();
+    };
+
     function renderFlashcardsList() {
       const listEl = document.getElementById('flashcards-list-container');
       const totalEl = document.getElementById('flashcards-total-count');
       const dueEl = document.getElementById('flashcards-due-count');
-      if (totalEl) totalEl.innerText = flashcardsCache.length;
+      const visible = getVisibleFlashcards();
+      if (totalEl) totalEl.innerText = visible.length;
       const now = Date.now();
-      const dueCount = flashcardsCache.filter(c => (c.nextReviewAt || 0) <= now).length;
+      const dueCount = visible.filter(c => (c.nextReviewAt || 0) <= now).length;
       if (dueEl) dueEl.innerText = dueCount;
 
       if (!listEl) return;
@@ -3652,17 +3913,22 @@
         listEl.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:20px;">而家仲未有抽認卡，等下老師／管理員新增啦！</p>';
         return;
       }
+      if (visible.length === 0) {
+        listEl.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:20px;">呢個篩選範圍暫時未有抽認卡，試吓揀返「全部」睇吓！</p>';
+        return;
+      }
 
-      listEl.innerHTML = flashcardsCache.map(c => {
+      listEl.innerHTML = visible.map(c => {
         const due = (c.nextReviewAt || 0) <= now;
         const boxLabel = '記憶等級 ' + (c.box || 1) + '/5';
         const nextLabel = due ? '✅ 現在可複習' : ('⏳ ' + new Date(c.nextReviewAt).toLocaleDateString('zh-HK', { month: '2-digit', day: '2-digit' }) + ' 再複習');
         return `
           <div class="card" style="display:flex; flex-direction:column; gap:4px;">
             <div style="font-weight:bold; color:var(--brand-800); font-size:14px;">${escapeHtml(c.front)}</div>
-            <div style="font-size:12px; color:#999;">${escapeHtml(c.back)}</div>
+            <div style="font-size:12px; color:#999; white-space:pre-wrap;">${escapeHtml(c.back)}</div>
             <div style="margin-top:4px; display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
               ${c.subject ? `<span class="tag">${escapeHtml(c.subject)}</span>` : ''}
+              ${c.category ? `<span class="tag" style="background:#F0E9DF;">${escapeHtml(c.category)}</span>` : ''}
               <span class="tag" style="background:${due ? '#D9EBEF' : '#F0E9DF'};">${boxLabel}</span>
               <span style="font-size:11px; color:#999;">${nextLabel}</span>
             </div>
@@ -3673,7 +3939,7 @@
 
     window.startFlashcardReview = function() {
       const now = Date.now();
-      flashcardReviewQueue = flashcardsCache.filter(c => (c.nextReviewAt || 0) <= now);
+      flashcardReviewQueue = getVisibleFlashcards().filter(c => (c.nextReviewAt || 0) <= now);
       if (flashcardReviewQueue.length === 0) {
         window.showToast('而家冇待複習嘅卡片，遲啲再返嚟啦！', 'ℹ️');
         return;
@@ -3694,7 +3960,7 @@
       const progressEl = document.getElementById('flashcard-review-progress');
       if (progressEl) progressEl.innerText = (flashcardReviewIndex + 1) + ' / ' + flashcardReviewQueue.length;
       const subjectEl = document.getElementById('flashcard-review-subject');
-      if (subjectEl) subjectEl.innerText = c.subject || '';
+      if (subjectEl) subjectEl.innerText = c.category ? (c.subject + ' · ' + c.category) : (c.subject || '');
       document.getElementById('flashcard-review-actions-front').style.display = '';
       document.getElementById('flashcard-review-actions-back').style.display = 'none';
     }
@@ -5520,54 +5786,74 @@
     // 抽認卡內容統一由管理員喺呢度新增/編輯/刪除，存喺 Firestore 頂層
     // 「flashcards」集合，所有已登入用戶得（read-only）睇到內容，但淨係
     // 管理員先可以寫入（要記得喺 Firestore 安全規則加返對應嘅權限）。
+    let adminFlashcardsAllDocs = []; // 快取最新一次 onSnapshot 嘅全部抽認卡，畀篩選下拉選單即時重新渲染用，唔使再拉一次 Firestore
+
     function renderAdminFlashcardsTab() {
       const container = document.getElementById('admin-tab-flashcards');
       if (!container || !window.db || !window.fs) return;
+
+      const categoryOptions = window.ENGLISH_VOCAB_CATEGORIES.map(cat => `<option value="${escapeHtml(cat.label)}">${escapeHtml(cat.label)}</option>`).join('');
+
       container.innerHTML = `
         <div class="admin-card">
           <h3 style="font-size:15px; font-weight:bold; margin-bottom:8px; color:var(--brand-800);">➕ 新增抽認卡</h3>
-          <label style="font-size:13px; font-weight:600; color:#555;">問題（正面）</label>
-          <textarea id="admin-flashcard-front-input" class="input-field" rows="2" placeholder="例如：牛頓第二定律係咩？"></textarea>
-          <label style="font-size:13px; font-weight:600; color:#555; margin-top:8px; display:block;">答案（背面）</label>
-          <textarea id="admin-flashcard-back-input" class="input-field" rows="2" placeholder="例如：F = ma"></textarea>
-          <label style="font-size:13px; font-weight:600; color:#555; margin-top:8px; display:block;">科目（可選）</label>
-          <input type="text" id="admin-flashcard-subject-input" class="input-field" placeholder="例如：物理">
-          <button class="btn btn-primary" type="button" style="margin-top:10px;" onclick="adminAddFlashcard()">💾 新增抽認卡</button>
+
+          <label style="font-size:13px; font-weight:600; color:#555;">科目</label>
+          <select id="admin-flashcard-subject-select" class="input-field" onchange="toggleFlashcardSubjectMode()">
+            <option value="english">🔤 英文（DSE 議題詞彙）</option>
+            <option value="other">📚 其他科目（自訂問答）</option>
+          </select>
+
+          <div id="admin-flashcard-english-fields" style="margin-top:8px;">
+            <label style="font-size:13px; font-weight:600; color:#555;">範疇</label>
+            <select id="admin-flashcard-category-select" class="input-field">${categoryOptions}</select>
+            <label style="font-size:13px; font-weight:600; color:#555; margin-top:8px; display:block;">英文詞語</label>
+            <input type="text" id="admin-flashcard-word-input" class="input-field" placeholder="例如：Introduce">
+            <label style="font-size:13px; font-weight:600; color:#555; margin-top:8px; display:block;">詞性</label>
+            <select id="admin-flashcard-pos-select" class="input-field">
+              <option>Verb</option><option>Noun</option><option>Adjective</option><option>Adverb</option><option>Noun Phrase</option><option>Phrase</option>
+            </select>
+            <label style="font-size:13px; font-weight:600; color:#555; margin-top:8px; display:block;">中文意思</label>
+            <input type="text" id="admin-flashcard-meaning-input" class="input-field" placeholder="例如：介紹">
+            <label style="font-size:13px; font-weight:600; color:#555; margin-top:8px; display:block;">例句</label>
+            <textarea id="admin-flashcard-example-input" class="input-field" rows="2" placeholder="例如：Let me introduce myself to the team."></textarea>
+            <label style="font-size:13px; font-weight:600; color:#555; margin-top:8px; display:block;">例句中文翻譯</label>
+            <textarea id="admin-flashcard-exampletranslation-input" class="input-field" rows="2" placeholder="例如：讓我向團隊自我介紹。"></textarea>
+          </div>
+
+          <div id="admin-flashcard-generic-fields" style="display:none; margin-top:8px;">
+            <label style="font-size:13px; font-weight:600; color:#555;">問題（正面）</label>
+            <textarea id="admin-flashcard-front-input" class="input-field" rows="2" placeholder="例如：牛頓第二定律係咩？"></textarea>
+            <label style="font-size:13px; font-weight:600; color:#555; margin-top:8px; display:block;">答案（背面）</label>
+            <textarea id="admin-flashcard-back-input" class="input-field" rows="2" placeholder="例如：F = ma"></textarea>
+            <label style="font-size:13px; font-weight:600; color:#555; margin-top:8px; display:block;">科目（可選）</label>
+            <input type="text" id="admin-flashcard-generic-subject-input" class="input-field" placeholder="例如：物理">
+          </div>
+
+          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
+            <button class="btn btn-primary" type="button" onclick="adminAddFlashcard()">💾 新增抽認卡</button>
+            <button class="btn btn-outline" type="button" id="btn-import-english-vocab" onclick="adminImportEnglishVocab()">📥 一鍵匯入 8 大範疇英文詞彙庫（160 個）</button>
+          </div>
         </div>
-        <div id="admin-flashcards-list-container"><p style="text-align:center; color:#999; padding:20px;">載入緊抽認卡...</p></div>
+
+        <div class="admin-card" style="margin-top:12px;">
+          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+            <select id="admin-flashcard-filter-subject" class="input-field" style="flex:1; min-width:120px;" onchange="renderAdminFlashcardsTable()">
+              <option value="all">📚 全部科目</option>
+            </select>
+            <select id="admin-flashcard-filter-category" class="input-field" style="flex:1; min-width:160px; display:none;" onchange="renderAdminFlashcardsTable()">
+              <option value="all">🗂 全部範疇</option>
+            </select>
+          </div>
+          <div id="admin-flashcards-list-container"><p style="text-align:center; color:#999; padding:20px;">載入緊抽認卡...</p></div>
+        </div>
       `;
+      toggleFlashcardSubjectMode();
 
       if (adminFlashcardsUnsubscribe) adminFlashcardsUnsubscribe();
       adminFlashcardsUnsubscribe = window.fs.onSnapshot(window.fs.collection(window.db, 'flashcards'), (snapshot) => {
-        const listContainer = document.getElementById('admin-flashcards-list-container');
-        if (!listContainer) return;
-        if (snapshot.empty) {
-          listContainer.innerHTML = '<div class="admin-card" style="text-align:center; color:#999;">目前冇任何抽認卡，喺上面新增第一張啦！</div>';
-          return;
-        }
-        const docs = snapshot.docs.slice().sort((a, b) => (b.data().createdAt || 0) - (a.data().createdAt || 0));
-        const rows = docs.map(docSnap => {
-          const c = docSnap.data();
-          return `
-            <tr>
-              <td><input class="admin-input-sm" value="${escapeHtml(c.front || '')}" onchange="adminUpdateFlashcardField('${docSnap.id}','front',this.value)"></td>
-              <td><input class="admin-input-sm" value="${escapeHtml(c.back || '')}" onchange="adminUpdateFlashcardField('${docSnap.id}','back',this.value)"></td>
-              <td><input class="admin-input-sm" style="width:90px;" value="${escapeHtml(c.subject || '')}" onchange="adminUpdateFlashcardField('${docSnap.id}','subject',this.value)"></td>
-              <td><button class="btn btn-red" style="font-size:11px; padding:3px 8px;" onclick="adminDeleteFlashcard('${docSnap.id}')">🗑️ 刪除</button></td>
-            </tr>
-          `;
-        }).join('');
-        listContainer.innerHTML = `
-          <div class="admin-card">
-            <p style="font-size:12px; color:#888; margin-bottom:10px;">共 ${docs.length} 張抽認卡，全部學生都會睇到（下面直接改欄位會即時儲存）</p>
-            <div style="overflow-x:auto;">
-              <table class="admin-table">
-                <thead><tr><th>問題（正面）</th><th>答案（背面）</th><th>科目</th><th></th></tr></thead>
-                <tbody>${rows}</tbody>
-              </table>
-            </div>
-          </div>
-        `;
+        adminFlashcardsAllDocs = snapshot.docs.slice();
+        renderAdminFlashcardsTable();
       }, (err) => {
         const listContainer = document.getElementById('admin-flashcards-list-container');
         if (listContainer) listContainer.innerHTML = `<div class="admin-card" style="color:#c0392b;">載入失敗：${err.message || err}</div>`;
@@ -5575,10 +5861,127 @@
     }
     window.renderAdminFlashcardsTab = renderAdminFlashcardsTab;
 
+    // 英文詞彙需要「範疇」呢一層額外分類，其他科目就用返原本自由填寫嘅問答格式，
+    // 呢個掣負責喺兩種輸入模式之間切換
+    window.toggleFlashcardSubjectMode = function() {
+      const modeEl = document.getElementById('admin-flashcard-subject-select');
+      const mode = modeEl ? modeEl.value : 'english';
+      const engFields = document.getElementById('admin-flashcard-english-fields');
+      const genFields = document.getElementById('admin-flashcard-generic-fields');
+      if (engFields) engFields.style.display = mode === 'english' ? '' : 'none';
+      if (genFields) genFields.style.display = mode === 'english' ? 'none' : '';
+    };
+
+    // 根據目前快取嘅 adminFlashcardsAllDocs + 篩選下拉選單，重新渲染管理員嘅抽認卡列表
+    // （純本地重新渲染，唔使再打 Firestore，切換篩選即時反應）
+    function renderAdminFlashcardsTable() {
+      const listContainer = document.getElementById('admin-flashcards-list-container');
+      if (!listContainer) return;
+
+      const subjectFilterEl = document.getElementById('admin-flashcard-filter-subject');
+      const categoryFilterEl = document.getElementById('admin-flashcard-filter-category');
+      if (subjectFilterEl) {
+        const allData = adminFlashcardsAllDocs.map(d => d.data());
+        const subjects = Array.from(new Set(allData.map(c => c.subject).filter(Boolean))).sort();
+        const prevSubject = subjectFilterEl.value || 'all';
+        subjectFilterEl.innerHTML = '<option value="all">📚 全部科目</option>' +
+          subjects.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+        subjectFilterEl.value = subjects.includes(prevSubject) ? prevSubject : 'all';
+
+        if (categoryFilterEl) {
+          categoryFilterEl.style.display = subjectFilterEl.value === '英文' ? '' : 'none';
+          const categories = Array.from(new Set(allData.filter(c => c.subject === '英文').map(c => c.category).filter(Boolean))).sort();
+          const prevCategory = categoryFilterEl.value || 'all';
+          categoryFilterEl.innerHTML = '<option value="all">🗂 全部範疇</option>' +
+            categories.map(cat => `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`).join('');
+          categoryFilterEl.value = categories.includes(prevCategory) ? prevCategory : 'all';
+        }
+      }
+
+      if (adminFlashcardsAllDocs.length === 0) {
+        listContainer.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">目前冇任何抽認卡，喺上面新增第一張啦！</div>';
+        return;
+      }
+
+      const subjectFilter = subjectFilterEl ? subjectFilterEl.value : 'all';
+      const categoryFilter = categoryFilterEl ? categoryFilterEl.value : 'all';
+      let docs = adminFlashcardsAllDocs.filter(docSnap => {
+        const c = docSnap.data();
+        if (subjectFilter !== 'all' && (c.subject || '') !== subjectFilter) return false;
+        if (subjectFilter === '英文' && categoryFilter !== 'all' && (c.category || '') !== categoryFilter) return false;
+        return true;
+      });
+      docs = docs.slice().sort((a, b) => (b.data().createdAt || 0) - (a.data().createdAt || 0));
+
+      if (docs.length === 0) {
+        listContainer.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">呢個篩選範圍暫時未有抽認卡</div>';
+        return;
+      }
+
+      const rows = docs.map(docSnap => {
+        const c = docSnap.data();
+        return `
+          <tr>
+            <td><input class="admin-input-sm" value="${escapeHtml(c.front || '')}" onchange="adminUpdateFlashcardField('${docSnap.id}','front',this.value)"></td>
+            <td><input class="admin-input-sm" value="${escapeHtml(c.back || '')}" onchange="adminUpdateFlashcardField('${docSnap.id}','back',this.value)"></td>
+            <td><input class="admin-input-sm" style="width:90px;" value="${escapeHtml(c.subject || '')}" onchange="adminUpdateFlashcardField('${docSnap.id}','subject',this.value)"></td>
+            <td><input class="admin-input-sm" style="width:140px;" value="${escapeHtml(c.category || '')}" onchange="adminUpdateFlashcardField('${docSnap.id}','category',this.value)"></td>
+            <td><button class="btn btn-red" style="font-size:11px; padding:3px 8px;" onclick="adminDeleteFlashcard('${docSnap.id}')">🗑️ 刪除</button></td>
+          </tr>
+        `;
+      }).join('');
+      listContainer.innerHTML = `
+        <p style="font-size:12px; color:#888; margin-bottom:10px;">共 ${adminFlashcardsAllDocs.length} 張抽認卡（篩選後顯示 ${docs.length} 張），全部學生都會睇到（下面直接改欄位會即時儲存）</p>
+        <div style="overflow-x:auto;">
+          <table class="admin-table">
+            <thead><tr><th>問題（正面）</th><th>答案（背面）</th><th>科目</th><th>範疇</th><th></th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      `;
+    }
+    window.renderAdminFlashcardsTable = renderAdminFlashcardsTable;
+
     window.adminAddFlashcard = async function() {
+      const modeEl = document.getElementById('admin-flashcard-subject-select');
+      const mode = modeEl ? modeEl.value : 'english';
+
+      if (mode === 'english') {
+        const categoryEl = document.getElementById('admin-flashcard-category-select');
+        const wordEl = document.getElementById('admin-flashcard-word-input');
+        const posEl = document.getElementById('admin-flashcard-pos-select');
+        const meaningEl = document.getElementById('admin-flashcard-meaning-input');
+        const exampleEl = document.getElementById('admin-flashcard-example-input');
+        const exampleTrEl = document.getElementById('admin-flashcard-exampletranslation-input');
+        const category = categoryEl ? categoryEl.value : '';
+        const word = wordEl ? wordEl.value.trim() : '';
+        const pos = posEl ? posEl.value : '';
+        const meaning = meaningEl ? meaningEl.value.trim() : '';
+        const example = exampleEl ? exampleEl.value.trim() : '';
+        const exampleTranslation = exampleTrEl ? exampleTrEl.value.trim() : '';
+        if (!word || !meaning) { window.showToast('英文詞語同中文意思都要填㗎', '⚠️'); return; }
+
+        const front = pos ? `${word} (${pos})` : word;
+        let back = meaning;
+        if (example) back += `\n\n例句：${example}`;
+        if (exampleTranslation) back += `\n中文翻譯：${exampleTranslation}`;
+
+        try {
+          await window.fs.addDoc(window.fs.collection(window.db, 'flashcards'), {
+            subject: '英文', category, word, partOfSpeech: pos, meaning, example, exampleTranslation,
+            front, back, createdAt: Date.now()
+          });
+          [wordEl, meaningEl, exampleEl, exampleTrEl].forEach(el => { if (el) el.value = ''; });
+          window.showToast('✅ 已新增英文詞彙卡，所有學生即時見到', '🗂');
+        } catch (err) {
+          window.showToast('新增失敗：' + (err.message || err), '❌');
+        }
+        return;
+      }
+
       const frontEl = document.getElementById('admin-flashcard-front-input');
       const backEl = document.getElementById('admin-flashcard-back-input');
-      const subjectEl = document.getElementById('admin-flashcard-subject-input');
+      const subjectEl = document.getElementById('admin-flashcard-generic-subject-input');
       const front = frontEl ? frontEl.value.trim() : '';
       const back = backEl ? backEl.value.trim() : '';
       const subject = subjectEl ? subjectEl.value.trim() : '';
@@ -5593,6 +5996,47 @@
         window.showToast('✅ 已新增抽認卡，所有學生即時見到', '🗂');
       } catch (err) {
         window.showToast('新增失敗：' + (err.message || err), '❌');
+      }
+    };
+
+    // 一鍵匯入 8 大範疇、共 160 個預備好嘅英文詞彙卡（見 ENGLISH_VOCAB_SEED）。
+    // 匯入前會攞返現有全部抽認卡嚟比對（科目＋範疇＋詞語），已經存在嘅會自動
+    // 跳過，唔會匯入重複嘅卡，可以放心撳多次都唔會炒車。
+    window.adminImportEnglishVocab = async function() {
+      if (!confirm('確定要一次過匯入 8 大範疇、共 160 個英文詞彙抽認卡嗎？已存在嘅詞語會自動跳過，唔會重複匯入。')) return;
+      const btn = document.getElementById('btn-import-english-vocab');
+      const originalText = btn ? btn.innerText : '';
+      if (btn) { btn.disabled = true; btn.innerText = '⏳ 匯入緊…'; }
+
+      try {
+        const existingSnap = await window.fs.getDocs(window.fs.collection(window.db, 'flashcards'));
+        const existingKeys = new Set(existingSnap.docs.map(d => {
+          const c = d.data();
+          return `${c.subject || ''}__${c.category || ''}__${(c.word || c.front || '').toLowerCase()}`;
+        }));
+
+        let added = 0, skipped = 0;
+        for (const cat of window.ENGLISH_VOCAB_CATEGORIES) {
+          const items = window.ENGLISH_VOCAB_SEED[cat.key] || [];
+          const toAdd = items.filter(item => !existingKeys.has(`英文__${cat.label}__${item.word.toLowerCase()}`));
+          await Promise.all(toAdd.map(item => {
+            const front = `${item.word} (${item.pos})`;
+            const back = `${item.meaning}\n\n例句：${item.example}\n中文翻譯：${item.exampleTranslation}`;
+            existingKeys.add(`英文__${cat.label}__${item.word.toLowerCase()}`);
+            added++;
+            return window.fs.addDoc(window.fs.collection(window.db, 'flashcards'), {
+              subject: '英文', category: cat.label, word: item.word, partOfSpeech: item.pos,
+              meaning: item.meaning, example: item.example, exampleTranslation: item.exampleTranslation,
+              front, back, createdAt: Date.now()
+            });
+          }));
+          skipped += items.length - toAdd.length;
+        }
+        window.showToast(`✅ 匯入完成！新增 ${added} 張，跳過 ${skipped} 張已存在嘅卡片`, '📥');
+      } catch (err) {
+        window.showToast('匯入失敗：' + (err.message || err), '❌');
+      } finally {
+        if (btn) { btn.disabled = false; btn.innerText = originalText || '📥 一鍵匯入 8 大範疇英文詞彙庫（160 個）'; }
       }
     };
 
