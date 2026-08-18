@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.7.1"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.8.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -979,9 +979,12 @@
                   <select id="bg-noise-select" style="background:#222; color:#fff; border:1px solid #444; border-radius:6px; font-size:12px; padding:2px 4px;" onchange="setBgNoiseType(this.value)">
                     <option value="off">背景音：關閉</option>
                     <option value="white">白噪音</option>
-                    <option value="pink">粉紅噪音</option>
-                    <option value="rain">🌧️ 雨聲</option>
-                    <option value="ocean">🌊 海浪聲</option>
+                    <option value="rain1">🌧️ 雨聲 1</option>
+                    <option value="rain2">🌧️ 雨聲 2</option>
+                    <option value="cafe1">☕ 咖啡室環境聲 1</option>
+                    <option value="cafe2">☕ 咖啡室環境聲 2</option>
+                    <option value="train1">🚆 火車聲 1</option>
+                    <option value="train2">🚆 火車聲 2</option>
                   </select>
                   <input type="range" id="bg-noise-volume" min="0" max="1" step="0.05" value="0.3" style="width:60px;" oninput="setBgNoiseVolume(this.value)">
                 </div>
@@ -3405,142 +3408,50 @@
       }
     };
 
-    // ===================== 專注背景音（白噪音／粉紅噪音／雨聲／海浪聲）=====================
-    // 完全用 Web Audio API 喺瀏覽器入面即時合成，唔使準備／上載任何音頻檔案：
-    // 免費、冇版權問題、亦唔會令個 GitHub repo 同 Firestore 多咗大檔案。
-    // 做法係產生一小段雜訊 buffer，loop=true 無縫循環播放，再用濾波器/LFO
-    // 整色個音色（磨走刺耳高頻、模擬雨聲疏密／海浪起伏）。
-    // 提醒：呢啲聲全部係程式合成模擬，唔係真實錄音，同真正雨聲/海浪聲會有分別。
-    let bgNoiseCtx = null;
-    let bgNoiseSource = null;
-    let bgNoiseGain = null;
-    let bgNoiseLowpass = null;
-    let bgNoiseHighpass = null;
-    let bgNoiseLfo = null;
-    let bgNoiseLfoGain = null;
-    let bgNoiseSwellGain = null;
-
-    // 每種背景音嘅「設定譜」：base 係底層雜訊種類，lowpass/highpass 用嚟
-    // 整色（磨走刺耳高頻或者低頻悶聲），lfo 用嚟做慢速音量起伏（雨聲嘅疏密
-    // 變化、海浪一浪接一浪）。white 加咗 lowpass 就唔會再咁尖銳刺耳。
-    const BG_SOUND_PRESETS = {
-      white: { base: 'white', lowpass: 3200, highpass: null, q: 0.7, lfo: null },
-      pink:  { base: 'pink',  lowpass: 7000, highpass: null, q: 0.7, lfo: null },
-      rain:  { base: 'white', lowpass: 3800, highpass: 500,  q: 0.9, lfo: { rate: 5,    depth: 0.18 } },
-      ocean: { base: 'brown', lowpass: 900,  highpass: null, q: 0.7, lfo: { rate: 0.15, depth: 0.5  } }
+    // ===================== 專注背景音（真實錄音 MP3，循環播放）=====================
+    // 之前用 Web Audio API 即時合成雜訊，後來改用管理員提供嘅 ElevenLabs
+    // 錄音（放喺 sounds/ 資料夾），音質靚好多，所以呢度改用簡單嘅
+    // <audio loop> 方式播放，唔再需要濾波器/雜訊合成嗰套邏輯。
+    const BG_SOUND_FILES = {
+      white: { label: '白噪音',        file: 'sounds/white-noise.mp3' },
+      rain1: { label: '雨聲 1',        file: 'sounds/rain-1.mp3' },
+      rain2: { label: '雨聲 2',        file: 'sounds/rain-2.mp3' },
+      cafe1: { label: '咖啡室環境聲 1', file: 'sounds/cafe-1.mp3' },
+      cafe2: { label: '咖啡室環境聲 2', file: 'sounds/cafe-2.mp3' },
+      train1: { label: '火車聲 1',      file: 'sounds/train-1.mp3' },
+      train2: { label: '火車聲 2',      file: 'sounds/train-2.mp3' }
     };
 
-    function createNoiseBuffer(ctx, baseType) {
-      const bufferSeconds = 4; // 加長少少令雜訊 pattern 唔會太快重複，人耳更難聽出接口位
-      const bufferSize = Math.floor(ctx.sampleRate * bufferSeconds);
-      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-      const data = buffer.getChannelData(0);
-
-      if (baseType === 'pink') {
-        // Paul Kellet 嘅粉紅噪音濾波演算法（業界常用嘅簡化實作）
-        let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
-        for (let i = 0; i < bufferSize; i++) {
-          const white = Math.random() * 2 - 1;
-          b0 = 0.99886 * b0 + white * 0.0555179;
-          b1 = 0.99332 * b1 + white * 0.0750759;
-          b2 = 0.96900 * b2 + white * 0.1538520;
-          b3 = 0.86650 * b3 + white * 0.3104856;
-          b4 = 0.55000 * b4 + white * 0.5329522;
-          b5 = -0.7616 * b5 - white * 0.0168980;
-          const pink = b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362;
-          b6 = white * 0.115926;
-          data[i] = pink * 0.11;
-        }
-      } else if (baseType === 'brown') {
-        // 布朗噪音（隨機遊走）：低頻能量重、聽落好悶好深，係模擬海浪／
-        // 遠處風聲嘅常用底層雜訊
-        let lastOut = 0;
-        for (let i = 0; i < bufferSize; i++) {
-          const white = Math.random() * 2 - 1;
-          lastOut = (lastOut + 0.02 * white) / 1.02;
-          data[i] = lastOut * 3.5; // 補返因為隨機遊走而縮細咗嘅音量
-        }
-      } else {
-        // 白噪音：每個 sample 都係獨立隨機值
-        for (let i = 0; i < bufferSize; i++) {
-          data[i] = Math.random() * 2 - 1;
-        }
-      }
-      return buffer;
-    }
+    let bgAudioEl = null;
 
     function stopBgNoise() {
-      if (bgNoiseSource) { try { bgNoiseSource.stop(); } catch (e) {} bgNoiseSource.disconnect(); bgNoiseSource = null; }
-      if (bgNoiseLfo) { try { bgNoiseLfo.stop(); } catch (e) {} bgNoiseLfo.disconnect(); bgNoiseLfo = null; }
-      if (bgNoiseLowpass) { bgNoiseLowpass.disconnect(); bgNoiseLowpass = null; }
-      if (bgNoiseHighpass) { bgNoiseHighpass.disconnect(); bgNoiseHighpass = null; }
-      if (bgNoiseLfoGain) { bgNoiseLfoGain.disconnect(); bgNoiseLfoGain = null; }
-      if (bgNoiseSwellGain) { bgNoiseSwellGain.disconnect(); bgNoiseSwellGain = null; }
+      if (bgAudioEl) {
+        bgAudioEl.pause();
+        bgAudioEl.src = '';
+        bgAudioEl = null;
+      }
     }
 
     window.setBgNoiseType = function(type) {
       stopBgNoise();
       if (type === 'off') return;
-      const preset = BG_SOUND_PRESETS[type];
+      const preset = BG_SOUND_FILES[type];
       if (!preset) return;
 
-      // AudioContext 一定要喺用戶手動操作（呢度即係揀 select）入面先建立，
-      // 唔可以一入房就自動建立，否則會撞到瀏覽器嘅自動播放限制
-      if (!bgNoiseCtx) {
-        bgNoiseCtx = new (window.AudioContext || window.webkitAudioContext)();
-        bgNoiseGain = bgNoiseCtx.createGain();
-        bgNoiseGain.connect(bgNoiseCtx.destination);
-        const volEl = document.getElementById('bg-noise-volume');
-        bgNoiseGain.gain.value = volEl ? parseFloat(volEl.value) : 0.3;
-      }
-      if (bgNoiseCtx.state === 'suspended') bgNoiseCtx.resume();
-
-      const buffer = createNoiseBuffer(bgNoiseCtx, preset.base);
-      bgNoiseSource = bgNoiseCtx.createBufferSource();
-      bgNoiseSource.buffer = buffer;
-      bgNoiseSource.loop = true;
-
-      // 低通濾波：磨走尖銳刺耳嘅高頻，令聲音柔和啲
-      bgNoiseLowpass = bgNoiseCtx.createBiquadFilter();
-      bgNoiseLowpass.type = 'lowpass';
-      bgNoiseLowpass.frequency.value = preset.lowpass;
-      bgNoiseLowpass.Q.value = preset.q;
-      bgNoiseSource.connect(bgNoiseLowpass);
-
-      let lastNode = bgNoiseLowpass;
-      if (preset.highpass) {
-        // 高通濾波：拎走過低嘅悶聲，留返中頻嘅「沙沙」質感（雨聲用）
-        bgNoiseHighpass = bgNoiseCtx.createBiquadFilter();
-        bgNoiseHighpass.type = 'highpass';
-        bgNoiseHighpass.frequency.value = preset.highpass;
-        lastNode.connect(bgNoiseHighpass);
-        lastNode = bgNoiseHighpass;
-      }
-
-      if (preset.lfo) {
-        // 用 LFO（低頻震盪器）慢慢調整音量：快而淺 = 雨聲疏密變化；
-        // 慢而深 = 海浪一浪接一浪嘅起伏
-        bgNoiseSwellGain = bgNoiseCtx.createGain();
-        bgNoiseSwellGain.gain.value = 1;
-        bgNoiseLfo = bgNoiseCtx.createOscillator();
-        bgNoiseLfo.frequency.value = preset.lfo.rate;
-        bgNoiseLfoGain = bgNoiseCtx.createGain();
-        bgNoiseLfoGain.gain.value = preset.lfo.depth;
-        bgNoiseLfo.connect(bgNoiseLfoGain);
-        bgNoiseLfoGain.connect(bgNoiseSwellGain.gain);
-
-        lastNode.connect(bgNoiseSwellGain);
-        bgNoiseSwellGain.connect(bgNoiseGain);
-        bgNoiseLfo.start();
-      } else {
-        lastNode.connect(bgNoiseGain);
-      }
-
-      bgNoiseSource.start();
+      bgAudioEl = new Audio(preset.file);
+      bgAudioEl.loop = true;
+      const volEl = document.getElementById('bg-noise-volume');
+      bgAudioEl.volume = volEl ? parseFloat(volEl.value) : 0.3;
+      bgAudioEl.play().catch((err) => {
+        // 大部分瀏覽器要求音頻播放一定要響用戶手動操作（呢度即係揀 select）
+        // 入面觸發先得，正常情況呢度唔會撞到，但都保留錯誤處理以防萬一
+        console.warn('背景音播放失敗：', err);
+        window.showToast('背景音播放失敗，請再揀一次', '⚠️');
+      });
     };
 
     window.setBgNoiseVolume = function(vol) {
-      if (bgNoiseGain) bgNoiseGain.gain.value = parseFloat(vol);
+      if (bgAudioEl) bgAudioEl.volume = parseFloat(vol);
     };
 
     function startTimer() {
