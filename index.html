@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.6.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.7.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -972,6 +972,16 @@
                 <div style="background:#111; color:white; font-family:monospace; padding:4px 8px; border-radius:8px; font-size:13px; display:flex; align-items:center; gap:6px;">
                   <span id="room-timer-phase" style="font-family:inherit;">🍅 專注中</span>
                   <span id="room-timer">30:00</span>
+                </div>
+
+                <div style="background:#111; color:white; padding:4px 8px; border-radius:8px; font-size:12px; display:flex; align-items:center; gap:6px;" title="專注背景音，建議戴耳機使用">
+                  <span>🔊</span>
+                  <select id="bg-noise-select" style="background:#222; color:#fff; border:1px solid #444; border-radius:6px; font-size:12px; padding:2px 4px;" onchange="setBgNoiseType(this.value)">
+                    <option value="off">背景音：關閉</option>
+                    <option value="white">白噪音</option>
+                    <option value="pink">粉紅噪音</option>
+                  </select>
+                  <input type="range" id="bg-noise-volume" min="0" max="1" step="0.05" value="0.3" style="width:60px;" oninput="setBgNoiseVolume(this.value)">
                 </div>
 
                 <div class="room-capacity-tag" id="room-capacity-tag">
@@ -3393,6 +3403,80 @@
       }
     };
 
+    // ===================== 專注背景音（白噪音／粉紅噪音）=====================
+    // 完全用 Web Audio API 喺瀏覽器入面即時合成，唔使準備／上載任何音頻檔案：
+    // 免費、冇版權問題、亦唔會令個 GitHub repo 同 Firestore 多咗大檔案。
+    // 做法係產生一小段（2 秒）雜訊 buffer，然後設 loop=true 無縫循環播放。
+    let bgNoiseCtx = null;
+    let bgNoiseSource = null;
+    let bgNoiseGain = null;
+
+    function createNoiseBuffer(ctx, type) {
+      const bufferSeconds = 2; // 夠短唔會占太多記憶體，人耳好難聽出接口位
+      const bufferSize = Math.floor(ctx.sampleRate * bufferSeconds);
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+
+      if (type === 'pink') {
+        // Paul Kellet 嘅粉紅噪音濾波演算法（業界常用嘅簡化實作），
+        // 令高頻能量比純白噪音少，聽落似雨聲/風聲咁沙沙聲、更柔和唔刺耳
+        let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+        for (let i = 0; i < bufferSize; i++) {
+          const white = Math.random() * 2 - 1;
+          b0 = 0.99886 * b0 + white * 0.0555179;
+          b1 = 0.99332 * b1 + white * 0.0750759;
+          b2 = 0.96900 * b2 + white * 0.1538520;
+          b3 = 0.86650 * b3 + white * 0.3104856;
+          b4 = 0.55000 * b4 + white * 0.5329522;
+          b5 = -0.7616 * b5 - white * 0.0168980;
+          const pink = b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362;
+          b6 = white * 0.115926;
+          data[i] = pink * 0.11; // 縮細音量，避免削波爆音
+        }
+      } else {
+        // 白噪音：每個 sample 都係獨立隨機值
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1;
+        }
+      }
+      return buffer;
+    }
+
+    function stopBgNoise() {
+      if (bgNoiseSource) {
+        try { bgNoiseSource.stop(); } catch (e) { /* 可能已經停咗，忽略 */ }
+        bgNoiseSource.disconnect();
+        bgNoiseSource = null;
+      }
+    }
+
+    window.setBgNoiseType = function(type) {
+      stopBgNoise();
+      if (type === 'off') return;
+
+      // AudioContext 一定要喺用戶手動操作（呢度即係揀 select）入面先建立，
+      // 唔可以一入房就自動建立，否則會撞到瀏覽器嘅自動播放限制
+      if (!bgNoiseCtx) {
+        bgNoiseCtx = new (window.AudioContext || window.webkitAudioContext)();
+        bgNoiseGain = bgNoiseCtx.createGain();
+        bgNoiseGain.connect(bgNoiseCtx.destination);
+        const volEl = document.getElementById('bg-noise-volume');
+        bgNoiseGain.gain.value = volEl ? parseFloat(volEl.value) : 0.3;
+      }
+      if (bgNoiseCtx.state === 'suspended') bgNoiseCtx.resume();
+
+      const buffer = createNoiseBuffer(bgNoiseCtx, type);
+      bgNoiseSource = bgNoiseCtx.createBufferSource();
+      bgNoiseSource.buffer = buffer;
+      bgNoiseSource.loop = true;
+      bgNoiseSource.connect(bgNoiseGain);
+      bgNoiseSource.start();
+    };
+
+    window.setBgNoiseVolume = function(vol) {
+      if (bgNoiseGain) bgNoiseGain.gain.value = parseFloat(vol);
+    };
+
     function startTimer() {
       if (state.countdownTimer) clearInterval(state.countdownTimer);
 
@@ -3722,6 +3806,11 @@
     async function cleanupRoomConnections() {
       if (state.renderFrameId) cancelAnimationFrame(state.renderFrameId);
       if (state.countdownTimer) clearInterval(state.countdownTimer);
+
+      // 離開房間就要停止背景白噪音，唔可以帶去大廳／其他分頁繼續播
+      stopBgNoise();
+      const bgSelectEl = document.getElementById('bg-noise-select');
+      if (bgSelectEl) bgSelectEl.value = 'off';
 
       // 完整結束鏡頭＋麥克風（離開房間跟單純「關閉鏡頭」不同，要整個釋放掉）
       // 注意釋放次序：先斷開 P2P 連線入面 sender 對軌道嘅參照 → 解除 <video>
