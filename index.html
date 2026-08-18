@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.17.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.17.1"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -1072,20 +1072,20 @@
           <div id="study-sub-flashcards">
 
             <div id="flashcards-manage-view">
-              <p style="text-align:center; font-size:12px; color:#999; max-width:520px; margin:0 auto 10px;">呢啲溫習卡由老師／管理員準備，你只需要負責複習就得㗎喇！</p>
+              <p style="font-size:12px; color:#999; margin-bottom:10px;">呢啲溫習卡由老師／管理員準備，你只需要負責複習就得㗎喇！</p>
 
-              <!-- 學科 Tab 列，格局同「疑難解答區」一致：未有內容嘅學科都會顯示個 tab 出嚟，
-                   但暫時撳唔到，等學生知道呢科將來會有溫習卡 -->
-              <div id="flashcards-subject-tabs" style="display:flex; gap:6px; flex-wrap:wrap; justify-content:center; max-width:560px; margin:0 auto 8px;"></div>
+              <!-- 學科 Tab 列，格局同「疑難解答區」一致：左對齊、唔限寬，未有內容嘅學科
+                   都會顯示個 tab 出嚟，但暫時撳唔到，等學生知道呢科將來會有溫習卡 -->
+              <div id="flashcards-subject-tabs" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;"></div>
               <!-- 英文專屬：範疇 Tab 列，淨係揀咗「英文」先會顯示 -->
-              <div id="flashcards-category-tabs" style="display:none; gap:6px; flex-wrap:wrap; justify-content:center; max-width:560px; margin:0 auto 14px;"></div>
+              <div id="flashcards-category-tabs" style="display:none; gap:6px; flex-wrap:wrap; margin-bottom:14px;"></div>
 
-              <div style="display:flex; justify-content:space-between; align-items:center; margin:14px 0 8px; max-width:520px; margin-left:auto; margin-right:auto; flex-wrap:wrap; gap:8px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
                 <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800);">🗂 溫習卡（<span id="flashcards-total-count">0</span>）</h3>
                 <button class="btn btn-primary" type="button" onclick="startFlashcardReview()">🚀 開始複習（<span id="flashcards-due-count">0</span> 張待複習）</button>
               </div>
 
-              <div id="flashcards-list-container" style="max-width:520px; margin:0 auto;">
+              <div id="flashcards-list-container">
                 <p style="text-align:center; color:#999; font-size:13px; padding:20px;">🔄 載入緊溫習卡...</p>
               </div>
             </div>
