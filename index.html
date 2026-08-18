@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.9.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.9.2"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -960,7 +960,6 @@
           <div id="room-active" style="display:none;">
             <div class="room-bar">
               <div style="display:flex; align-items:center; gap:6px;">
-                <button class="btn btn-outline" type="button" style="padding:3px 8px; font-size:13px;" onclick="returnToLobby()">⬅️ 返回大廳</button>
                 <span style="font-weight:bold; font-size:16px;" id="active-room-title">DSE 衝刺專注房</span>
                 <span class="tag" style="background:#F0E9DF; color:#1E4550;" id="active-room-subject">數學</span>
               </div>
@@ -3450,12 +3449,6 @@
       }, ROOM_HEARTBEAT_INTERVAL_MS);
     }
 
-    window.returnToLobby = async function() {
-      await cleanupRoomConnections();
-      document.getElementById('room-active').style.display = 'none';
-      document.getElementById('room-lobby').style.display = 'block';
-    };
-
     window.deleteRoomQuick = async function(roomId) {
       if (!window.db || !window.fs) return;
       try {
@@ -3545,15 +3538,17 @@
       }, 1000);
     }
 
-    async function awardStudyPoint() {
+    async function awardStudyPoint(pointsAmount) {
+      pointsAmount = (typeof pointsAmount === 'number' && pointsAmount > 0) ? pointsAmount : 1;
+
       // 更新畫面
       const ptsEl = document.getElementById('stat-points');
       if (ptsEl) {
         const current = parseInt(ptsEl.innerText || '0');
-        ptsEl.innerText = current + 1;
+        ptsEl.innerText = current + pointsAmount;
         syncGachaPtsDisplay();
         const homePts = document.getElementById('home-stat-pts');
-        if (homePts) homePts.innerText = current + 1;
+        if (homePts) homePts.innerText = current + pointsAmount;
       }
 
       // 簡短閃亮提示（唔彈 toast 避免騷擾）
@@ -3566,14 +3561,15 @@
       // 寫入 Firestore（atomic increment，就算多頁面同時開都唔會出問題）
       if (!window.currentUser || !window.db || !window.fs) return;
       try {
-        const expGain = (LEVEL_CONFIG && typeof LEVEL_CONFIG.expPerMinute === 'number') ? LEVEL_CONFIG.expPerMinute : 1;
+        const expPerPoint = (LEVEL_CONFIG && typeof LEVEL_CONFIG.expPerMinute === 'number') ? LEVEL_CONFIG.expPerMinute : 1;
+        const expGain = expPerPoint * pointsAmount;
         const userRef = window.fs.doc(window.db, "users", window.currentUser.uid);
         await window.fs.updateDoc(userRef, {
-          points: window.fs.increment(1),
+          points: window.fs.increment(pointsAmount),
           exp: window.fs.increment(expGain)
         });
         if (window.currentUser) {
-          window.currentUser.points = (window.currentUser.points || 0) + 1;
+          window.currentUser.points = (window.currentUser.points || 0) + pointsAmount;
           const prevLevel = calcLevelInfo(window.currentUser.exp || 0).level;
           window.currentUser.exp = (window.currentUser.exp || 0) + expGain;
           updateLevelDisplay();
@@ -3833,7 +3829,9 @@
       if (state.presenceAutoLeaveTimer) { clearTimeout(state.presenceAutoLeaveTimer); state.presenceAutoLeaveTimer = null; }
       closeModal('modal-presence-check');
       updateTimerDisplay();
-      window.showToast('歡迎返嚟！繼續加油溫習～', '💪');
+      // 主動確認「仲喺度」都算係一種投入專注嘅表現，順手獎多 2 分鼓勵一下
+      awardStudyPoint(2);
+      window.showToast('讚！繼續加油溫習，額外送你 +2 PTS 🎁', '💪');
     };
 
     window.leaveRoom = async function() {
