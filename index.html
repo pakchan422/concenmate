@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.21.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.22.1"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -1517,20 +1517,6 @@
     </div>
   </div>
 
-  <!-- 舊帳號（用電郵註冊嗰陣仲未有帳號 ID 制度）首次登入嗰陣彈出嚟嘅一次性設定卡，
-       可以撳「遲啲先」延後，唔會強迫即刻設定，下次登入會再問。 -->
-  <div class="modal-backdrop" id="modal-claim-id" style="display:none;">
-    <div class="modal-box" style="text-align:center;">
-      <div style="font-size:32px; margin-bottom:6px;">🆔</div>
-      <h3 style="font-size:17px; font-weight:bold; color:var(--brand-800);">設定你嘅帳號 ID</h3>
-      <p style="font-size:13px; color:#666; margin:8px 0 12px;">而家開始可以用「帳號 ID」登入，唔使再打電郵。呢個係一次性設定，一經確認就唔可以再改，諗清楚先揀啦！</p>
-      <input type="text" id="claim-id-input" class="input-field" placeholder="例如：admin_main（3-20 個英文字母/數字/底線）" pattern="[A-Za-z0-9_]{3,20}" maxlength="20">
-      <div style="display:flex; gap:8px; margin-top:12px;">
-        <button class="btn btn-outline" type="button" style="flex:1; justify-content:center;" onclick="closeModal('modal-claim-id')">遲啲先</button>
-        <button class="btn btn-primary" type="button" style="flex:1; justify-content:center;" onclick="submitClaimId()">確認設定</button>
-      </div>
-    </div>
-  </div>
 
   <div class="modal-backdrop" id="modal-create-room" style="display:none;">
     <div class="modal-box">
@@ -2044,21 +2030,7 @@
 
       setText('myacc-avatar', (u.username || 'U').charAt(0).toUpperCase());
       setText('myacc-username', u.username || '同學');
-      setText('myacc-loginid', u.loginId ? ('🆔 ' + u.loginId) : '🆔 尚未設定帳號 ID（撳呢度設定）');
-      const loginIdEl = document.getElementById('myacc-loginid');
-      if (loginIdEl) {
-        if (!u.loginId) {
-          loginIdEl.style.cursor = 'pointer';
-          loginIdEl.style.color = '#3E7A8A';
-          loginIdEl.style.textDecoration = 'underline';
-          loginIdEl.onclick = () => { closeModal('modal-my-account'); openModal('modal-claim-id'); };
-        } else {
-          loginIdEl.style.cursor = '';
-          loginIdEl.style.color = '';
-          loginIdEl.style.textDecoration = '';
-          loginIdEl.onclick = null;
-        }
-      }
+      setText('myacc-loginid', u.loginId ? ('🆔 ' + u.loginId) : '🆔 未設定');
       setText('myacc-email', u.email || '—');
       setText('myacc-school', u.school || '未填寫');
       setText('myacc-grade', u.grade || '未填寫');
@@ -3173,10 +3145,6 @@
       });
     }
 
-    // 舊帳號首次登入嗰陣彈「設定帳號 ID」卡，呢個 flag 確保同一個 session 淨係彈一次
-    // （撳「遲啲先」之後唔會不斷煩住個用家，下次重新登入先再問）
-    let claimIdPromptShownThisSession = false;
-
     onAuthStateChanged(auth, async (user) => {
       if (user) {
         try {
@@ -3215,18 +3183,6 @@
           window.showToast('你嘅帳戶已被管理員停權，如有疑問請聯絡管理員', '🚫');
           await signOut(auth);
           return;
-        }
-
-        // 帳號 ID 登入制度推出之前註冊嘅舊帳號（用電郵登入）冇 loginId 呢個欄位，
-        // 首次登入就彈一次性設定卡俾佢哋自己揀一個 ID，之後就可以用嚟登入。
-        // 用 claimIdPromptShownThisSession 確保同一個 session 唔會重複彈幾次。
-        if (window.currentUser && !window.currentUser.loginId && !claimIdPromptShownThisSession) {
-          claimIdPromptShownThisSession = true;
-          setTimeout(() => {
-            if (window.currentUser && !window.currentUser.loginId && typeof window.openModal === 'function') {
-              window.openModal('modal-claim-id');
-            }
-          }, 800);
         }
 
         listenToPublicRooms();
@@ -3322,18 +3278,18 @@
 
     window.loginWithFirebase = async function(idOrEmail, password) {
       try {
-        let authEmail = idOrEmail;
-        // 帳號 ID 冇 @ 符號；如果用家打嘅係完整電郵（例如仲未 claim 帳號 ID
-        // 嘅舊帳號，直接打返原本個電郵），就直接當電郵用，唔使查對應表
-        if (!idOrEmail.includes('@')) {
-          const idLower = idOrEmail.toLowerCase();
-          const mapSnap = await getDoc(doc(db, 'usernames', idLower));
-          if (!mapSnap.exists()) {
-            window.showToast('搵唔到呢個帳號 ID，請檢查有冇打錯', '❌');
-            return;
-          }
-          authEmail = mapSnap.data().authEmail;
+        // 登入一律用帳號 ID，唔再支援直接打電郵登入
+        if (idOrEmail.includes('@')) {
+          window.showToast('請用「帳號 ID」登入，唔好打電郵喇', '⚠️');
+          return;
         }
+        const idLower = idOrEmail.toLowerCase();
+        const mapSnap = await getDoc(doc(db, 'usernames', idLower));
+        if (!mapSnap.exists()) {
+          window.showToast('搵唔到呢個帳號 ID，請檢查有冇打錯', '❌');
+          return;
+        }
+        const authEmail = mapSnap.data().authEmail;
 
         const userCredential = await signInWithEmailAndPassword(auth, authEmail, password);
         const user = userCredential.user;
@@ -3369,35 +3325,6 @@
       window.showToast("已成功登出。", "🚪");
       // 登出之後要停止好友相關嘅即時監聽，唔係已經冇權限讀但仍然掛住個 listener
       if (typeof window.stopFriendListeners === 'function') window.stopFriendListeners();
-    };
-
-    // 舊帳號一次性設定帳號 ID：用而家已經登入緊嘅 Firebase Auth session 本身
-    // 真正嘅 email（auth.currentUser.email）做 authEmail，寫落 usernames 對應表，
-    // 咁就唔使任何人手動輸入／記得舊帳號原本個電郵係咩，安全又方便。
-    window.submitClaimId = async function() {
-      if (!window.currentUser || !auth.currentUser) { window.showToast('請先登入', '⚠️'); return; }
-      const raw = document.getElementById('claim-id-input').value.trim();
-      if (!/^[A-Za-z0-9_]{3,20}$/.test(raw)) {
-        window.showToast('格式唔啱：要係 3-20 個英文字母／數字／底線', '⚠️');
-        return;
-      }
-      const idLower = raw.toLowerCase();
-      try {
-        const existing = await getDoc(doc(db, 'usernames', idLower));
-        if (existing.exists()) {
-          window.showToast('呢個 ID 已經有人用緊，換一個啦', '⚠️');
-          return;
-        }
-        const authEmail = auth.currentUser.email;
-        await setDoc(doc(db, 'usernames', idLower), { uid: window.currentUser.uid, authEmail, createdAt: Date.now() });
-        await updateDoc(doc(db, 'users', window.currentUser.uid), { loginId: raw });
-        window.currentUser.loginId = raw;
-        window.showToast('✅ 設定成功！下次可以用呢個 ID 登入', '🆔');
-        window.closeModal('modal-claim-id');
-        document.getElementById('claim-id-input').value = '';
-      } catch (e) {
-        window.showToast('設定失敗：' + (e.message || e), '❌');
-      }
     };
 
     window.handleRegisterSubmit = function(e) {
@@ -5590,17 +5517,19 @@
   <script>
     // ===================== 管理後台（Admin Panel）=====================
 
-    // 邊個 email 先算係管理員：想加多個管理員嘅話，喺呢個陣列加多一行
-    // email 就得，唔使改任何其他地方。呢個名單淨係控制「前端顯唔顯示管理
-    // 後台呢個介面」；真正防止未授權用戶讀寫資料嘅係 Firestore 安全規則，
-    // 要記得喺 Firebase Console 度將呢個 email 名單同步埋落去先真正安全。
-    const ADMIN_EMAILS = [
-      'admin@gmail.com',
-      'admin2@gmail.com'
+    // 邊個帳號 ID 先算係管理員：想加多個管理員嘅話，喺呢個陣列加多一個
+    // 帳號 ID 就得，唔使改任何其他地方，亦唔使理個帳號真正嘅登入電郵係咩。
+    // 呢個名單淨係控制「前端顯唔顯示管理後台呢個介面」；真正防止未授權
+    // 用戶讀寫資料嘅係 Firestore 安全規則，要記得喺 Firebase Console 度
+    // 將呢個帳號 ID 名單同步埋落去 firestore.rules 嘅 isAdmin() 先真正安全。
+    const ADMIN_LOGIN_IDS = [
+      'admin_main',
+      'admin_02',
+      'admin_03'
     ];
 
     function isCurrentUserAdmin() {
-      return !!(window.currentUser && window.currentUser.email && ADMIN_EMAILS.includes(window.currentUser.email));
+      return !!(window.currentUser && window.currentUser.loginId && ADMIN_LOGIN_IDS.includes(window.currentUser.loginId));
     }
     window.isCurrentUserAdmin = isCurrentUserAdmin;
 
