@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.31.1"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.32.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -518,6 +518,40 @@
     .home-stat-icon { font-size: 20px; }
     .home-stat-val { font-size: 16px; font-weight: 800; line-height: 1; }
     .home-stat-label { font-size: 10px; opacity: .75; margin-top: 1px; }
+    /* ── 溫習日曆 ── */
+    .study-calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+    }
+    .study-calendar-dow {
+      text-align: center;
+      font-size: 11px;
+      font-weight: bold;
+      color: #999;
+      padding-bottom: 4px;
+    }
+    .study-calendar-day {
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      font-size: 12px;
+      color: #777;
+      background: #F5F3F0;
+    }
+    .study-calendar-day.empty { visibility: hidden; }
+    .study-calendar-day.future { color: #ccc; background: transparent; }
+    .study-calendar-day.studied {
+      background: var(--brand-500);
+      color: #fff;
+      font-weight: bold;
+    }
+    .study-calendar-day.today {
+      box-shadow: 0 0 0 2px var(--brand-700, #2F6070);
+      font-weight: bold;
+    }
     /* ── 主體兩欄 ── */
     .home-body {
       display: grid; grid-template-columns: 1fr 290px; gap: 14px; align-items: start;
@@ -1062,6 +1096,24 @@
             </div>
             <div id="otter-hunger-text" style="font-size:11px; color:#999; margin-top:4px;">飽足度 100%</div>
             <button class="btn btn-primary" type="button" style="margin-top:12px;" onclick="feedOtter()">🐟 餵食（<span id="otter-feed-cost-label">10</span> PTS）</button>
+          </div>
+
+          <!-- ── 溫習日曆：淨係要有入過視訊溫習室（唔理幾多分鐘）當日就算
+               有溫習，畫月曆俾用家睇返自己邊幾日有溫習過 ── -->
+          <div class="card" id="study-calendar-card">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+              <h3 style="font-size:15px; font-weight:bold; margin:0; color:var(--brand-800);">📅 溫習日曆</h3>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <button type="button" class="btn btn-outline" style="padding:3px 9px; font-size:13px; line-height:1;" onclick="window.shiftStudyCalendarMonth(-1)">‹</button>
+                <span id="study-calendar-month-label" style="font-size:13px; font-weight:bold; color:var(--brand-700); min-width:76px; text-align:center;">--</span>
+                <button type="button" class="btn btn-outline" style="padding:3px 9px; font-size:13px; line-height:1;" onclick="window.shiftStudyCalendarMonth(1)">›</button>
+              </div>
+            </div>
+            <div id="study-calendar-grid" class="study-calendar-grid"></div>
+            <div style="display:flex; justify-content:space-around; margin-top:12px; padding-top:10px; border-top:1px solid #eee; font-size:12px; color:#888;">
+              <div>🔥 <b id="study-calendar-streak" style="color:var(--brand-800); font-size:14px;">0</b> 連續溫習日</div>
+              <div>📚 <b id="study-calendar-total" style="color:var(--brand-800); font-size:14px;">0</b> 總溫習日數</div>
+            </div>
           </div>
 
           <!-- ── 主體兩欄 ── -->
@@ -2251,6 +2303,117 @@
       }
     }
 
+    // ===================== 溫習日曆／連續溫習日數 =====================
+    // 記錄邏輯好簡單：淨係「有冇入過視訊溫習室」，唔理入咗幾多分鐘，
+    // 一日入一次都算嗰日有溫習，同「今日目標」（要計滿 60 分鐘先叫完成）
+    // 完全獨立、互不影響。資料存喺 users/{uid}.studyDays，係一個
+    // { "2026-08-20": true, ... } 咁嘅 map，用日期字串做 key，方便
+    // updateDoc 用 dot-path 寫入單一日期，唔使成份文件重寫。
+
+    // 呢個 uid_年-月 前綴，等 window.currentUser.studyDays 冇資料嗰陣（例如
+    // 舊帳號未有呢個欄位）都唔會拋錯，統一 fallback 做空物件
+    function getStudyDaysMap() {
+      return (window.currentUser && window.currentUser.studyDays) || {};
+    }
+
+    // 由今日開始向前數連續有溫習嘅日子。如果今日仲未溫習過，就由「琴日」
+    // 開始數（今日仲未過完，唔應該一開波就見自己個連續天歸零，捱到夜晚
+    // 先溫都仲計）；如果連琴日都冇，先至真係斷咗，顯示 0。
+    function computeStudyStreak(studyDays) {
+      studyDays = studyDays || getStudyDaysMap();
+      let streak = 0;
+      let cursor = new Date();
+      if (!studyDays[getTodayDateStr()]) {
+        cursor.setDate(cursor.getDate() - 1);
+      }
+      while (true) {
+        const key = cursor.getFullYear() + '-' + String(cursor.getMonth() + 1).padStart(2, '0') + '-' + String(cursor.getDate()).padStart(2, '0');
+        if (!studyDays[key]) break;
+        streak++;
+        cursor.setDate(cursor.getDate() - 1);
+      }
+      return streak;
+    }
+    window.computeStudyStreak = computeStudyStreak;
+
+    window.updateStreakBadge = function() {
+      const el = document.getElementById('home-stat-streak');
+      if (!el || !window.currentUser) return;
+      el.innerText = computeStudyStreak();
+    };
+
+    // 用家一成功入到視訊溫習室（唔理房主定參加者、唔理留幾耐）就算今日
+    // 有溫習，喺 enterRoomSetup() 入面 call。今日已經記錄過就乜都唔做，
+    // 唔會重複寫 Firestore。
+    window.recordStudyDayIfNeeded = async function() {
+      if (!window.currentUser || !window.db || !window.fs) return;
+      const todayKey = getTodayDateStr();
+      if (getStudyDaysMap()[todayKey]) return;
+      try {
+        await window.fs.updateDoc(window.fs.doc(window.db, 'users', window.currentUser.uid), {
+          ['studyDays.' + todayKey]: true
+        });
+        if (!window.currentUser.studyDays) window.currentUser.studyDays = {};
+        window.currentUser.studyDays[todayKey] = true;
+        if (typeof window.renderStudyCalendar === 'function') window.renderStudyCalendar();
+        window.updateStreakBadge();
+      } catch (e) {
+        console.error('記錄溫習日曆失敗:', e);
+      }
+    };
+
+    // 月曆目前顯示緊邊一個月：一開始未設定（null）就代表用返「今個月」，
+    // 撳「‹」「›」切月先會偏離返
+    let studyCalendarViewYear = null;
+    let studyCalendarViewMonth = null;
+
+    window.shiftStudyCalendarMonth = function(delta) {
+      const now = new Date();
+      if (studyCalendarViewYear == null) { studyCalendarViewYear = now.getFullYear(); studyCalendarViewMonth = now.getMonth(); }
+      studyCalendarViewMonth += delta;
+      if (studyCalendarViewMonth < 0) { studyCalendarViewMonth = 11; studyCalendarViewYear--; }
+      else if (studyCalendarViewMonth > 11) { studyCalendarViewMonth = 0; studyCalendarViewYear++; }
+      renderStudyCalendar();
+    };
+
+    function renderStudyCalendar() {
+      const grid = document.getElementById('study-calendar-grid');
+      const monthLabel = document.getElementById('study-calendar-month-label');
+      const streakEl = document.getElementById('study-calendar-streak');
+      const totalEl = document.getElementById('study-calendar-total');
+      if (!grid || !window.currentUser) return;
+      const studyDays = getStudyDaysMap();
+
+      const now = new Date();
+      if (studyCalendarViewYear == null) { studyCalendarViewYear = now.getFullYear(); studyCalendarViewMonth = now.getMonth(); }
+      const year = studyCalendarViewYear, month = studyCalendarViewMonth;
+      if (monthLabel) monthLabel.innerText = `${year} 年 ${month + 1} 月`;
+
+      const firstDay = new Date(year, month, 1);
+      const startWeekday = firstDay.getDay(); // 0=星期日
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const todayKey = getTodayDateStr();
+
+      let html = ['日', '一', '二', '三', '四', '五', '六'].map(d => `<div class="study-calendar-dow">${d}</div>`).join('');
+      for (let i = 0; i < startWeekday; i++) html += `<div class="study-calendar-day empty"></div>`;
+      for (let day = 1; day <= daysInMonth; day++) {
+        const key = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+        const studied = !!studyDays[key];
+        const isToday = key === todayKey;
+        const isFuture = key > todayKey;
+        let cls = 'study-calendar-day';
+        if (studied) cls += ' studied';
+        if (isToday) cls += ' today';
+        if (isFuture) cls += ' future';
+        html += `<div class="${cls}" title="${key}${studied ? '（有溫習）' : ''}">${day}</div>`;
+      }
+      grid.innerHTML = html;
+
+      if (streakEl) streakEl.innerText = computeStudyStreak(studyDays);
+      if (totalEl) totalEl.innerText = Object.keys(studyDays).length;
+    }
+    window.renderStudyCalendar = renderStudyCalendar;
+
     // 根據目前 window.currentUser 嘅 todayMinutes／todayDate 重新畫「今日目標」
     // 進度條。如果 todayDate 唔係今日（例如個分頁開咗過夜冇重新整理），顯示
     // 上就當 0 分鐘，實際 Firestore 歸零就交返 ensureTodayMinutes() 喺背景處理。
@@ -2323,6 +2486,11 @@
         if (homeUser) homeUser.innerText = displayName;
         if (homeHours) homeHours.innerText = (parseFloat(window.currentUser.hours) || 0).toFixed(1);
         if (homePts) homePts.innerText = window.currentUser.points ?? 0;
+
+        // 溫習日曆／連續溫習日數：淨係靠「有冇入過視訊溫習室」呢個記錄
+        // 計，同「本日時數」（分鐘數）完全獨立
+        if (typeof window.renderStudyCalendar === 'function') window.renderStudyCalendar();
+        if (typeof window.updateStreakBadge === 'function') window.updateStreakBadge();
 
         // 動態徽章：積分夠扭蛋就提示
         const pts = window.currentUser.points ?? 0;
@@ -5190,6 +5358,10 @@
         window.showToast(`房間已滿（${ROOM_CAPACITY}/${ROOM_CAPACITY}），暫時無法加入`, "🚫");
         return false;
       }
+
+      // 呢一刻即係真正「入咗視訊溫習室」——唔理房主定參加者、唔理留幾耐，
+      // 溫習日曆同「連續溫習日」都當今日有溫習
+      if (typeof window.recordStudyDayIfNeeded === 'function') window.recordStudyDayIfNeeded();
 
       state.currentRoomId = roomId;
       state.isHost = isMyRoom;
