@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.30.1"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.30.2"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -2257,6 +2257,10 @@
         if (chatDockToggle) chatDockToggle.style.display = 'flex';
         if (typeof window.startPresenceHeartbeat === 'function') window.startPresenceHeartbeat();
         if (typeof window.startChatDockListener === 'function') window.startChatDockListener();
+        // 一登入／refresh 完成，額外主動去伺服器攞多一次最新對話清單（唔淨係
+        // 靠上面嗰個 onSnapshot listener），保證未讀紅點同 dock panel 一開始
+        // 就係啱嘅，唔使等用家自己撳開個掣先識更新
+        if (typeof window.forceRefreshChatDock === 'function') window.forceRefreshChatDock();
 
         headerAuthBtn.className = "btn btn-outline";
         headerAuthBtn.style.borderRadius = "20px";
@@ -3470,7 +3474,14 @@
       if (!panel) return;
       const showing = panel.style.display === 'flex';
       panel.style.display = showing ? 'none' : 'flex';
-      if (!showing) window.renderChatDockPanel();
+      if (!showing) {
+        window.renderChatDockPanel();
+        // 每次撳開個 dock panel，都額外主動查一次伺服器最新資料（唔淨係靠
+        // onSnapshot 個 listener）——如果個 realtime listener 因為任何原因
+        // （網絡環境、瀏覽器背景分頁等）冇更新到，呢個係多一重保險，等
+        // 用家撳開個掣嗰刻起碼一定攞到最新嘅對話清單
+        if (typeof window.forceRefreshChatDock === 'function') window.forceRefreshChatDock();
+      }
     };
 
     // 畫返個「撳掣彈出嚟」嘅好友清單：有邊個上線行先、最近同邊個傾緊偈、
@@ -3532,56 +3543,81 @@
     // （例如自己標記已讀）都重複彈返同一個通知
     let chatDockKnownLastMessageAt = {};
 
+    // 將一份 directChats 嘅 query snapshot（唔理係 onSnapshot 定係 getDocs
+    // 攞返嚟嘅）轉做 window.chatDockData 呢種畫面用嘅格式，仲會順便處理
+    // 「有新訊息就彈 toast」同「更新未讀紅點數字」——抽出嚟做獨立函數，等
+    // 即時 listener（startChatDockListener）同手動強制重新整理
+    // （forceRefreshChatDock）都用同一套邏輯，唔使兩處各寫一份會走樣。
+    function applyChatDockSnapshot(snapshot, myUid) {
+      window.chatDockData = snapshot.docs.map(d => {
+        const data = d.data();
+        const friendUid = (data.participants || []).find(u => u !== myUid);
+        // 顯示名優先用返呢份文件本身存埋嘅 participantNames（傳送訊息嗰陣
+        // 已經連自己個名同對方個名一齊寫落去），淨係喺舊訊息（呢個機制
+        // 加之前留低嘅）冇呢個欄位嗰陣，先 fallback 去好友名單查
+        const friendNameFromDoc = data.participantNames && friendUid ? data.participantNames[friendUid] : null;
+        return {
+          chatId: d.id,
+          friendUid,
+          friendName: friendNameFromDoc || null,
+          lastMessage: data.lastMessage || '',
+          lastMessageAt: data.lastMessageAt || 0,
+          lastSenderUid: data.lastSenderUid || '',
+          unread: (data.unread && data.unread[myUid]) || 0
+        };
+      });
+
+      // 對方傳咗一則新訊息過嚟（唔係自己送出、亦都未見過）就主動彈個 toast
+      // 通知，等用家唔使自己撳返個「💬」先知道有人搵佢；如果對應嘅對話
+      // 視窗本身已經開住兼冇縮埋（用家已經睇緊），就唔使再多此一舉彈
+      window.chatDockData.forEach(c => {
+        const seenAt = chatDockKnownLastMessageAt[c.chatId] || 0;
+        if (c.lastMessageAt > seenAt) {
+          chatDockKnownLastMessageAt[c.chatId] = c.lastMessageAt;
+          if (c.lastSenderUid && c.lastSenderUid !== myUid) {
+            const win = chatOpenWindows.find(w => w.chatId === c.chatId);
+            if (!win || win.minimized) {
+              const friend = (window.friendsListDataCache || []).find(f => f.uid === c.friendUid);
+              const friendName = c.friendName || (friend ? friend.username : null) || '朋友';
+              window.showToast(`💬 ${friendName}：${c.lastMessage}`, '💬');
+            }
+          }
+        }
+      });
+
+      const totalUnread = window.chatDockData.reduce((sum, c) => sum + (c.unread || 0), 0);
+      const badge = document.getElementById('chat-dock-badge');
+      if (badge) {
+        if (totalUnread > 0) { badge.style.display = 'flex'; badge.innerText = totalUnread > 99 ? '99+' : totalUnread; }
+        else { badge.style.display = 'none'; }
+      }
+      window.renderChatDockPanel();
+    }
+
     window.startChatDockListener = function() {
       if (!window.currentUser || !window.db || !window.fs) return;
       if (chatDockUnsub) chatDockUnsub();
       const myUid = window.currentUser.uid;
       const q = window.fs.query(window.fs.collection(window.db, 'directChats'), window.fs.where('participants', 'array-contains', myUid));
       chatDockUnsub = window.fs.onSnapshot(q, (snapshot) => {
-        window.chatDockData = snapshot.docs.map(d => {
-          const data = d.data();
-          const friendUid = (data.participants || []).find(u => u !== myUid);
-          // 顯示名優先用返呢份文件本身存埋嘅 participantNames（傳送訊息嗰陣
-          // 已經連自己個名同對方個名一齊寫落去），淨係喺舊訊息（呢個機制
-          // 加之前留低嘅）冇呢個欄位嗰陣，先 fallback 去好友名單查
-          const friendNameFromDoc = data.participantNames && friendUid ? data.participantNames[friendUid] : null;
-          return {
-            chatId: d.id,
-            friendUid,
-            friendName: friendNameFromDoc || null,
-            lastMessage: data.lastMessage || '',
-            lastMessageAt: data.lastMessageAt || 0,
-            lastSenderUid: data.lastSenderUid || '',
-            unread: (data.unread && data.unread[myUid]) || 0
-          };
-        });
-
-        // 對方傳咗一則新訊息過嚟（唔係自己送出、亦都未見過）就主動彈個 toast
-        // 通知，等用家唔使自己撳返個「💬」先知道有人搵佢；如果對應嘅對話
-        // 視窗本身已經開住兼冇縮埋（用家已經睇緊），就唔使再多此一舉彈
-        window.chatDockData.forEach(c => {
-          const seenAt = chatDockKnownLastMessageAt[c.chatId] || 0;
-          if (c.lastMessageAt > seenAt) {
-            chatDockKnownLastMessageAt[c.chatId] = c.lastMessageAt;
-            if (c.lastSenderUid && c.lastSenderUid !== myUid) {
-              const win = chatOpenWindows.find(w => w.chatId === c.chatId);
-              if (!win || win.minimized) {
-                const friend = (window.friendsListDataCache || []).find(f => f.uid === c.friendUid);
-                const friendName = c.friendName || (friend ? friend.username : null) || '朋友';
-                window.showToast(`💬 ${friendName}：${c.lastMessage}`, '💬');
-              }
-            }
-          }
-        });
-
-        const totalUnread = window.chatDockData.reduce((sum, c) => sum + (c.unread || 0), 0);
-        const badge = document.getElementById('chat-dock-badge');
-        if (badge) {
-          if (totalUnread > 0) { badge.style.display = 'flex'; badge.innerText = totalUnread > 99 ? '99+' : totalUnread; }
-          else { badge.style.display = 'none'; }
-        }
-        window.renderChatDockPanel();
+        applyChatDockSnapshot(snapshot, myUid);
       }, (err) => { console.error('載入對話清單失敗:', err); });
+    };
+
+    // 手動強行去伺服器攞一次最新嘅對話清單，唔靠個 realtime listener
+    // （撳開 dock panel 嗰陣都會自動叫一次）。如果 onSnapshot 因為任何原因
+    // 冇更新到（例如背景分頁、網絡狀態切換等），呢個係額外一重保險，
+    // 保證用家至少喺撳開個掣嗰刻會攞到伺服器最新資料。
+    window.forceRefreshChatDock = async function() {
+      if (!window.currentUser || !window.db || !window.fs || typeof window.fs.getDocs !== 'function') return;
+      try {
+        const myUid = window.currentUser.uid;
+        const q = window.fs.query(window.fs.collection(window.db, 'directChats'), window.fs.where('participants', 'array-contains', myUid));
+        const snapshot = await window.fs.getDocs(q);
+        applyChatDockSnapshot(snapshot, myUid);
+      } catch (e) {
+        console.error('強制重新整理對話清單失敗:', e);
+      }
     };
 
     window.stopChatDockListener = function() {
@@ -3737,28 +3773,37 @@
       }
 
       // 訊息本身已經送出成功，下面呢個「對話摘要」（畀 dock panel 顯示最後
-      // 一句、未讀數用）就算意外失敗都唔應該話畀用家知「傳送失敗」，
-      // 所以獨立用多一個 try/catch，唔會影響訊息已經送出嘅事實
+      // 一句、未讀數用）就算意外失敗都唔應該話畀用家知「傳送失敗」（訊息
+      // 本身冚唔返），所以獨立用多一個 try/catch。但呢份摘要文件正正就係
+      // 對方部機用嚟搵返呢個對話（array-contains participants 查詢）嘅
+      // 唯一途徑，如果呢步靜靜雞失敗，對方會完全睇唔到呢個對話、連
+      // refresh 都冇用（之前試過發生但一直搵唔到證據，因為錯誤淨係印咗
+      // 喺 console，用家見唔到）。而家：(1) 失敗會 retry 多一次應付短暫
+      // 網絡問題，(2) 兩次都失敗會用 toast 話畀送訊息嗰位知，等下次可以
+      // 截圖俾我睇實際錯誤內容嚟斷症。
+      const chatSummaryPayload = {
+        participants: [myUid, friendUid],
+        participantNames: {
+          [myUid]: window.currentUser.username || '同學',
+          [friendUid]: win.friendUsername || '同學'
+        },
+        lastMessage: text,
+        lastMessageAt: now,
+        lastSenderUid: myUid,
+        unread: { [friendUid]: window.fs.increment(1), [myUid]: 0 }
+      };
+      const chatRef = window.fs.doc(window.db, 'directChats', chatId);
       try {
-        const chatRef = window.fs.doc(window.db, 'directChats', chatId);
-        // participantNames：連自己個名同對方個名都一齊存落呢份文件，等
-        // 收訊息嗰一方畫「即時對話」面板嗰陣唔使淨係靠 friendsListDataCache
-        // （好友名單）先攞到顯示名——如果嗰份名單啱啱好未載入完（timing
-        // 問題），之前個做法就會令個對話喺面板度消失唔見，而家改成直接
-        // 存埋個名做 fallback，兩個人邊個開先都睇到。
-        await window.fs.setDoc(chatRef, {
-          participants: [myUid, friendUid],
-          participantNames: {
-            [myUid]: window.currentUser.username || '同學',
-            [friendUid]: win.friendUsername || '同學'
-          },
-          lastMessage: text,
-          lastMessageAt: now,
-          lastSenderUid: myUid,
-          unread: { [friendUid]: window.fs.increment(1), [myUid]: 0 }
-        }, { merge: true });
-      } catch (e) {
-        console.error('更新對話摘要失敗:', e);
+        await window.fs.setDoc(chatRef, chatSummaryPayload, { merge: true });
+      } catch (e1) {
+        console.error('更新對話摘要失敗（第一次）:', e1);
+        try {
+          await new Promise(r => setTimeout(r, 800));
+          await window.fs.setDoc(chatRef, chatSummaryPayload, { merge: true });
+        } catch (e2) {
+          console.error('更新對話摘要失敗（重試都失敗）:', e2);
+          window.showToast('⚠️ 對話摘要未同步俾對方（' + (e2.message || e2) + '），訊息本身已送出', '⚠️');
+        }
       }
 
       // 樂觀更新本機嘅「最近對話」清單，即刻喺 dock panel 見到呢個對話，
