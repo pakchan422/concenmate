@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.24.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.25.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -32,10 +32,73 @@
       --tone-d: #C8DFE6;  --tone-d-d: #96BEC9;  /* 鋼青中   — 溫習資源VIP */
       --tone-e: #DDD9D3;  --tone-e-d: #C2BAB0;  /* 暖灰棕深 — 夥伴讀書會 */
       --tone-f: #B8D4DC;  --tone-f-d: #89B3BE;  /* 鋼青深   — 個人檔案 */
+
+      /* ===================== 介面風格系統（版面/形狀/字體變數） =====================
+         淨係呢一組變數控制「形狀感」（圓角／陰影／字體／頁面底紋），唔理色系
+         點揀，呢啲變數令唔同風格睇落去唔淨係「換個顏色」，係真係唔同質感。
+         下面 [data-theme="..."] 幾組會覆蓋呢度嘅預設值，見 setUiTheme()。 */
+      --radius-sm: 8px;       /* 小元件：input、tag、小 pill */
+      --radius-md: 16px;      /* 主要卡片：.card、room-item-card、home-sec-card */
+      --radius-lg: 20px;      /* 大型卡片：modal-box、home-hero、video-card */
+      --radius-btn: 10px;     /* 一般按鈕 */
+      --radius-pill: 20px;    /* 圓形 pill 按鈕（VIP／登入等） */
+      --shadow-card: 0 2px 8px rgba(0,0,0,0.02);
+      --shadow-modal: 0 20px 25px -5px rgba(0,0,0,0.1);
+      --shadow-hover: 0 8px 24px rgba(74,143,160,.18);
+      --border-w: 1px;        /* 卡片邊框粗幼 */
+      --font-heading: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --page-bg-image: none;  /* 頁面底紋（例如紙質顆粒／貼紙格仔），預設乾淨無紋 */
+      --card-tilt: 0deg;      /* 卡片輕微傾斜角度，手帳風先會用到 */
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
-    body { background-color: var(--brand-50); color: var(--text-dark); min-height: 100vh; display: flex; flex-direction: column; }
+    /* ===================== 📖 墨水紙感 Paper/Ink ===================== */
+    html[data-theme="paper"] {
+      --brand-50:  #F7F3E9;   --brand-100: #EDE4CE;   --brand-200: #D8CBA8;
+      --brand-300: #B9A97C;   --brand-500: #6B5335;   --brand-600: #55411F;
+      --brand-700: #40301A;   --brand-800: #2B2013;   --text-dark: #2B2013;
+      --radius-sm: 3px; --radius-md: 4px; --radius-lg: 6px; --radius-btn: 3px; --radius-pill: 3px;
+      --shadow-card: none; --shadow-modal: 0 4px 0 rgba(43,32,19,.08); --shadow-hover: none;
+      --border-w: 1.5px;
+      --font-heading: 'Noto Serif TC', 'Times New Roman', serif;
+      --font-body: 'Noto Serif TC', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --page-bg-image: radial-gradient(rgba(107,83,53,.05) 1px, transparent 1px);
+    }
+
+    /* ===================== 📝 手帳貼紙風 Washi ===================== */
+    html[data-theme="washi"] {
+      --brand-50:  #FFF7EF;   --brand-100: #FFE8CF;   --brand-200: #FFC9A3;
+      --brand-300: #FF9F68;   --brand-500: #FF7A45;   --brand-600: #E5602D;
+      --brand-700: #C24A1E;   --brand-800: #7A3212;   --text-dark: #4A2E1A;
+      --radius-sm: 10px; --radius-md: 18px; --radius-lg: 24px; --radius-btn: 16px; --radius-pill: 24px;
+      --shadow-card: 0 3px 0 rgba(122,50,18,.12); --shadow-modal: 0 6px 0 rgba(122,50,18,.15); --shadow-hover: 0 5px 0 rgba(122,50,18,.18);
+      --border-w: 2px;
+      --page-bg-image: repeating-linear-gradient(45deg, rgba(255,159,104,.06) 0, rgba(255,159,104,.06) 2px, transparent 2px, transparent 14px);
+      --card-tilt: -0.6deg;
+    }
+
+    /* ===================== ⚡ 高密度極簡 Dense/Minimal ===================== */
+    html[data-theme="dense"] {
+      --brand-50:  #FAFAFA;   --brand-100: #EFEFEF;   --brand-200: #DEDEDE;
+      --brand-300: #BDBDBD;   --brand-500: #333333;   --brand-600: #1A1A1A;
+      --brand-700: #262626;   --brand-800: #111111;   --text-dark: #1A1A1A;
+      --radius-sm: 4px; --radius-md: 6px; --radius-lg: 8px; --radius-btn: 4px; --radius-pill: 4px;
+      --shadow-card: none; --shadow-modal: 0 2px 12px rgba(0,0,0,.12); --shadow-hover: none;
+      --border-w: 1px;
+      --font-heading: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    html[data-theme="dense"] .card,
+    html[data-theme="dense"] .room-item-card,
+    html[data-theme="dense"] .home-side-card,
+    html[data-theme="dense"] .home-sec-card,
+    html[data-theme="dense"] .qa-post-card { padding: 8px 10px !important; margin-bottom: 8px !important; }
+    html[data-theme="dense"] .home-hero { padding: 10px 16px !important; }
+    html[data-theme="dense"] .modal-box { padding: 14px !important; }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: var(--font-body); -webkit-tap-highlight-color: transparent; }
+    h1, h2, h3, .logo-title { font-family: var(--font-heading); }
+    body { background-color: var(--brand-50); background-image: var(--page-bg-image); background-size: 18px 18px; color: var(--text-dark); min-height: 100vh; display: flex; flex-direction: column; transition: background-color .25s ease; }
 
     #app-top-sticky { position: sticky; top: 0; z-index: 40; }
     header { background: rgba(255, 255, 255, 0.95); border-bottom: 1px solid var(--brand-200); padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; backdrop-filter: blur(8px); position: relative; }
@@ -46,9 +109,9 @@
 
     /* 用絕對定位令呢個 pill 真正置中喺 header 中間，唔會再因為左邊 logo 同右邊
        按鈕闊度唔一致（例如二按 space-between 令中間元素被逼歪一邊）而偏側 */
-    .user-stats { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); align-items: center; gap: 10px; background: var(--brand-50); padding: 4px 10px; border-radius: 20px; border: 1px solid var(--brand-200); font-size: 13px; font-weight: 600; }
-    
-    .btn { border: none; border-radius: 10px; padding: 6px 12px; font-size: 14px; font-weight: bold; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 4px; }
+    .user-stats { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); align-items: center; gap: 10px; background: var(--brand-50); padding: 4px 10px; border-radius: var(--radius-pill); border: 1px solid var(--brand-200); font-size: 13px; font-weight: 600; }
+
+    .btn { border: none; border-radius: var(--radius-btn); padding: 6px 12px; font-size: 14px; font-weight: bold; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 4px; }
     .btn-primary { background: var(--brand-500); color: white; }
     .btn-primary:hover { background: var(--brand-600); transform: translateY(-1px); }
     .btn-amber { background: #D9C9B5; color: #1E4550; }
@@ -84,6 +147,7 @@
       .header-vip-text { display: none; }    /* 只保留 👑 emoji */
       .header-auth-text { display: none; }   /* 只保留 🔑 emoji */
       .header-admin-text { display: none; }  /* 只保留 ⚙️ emoji */
+      .header-theme-text { display: none; }  /* 只保留 🎨 emoji */
       aside { width: 48px; padding: 4px; }
       .nav-btn { padding: 10px 0; font-size: 17px; border-radius: 8px; }
       main { padding: 8px; }
@@ -111,7 +175,7 @@
       .home-feature-btn { padding: 6px; }
     }
 
-    .nav-btn { width: 100%; text-align: left; padding: 10px; border-radius: 10px; border: none; background: transparent; color: #555; font-size: 15px; font-weight: 600; cursor: pointer; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; justify-content: flex-start; transition: 0.15s; }
+    .nav-btn { width: 100%; text-align: left; padding: 10px; border-radius: var(--radius-btn); border: none; background: transparent; color: #555; font-size: 15px; font-weight: 600; cursor: pointer; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; justify-content: flex-start; transition: 0.15s; }
     .nav-btn.active, .nav-btn:hover { background: var(--brand-500); color: white; }
 
     .auth-wall-container {
@@ -120,16 +184,16 @@
       background: white;
       border-radius: 24px;
       padding: 30px 24px;
-      border: 1px solid var(--brand-200);
+      border: var(--border-w) solid var(--brand-200);
       text-align: center;
       box-shadow: 0 10px 25px rgba(0,0,0,0.04);
     }
 
     .create-room-card, .profile-edit-card {
       background: white;
-      border-radius: 20px;
+      border-radius: var(--radius-lg);
       padding: 20px;
-      border: 1px solid var(--brand-200);
+      border: var(--border-w) solid var(--brand-200);
       max-width: 520px;
       margin: 10px auto;
       box-shadow: 0 4px 12px rgba(0,0,0,0.03);
@@ -144,22 +208,23 @@
 
     .room-item-card {
       background: white;
-      border-radius: 16px;
+      border-radius: var(--radius-md);
       padding: 16px;
-      border: 1px solid var(--brand-200);
+      border: var(--border-w) solid var(--brand-200);
       box-shadow: 0 4px 10px rgba(0,0,0,0.02);
       display: flex;
       flex-direction: column;
       justify-content: space-between;
       transition: transform 0.2s, box-shadow 0.2s;
+      transform: rotate(var(--card-tilt));
     }
     .room-item-card:hover {
-      transform: translateY(-2px);
+      transform: rotate(var(--card-tilt)) translateY(-2px);
       box-shadow: 0 6px 16px rgba(0,0,0,0.06);
       border-color: var(--brand-500);
     }
 
-    .room-bar { background: white; padding: 10px 12px; border-radius: 16px; border: 1px solid var(--brand-200); margin-bottom: 12px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
+    .room-bar { background: white; padding: 10px 12px; border-radius: var(--radius-md); border: var(--border-w) solid var(--brand-200); margin-bottom: 12px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
 
     .video-grid-container {
       display: grid;
@@ -203,17 +268,17 @@
       transform: scale(0.9);
     }
 
-    .video-card-single { 
-      background: #1c1917; 
-      border-radius: 20px; 
-      aspect-ratio: 4/3; 
-      position: relative; 
-      overflow: hidden; 
-      color: white; 
-      border: 3px solid var(--brand-300); 
-      display: flex; 
-      flex-direction: column; 
-      justify-content: space-between; 
+    .video-card-single {
+      background: #1c1917;
+      border-radius: var(--radius-lg);
+      aspect-ratio: 4/3;
+      position: relative;
+      overflow: hidden;
+      color: white;
+      border: 3px solid var(--brand-300);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
       width: 100%;
     }
 
@@ -368,14 +433,14 @@
     }
 
     .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; backdrop-filter: blur(4px); }
-    .modal-box { background: white; border-radius: 20px; padding: 20px; max-width: 440px; width: 100%; border: 2px solid var(--brand-200); max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+    .modal-box { background: white; border-radius: var(--radius-lg); padding: 20px; max-width: 440px; width: 100%; border: 2px solid var(--brand-200); max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-modal); }
 
-    .card { background: white; border-radius: 16px; padding: 14px; border: 1px solid var(--brand-200); margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
+    .card { background: white; border-radius: var(--radius-md); padding: 14px; border: var(--border-w) solid var(--brand-200); margin-bottom: 12px; box-shadow: var(--shadow-card); }
     .tag { background: var(--brand-100); color: var(--brand-800); font-size: 12px; font-weight: bold; padding: 2px 6px; border-radius: 6px; }
 
     /* 疑難解答區學科 Tab */
     .qa-subject-btn {
-      padding: 6px 12px; border-radius: 20px; border: 1.5px solid var(--brand-200);
+      padding: 6px 12px; border-radius: var(--radius-pill); border: 1.5px solid var(--brand-200);
       background: white; color: var(--brand-700); font-size: 14px; font-weight: 600;
       cursor: pointer; transition: .15s;
     }
@@ -388,7 +453,7 @@
     }
     /* 學科溫習卡：英文專屬嘅「範疇」次一級 Tab，樣式同學科 Tab 一致但細一級 */
     .flashcard-category-btn {
-      padding: 5px 10px; border-radius: 16px; border: 1.5px solid var(--brand-200);
+      padding: 5px 10px; border-radius: var(--radius-md); border: 1.5px solid var(--brand-200);
       background: white; color: var(--brand-700); font-size: 12px; font-weight: 600;
       cursor: pointer; transition: .15s;
     }
@@ -396,12 +461,13 @@
       background: var(--brand-500); color: white; border-color: var(--brand-500);
     }
     .qa-post-card {
-      background: white; border: 1px solid var(--brand-200); border-radius: 14px;
-      padding: 14px; margin-bottom: 10px; cursor: pointer; transition: box-shadow .15s;
+      background: white; border: var(--border-w) solid var(--brand-200); border-radius: 14px;
+      padding: 14px; margin-bottom: 10px; cursor: pointer; transition: box-shadow .15s, transform .15s;
+      transform: rotate(var(--card-tilt));
     }
-    .qa-post-card:hover { box-shadow: 0 4px 16px rgba(74,143,160,.15); }
+    .qa-post-card:hover { box-shadow: 0 4px 16px rgba(74,143,160,.15); transform: rotate(var(--card-tilt)) translateY(-2px); }
     .qa-subject-label {
-      display: inline-block; padding: 2px 8px; border-radius: 20px;
+      display: inline-block; padding: 2px 8px; border-radius: var(--radius-pill);
       font-size: 12px; font-weight: bold; background: var(--brand-100); color: var(--brand-700);
       margin-bottom: 6px;
     }
@@ -456,7 +522,7 @@
     .otter-mood-happy   { animation: otter-float-happy 2s ease-in-out infinite; }
     .otter-mood-neutral { animation: otter-float-neutral 2.8s ease-in-out infinite; }
     .otter-mood-hungry  { animation: otter-float-hungry 3.6s ease-in-out infinite; }
-    .input-field { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--brand-300); background: var(--brand-50); font-size: 14px; margin-top: 4px; outline: none; transition: 0.2s; }
+    .input-field { width: 100%; padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--brand-300); background: var(--brand-50); font-size: 14px; margin-top: 4px; outline: none; transition: 0.2s; }
     .input-field:focus { border-color: var(--brand-500); background: white; box-shadow: 0 0 0 2px rgba(176,137,91,0.2); }
     
     .tab-content { display: none; }
@@ -499,8 +565,8 @@
     /* ── 主頁 Hero ── */
     .home-hero {
       display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
-      background: linear-gradient(135deg, #4A8FA0, #2F6070);
-      border-radius: 20px; padding: 18px 24px; margin-bottom: 16px; color: white;
+      background: linear-gradient(135deg, var(--brand-500), var(--brand-700));
+      border-radius: var(--radius-lg); padding: 18px 24px; margin-bottom: 16px; color: white;
     }
     .home-hero-left { display: flex; align-items: center; gap: 14px; }
     .home-hero-greeting { font-size: 20px; font-weight: 800; letter-spacing: -.3px; }
@@ -520,7 +586,7 @@
     .home-main-col { display: flex; flex-direction: column; gap: 12px; }
     .home-side-col { display: flex; flex-direction: column; gap: 12px; }
     .home-side-card {
-      background: white; border: 1px solid var(--brand-200); border-radius: 16px; padding: 14px 16px;
+      background: white; border: var(--border-w) solid var(--brand-200); border-radius: var(--radius-md); padding: 14px 16px;
     }
     .home-side-card-head { display: flex; align-items: center; gap: 10px; }
     /* ── 主打功能卡 ── */
@@ -536,8 +602,8 @@
     .home-primary-title { font-size: 17px; font-weight: 800; color: var(--brand-800); }
     .home-primary-desc { font-size: 13px; color: var(--brand-600); margin-top: 3px; }
     .home-primary-badge {
-      margin-left: auto; flex-shrink: 0; background: #4A8FA0; color: white;
-      font-size: 12px; font-weight: 700; padding: 6px 14px; border-radius: 20px;
+      margin-left: auto; flex-shrink: 0; background: var(--brand-500); color: white;
+      font-size: 12px; font-weight: 700; padding: 6px 14px; border-radius: var(--radius-pill);
       display: flex; align-items: center; gap: 5px;
     }
     .live-dot {
@@ -552,12 +618,13 @@
     /* ── 次要功能 2×2 ── */
     .home-secondary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .home-sec-card {
-      background: white; border: 1.5px solid var(--brand-200); border-radius: 16px;
+      background: white; border: 1.5px solid var(--brand-200); border-radius: var(--radius-md);
       padding: 14px 16px; cursor: pointer; text-align: left;
       transition: transform .15s, box-shadow .15s, border-color .15s;
       display: flex; flex-direction: column; gap: 6px;
+      transform: rotate(var(--card-tilt));
     }
-    .home-sec-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(74,143,160,.14); border-color: var(--brand-300); }
+    .home-sec-card:hover { transform: rotate(var(--card-tilt)) translateY(-2px); box-shadow: 0 6px 20px rgba(74,143,160,.14); border-color: var(--brand-300); }
     .home-sec-head { display: flex; align-items: center; gap: 6px; }
     .home-sec-icon { font-size: 24px; }
     .home-sec-badge { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px; background: #FDA4AF; color: #881337; }
@@ -588,7 +655,7 @@
       top: 20px;
       right: 20px;
       z-index: 200;
-      background: #1E4550;
+      background: var(--brand-800);
       color: white;
       padding: 12px 18px;
       border-radius: 12px;
@@ -685,6 +752,7 @@
 
     <div style="display:flex; gap:6px; align-items:center; flex-shrink:0;">
       <button class="btn btn-outline" id="header-admin-btn" type="button" onclick="window.location.hash='admin'" style="padding:6px 10px; display:none;">⚙️ <span class="header-admin-text">管理後台</span></button>
+      <button class="btn btn-outline" type="button" onclick="openThemePickerModal()" style="padding:6px 10px;" title="轉換介面風格">🎨 <span class="header-theme-text">風格</span></button>
       <button class="btn btn-amber" type="button" onclick="switchTab('vip')" style="padding:6px 10px;">👑 <span class="header-vip-text">VIP</span></button>
       <button class="btn btn-primary" id="header-auth-btn" type="button" onclick="handleHeaderUserClick()" style="padding:6px 10px;">
         🔑 <span class="header-auth-text">登入</span>
@@ -1623,6 +1691,16 @@
     </div>
   </div>
 
+  <!-- 介面風格切換：淨係轉色系/圓角/陰影/字體呢啲「形狀感」，功能同排版位置唔會變 -->
+  <div class="modal-backdrop" id="modal-theme-picker" style="display:none;">
+    <div class="modal-box">
+      <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); margin-bottom:4px;">🎨 介面風格</h3>
+      <p style="font-size:12px; color:#888; margin-bottom:14px;">淨係轉色系同版面質感，功能位置唔會變。揀嘅風格會記落你個帳戶，第時登入都保持住。</p>
+      <div id="theme-picker-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+      <button class="btn btn-outline" type="button" style="width:100%; justify-content:center; margin-top:12px;" onclick="closeModal('modal-theme-picker')">關閉</button>
+    </div>
+  </div>
+
   <!-- 撳自己個名彈出嘅「我的帳號」資料卡（睇資料為主，編輯要撳裡面嗰粒掣） -->
   <div class="modal-backdrop" id="modal-my-account" style="display:none;">
     <div class="modal-box" style="text-align:center;">
@@ -2016,6 +2094,7 @@
         syncGachaPtsDisplay();
         updateLevelDisplay();
         updateOtterDisplay();
+        if (typeof window.applyStoredUiTheme === 'function') window.applyStoredUiTheme();
 
         // 主頁歡迎卡片
         const displayName = window.currentUser.username || window.currentUser.email?.split('@')[0] || '同學';
@@ -3271,6 +3350,79 @@
       pendingInviteQueue = [];
       inviteModalShowing = false;
     };
+
+    // ===================== 介面風格切換 =====================
+    // 淨係轉色系／圓角／陰影／字體呢啲「形狀感」變數（見 <style> 開頭嗰組
+    // --radius-*／--shadow-*／--font-* 變數），功能同排版位置完全唔會變。
+    const UI_THEMES = [
+      { id: 'fresh', name: '預設清新', emoji: '🌊', desc: '而家呢一套：藍綠色系、圓角卡片' },
+      { id: 'paper', name: '墨水紙感', emoji: '📖', desc: '米白底、幼身邊框、襯線標題，似讀書筆記' },
+      { id: 'washi', name: '手帳貼紙風', emoji: '📝', desc: '橙暖色系、貼紙感卡片、輕微傾斜' },
+      { id: 'dense', name: '高密度極簡', emoji: '⚡', desc: '黑白灰、細留白、方角，似專業工具' }
+    ];
+
+    window.openThemePickerModal = function() {
+      const listEl = document.getElementById('theme-picker-list');
+      if (!listEl) return;
+      const current = document.documentElement.getAttribute('data-theme') || 'fresh';
+      listEl.innerHTML = UI_THEMES.map(t => `
+        <button class="btn ${t.id === current ? 'btn-primary' : 'btn-outline'}" type="button"
+          style="justify-content:flex-start; text-align:left; padding:10px 14px; width:100%; gap:10px;"
+          onclick="setUiTheme('${t.id}')">
+          <span style="font-size:18px;">${t.emoji}</span>
+          <span style="display:flex; flex-direction:column; gap:1px;">
+            <span style="font-size:14px; font-weight:700;">${t.name}${t.id === current ? '（使用緊）' : ''}</span>
+            <span style="font-size:11px; font-weight:400; opacity:.8;">${t.desc}</span>
+          </span>
+        </button>
+      `).join('');
+      openModal('modal-theme-picker');
+    };
+
+    // 真正套用一個風格：改 <html data-theme="...">，需要嘅話動態載入額外字體
+    // （目前淨係「墨水紙感」用到 Google Fonts 嘅襯線字），登入咗就順便寫落
+    // Firestore 記住呢個選擇，下次登入 applyStoredUiTheme() 會自動讀返出嚟套用。
+    window.setUiTheme = function(themeId, opts) {
+      const silent = opts && opts.silent;
+      const valid = UI_THEMES.some(t => t.id === themeId);
+      if (!valid) themeId = 'fresh';
+
+      if (themeId === 'paper' && !document.getElementById('font-paper-link')) {
+        const link = document.createElement('link');
+        link.id = 'font-paper-link';
+        link.rel = 'stylesheet';
+        link.href = 'https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700&display=swap';
+        document.head.appendChild(link);
+      }
+
+      if (themeId === 'fresh') {
+        document.documentElement.removeAttribute('data-theme');
+      } else {
+        document.documentElement.setAttribute('data-theme', themeId);
+      }
+
+      if (window.currentUser) {
+        window.currentUser.uiTheme = themeId;
+        if (!silent && window.db && window.fs) {
+          window.fs.updateDoc(window.fs.doc(window.db, 'users', window.currentUser.uid), { uiTheme: themeId }).catch(() => {});
+        }
+      }
+
+      if (!silent) {
+        closeModal('modal-theme-picker');
+        const t = UI_THEMES.find(x => x.id === themeId);
+        window.showToast(`${t ? t.emoji : '🎨'} 已切換做「${t ? t.name : themeId}」風格`, '🎨');
+      }
+    };
+
+    // 登入之後套用返用家上次揀嘅風格（喺 updateUserAuthUI() 度 call）。
+    // silent:true 淨係套用畫面，唔會彈 toast、唔會嘗試寫返 Firestore
+    // （因為呢個係「讀出嚟再套用」，唔係用家岩岩主動揀）
+    window.applyStoredUiTheme = function() {
+      if (window.currentUser && window.currentUser.uiTheme) {
+        window.setUiTheme(window.currentUser.uiTheme, { silent: true });
+      }
+    };
   </script>
 
   <script type="module">
@@ -3564,6 +3716,8 @@
       // 登出之後要停止好友相關嘅即時監聽，唔係已經冇權限讀但仍然掛住個 listener
       if (typeof window.stopFriendListeners === 'function') window.stopFriendListeners();
       if (typeof window.stopRoomInvitesListener === 'function') window.stopRoomInvitesListener();
+      // 登出之後介面風格還原做預設，避免同一部裝置換人登入都用緊上一位嘅風格
+      if (typeof window.setUiTheme === 'function') window.setUiTheme('fresh', { silent: true });
     };
 
     window.handleRegisterSubmit = function(e) {
