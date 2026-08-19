@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.27.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.28.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -645,6 +645,162 @@
       50% { opacity: 0.4; transform: scale(1.2); }
       100% { opacity: 1; transform: scale(1); }
     }
+
+    /* =====================================================================
+       💬 即時對話（FB 式浮動視窗）：右下角一粒圓形掣，撳落會彈出好友名單
+       （有邊個線上一眼睇晒），揀一個就喺右下角開返個細細嘅對話視窗，可以
+       同時開幾個唔同朋友嘅視窗（似 Facebook 網頁版噉），跟住你揭邊頁都仲喺度。
+       ===================================================================== */
+    .presence-dot {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: #C7C7CC;
+      border: 2px solid #fff;
+      flex-shrink: 0;
+    }
+    .presence-dot.online { background: #4CAF50; }
+    .avatar-with-dot { position: relative; flex-shrink: 0; }
+    .avatar-with-dot .presence-dot { position: absolute; right: -1px; bottom: -1px; }
+
+    #chat-dock-toggle {
+      position: fixed;
+      bottom: 100px;
+      right: 20px;
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      background: var(--brand-500);
+      color: #fff;
+      border: none;
+      box-shadow: 0 6px 18px rgba(0,0,0,.25);
+      font-size: 22px;
+      cursor: pointer;
+      z-index: 150;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    #chat-dock-toggle .chat-dock-badge {
+      position: absolute;
+      top: -4px; right: -4px;
+      background: #E05A5A;
+      color: #fff;
+      font-size: 11px;
+      font-weight: bold;
+      border-radius: 99px;
+      min-width: 18px; height: 18px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px;
+      border: 2px solid #fff;
+    }
+    #chat-dock-panel {
+      position: fixed;
+      bottom: 160px;
+      right: 20px;
+      width: 280px;
+      max-width: calc(100vw - 40px);
+      max-height: 380px;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.2);
+      z-index: 151;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    #chat-dock-panel .chat-dock-panel-header {
+      padding: 10px 14px;
+      font-weight: bold;
+      color: var(--brand-800);
+      border-bottom: 1px solid var(--brand-200);
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    #chat-dock-panel .chat-dock-panel-list { overflow-y: auto; flex: 1; }
+    .chat-dock-friend-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+    .chat-dock-friend-row:hover { background: var(--brand-50); }
+    .chat-dock-friend-row .chat-dock-friend-name { font-size: 13px; font-weight: bold; color: var(--brand-800); }
+    .chat-dock-friend-row .chat-dock-friend-preview { font-size: 11px; color: #999; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
+    .chat-dock-friend-row .chat-dock-friend-unread {
+      background: #E05A5A; color: #fff; font-size: 10px; font-weight: bold;
+      border-radius: 99px; min-width: 16px; height: 16px; display: flex;
+      align-items: center; justify-content: center; padding: 0 4px; flex-shrink: 0;
+    }
+
+    #chat-windows-bar {
+      position: fixed;
+      bottom: 100px;
+      right: 82px;
+      z-index: 150;
+      display: flex;
+      flex-direction: row-reverse;
+      align-items: flex-end;
+      gap: 10px;
+    }
+    .chat-window {
+      width: 260px;
+      max-width: calc(100vw - 40px);
+      background: #fff;
+      border-radius: 14px 14px 0 0;
+      box-shadow: 0 8px 24px rgba(0,0,0,.22);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .chat-window .chat-window-header {
+      background: var(--brand-700, #2F6070);
+      color: #fff;
+      padding: 10px 10px;
+      display: flex; align-items: center; gap: 8px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .chat-window .chat-window-title { font-size: 13px; font-weight: bold; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .chat-window .chat-window-close-btn {
+      background: transparent; border: none; color: #fff; opacity: .8; font-size: 15px; cursor: pointer; padding: 2px 4px; flex-shrink: 0;
+    }
+    .chat-window .chat-window-close-btn:hover { opacity: 1; }
+    .chat-window .chat-window-body {
+      height: 280px;
+      overflow-y: auto;
+      padding: 10px;
+      display: flex; flex-direction: column; gap: 6px;
+      background: #F7FAFB;
+    }
+    .chat-window.minimized .chat-window-body,
+    .chat-window.minimized .chat-window-input-row { display: none; }
+    .chat-bubble {
+      max-width: 80%;
+      padding: 7px 10px;
+      border-radius: 12px;
+      font-size: 12.5px;
+      line-height: 1.4;
+      word-break: break-word;
+    }
+    .chat-bubble.mine { align-self: flex-end; background: var(--brand-500); color: #fff; border-bottom-right-radius: 3px; }
+    .chat-bubble.theirs { align-self: flex-start; background: #fff; color: #333; border: 1px solid #E5E5E7; border-bottom-left-radius: 3px; }
+    .chat-window .chat-window-input-row {
+      display: flex; gap: 6px; padding: 8px; border-top: 1px solid #eee; flex-shrink: 0; background: #fff;
+    }
+    .chat-window .chat-window-input-row input {
+      flex: 1; min-width: 0; border: 1px solid #ddd; border-radius: 99px; padding: 6px 12px; font-size: 12.5px; outline: none;
+    }
+    .chat-window .chat-window-input-row button {
+      background: var(--brand-500); color: #fff; border: none; border-radius: 50%;
+      width: 30px; height: 30px; flex-shrink: 0; cursor: pointer; font-size: 14px;
+    }
+    @media (max-width: 640px) {
+      #chat-windows-bar { right: 8px; bottom: 90px; flex-wrap: wrap-reverse; max-width: calc(100vw - 16px); }
+      #chat-dock-toggle { right: 12px; bottom: 90px; }
+      #chat-dock-panel { right: 12px; bottom: 150px; }
+      .chat-window { width: calc(100vw - 24px); }
+    }
   </style>
 </head>
 <body>
@@ -662,6 +818,20 @@
     <span id="toast-icon">ℹ️</span>
     <span id="toast-msg">訊息</span>
   </div>
+
+  <!-- 💬 即時對話浮動視窗（FB 式）：登入先顯示，右下角一粒圓形掣，撳落見到
+       好友名單（有冇上線一眼睇晒），揀一個開對話視窗，可以同時開幾個 -->
+  <button id="chat-dock-toggle" type="button" title="即時對話" onclick="window.toggleChatDockPanel()">
+    💬
+    <span class="chat-dock-badge" id="chat-dock-badge">0</span>
+  </button>
+  <div id="chat-dock-panel">
+    <div class="chat-dock-panel-header">💬 即時對話</div>
+    <div class="chat-dock-panel-list" id="chat-dock-panel-list">
+      <p style="text-align:center; color:#999; font-size:12px; padding:16px;">仲未有好友，先去「夥伴與讀書會」加返幾個啦！</p>
+    </div>
+  </div>
+  <div id="chat-windows-bar"></div>
 
   <div id="app-top-sticky">
   <header>
@@ -694,18 +864,20 @@
 
   <!-- 全站置頂嘅「今日目標 + 等級／EXP」合併狀態列：唔理揭緊邊個分頁都見到，登入先顯示 -->
   <div id="global-status-bar" style="display:none; background:linear-gradient(135deg, #4A8FA0, #7DB8C5); padding:6px 16px;">
-    <div style="max-width:480px; margin:0 auto; display:flex; align-items:center; gap:10px;">
-      <div style="flex:1; min-width:0; display:flex; align-items:center; gap:6px; cursor:pointer;" onclick="switchTab('home')" title="睇你今日嘅溫習目標">
-        <span style="font-size:11px; font-weight:700; color:#fff; white-space:nowrap; flex-shrink:0;">🎯 今日目標</span>
-        <div style="flex:1; min-width:20px; background:rgba(255,255,255,.3); border-radius:99px; height:5px; overflow:hidden;">
+    <div style="max-width:480px; margin:0 auto; display:flex; align-items:stretch; gap:10px;">
+      <div style="flex:1; min-width:0; cursor:pointer;" onclick="switchTab('home')" title="睇你今日嘅溫習目標">
+        <div style="display:flex; align-items:baseline; justify-content:space-between; gap:6px;">
+          <span style="font-size:11px; font-weight:700; color:#fff; white-space:nowrap;">🎯 今日目標</span>
+          <span id="global-goal-label" style="font-size:10px; color:rgba(255,255,255,.9); white-space:nowrap;">0/60分鐘</span>
+        </div>
+        <div style="background:rgba(255,255,255,.3); border-radius:99px; height:5px; overflow:hidden; margin-top:3px;">
           <div id="global-goal-bar" style="height:100%; background:#fff; border-radius:99px; width:0%; transition:width .6s ease;"></div>
         </div>
-        <span id="global-goal-label" style="font-size:10px; color:rgba(255,255,255,.9); white-space:nowrap; flex-shrink:0;">0/60分鐘</span>
       </div>
       <div style="width:1px; align-self:stretch; background:rgba(255,255,255,.3); flex-shrink:0;"></div>
-      <div style="flex-shrink:0; cursor:pointer; text-align:right; max-width:46%;" onclick="openLevelInfoModal()" title="睇升級詳情">
-        <div id="global-level-badge" style="color:#fff; font-size:11px; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">🌱 Lv.1 溫習新手 · 重欠 20 EXP 升級</div>
-        <div style="background:rgba(255,255,255,.3); border-radius:6px; height:4px; margin-top:3px; overflow:hidden;">
+      <div style="flex:1; min-width:0; cursor:pointer;" onclick="openLevelInfoModal()" title="睇升級詳情">
+        <div id="global-level-badge" style="color:#fff; font-size:11px; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">🌱 Lv.1 溫習新手 · 仍欠 20 EXP 升級</div>
+        <div style="background:rgba(255,255,255,.3); border-radius:6px; height:5px; margin-top:3px; overflow:hidden;">
           <div id="global-exp-bar" style="background:#fff; height:100%; width:0%; transition:width .4s ease;"></div>
         </div>
       </div>
@@ -1797,7 +1969,7 @@
     }
     window.getRankTitle = getRankTitle;
 
-    // 更新頭部徽章 / 主頁 Hero / 個人資料頁嘅 Level 顯示（全部都會顯示重欠幾多 EXP 先可以升級）
+    // 更新頭部徽章 / 主頁 Hero / 個人資料頁嘅 Level 顯示（全部都會顯示仍欠幾多 EXP 先可以升級）
     function updateLevelDisplay() {
       if (!window.currentUser) return;
       const info = calcLevelInfo(window.currentUser.exp || 0);
@@ -1806,11 +1978,11 @@
       const headerBadge = document.getElementById('header-level-badge');
       if (headerBadge) {
         headerBadge.innerText = `${rank.emoji} Lv.${info.level}`;
-        headerBadge.title = `${rank.title}（${rank.titleEn}）｜重欠 ${info.expRemaining} EXP 就升到 Lv.${info.level + 1}`;
+        headerBadge.title = `${rank.title}（${rank.titleEn}）｜仍欠 ${info.expRemaining} EXP 就升到 Lv.${info.level + 1}`;
       }
 
       const globalLevelBadge = document.getElementById('global-level-badge');
-      if (globalLevelBadge) globalLevelBadge.innerText = `${rank.emoji} Lv.${info.level} ${rank.title} · 重欠 ${info.expRemaining} EXP 升級`;
+      if (globalLevelBadge) globalLevelBadge.innerText = `${rank.emoji} Lv.${info.level} ${rank.title} · 仍欠 ${info.expRemaining} EXP 升級`;
       const globalExpBar = document.getElementById('global-exp-bar');
       if (globalExpBar) globalExpBar.style.width = info.pctToNext + '%';
 
@@ -1823,7 +1995,7 @@
         profRankTitle.innerText = `${rank.emoji} ${rank.title} (${rank.titleEn})`;
         profRankTitle.style.color = rank.color;
       }
-      if (profExpText) profExpText.innerText = `${info.expIntoLevel} / ${info.expNeededForNext} EXP · 重欠 ${info.expRemaining} EXP 就升到 Lv.${info.level + 1}（總計 ${info.exp} EXP）`;
+      if (profExpText) profExpText.innerText = `${info.expIntoLevel} / ${info.expNeededForNext} EXP · 仍欠 ${info.expRemaining} EXP 就升到 Lv.${info.level + 1}（總計 ${info.exp} EXP）`;
       if (profExpBar) profExpBar.style.width = info.pctToNext + '%';
     }
     window.updateLevelDisplay = updateLevelDisplay;
@@ -1839,7 +2011,7 @@
       if (currentEl) {
         currentEl.innerHTML = `
           <div style="font-size:15px; font-weight:bold; color:${rank.color || 'var(--brand-800)'};">${rank.emoji} Lv.${info.level} ${escapeHtml(rank.title || '')}（${escapeHtml(rank.titleEn || '')}）</div>
-          <div style="font-size:12px; color:#888; margin-top:4px;">${info.expIntoLevel} / ${info.expNeededForNext} EXP · 重欠 ${info.expRemaining} EXP 就升到 Lv.${info.level + 1}</div>
+          <div style="font-size:12px; color:#888; margin-top:4px;">${info.expIntoLevel} / ${info.expNeededForNext} EXP · 仍欠 ${info.expRemaining} EXP 就升到 Lv.${info.level + 1}</div>
           ${rank.desc ? `<div style="font-size:12px; color:#555; margin-top:6px; line-height:1.5;">${escapeHtml(rank.desc)}</div>` : ''}
         `;
       }
@@ -2052,6 +2224,10 @@
         headerStats.style.display = 'flex';
         const globalStatusBar = document.getElementById('global-status-bar');
         if (globalStatusBar) globalStatusBar.style.display = 'block';
+        const chatDockToggle = document.getElementById('chat-dock-toggle');
+        if (chatDockToggle) chatDockToggle.style.display = 'flex';
+        if (typeof window.startPresenceHeartbeat === 'function') window.startPresenceHeartbeat();
+        if (typeof window.startChatDockListener === 'function') window.startChatDockListener();
 
         headerAuthBtn.className = "btn btn-outline";
         headerAuthBtn.style.borderRadius = "20px";
@@ -2100,6 +2276,11 @@
         headerStats.style.display = 'none';
         const globalStatusBarHidden = document.getElementById('global-status-bar');
         if (globalStatusBarHidden) globalStatusBarHidden.style.display = 'none';
+        const chatDockToggleHidden = document.getElementById('chat-dock-toggle');
+        if (chatDockToggleHidden) chatDockToggleHidden.style.display = 'none';
+        if (typeof window.stopPresenceHeartbeat === 'function') window.stopPresenceHeartbeat();
+        if (typeof window.stopChatDockListener === 'function') window.stopChatDockListener();
+        if (typeof window.closeAllChatWindows === 'function') window.closeAllChatWindows();
 
         headerAuthBtn.className = "btn btn-primary";
         headerAuthBtn.innerHTML = `🔑 登入 / 註冊`;
@@ -2143,7 +2324,7 @@
       }
       const expBar = document.getElementById('myacc-exp-bar');
       if (expBar) expBar.style.width = info.pctToNext + '%';
-      setText('myacc-exp-text', `${info.expIntoLevel} / ${info.expNeededForNext} EXP · 重欠 ${info.expRemaining} EXP 升級`);
+      setText('myacc-exp-text', `${info.expIntoLevel} / ${info.expNeededForNext} EXP · 仍欠 ${info.expRemaining} EXP 升級`);
 
       openModal('modal-my-account');
     }
@@ -2887,9 +3068,11 @@
         ]);
 
         if (friendSnap.exists()) {
+          const safeChatName = (targetUserData.username || '同學').replace(/'/g, "\\'");
           container.innerHTML = `
             <div style="display:flex; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap;">
               <span class="tag" style="background:var(--brand-100); color:var(--brand-700);">👥 已經是好友</span>
+              <button class="btn btn-primary" type="button" style="font-size:12px; padding:5px 10px;" onclick="closeModal('modal-view-profile'); window.openChatWindow('${targetUid}', '${safeChatName}')">💬 傳送訊息</button>
               <button class="btn btn-outline" type="button" style="font-size:12px; padding:5px 10px;" onclick="removeFriendAction('${targetUid}')">🗑️ 移除好友</button>
             </div>
           `;
@@ -3059,10 +3242,12 @@
       [document.getElementById('nav-social-badge'), document.getElementById('home-social-badge')].forEach(badge => {
         if (badge) { badge.style.display = 'none'; badge.innerText = ''; }
       });
+      if (typeof window.stopFriendPresenceListeners === 'function') window.stopFriendPresenceListeners();
     };
 
     // 「夥伴與讀書會」分頁：即時載入我嘅好友名單
     let friendsListUnsubscribe = null;
+    window.friendsListDataCache = [];
     window.loadFriendsList = function() {
       const container = document.getElementById('friends-list-container');
       const countEl = document.getElementById('friends-count');
@@ -3072,27 +3257,51 @@
         window.fs.collection(window.db, 'users', window.currentUser.uid, 'friends'),
         (snapshot) => {
           const friends = snapshot.docs.map(d => d.data()).sort((a, b) => (a.username || '').localeCompare(b.username || ''));
+          window.friendsListDataCache = friends;
           if (countEl) countEl.innerText = friends.length;
-          if (friends.length === 0) {
-            container.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:20px;">仲未有好友，用返上面嘅帳號 ID 搜尋加返幾個啦！</p>';
-            return;
-          }
-          container.innerHTML = friends.map(f => `
-            <div class="card" style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; cursor:pointer;" onclick="viewUserProfile('${f.uid}')">
-              <div style="display:flex; align-items:center; gap:10px;">
-                <div class="avatar-circle" style="width:40px; height:40px; font-size:16px;">${(f.username||'U').charAt(0).toUpperCase()}</div>
-                <div>
-                  <div style="font-weight:bold; color:var(--brand-800); font-size:14px;">${escapeHtml(f.username||'同學')}</div>
-                  <div style="font-size:11px; color:#888;">🆔 ${escapeHtml(f.loginId||'')}</div>
-                </div>
-              </div>
-              <span style="font-size:12px; color:#3E7A8A;">睇資料 ›</span>
-            </div>
-          `).join('');
+          renderFriendsListRows();
+          if (typeof window.startFriendPresenceListeners === 'function') window.startFriendPresenceListeners(friends.map(f => f.uid));
+          if (typeof window.renderChatDockPanel === 'function') window.renderChatDockPanel();
         },
         (error) => { console.error('載入好友名單失敗:', error); }
       );
     };
+
+    // 好友名單實際畫出嚟嗰段，獨立成一個函數：每次好友名單有更新，或者
+    // 邊個好友嘅上線狀態有更新，都會 call 呢個函數重新畫返成個列表
+    function renderFriendsListRows() {
+      const container = document.getElementById('friends-list-container');
+      if (!container) return;
+      const friends = window.friendsListDataCache || [];
+      if (friends.length === 0) {
+        container.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:20px;">仲未有好友，用返上面嘅帳號 ID 搜尋加返幾個啦！</p>';
+        return;
+      }
+      const presenceMap = window.friendPresenceMap || {};
+      container.innerHTML = friends.map(f => {
+        const online = typeof window.isUidOnline === 'function' && window.isUidOnline(presenceMap[f.uid]);
+        const safeChatName = (f.username || '同學').replace(/'/g, "\\'");
+        return `
+          <div class="card" style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px;">
+            <div style="display:flex; align-items:center; gap:10px; cursor:pointer; min-width:0;" onclick="viewUserProfile('${f.uid}')">
+              <div class="avatar-with-dot">
+                <div class="avatar-circle" style="width:40px; height:40px; font-size:16px;">${(f.username||'U').charAt(0).toUpperCase()}</div>
+                <span class="presence-dot ${online ? 'online' : ''}"></span>
+              </div>
+              <div style="min-width:0;">
+                <div style="font-weight:bold; color:var(--brand-800); font-size:14px;">${escapeHtml(f.username||'同學')} <span style="font-weight:normal; font-size:11px; color:${online ? '#4CAF50' : '#999'};">${online ? '● 在線' : ''}</span></div>
+                <div style="font-size:11px; color:#888;">🆔 ${escapeHtml(f.loginId||'')}</div>
+              </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+              <button class="btn btn-outline" type="button" style="font-size:12px; padding:5px 8px;" onclick="window.openChatWindow('${f.uid}', '${safeChatName}')" title="傳送訊息">💬</button>
+              <span style="font-size:12px; color:#3E7A8A; cursor:pointer;" onclick="viewUserProfile('${f.uid}')">睇資料 ›</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+    window.renderFriendsListRows = renderFriendsListRows;
 
     // 「夥伴與讀書會」分頁：即時載入收到嘅好友邀請。呢個 listener 一登入就會
     // 開始監聽（唔使等用家真係撳入分頁），等側欄／主頁個「未讀邀請」小紅點
@@ -3139,6 +3348,326 @@
           `;
         }).join('');
       }, (error) => { console.error('載入好友邀請失敗:', error); });
+    };
+
+    // ===================== 上線狀態（Presence） =====================
+    // Firestore 冇好似 Realtime Database 咁有 onDisconnect，所以用「心跳」噉做：
+    // 登入之後每 45 秒 update 一次 users/{uid}.lastSeenAt，第二方睇你個
+    // lastSeenAt 喺唔喺 2 分鐘之內，就當你「在線」。呢個做法唔使加多個
+    // Firebase 產品，用返而家已經有嘅 Firestore 就得，代價係「落線」冇即時
+    // 反應（要等心跳過期），對呢個 app 嘅規模嚟講已經夠用。
+    const PRESENCE_HEARTBEAT_MS = 45 * 1000;
+    const PRESENCE_ONLINE_THRESHOLD_MS = 2 * 60 * 1000;
+    let presenceHeartbeatTimer = null;
+
+    window.isUidOnline = function(lastSeenAt) {
+      return !!lastSeenAt && (Date.now() - lastSeenAt) < PRESENCE_ONLINE_THRESHOLD_MS;
+    };
+
+    function sendPresenceHeartbeat() {
+      if (!window.currentUser || !window.db || !window.fs) return;
+      window.fs.updateDoc(window.fs.doc(window.db, 'users', window.currentUser.uid), { lastSeenAt: Date.now() }).catch(() => {});
+    }
+
+    function handlePresenceVisibilityChange() {
+      if (document.visibilityState === 'visible') sendPresenceHeartbeat();
+    }
+
+    window.startPresenceHeartbeat = function() {
+      sendPresenceHeartbeat();
+      if (presenceHeartbeatTimer) clearInterval(presenceHeartbeatTimer);
+      presenceHeartbeatTimer = setInterval(sendPresenceHeartbeat, PRESENCE_HEARTBEAT_MS);
+      document.addEventListener('visibilitychange', handlePresenceVisibilityChange);
+    };
+
+    window.stopPresenceHeartbeat = function() {
+      if (presenceHeartbeatTimer) { clearInterval(presenceHeartbeatTimer); presenceHeartbeatTimer = null; }
+      document.removeEventListener('visibilitychange', handlePresenceVisibilityChange);
+    };
+
+    // 監聽緊邊個好友嘅上線狀態（逐個 uid 開一個 onSnapshot），每次好友名單
+    // 有更新就會重新訂閱一次——好友通常唔多，呢個做法夠簡單夠用。
+    window.friendPresenceMap = {};
+    let friendPresenceUnsubs = {};
+    window.startFriendPresenceListeners = function(uids) {
+      window.stopFriendPresenceListeners();
+      if (!window.db || !window.fs) return;
+      (uids || []).forEach(uid => {
+        if (!uid || friendPresenceUnsubs[uid]) return;
+        friendPresenceUnsubs[uid] = window.fs.onSnapshot(window.fs.doc(window.db, 'users', uid), (snap) => {
+          window.friendPresenceMap[uid] = snap.exists() ? (snap.data().lastSeenAt || null) : null;
+          if (document.getElementById('friends-list-container')) renderFriendsListRows();
+          if (typeof window.renderChatDockPanel === 'function') window.renderChatDockPanel();
+          if (typeof window.updateChatWindowPresence === 'function') window.updateChatWindowPresence(uid);
+        }, () => {});
+      });
+    };
+    window.stopFriendPresenceListeners = function() {
+      Object.values(friendPresenceUnsubs).forEach(unsub => { if (typeof unsub === 'function') unsub(); });
+      friendPresenceUnsubs = {};
+      window.friendPresenceMap = {};
+    };
+
+    // ===================== 即時對話（好友之間一對一私訊，FB 式浮動視窗） =====================
+    // 兩個人嘅對話用 chatId 識別：將兩個 uid 由細到大排序、用 "_" 連埋一齊
+    // （例如 "abc_xyz"）。因為 chatId 本身就包含晒兩個 uid，Firestore 規則
+    // 淨係憑 documentId 就知道邊兩個人有權限，寫法簡單好多。
+    function directChatId(uidA, uidB) {
+      return [uidA, uidB].sort().join('_');
+    }
+    window.directChatId = directChatId;
+
+    let chatOpenWindows = []; // [{ chatId, friendUid, friendUsername, minimized }]
+    let chatMessagesUnsubs = {}; // chatId -> unsub
+    let chatMessagesCache = {}; // chatId -> 訊息陣列（畫面用）
+    let chatDockUnsub = null;
+    window.chatDockData = []; // 我每個好友最近一次對話（含未讀數），畀 dock panel 用
+
+    const CHAT_MAX_OPEN_WINDOWS_DESKTOP = 3;
+    const CHAT_MAX_OPEN_WINDOWS_MOBILE = 1;
+
+    window.toggleChatDockPanel = function() {
+      const panel = document.getElementById('chat-dock-panel');
+      if (!panel) return;
+      const showing = panel.style.display === 'flex';
+      panel.style.display = showing ? 'none' : 'flex';
+      if (!showing) window.renderChatDockPanel();
+    };
+
+    // 畫返個「撳掣彈出嚟」嘅好友清單：有邊個上線行先、最近同邊個傾緊偈、
+    // 未讀幾多，全部一眼睇晒
+    window.renderChatDockPanel = function() {
+      const listEl = document.getElementById('chat-dock-panel-list');
+      if (!listEl || !window.currentUser) return;
+      const friends = window.friendsListDataCache || [];
+      if (friends.length === 0) {
+        listEl.innerHTML = '<p style="text-align:center; color:#999; font-size:12px; padding:16px;">仲未有好友，先去「夥伴與讀書會」加返幾個啦！</p>';
+        return;
+      }
+      const presenceMap = window.friendPresenceMap || {};
+      const chatByUid = {};
+      (window.chatDockData || []).forEach(c => { chatByUid[c.friendUid] = c; });
+
+      const rows = friends.slice().sort((a, b) => {
+        const aOnline = window.isUidOnline(presenceMap[a.uid]) ? 1 : 0;
+        const bOnline = window.isUidOnline(presenceMap[b.uid]) ? 1 : 0;
+        if (aOnline !== bOnline) return bOnline - aOnline;
+        const aTime = (chatByUid[a.uid] && chatByUid[a.uid].lastMessageAt) || 0;
+        const bTime = (chatByUid[b.uid] && chatByUid[b.uid].lastMessageAt) || 0;
+        return bTime - aTime;
+      });
+
+      listEl.innerHTML = rows.map(f => {
+        const online = window.isUidOnline(presenceMap[f.uid]);
+        const chatInfo = chatByUid[f.uid];
+        const unread = chatInfo ? (chatInfo.unread || 0) : 0;
+        const safeChatName = (f.username || '同學').replace(/'/g, "\\'");
+        return `
+          <div class="chat-dock-friend-row" onclick="window.openChatWindow('${f.uid}', '${safeChatName}'); window.toggleChatDockPanel();">
+            <div class="avatar-with-dot">
+              <div class="avatar-circle" style="width:34px; height:34px; font-size:14px;">${(f.username||'U').charAt(0).toUpperCase()}</div>
+              <span class="presence-dot ${online ? 'online' : ''}"></span>
+            </div>
+            <div style="flex:1; min-width:0;">
+              <div class="chat-dock-friend-name">${escapeHtml(f.username||'同學')}</div>
+              <div class="chat-dock-friend-preview">${chatInfo && chatInfo.lastMessage ? escapeHtml(chatInfo.lastMessage) : '未有對話紀錄'}</div>
+            </div>
+            ${unread > 0 ? `<span class="chat-dock-friend-unread">${unread > 99 ? '99+' : unread}</span>` : ''}
+          </div>
+        `;
+      }).join('');
+    };
+
+    // 監聽晒我所有嘅對話（用嚟計總未讀數畫落個圓形掣嘅紅點，同埋畀 dock
+    // panel 顯示最近對話），一登入就開始聽
+    window.startChatDockListener = function() {
+      if (!window.currentUser || !window.db || !window.fs) return;
+      if (chatDockUnsub) chatDockUnsub();
+      const q = window.fs.query(window.fs.collection(window.db, 'directChats'), window.fs.where('participants', 'array-contains', window.currentUser.uid));
+      chatDockUnsub = window.fs.onSnapshot(q, (snapshot) => {
+        const myUid = window.currentUser.uid;
+        window.chatDockData = snapshot.docs.map(d => {
+          const data = d.data();
+          const friendUid = (data.participants || []).find(u => u !== myUid);
+          return {
+            chatId: d.id,
+            friendUid,
+            lastMessage: data.lastMessage || '',
+            lastMessageAt: data.lastMessageAt || 0,
+            unread: (data.unread && data.unread[myUid]) || 0
+          };
+        });
+        const totalUnread = window.chatDockData.reduce((sum, c) => sum + (c.unread || 0), 0);
+        const badge = document.getElementById('chat-dock-badge');
+        if (badge) {
+          if (totalUnread > 0) { badge.style.display = 'flex'; badge.innerText = totalUnread > 99 ? '99+' : totalUnread; }
+          else { badge.style.display = 'none'; }
+        }
+        window.renderChatDockPanel();
+      }, (err) => { console.error('載入對話清單失敗:', err); });
+    };
+
+    window.stopChatDockListener = function() {
+      if (chatDockUnsub) { chatDockUnsub(); chatDockUnsub = null; }
+      window.chatDockData = [];
+      const badge = document.getElementById('chat-dock-badge');
+      if (badge) badge.style.display = 'none';
+    };
+
+    // 開一個對話視窗（右下角）；如果已經開緊就淨係翻返出嚟／取消縮小，
+    // 唔會開多個重複視窗。桌面版最多同時開 3 個，手機因為螢幕細，一次淨係
+    // 開到 1 個（開新嗰個會自動收埋最舊嗰個）
+    window.openChatWindow = function(friendUid, friendUsername) {
+      if (!window.currentUser) { openModal('modal-login'); return; }
+      if (friendUid === window.currentUser.uid) return;
+      const chatId = directChatId(window.currentUser.uid, friendUid);
+      let win = chatOpenWindows.find(w => w.chatId === chatId);
+      if (win) {
+        win.minimized = false;
+        renderChatWindowsBar();
+        subscribeChatWindowMessages(chatId);
+        markChatRead(chatId);
+        return;
+      }
+
+      const isMobile = window.innerWidth < 640;
+      const maxOpen = isMobile ? CHAT_MAX_OPEN_WINDOWS_MOBILE : CHAT_MAX_OPEN_WINDOWS_DESKTOP;
+      while (chatOpenWindows.length >= maxOpen) {
+        closeChatWindowInternal(chatOpenWindows[0].chatId);
+      }
+
+      win = { chatId, friendUid, friendUsername: friendUsername || '同學', minimized: false };
+      chatOpenWindows.push(win);
+      renderChatWindowsBar();
+      subscribeChatWindowMessages(chatId);
+      markChatRead(chatId);
+    };
+
+    window.closeChatWindow = function(chatId) {
+      closeChatWindowInternal(chatId);
+    };
+
+    function closeChatWindowInternal(chatId) {
+      chatOpenWindows = chatOpenWindows.filter(w => w.chatId !== chatId);
+      if (chatMessagesUnsubs[chatId]) { chatMessagesUnsubs[chatId](); delete chatMessagesUnsubs[chatId]; }
+      delete chatMessagesCache[chatId];
+      renderChatWindowsBar();
+    }
+
+    window.toggleMinimizeChatWindow = function(chatId) {
+      const win = chatOpenWindows.find(w => w.chatId === chatId);
+      if (!win) return;
+      win.minimized = !win.minimized;
+      renderChatWindowsBar();
+      if (!win.minimized) markChatRead(chatId);
+    };
+
+    function renderChatWindowsBar() {
+      const bar = document.getElementById('chat-windows-bar');
+      if (!bar) return;
+      const presenceMap = window.friendPresenceMap || {};
+      bar.innerHTML = chatOpenWindows.map(w => {
+        const online = window.isUidOnline(presenceMap[w.friendUid]);
+        return `
+          <div class="chat-window ${w.minimized ? 'minimized' : ''}" data-chat-id="${w.chatId}">
+            <div class="chat-window-header" onclick="window.toggleMinimizeChatWindow('${w.chatId}')">
+              <span class="presence-dot ${online ? 'online' : ''}" style="position:static;"></span>
+              <span class="chat-window-title">${escapeHtml(w.friendUsername)}</span>
+              <button type="button" class="chat-window-close-btn" onclick="event.stopPropagation(); window.closeChatWindow('${w.chatId}')">✕</button>
+            </div>
+            <div class="chat-window-body" id="chat-body-${w.chatId}"></div>
+            <div class="chat-window-input-row">
+              <input type="text" id="chat-input-${w.chatId}" placeholder="打字傳送訊息..." onkeydown="if(event.key==='Enter'){window.sendChatMessage('${w.chatId}');}">
+              <button type="button" onclick="window.sendChatMessage('${w.chatId}')">➤</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+      // 重畫完個殼之後，即刻用返已有嘅訊息 cache 填返每個視窗嘅內容
+      // （唔使重新問 Firestore 攞，減少讀取次數）
+      chatOpenWindows.forEach(w => renderChatWindowMessages(w.chatId));
+    }
+
+    window.updateChatWindowPresence = function(uid) {
+      // 邊個好友嘅上線狀態一變，同佢開緊嘅對話視窗個燈就要跟住變
+      const affected = chatOpenWindows.some(w => w.friendUid === uid);
+      if (affected) renderChatWindowsBar();
+    };
+
+    function subscribeChatWindowMessages(chatId) {
+      if (chatMessagesUnsubs[chatId]) return;
+      if (!window.db || !window.fs) return;
+      const q = window.fs.query(
+        window.fs.collection(window.db, 'directChats', chatId, 'messages'),
+        window.fs.orderBy('createdAt', 'desc'),
+        window.fs.limit(50)
+      );
+      chatMessagesUnsubs[chatId] = window.fs.onSnapshot(q, (snapshot) => {
+        chatMessagesCache[chatId] = snapshot.docs.map(d => d.data()).reverse();
+        renderChatWindowMessages(chatId);
+        const win = chatOpenWindows.find(w => w.chatId === chatId);
+        if (win && !win.minimized) markChatRead(chatId);
+      }, (err) => { console.error('載入對話訊息失敗:', err); });
+    }
+
+    function renderChatWindowMessages(chatId) {
+      const bodyEl = document.getElementById('chat-body-' + chatId);
+      if (!bodyEl || !window.currentUser) return;
+      const messages = chatMessagesCache[chatId] || [];
+      if (messages.length === 0) {
+        bodyEl.innerHTML = '<p style="text-align:center; color:#999; font-size:12px; padding:16px;">傾偈啦～同呢位朋友講聲哈囉！</p>';
+        return;
+      }
+      const myUid = window.currentUser.uid;
+      bodyEl.innerHTML = messages.map(m => `
+        <div class="chat-bubble ${m.fromUid === myUid ? 'mine' : 'theirs'}">${escapeHtml(m.text || '')}</div>
+      `).join('');
+      bodyEl.scrollTop = bodyEl.scrollHeight;
+    }
+
+    window.sendChatMessage = async function(chatId) {
+      const input = document.getElementById('chat-input-' + chatId);
+      if (!input || !window.currentUser || !window.db || !window.fs) return;
+      const text = input.value.trim();
+      if (!text) return;
+      const win = chatOpenWindows.find(w => w.chatId === chatId);
+      if (!win) return;
+      input.value = '';
+      const now = Date.now();
+      const myUid = window.currentUser.uid;
+      const friendUid = win.friendUid;
+      try {
+        await window.fs.addDoc(window.fs.collection(window.db, 'directChats', chatId, 'messages'), {
+          fromUid: myUid, toUid: friendUid, text, createdAt: now
+        });
+        const chatRef = window.fs.doc(window.db, 'directChats', chatId);
+        await window.fs.setDoc(chatRef, {
+          participants: [myUid, friendUid],
+          lastMessage: text,
+          lastMessageAt: now,
+          lastSenderUid: myUid,
+          unread: { [friendUid]: window.fs.increment(1), [myUid]: 0 }
+        }, { merge: true });
+      } catch (e) {
+        window.showToast('訊息傳送失敗：' + (e.message || e), '❌');
+      }
+    };
+
+    function markChatRead(chatId) {
+      if (!window.currentUser || !window.db || !window.fs) return;
+      const chatRef = window.fs.doc(window.db, 'directChats', chatId);
+      window.fs.updateDoc(chatRef, { ['unread.' + window.currentUser.uid]: 0 }).catch(() => {});
+    }
+
+    // 登出之後要即刻閂晒所有對話視窗（唔應該仲見到啱啱嗰位用家嘅私訊）
+    window.closeAllChatWindows = function() {
+      chatOpenWindows.forEach(w => { if (chatMessagesUnsubs[w.chatId]) chatMessagesUnsubs[w.chatId](); });
+      chatOpenWindows = [];
+      chatMessagesUnsubs = {};
+      chatMessagesCache = {};
+      renderChatWindowsBar();
+      const panel = document.getElementById('chat-dock-panel');
+      if (panel) panel.style.display = 'none';
     };
 
     // ===================== 邀請朋友入房 =====================
@@ -3325,7 +3854,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, deleteUser } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs, increment, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs, increment, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDcxw01cH4Xdsp8xK4Xq69lnt3kCsEZTkQ",
@@ -3342,7 +3871,7 @@
     const db = getFirestore(app);
 
     window.db = db;
-    window.fs = { doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs, increment, query, where };
+    window.fs = { doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs, increment, query, where, orderBy, limit };
 
     // 幽靈房自動清理：房間冇人心跳（見 updateRoomHeartbeat）超過呢個時間，
     // 就當佢係冇人打理嘅幽靈房（例如房主手機突然關機、瀏覽器崩潰，嚟唔切
