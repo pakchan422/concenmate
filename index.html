@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.30.3"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.31.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -696,7 +696,8 @@
       border: none;
       box-shadow: 0 6px 18px rgba(0,0,0,.25);
       font-size: 22px;
-      cursor: pointer;
+      cursor: grab;
+      touch-action: none;
       z-index: 150;
       display: none;
       align-items: center;
@@ -755,17 +756,19 @@
       align-items: center; justify-content: center; padding: 0 4px; flex-shrink: 0;
     }
 
+    /* #chat-windows-bar 而家淨係一個覆蓋成個畫面嘅透明容器（唔再係 flex
+       排版），入面每個 .chat-window 各自用 position:fixed 自己記自己個
+       位置，先做到「隨意拖去邊都得」——容器本身 pointer-events:none 唔
+       會擋住底下嘅頁面，但每個對話視窗會自己開返 pointer-events:auto */
     #chat-windows-bar {
       position: fixed;
-      bottom: 100px;
-      right: 82px;
+      inset: 0;
       z-index: 150;
-      display: flex;
-      flex-direction: row-reverse;
-      align-items: flex-end;
-      gap: 10px;
+      pointer-events: none;
     }
     .chat-window {
+      position: fixed;
+      pointer-events: auto;
       width: 260px;
       max-width: calc(100vw - 40px);
       background: #fff;
@@ -780,7 +783,8 @@
       color: #fff;
       padding: 10px 10px;
       display: flex; align-items: center; gap: 8px;
-      cursor: pointer;
+      cursor: grab;
+      touch-action: none;
       flex-shrink: 0;
     }
     .chat-window .chat-window-title { font-size: 13px; font-weight: bold; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -818,7 +822,6 @@
       width: 30px; height: 30px; flex-shrink: 0; cursor: pointer; font-size: 14px;
     }
     @media (max-width: 640px) {
-      #chat-windows-bar { right: 8px; bottom: 90px; flex-wrap: wrap-reverse; max-width: calc(100vw - 16px); }
       #chat-dock-toggle { right: 12px; bottom: 90px; }
       #chat-dock-panel { right: 12px; bottom: 150px; }
       .chat-window { width: calc(100vw - 24px); }
@@ -2255,7 +2258,12 @@
         const globalStatusBar = document.getElementById('global-status-bar');
         if (globalStatusBar) globalStatusBar.style.display = 'block';
         const chatDockToggle = document.getElementById('chat-dock-toggle');
-        if (chatDockToggle) chatDockToggle.style.display = 'flex';
+        if (chatDockToggle) {
+          chatDockToggle.style.display = 'flex';
+          // 掣啱啱先由 display:none 變返可見，之前（登入之前）攞唔到佢
+          // 真實嘅闊高，所以呢度要重新套用一次拖過／記低咗嘅位置
+          if (typeof applyChatDockTogglePos === 'function') applyChatDockTogglePos(chatDockToggle);
+        }
         if (typeof window.startPresenceHeartbeat === 'function') window.startPresenceHeartbeat();
         if (typeof window.startChatDockListener === 'function') window.startChatDockListener();
         // 一登入／refresh 完成，額外主動去伺服器攞多一次最新對話清單（唔淨係
@@ -3470,10 +3478,167 @@
     const CHAT_MAX_OPEN_WINDOWS_DESKTOP = 3;
     const CHAT_MAX_OPEN_WINDOWS_MOBILE = 1;
 
+    // ===================== 浮動元件可以隨意拖曳（撳掣、對話視窗都得）=====================
+    // 用 Pointer Events（滑鼠、觸控都通用）寫一個好簡單、通用嘅拖曳工具：
+    // 拖住邊個掣（handleEl）就搬動邊個元素（targetEl，一定要係 position:fixed）。
+    // 特登分得到「真係拖緊」同「純粹撳一下」——郁得少過 6px 就當係普通
+    // click，唔會打斷本身嘅 onclick（例如撳掣開/閂對話清單、撳 header
+    // 縮埋視窗）；郁得多就當真係拖緊，拖完之後會吞咗嗰下 click，唔會
+    // 又觸發返個掣本身嘅動作（唔係咁一拖完就即刻彈開/縮埋，好core）。
+    function makeDraggable(handleEl, targetEl, opts) {
+      opts = opts || {};
+      let dragging = false, moved = false, pointerId = null;
+      let startX = 0, startY = 0, startLeft = 0, startTop = 0;
+
+      function onPointerDown(e) {
+        if (e.button !== undefined && e.button !== 0) return; // 淨係應滑鼠左掣/單指拖
+        if (opts.shouldIgnore && opts.shouldIgnore(e)) return;
+        const rect = targetEl.getBoundingClientRect();
+        dragging = true; moved = false; pointerId = e.pointerId;
+        startX = e.clientX; startY = e.clientY;
+        startLeft = rect.left; startTop = rect.top;
+        try { handleEl.setPointerCapture(e.pointerId); } catch (err) {}
+        document.addEventListener('pointermove', onPointerMove);
+        document.addEventListener('pointerup', onPointerUp);
+        document.addEventListener('pointercancel', onPointerUp);
+      }
+      function onPointerMove(e) {
+        if (!dragging || e.pointerId !== pointerId) return;
+        const dx = e.clientX - startX, dy = e.clientY - startY;
+        if (!moved && Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+        moved = true;
+        const rect = targetEl.getBoundingClientRect();
+        const maxLeft = Math.max(4, window.innerWidth - rect.width - 4);
+        const maxTop = Math.max(4, window.innerHeight - rect.height - 4);
+        const newLeft = Math.min(Math.max(4, startLeft + dx), maxLeft);
+        const newTop = Math.min(Math.max(4, startTop + dy), maxTop);
+        targetEl.style.left = newLeft + 'px';
+        targetEl.style.top = newTop + 'px';
+        targetEl.style.right = 'auto';
+        targetEl.style.bottom = 'auto';
+      }
+      function onPointerUp(e) {
+        if (!dragging || e.pointerId !== pointerId) return;
+        dragging = false;
+        document.removeEventListener('pointermove', onPointerMove);
+        document.removeEventListener('pointerup', onPointerUp);
+        document.removeEventListener('pointercancel', onPointerUp);
+        if (moved) {
+          if (opts.onDragEnd) opts.onDragEnd(targetEl);
+          // 要吞嘅係「拖完之後、觸發返個 handle 本身動作」嗰下 click（例如
+          // 撳掣開/閂對話清單、撳 header 縮埋視窗），唔可以連埋 header
+          // 入面嘅子元素（🗑️／✕呢啲有自己 onclick 嘅掣）都一齊吞埋——
+          // 呢個 listener 用 capture:true 掛喺 handle 度，捕捉階段會喺
+          // 個 click 去到子元素之前就先過一次呢度，如果唔特登過濾走，
+          // 拖完隨便撳邊粒子掣都會俾呢個「食」咗，冇反應。
+          const swallow = (ce) => {
+            if (opts.shouldIgnore && opts.shouldIgnore(ce)) return;
+            ce.stopPropagation(); ce.preventDefault();
+          };
+          handleEl.addEventListener('click', swallow, { capture: true, once: true });
+        }
+      }
+      handleEl.addEventListener('pointerdown', onPointerDown);
+    }
+    window.makeDraggable = makeDraggable;
+
+    // 畫面大細一變（例如手機轉橫直），拖到出咗界嘅浮動元件就拉返入嚟，
+    // 唔會俾人搵唔返或者卡喺睇唔到嘅位
+    function clampFixedElementToViewport(el) {
+      if (!el || !el.style || el.style.left === '' || el.style.left === 'auto') return;
+      const rect = el.getBoundingClientRect();
+      const maxLeft = Math.max(4, window.innerWidth - rect.width - 4);
+      const maxTop = Math.max(4, window.innerHeight - rect.height - 4);
+      if (rect.left > maxLeft) el.style.left = maxLeft + 'px';
+      if (rect.top > maxTop) el.style.top = maxTop + 'px';
+    }
+    window.addEventListener('resize', () => {
+      const btn = document.getElementById('chat-dock-toggle');
+      if (btn) clampFixedElementToViewport(btn);
+      document.querySelectorAll('.chat-window').forEach(clampFixedElementToViewport);
+    });
+
+    // 💬 掣本身可以拖去螢幕任何位置，放手嗰陣會自動貼返去畫面左邊或右邊
+    // （睇邊邊近），上下位置就跟返你放低嗰個位，仲會記落 localStorage，
+    // 下次入返嚟／refresh 都保持喺你拖過嘅位置
+    const CHAT_DOCK_POS_KEY = 'concenmate_chatDockTogglePos_v1';
+    function saveChatDockTogglePos(side, top) {
+      try { localStorage.setItem(CHAT_DOCK_POS_KEY, JSON.stringify({ side, top })); } catch (e) {}
+    }
+    function loadChatDockTogglePos() {
+      try {
+        const raw = localStorage.getItem(CHAT_DOCK_POS_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch (e) { return null; }
+    }
+    function applyChatDockTogglePos(btn) {
+      const saved = loadChatDockTogglePos();
+      if (!saved) return;
+      const rect = btn.getBoundingClientRect();
+      const top = Math.min(Math.max(4, saved.top), window.innerHeight - rect.height - 4);
+      btn.style.top = top + 'px';
+      btn.style.bottom = 'auto';
+      if (saved.side === 'left') { btn.style.left = '12px'; btn.style.right = 'auto'; }
+      else { btn.style.right = '20px'; btn.style.left = 'auto'; }
+    }
+    function snapChatDockToggleToEdge(btn) {
+      const rect = btn.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const side = centerX < window.innerWidth / 2 ? 'left' : 'right';
+      const margin = 12;
+      if (side === 'left') { btn.style.left = margin + 'px'; btn.style.right = 'auto'; }
+      else { btn.style.right = margin + 'px'; btn.style.left = 'auto'; }
+      const top = Math.min(Math.max(4, rect.top), window.innerHeight - rect.height - 4);
+      btn.style.top = top + 'px';
+      btn.style.bottom = 'auto';
+      saveChatDockTogglePos(side, top);
+    }
+    (function initChatDockToggleDrag() {
+      const btn = document.getElementById('chat-dock-toggle');
+      if (!btn) return;
+      applyChatDockTogglePos(btn);
+      makeDraggable(btn, btn, {
+        onDragEnd: (el) => {
+          snapChatDockToggleToEdge(el);
+          if (typeof window.positionChatDockPanel === 'function') window.positionChatDockPanel();
+        }
+      });
+    })();
+
+    // 對話清單面板要開喺撳掣附近（掣自己都拖得走，面板梗係要跟埋去），
+    // 唔可以再淨係靠寫死嘅 CSS 位置——每次撳開之前，即時計返個掣而家喺
+    // 邊，面板就開喺佢上面（或者下面，如果掣已經好近螢幕頂）、同一邊
+    window.positionChatDockPanel = function() {
+      const btn = document.getElementById('chat-dock-toggle');
+      const panel = document.getElementById('chat-dock-panel');
+      if (!btn || !panel) return;
+      const btnRect = btn.getBoundingClientRect();
+      const panelWidth = Math.min(280, window.innerWidth - 40);
+      const panelMaxHeight = 380;
+      panel.style.width = panelWidth + 'px';
+      const spaceAbove = btnRect.top;
+      if (spaceAbove > panelMaxHeight + 20) {
+        panel.style.bottom = (window.innerHeight - btnRect.top + 10) + 'px';
+        panel.style.top = 'auto';
+      } else {
+        panel.style.top = (btnRect.bottom + 10) + 'px';
+        panel.style.bottom = 'auto';
+      }
+      const btnCenterX = btnRect.left + btnRect.width / 2;
+      if (btnCenterX > window.innerWidth / 2) {
+        panel.style.right = Math.max(8, window.innerWidth - btnRect.right) + 'px';
+        panel.style.left = 'auto';
+      } else {
+        panel.style.left = Math.max(8, btnRect.left) + 'px';
+        panel.style.right = 'auto';
+      }
+    };
+
     window.toggleChatDockPanel = function() {
       const panel = document.getElementById('chat-dock-panel');
       if (!panel) return;
       const showing = panel.style.display === 'flex';
+      if (!showing && typeof window.positionChatDockPanel === 'function') window.positionChatDockPanel();
       panel.style.display = showing ? 'none' : 'flex';
       if (!showing) {
         window.renderChatDockPanel();
@@ -3684,7 +3849,11 @@
         closeChatWindowInternal(chatOpenWindows[0].chatId);
       }
 
-      win = { chatId, friendUid, friendUsername: friendUsername || '同學', minimized: false };
+      // posLeft/posTop 一開始係 null，代表仲未計過／未拖過位置，交畀
+      // renderChatWindowsBar() 第一次畫呢個視窗嗰陣自動計一個唔會疊晒
+      // 一齊嘅預設位（cascade），拖完之後呢兩個欄位就會記低你拖到嗰個位，
+      // 之後點樣重畫都唔會彈返去原本位置
+      win = { chatId, friendUid, friendUsername: friendUsername || '同學', minimized: false, posLeft: null, posTop: null };
       chatOpenWindows.push(win);
       renderChatWindowsBar();
       subscribeChatWindowMessages(chatId);
@@ -3710,6 +3879,24 @@
       if (!win.minimized) markChatRead(chatId);
     };
 
+    // 對話視窗仲未拖過之前嘅預設位置：由撳掣個位開始，一個一個新視窗
+    // 向左疊埋去（好似疊卡片咁），確保唔會成疊晒喺同一個位，亦唔會
+    // 超出螢幕範圍
+    function computeDefaultChatWindowPos(idx, el) {
+      const rect = el.getBoundingClientRect();
+      const width = rect.width || 260;
+      const height = rect.height || 360;
+      const btn = document.getElementById('chat-dock-toggle');
+      const btnRect = btn ? btn.getBoundingClientRect() : { left: window.innerWidth - 72, top: window.innerHeight - 152, width: 52 };
+      const gap = 10;
+      const cascade = idx * 20;
+      let left = btnRect.left - width - gap - cascade;
+      let top = window.innerHeight - height - 100 - cascade;
+      left = Math.min(Math.max(8, left), Math.max(8, window.innerWidth - width - 8));
+      top = Math.min(Math.max(8, top), Math.max(8, window.innerHeight - height - 8));
+      return { left, top };
+    }
+
     function renderChatWindowsBar() {
       const bar = document.getElementById('chat-windows-bar');
       if (!bar) return;
@@ -3732,6 +3919,36 @@
           </div>
         `;
       }).join('');
+      // 每個對話視窗自己記住個位置（w.posLeft / w.posTop），畫返出嚟嗰陣
+      // 一定要照返個位擺——唔係就會因為（例如）第二個好友上線咁樣觸發
+      // 重畫，就將你拖過嘅視窗打返去原本個預設位，好核突。第一次開先會
+      // 冇記錄，就用 computeDefaultChatWindowPos() 計一個唔會疊晒一齊嘅
+      // 預設位，計完之後即刻記落 w.posLeft/posTop，之後每次重畫都跟返
+      // 呢個（除非用家再拖過）。仲會喺個 header 度裝返拖曳功能，撳「🗑️」
+      // 「✕」呢兩粒掣就照舊唔郁（shouldIgnore 擋咗），唔會誤觸拖曳。
+      chatOpenWindows.forEach((w, idx) => {
+        let el = null;
+        try { el = bar.querySelector(`.chat-window[data-chat-id="${CSS.escape(w.chatId)}"]`); } catch (e) {}
+        if (!el) return;
+        if (w.posLeft == null || w.posTop == null) {
+          const pos = computeDefaultChatWindowPos(idx, el);
+          w.posLeft = pos.left;
+          w.posTop = pos.top;
+        }
+        el.style.left = w.posLeft + 'px';
+        el.style.top = w.posTop + 'px';
+        const headerEl = el.querySelector('.chat-window-header');
+        if (headerEl && typeof window.makeDraggable === 'function') {
+          window.makeDraggable(headerEl, el, {
+            shouldIgnore: (e) => !!(e.target && e.target.closest && e.target.closest('.chat-window-close-btn')),
+            onDragEnd: (targetEl) => {
+              const rect = targetEl.getBoundingClientRect();
+              w.posLeft = rect.left;
+              w.posTop = rect.top;
+            }
+          });
+        }
+      });
       // 重畫完個殼之後，即刻用返已有嘅訊息 cache 填返每個視窗嘅內容
       // （唔使重新問 Firestore 攞，減少讀取次數）
       chatOpenWindows.forEach(w => renderChatWindowMessages(w.chatId));
