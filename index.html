@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.18.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.19.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -967,12 +967,14 @@
                   <span id="room-timer" style="font-family:monospace; font-size:14px; white-space:nowrap;">30:00</span>
                   <span id="pomodoro-cycle-dots" title="已完成 0 個番茄鐘" style="font-size:12px; white-space:nowrap; color:#F2A65A;">—</span>
                   <!-- 專注時段拆做 4 個「小目標」段落顯示（唔係一條望唔到盡頭嘅長 bar），
-                       等學生覺得每 1/4 都係一個好快捱到嘅小終點，更加容易達成 -->
-                  <div id="room-timer-progress-track" style="position:absolute; left:0; bottom:0; width:100%; height:3px; display:flex; gap:2px;" title="呢輪專注分成 4 個小目標，一段段儲滿佢">
-                    <div class="pomodoro-quarter-seg" style="flex:1; background:#333;"></div>
-                    <div class="pomodoro-quarter-seg" style="flex:1; background:#333;"></div>
-                    <div class="pomodoro-quarter-seg" style="flex:1; background:#333;"></div>
-                    <div class="pomodoro-quarter-seg" style="flex:1; background:#333;"></div>
+                       等學生覺得每 1/4 都係一個好快捱到嘅小終點，更加容易達成。未填色嘅
+                       底色改用淺色半透明（唔再係接近全黑），同個黑色 widget 背景形成清晰
+                       對比，一眼就見到 4 段喺邊、而家儲咗幾多。 -->
+                  <div id="room-timer-progress-track" style="position:absolute; left:0; bottom:0; width:100%; height:5px; display:flex; gap:3px;" title="呢輪專注分成 4 個小目標，一段段儲滿佢">
+                    <div class="pomodoro-quarter-seg" style="flex:1; background:rgba(255,255,255,.28); border-radius:2px;"></div>
+                    <div class="pomodoro-quarter-seg" style="flex:1; background:rgba(255,255,255,.28); border-radius:2px;"></div>
+                    <div class="pomodoro-quarter-seg" style="flex:1; background:rgba(255,255,255,.28); border-radius:2px;"></div>
+                    <div class="pomodoro-quarter-seg" style="flex:1; background:rgba(255,255,255,.28); border-radius:2px;"></div>
                   </div>
                 </div>
                 <button class="btn btn-red" type="button" id="btn-presence-back" onclick="confirmStillHere()" style="display:none; font-size:11px; padding:5px 8px;">⏸️ 已暫停計分，撳返嚟</button>
@@ -4018,17 +4020,21 @@
       // 番茄鐘進度條：喺個 widget 底部畫 4 段幼幼嘅進度線，代表呢一節專注拆開嘅
       // 4 個小目標，一段一段咁儲滿（唔係一條望唔到盡頭嘅長 bar），等學生覺得每
       // 1/4 都係一個好快捱到嘅小終點，同時唔會加高成個 widget，保持同旁邊其他掣
-      // （開啟鏡頭／已靜音／人數）高度一致。
+      // （開啟鏡頭／已靜音／人數）高度一致。未填色嘅底色用淺色半透明（而唔係深
+      // 灰色），同個黑色 widget 背景清晰分開，4 段界線同進度都望得清楚啲；填滿
+      // 咗嘅段仲會加返少少光暈，等「呢段啱啱達成」更加吸引眼球。
       const phaseTotalSeconds = state.pomodoroPhase === 'break' ? ROOM_POMODORO_BREAK_SECONDS : (state.focusDurationSeconds || 1);
       const elapsedInPhase = Math.max(0, phaseTotalSeconds - state.remainingSeconds);
       const segColor = state.pomodoroPhase === 'break' ? '#7DB8C5' : '#F2A65A';
+      const segTrackColor = 'rgba(255,255,255,.28)';
       const segEls = document.querySelectorAll('#room-timer-progress-track .pomodoro-quarter-seg');
       if (segEls && segEls.length) {
         const quarterTotal = phaseTotalSeconds / segEls.length;
         segEls.forEach((segEl, i) => {
           const segElapsed = Math.min(quarterTotal, Math.max(0, elapsedInPhase - i * quarterTotal));
           const segPct = quarterTotal > 0 ? (segElapsed / quarterTotal) * 100 : 0;
-          segEl.style.background = `linear-gradient(to right, ${segColor} ${segPct}%, #333 ${segPct}%)`;
+          segEl.style.background = `linear-gradient(to right, ${segColor} ${segPct}%, ${segTrackColor} ${segPct}%)`;
+          segEl.style.boxShadow = segPct >= 100 ? `0 0 4px ${segColor}` : 'none';
         });
       }
 
@@ -4323,10 +4329,46 @@
       for (const [remoteUid, pc] of Object.entries(state.peerConnections)) {
         if (pc.connectionState === 'closed' || pc.connectionState === 'failed') continue;
 
-        // 將本地媒體軌道加入連線（如果未加過嘅話）
+        // 將本地媒體軌道加入連線（如果未加過嘅話）。
+        //
+        // 注意：關鏡頭嗰陣（toggleCameraInner）淨係用 videoSender.replaceTrack(null)
+        // 停用個 sender，並冇真正 removeTrack，所以嗰個 sender 仍然存在於
+        // pc.getSenders() 入面，只不過 .track 變咗 null。舊邏輯淨係用
+        // 「s.track 存在先計」嚟判斷「有冇加過呢種 kind」，結果重開鏡頭嗰陣會
+        // 誤判做「未加過 video」，於是又 pc.addTrack() 多一次——喺同一個
+        // peer connection 度整多咗一條新嘅 video m-line，令對方個 SDP 出現
+        // 重複／衝突嘅 transceiver，永遠都收唔到重開返嘅鏡頭畫面。
+        //
+        // 修正：如果揾到一個「同種 kind、但而家冇 track」嘅舊 transceiver，
+        // 就用 replaceTrack 重用返佢（見返 receiver.track.kind 嚟辨認種類，
+        // 呢個唔會因為自己 sender track 變 null 而受影響），先至喺真係冇
+        // 任何相關 transceiver 嘅情況先用 addTrack 開一條新嘅。
         const existingSenderKinds = new Set(pc.getSenders().filter(s => s.track).map(s => s.track.kind));
         for (const track of state.mediaStream.getTracks()) {
-          if (!existingSenderKinds.has(track.kind)) {
+          if (existingSenderKinds.has(track.kind)) continue;
+
+          const reusableTransceiver = pc.getTransceivers().find(t =>
+            !t.stopped && t.sender && !t.sender.track &&
+            t.receiver && t.receiver.track && t.receiver.track.kind === track.kind
+          );
+
+          if (reusableTransceiver) {
+            try {
+              await reusableTransceiver.sender.replaceTrack(track);
+              // replaceTrack 唔會自動調返 transceiver 嘅方向，要手動確保
+              // 方向包含「send」，唔係方向唔啱、track 都送唔出去俾對方
+              if (reusableTransceiver.direction === 'recvonly') {
+                reusableTransceiver.direction = 'sendrecv';
+              } else if (reusableTransceiver.direction === 'inactive') {
+                reusableTransceiver.direction = 'sendonly';
+              }
+              wrtcLog(`重用返同 ${remoteUid} 嘅舊 ${track.kind} transceiver（避免重複 m-line）`);
+            } catch (e) {
+              console.warn(`replaceTrack 失敗，改用 addTrack (${remoteUid}, ${track.kind}):`, e);
+              pc.addTrack(track, state.mediaStream);
+              wrtcLog(`加入 ${track.kind} track 到與 ${remoteUid} 嘅連線`);
+            }
+          } else {
             pc.addTrack(track, state.mediaStream);
             wrtcLog(`加入 ${track.kind} track 到與 ${remoteUid} 嘅連線`);
           }
