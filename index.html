@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.29.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.30.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -651,6 +651,23 @@
       100% { opacity: 1; transform: scale(1); }
     }
 
+    /* 視訊溫習大廳嘅學科分類 Tab（全部／中文／英文／數學／公民／選修） */
+    .room-subject-tab-btn {
+      background: #fff;
+      border: 1px solid var(--brand-200);
+      color: var(--brand-700);
+      padding: 6px 14px;
+      border-radius: 99px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: all .15s ease;
+    }
+    .room-subject-tab-btn.active { background: var(--brand-500); border-color: var(--brand-500); color: #fff; }
+    .room-subject-tab-btn:hover:not(.active) { background: var(--brand-50); }
+
     /* =====================================================================
        💬 即時對話（FB 式浮動視窗）：右下角一粒圓形掣，撳落會彈出好友名單
        （有邊個線上一眼睇晒），揀一個就喺右下角開返個細細嘅對話視窗，可以
@@ -1130,6 +1147,15 @@
               <button class="btn btn-primary" type="button" onclick="openModal('modal-create-room')">
                 🚀 + 建立新溫習房
               </button>
+            </div>
+
+            <div id="room-subject-tabs" style="display:flex; gap:6px; overflow-x:auto; margin-bottom:10px; padding-bottom:2px;">
+              <button type="button" class="room-subject-tab-btn active" data-subject="全部" onclick="setRoomSubjectFilter('全部')">全部</button>
+              <button type="button" class="room-subject-tab-btn" data-subject="中文" onclick="setRoomSubjectFilter('中文')">中文</button>
+              <button type="button" class="room-subject-tab-btn" data-subject="英文" onclick="setRoomSubjectFilter('英文')">英文</button>
+              <button type="button" class="room-subject-tab-btn" data-subject="數學" onclick="setRoomSubjectFilter('數學')">數學</button>
+              <button type="button" class="room-subject-tab-btn" data-subject="公民" onclick="setRoomSubjectFilter('公民')">公民</button>
+              <button type="button" class="room-subject-tab-btn" data-subject="選修" onclick="setRoomSubjectFilter('選修')">選修</button>
             </div>
 
             <div id="public-rooms-container" class="rooms-grid">
@@ -1725,14 +1751,11 @@
         <div>
           <label style="font-size:13px; font-weight:bold; color:#555; display:block;">溫習學科 *</label>
           <select id="modal-room-subject" class="input-field">
-            <option value="數學">DSE 數學 (Math)</option>
-            <option value="英國語文">DSE 英國語文 (English)</option>
-            <option value="中國語文">DSE 中國語文 (Chinese)</option>
-            <option value="物理">DSE 物理 (Physics)</option>
-            <option value="化學">DSE 化學 (Chemistry)</option>
-            <option value="生物">DSE 生物 (Biology)</option>
-            <option value="經濟/企會財">DSE 經濟 / 企會財</option>
-            <option value="其他">其他溫習科目</option>
+            <option value="中文">中文</option>
+            <option value="英文">英文</option>
+            <option value="數學" selected>數學</option>
+            <option value="公民">公民</option>
+            <option value="選修">選修</option>
           </select>
         </div>
 
@@ -3376,7 +3399,17 @@
     }
 
     function handlePresenceVisibilityChange() {
-      if (document.visibilityState === 'visible') sendPresenceHeartbeat();
+      if (document.visibilityState !== 'visible') return;
+      sendPresenceHeartbeat();
+      // 手機瀏覽器（尤其係 iOS Safari）將個分頁擺去背景一輪之後，Firestore
+      // 個即時監聽有時會靜靜雞斷咗、冇再收新資料，但又唔會報錯，搞到訊息
+      // 話明明送咗但對話面板／未讀紅點冇反應，要用家自己撳一次先「醒返」。
+      // 所以每次個分頁翻返做前景，即時對話相關嘅監聽全部重新訂閱一次，
+      // 確保即刻攞到最新資料，唔使乾等一個可能已經死咗嘅 listener。
+      if (window.currentUser) {
+        if (typeof window.startChatDockListener === 'function') window.startChatDockListener();
+        if (typeof window.refreshOpenChatWindows === 'function') window.refreshOpenChatWindows();
+      }
     }
 
     window.startPresenceHeartbeat = function() {
@@ -3487,12 +3520,17 @@
 
     // 監聽晒我所有嘅對話（用嚟計總未讀數畫落個圓形掣嘅紅點，同埋畀 dock
     // panel 顯示最近對話），一登入就開始聽
+    // 記住每個對話上一次見到嘅 lastMessageAt，等下面判斷「呢個係咪一個
+    // 全新未見過嘅訊息」，先啱彈 toast——唔係就會每次個 listener 一觸發
+    // （例如自己標記已讀）都重複彈返同一個通知
+    let chatDockKnownLastMessageAt = {};
+
     window.startChatDockListener = function() {
       if (!window.currentUser || !window.db || !window.fs) return;
       if (chatDockUnsub) chatDockUnsub();
-      const q = window.fs.query(window.fs.collection(window.db, 'directChats'), window.fs.where('participants', 'array-contains', window.currentUser.uid));
+      const myUid = window.currentUser.uid;
+      const q = window.fs.query(window.fs.collection(window.db, 'directChats'), window.fs.where('participants', 'array-contains', myUid));
       chatDockUnsub = window.fs.onSnapshot(q, (snapshot) => {
-        const myUid = window.currentUser.uid;
         window.chatDockData = snapshot.docs.map(d => {
           const data = d.data();
           const friendUid = (data.participants || []).find(u => u !== myUid);
@@ -3501,9 +3539,29 @@
             friendUid,
             lastMessage: data.lastMessage || '',
             lastMessageAt: data.lastMessageAt || 0,
+            lastSenderUid: data.lastSenderUid || '',
             unread: (data.unread && data.unread[myUid]) || 0
           };
         });
+
+        // 對方傳咗一則新訊息過嚟（唔係自己送出、亦都未見過）就主動彈個 toast
+        // 通知，等用家唔使自己撳返個「💬」先知道有人搵佢；如果對應嘅對話
+        // 視窗本身已經開住兼冇縮埋（用家已經睇緊），就唔使再多此一舉彈
+        window.chatDockData.forEach(c => {
+          const seenAt = chatDockKnownLastMessageAt[c.chatId] || 0;
+          if (c.lastMessageAt > seenAt) {
+            chatDockKnownLastMessageAt[c.chatId] = c.lastMessageAt;
+            if (c.lastSenderUid && c.lastSenderUid !== myUid) {
+              const win = chatOpenWindows.find(w => w.chatId === c.chatId);
+              if (!win || win.minimized) {
+                const friend = (window.friendsListDataCache || []).find(f => f.uid === c.friendUid);
+                const friendName = friend ? (friend.username || '朋友') : '朋友';
+                window.showToast(`💬 ${friendName}：${c.lastMessage}`, '💬');
+              }
+            }
+          }
+        });
+
         const totalUnread = window.chatDockData.reduce((sum, c) => sum + (c.unread || 0), 0);
         const badge = document.getElementById('chat-dock-badge');
         if (badge) {
@@ -3517,6 +3575,7 @@
     window.stopChatDockListener = function() {
       if (chatDockUnsub) { chatDockUnsub(); chatDockUnsub = null; }
       window.chatDockData = [];
+      chatDockKnownLastMessageAt = {};
       const badge = document.getElementById('chat-dock-badge');
       if (badge) badge.style.display = 'none';
     };
@@ -3618,6 +3677,16 @@
       }, (err) => { console.error('載入對話訊息失敗:', err); });
     }
 
+    // 分頁翻返做前景嗰陣，將現正開住嘅每個對話視窗嘅訊息監聽全部強制
+    // 重新訂閱一次（先取消再訂閱），確保攞返最新訊息，唔使乾等一個
+    // 可能已經喺背景斷咗嘅舊 listener
+    window.refreshOpenChatWindows = function() {
+      chatOpenWindows.forEach(w => {
+        if (chatMessagesUnsubs[w.chatId]) { chatMessagesUnsubs[w.chatId](); delete chatMessagesUnsubs[w.chatId]; }
+        subscribeChatWindowMessages(w.chatId);
+      });
+    };
+
     function renderChatWindowMessages(chatId) {
       const bodyEl = document.getElementById('chat-body-' + chatId);
       if (!bodyEl || !window.currentUser) return;
@@ -3701,6 +3770,18 @@
         await window.fs.deleteDoc(window.fs.doc(window.db, 'directChats', chatId));
         chatMessagesCache[chatId] = [];
         renderChatWindowMessages(chatId);
+        // 樂觀更新本機嘅「最近對話」清單，即刻喺 dock panel 消失，唔使
+        // 淨係靠 Firestore 個 onSnapshot listener 慢慢彈返嚟先識更新
+        // （同 sendChatMessage 嗰種樂觀更新做法一致）
+        window.chatDockData = (window.chatDockData || []).filter(c => c.chatId !== chatId);
+        delete chatDockKnownLastMessageAt[chatId];
+        if (typeof window.renderChatDockPanel === 'function') window.renderChatDockPanel();
+        const totalUnreadAfterDelete = window.chatDockData.reduce((sum, c) => sum + (c.unread || 0), 0);
+        const badgeAfterDelete = document.getElementById('chat-dock-badge');
+        if (badgeAfterDelete) {
+          if (totalUnreadAfterDelete > 0) { badgeAfterDelete.style.display = 'flex'; badgeAfterDelete.innerText = totalUnreadAfterDelete > 99 ? '99+' : totalUnreadAfterDelete; }
+          else { badgeAfterDelete.style.display = 'none'; }
+        }
         window.showToast('已刪除對話記錄', '🗑️');
       } catch (e) {
         window.showToast('刪除失敗：' + (e.message || e), '❌');
@@ -3940,32 +4021,71 @@
       }
     }
 
+    // 大廳嘅學科分類 Tab：淨係揀「全部」或者其中一個學科（中文/英文/數學/公民/選修）。
+    // 房間資料本身淨係靠 Firestore 一條 listener 攞（見 listenToPublicRooms），
+    // 撳唔同 Tab 淨係喺已經攞落嚟嘅資料度做本機篩選，唔使開多條連線。
+    let latestRoomsData = [];
+    let roomSubjectFilter = '全部';
+
+    window.setRoomSubjectFilter = function(subject) {
+      roomSubjectFilter = subject;
+      document.querySelectorAll('.room-subject-tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.subject === subject);
+      });
+      renderPublicRoomsList();
+    };
+
+    function renderPublicRoomsList() {
+      const roomsListEl = document.getElementById('public-rooms-container');
+      if (!roomsListEl) return;
+
+      const filtered = roomSubjectFilter === '全部'
+        ? latestRoomsData
+        : latestRoomsData.filter(r => r.room.subject === roomSubjectFilter);
+
+      if (filtered.length === 0) {
+        roomsListEl.innerHTML = `
+          <div style="grid-column: 1 / -1; text-align:center; padding: 40px; background: white; border-radius: 16px; border: 1px solid var(--brand-200);">
+            <div style="font-size:36px; margin-bottom:8px;">🦦📭</div>
+            <p style="font-size:13px; font-weight:bold; color:var(--brand-800);">${roomSubjectFilter === '全部' ? '目前大廳沒有公開的溫習房' : `目前「${window.escapeHtml(roomSubjectFilter)}」分類沒有公開的溫習房`}</p>
+            <p style="font-size:11px; color:#666; margin-top:4px;">點擊上方「+ 建立新溫習房」來開立第一個房間吧！</p>
+          </div>
+        `;
+        return;
+      }
+
+      roomsListEl.innerHTML = filtered.map(({ id: roomId, room, createdAtMs, isMyRoom }) => `
+        <div class="room-item-card">
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
+              <span class="tag" style="background:#F0F6F8; color:#1E4550;">${window.escapeHtml(room.subject || '數學')}</span>
+              <span style="font-size:10px; color:#3E7A8A; font-weight:bold;">🟢 直播中</span>
+            </div>
+            <h4 style="font-size:14px; font-weight:bold; color:var(--brand-800); margin-bottom:4px;">${window.escapeHtml(room.name)}</h4>
+            <p style="font-size:11px; color:#666;">房主：<strong>${window.escapeHtml(room.hostName || '匿名同學')}</strong></p>
+            <p style="font-size:10px; color:#888; margin-top:2px;">👥 ${room.participantCount || 0}/${window.ROOM_CAPACITY || 4} 人 · 🍅 每輪專注：${room.duration || 30} 分鐘</p>
+          </div>
+
+          <div style="display:flex; gap:6px; margin-top:12px;">
+            <button class="btn btn-primary" style="flex:1; justify-content:center; font-size:11px; padding:6px;" onclick="joinPublicRoom('${roomId}', '${room.name.replace(/'/g, "\\'")}', '${room.subject}', ${room.duration}, '${room.hostName}', ${isMyRoom}, ${createdAtMs}, '${room.hostUid || ''}')">
+              🚪 加入房間
+            </button>
+            ${isMyRoom ? `<button class="btn btn-red" style="font-size:11px; padding:6px;" onclick="deleteRoomQuick('${roomId}')">刪除</button>` : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+
     let unsubscribeRooms = null;
     function listenToPublicRooms() {
       if (unsubscribeRooms) unsubscribeRooms();
 
       const roomsRef = collection(db, "rooms");
       unsubscribeRooms = onSnapshot(roomsRef, (snapshot) => {
-        const roomsListEl = document.getElementById('public-rooms-container');
-
         // 順手掃一次有冇幽靈房（心跳過期），唔使阻住畫面渲染
         gcStaleRooms(snapshot.docs.map(d => ({ id: d.id, data: d.data() })));
 
-        if (!roomsListEl) return;
-
-        let roomsHtml = '';
-        if (snapshot.empty) {
-          roomsListEl.innerHTML = `
-            <div style="grid-column: 1 / -1; text-align:center; padding: 40px; background: white; border-radius: 16px; border: 1px solid var(--brand-200);">
-              <div style="font-size:36px; margin-bottom:8px;">🦦📭</div>
-              <p style="font-size:13px; font-weight:bold; color:var(--brand-800);">目前大廳沒有公開的溫習房</p>
-              <p style="font-size:11px; color:#666; margin-top:4px;">點擊上方「+ 建立新溫習房」來開立第一個房間吧！</p>
-            </div>
-          `;
-          return;
-        }
-
-        snapshot.forEach((roomDoc) => {
+        latestRoomsData = snapshot.docs.map((roomDoc) => {
           const room = roomDoc.data();
           const roomId = roomDoc.id;
           const isMyRoom = window.currentUser && room.hostUid === window.currentUser.uid;
@@ -3977,30 +4097,10 @@
             const parsed = new Date(room.createdAt).getTime();
             createdAtMs = isNaN(parsed) ? 0 : parsed;
           }
-
-          roomsHtml += `
-            <div class="room-item-card">
-              <div>
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
-                  <span class="tag" style="background:#F0F6F8; color:#1E4550;">${room.subject || '數學'}</span>
-                  <span style="font-size:10px; color:#3E7A8A; font-weight:bold;">🟢 直播中</span>
-                </div>
-                <h4 style="font-size:14px; font-weight:bold; color:var(--brand-800); margin-bottom:4px;">${room.name}</h4>
-                <p style="font-size:11px; color:#666;">房主：<strong>${room.hostName || '匿名同學'}</strong></p>
-                <p style="font-size:10px; color:#888; margin-top:2px;">👥 ${room.participantCount || 0}/${window.ROOM_CAPACITY || 4} 人 · 🍅 每輪專注：${room.duration || 30} 分鐘</p>
-              </div>
-
-              <div style="display:flex; gap:6px; margin-top:12px;">
-                <button class="btn btn-primary" style="flex:1; justify-content:center; font-size:11px; padding:6px;" onclick="joinPublicRoom('${roomId}', '${room.name.replace(/'/g, "\\'")}', '${room.subject}', ${room.duration}, '${room.hostName}', ${isMyRoom}, ${createdAtMs}, '${room.hostUid || ''}')">
-                  🚪 加入房間
-                </button>
-                ${isMyRoom ? `<button class="btn btn-red" style="font-size:11px; padding:6px;" onclick="deleteRoomQuick('${roomId}')">刪除</button>` : ''}
-              </div>
-            </div>
-          `;
+          return { id: roomId, room, createdAtMs, isMyRoom };
         });
 
-        roomsListEl.innerHTML = roomsHtml;
+        renderPublicRoomsList();
       }, (error) => {
         console.error("監聽公開房間失敗:", error);
       });
@@ -4441,19 +4541,21 @@
       });
     }
 
-    // 房主專用：將某位用家踢出房間。做法係喺房間文件加一個 kickedUids
+    // 房主專用：將某位用家踢出房間。做法係喺房間文件加一個 bannedUids
     // 陣列，個目標用家自己個 client 會透過已經有嘅房間文件監聽（見
     // listenToParticipants 入面嗰個 roomDocUnsubscribe）發現自己被踢，
     // 自動執行「離開房間」嘅流程——唔使畀房主直接刪第二人嘅 participants
-    // 文件（跨用戶寫入權限太危險，唔想開呢個口）。
+    // 文件（跨用戶寫入權限太危險，唔想開呢個口）。呢個名單會一直留喺
+    // 房間文件度（唔會自動清走），所以俾踢走嘅人之後想撳「加入」返嚟
+    // 同一間房都會俾 enterRoomSetup 擋返出去，直到呢間房執咗為止。
     window.kickParticipant = async function(targetUid, targetName) {
       if (!state.isHost || !state.currentRoomId || !window.db || !window.fs) return;
-      if (!confirm(`確定要將「${targetName}」移出呢個溫習房？`)) return;
+      if (!confirm(`確定要將「${targetName}」移出呢個溫習房？佢之後都唔可以再加入返呢間房。`)) return;
       try {
         await window.fs.updateDoc(window.fs.doc(window.db, 'rooms', state.currentRoomId), {
-          kickedUids: window.fs.arrayUnion(targetUid)
+          bannedUids: window.fs.arrayUnion(targetUid)
         });
-        window.showToast(`已將「${targetName}」移出房間`, '🚫');
+        window.showToast(`已將「${targetName}」移出房間，佢唔可以再加入呢間房`, '🚫');
       } catch (e) {
         window.showToast('踢走失敗：' + (e.message || e), '❌');
       }
@@ -4601,12 +4703,12 @@
             updateHostBadge();
           }
 
-          // 檢查自己係咪俾房主踢咗出嚟（見 window.kickParticipant）
+          // 檢查自己係咪俾房主踢咗出嚟（見 window.kickParticipant）。
+          // bannedUids 呢個名單唔會自動清走，所以之後想撳「加入」返嚟都會
+          // 俾 enterRoomSetup 嗰個檢查擋返出去，唔可以再入返嚟。
           const myUid = window.currentUser ? window.currentUser.uid : null;
-          if (myUid && data && Array.isArray(data.kickedUids) && data.kickedUids.includes(myUid)) {
-            // 順手清走自己個 uid，日後重新入返呢間房唔會一入嚟就即刻又俾判定做「已被踢」
-            window.fs.updateDoc(roomDocRef, { kickedUids: window.fs.arrayRemove(myUid) }).catch(() => {});
-            doLeaveRoom(false, '你已被房主移出呢個溫習房 🚫');
+          if (myUid && data && Array.isArray(data.bannedUids) && data.bannedUids.includes(myUid)) {
+            doLeaveRoom(false, '你已被房主移出呢個溫習房，之後都唔可以再加入 🚫');
           }
         }
       });
@@ -4720,6 +4822,19 @@
       if (!window.currentUser || !window.db || !window.fs) {
         window.showToast("請先登入會員", "⚠️");
         return false;
+      }
+
+      // 曾經俾房主踢走過嘅用家唔可以再加入返呢間房（bannedUids 名單一直
+      // 留喺房間文件度，唔會自動清走，見 window.kickParticipant）
+      try {
+        const roomCheckSnap = await window.fs.getDoc(window.fs.doc(window.db, 'rooms', roomId));
+        const roomCheckData = roomCheckSnap.exists() ? roomCheckSnap.data() : null;
+        if (roomCheckData && Array.isArray(roomCheckData.bannedUids) && roomCheckData.bannedUids.includes(window.currentUser.uid)) {
+          window.showToast('你已經俾房主移出過呢間房，唔可以再加入', '🚫');
+          return false;
+        }
+      } catch (e) {
+        console.error('檢查房間封鎖名單失敗:', e);
       }
 
       // 房間人數上限檢查：最多 4 人同時使用同一個房間
