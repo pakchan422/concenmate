@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.23.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.24.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -692,17 +692,7 @@
     </div>
   </header>
 
-  <!-- 全站置頂嘅等級/EXP狀態列：唔理你揭緊邊個分頁都會見到，登入先顯示 -->
-  <div id="global-level-bar" style="display:none; background:linear-gradient(135deg, #4A8FA0, #7DB8C5); padding:6px 16px;">
-    <div style="max-width:480px; margin:0 auto; text-align:center; cursor:pointer;" onclick="switchTab('profile')" title="睇你嘅溫習等級">
-      <div id="global-level-badge" style="color:#fff; font-size:13px; font-weight:bold;">🌱 Lv.1 溫習新手 · 重欠 20 EXP 升級</div>
-      <div style="background:rgba(255,255,255,.3); border-radius:6px; height:5px; margin-top:4px; overflow:hidden;">
-        <div id="global-exp-bar" style="background:#fff; height:100%; width:0%; transition:width .4s ease;"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 全站置頂嘅「今日目標」進度列：同上面個等級列一樣，唔理揭緊邊個分頁都見到，登入先顯示 -->
+  <!-- 全站置頂嘅「今日目標」進度列：唔理揭緊邊個分頁都見到，登入先顯示 -->
   <div id="global-goal-bar-wrap" style="display:none; background:#fff; border-bottom:1px solid var(--brand-200); padding:5px 16px;">
     <div style="max-width:480px; margin:0 auto; display:flex; align-items:center; gap:8px; cursor:pointer;" onclick="switchTab('home')" title="睇你今日嘅溫習目標">
       <span style="font-size:12px; font-weight:700; color:var(--brand-800); white-space:nowrap;">🎯 今日目標</span>
@@ -710,6 +700,16 @@
         <div id="global-goal-bar" style="height:100%; background:linear-gradient(90deg,#4A8FA0,#7DB8C5); border-radius:99px; width:0%; transition:width .6s ease;"></div>
       </div>
       <span id="global-goal-label" style="font-size:11px; color:var(--brand-600); white-space:nowrap;">0 / 60 分鐘</span>
+    </div>
+  </div>
+
+  <!-- 全站置頂嘅等級/EXP狀態列：唔理你揭緊邊個分頁都會見到，登入先顯示 -->
+  <div id="global-level-bar" style="display:none; background:linear-gradient(135deg, #4A8FA0, #7DB8C5); padding:6px 16px;">
+    <div style="max-width:480px; margin:0 auto; text-align:center; cursor:pointer;" onclick="switchTab('profile')" title="睇你嘅溫習等級">
+      <div id="global-level-badge" style="color:#fff; font-size:13px; font-weight:bold;">🌱 Lv.1 溫習新手 · 重欠 20 EXP 升級</div>
+      <div style="background:rgba(255,255,255,.3); border-radius:6px; height:5px; margin-top:4px; overflow:hidden;">
+        <div id="global-exp-bar" style="background:#fff; height:100%; width:0%; transition:width .4s ease;"></div>
+      </div>
     </div>
   </div>
   </div>
@@ -1060,18 +1060,21 @@
                 <div class="slot-empty-inner">
                   <div class="slot-empty-icon">➕</div>
                   <p>等待用家加入...</p>
+                  <button class="btn btn-outline" type="button" style="margin-top:8px; font-size:12px; padding:5px 10px;" onclick="openInviteFriendModal()">🤝 邀請朋友</button>
                 </div>
               </div>
               <div class="video-card-single video-slot-placeholder" id="video-slot-3">
                 <div class="slot-empty-inner">
                   <div class="slot-empty-icon">➕</div>
                   <p>等待用家加入...</p>
+                  <button class="btn btn-outline" type="button" style="margin-top:8px; font-size:12px; padding:5px 10px;" onclick="openInviteFriendModal()">🤝 邀請朋友</button>
                 </div>
               </div>
               <div class="video-card-single video-slot-placeholder" id="video-slot-4">
                 <div class="slot-empty-inner">
                   <div class="slot-empty-icon">➕</div>
                   <p>等待用家加入...</p>
+                  <button class="btn btn-outline" type="button" style="margin-top:8px; font-size:12px; padding:5px 10px;" onclick="openInviteFriendModal()">🤝 邀請朋友</button>
                 </div>
               </div>
             </div>
@@ -1594,6 +1597,29 @@
       <div id="pop-user-friend-actions" style="margin-bottom:12px; min-height:20px;"></div>
 
       <button class="btn btn-outline" type="button" style="width:100%; justify-content:center;" onclick="closeModal('modal-view-profile')">關閉資料卡</button>
+    </div>
+  </div>
+
+  <!-- 房間空位度撳「邀請朋友」彈出嚟嘅好友清單，揀邊個就即刻送邀請畀佢 -->
+  <div class="modal-backdrop" id="modal-invite-friend" style="display:none;">
+    <div class="modal-box">
+      <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); margin-bottom:4px;">🤝 邀請朋友入房</h3>
+      <p style="font-size:12px; color:#888; margin-bottom:12px;">邀請會喺 5 分鐘內有效，之後就會過期</p>
+      <div id="invite-friend-list" style="max-height:320px; overflow-y:auto; display:flex; flex-direction:column; gap:8px;"></div>
+      <button class="btn btn-outline" type="button" style="width:100%; justify-content:center; margin-top:12px;" onclick="closeModal('modal-invite-friend')">關閉</button>
+    </div>
+  </div>
+
+  <!-- 收到朋友邀請入房嗰陣彈出嘅提示卡，可以即刻加入或者拒絕 -->
+  <div class="modal-backdrop" id="modal-room-invite-popup" style="display:none;">
+    <div class="modal-box" style="text-align:center;">
+      <div style="font-size:32px; margin-bottom:6px;">📹</div>
+      <p id="invite-popup-text" style="font-size:15px; font-weight:bold; color:var(--brand-800); line-height:1.5; margin-bottom:16px;">朋友邀請你加入溫習房</p>
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-outline" type="button" style="flex:1; justify-content:center;" onclick="respondRoomInvite(false)">❌ 拒絕</button>
+        <button class="btn btn-primary" type="button" style="flex:1; justify-content:center;" onclick="respondRoomInvite(true)">✅ 加入</button>
+      </div>
+      <button class="btn btn-outline" type="button" style="width:100%; justify-content:center; margin-top:8px; font-size:12px;" onclick="dismissRoomInvitePopup()">遲啲先諗</button>
     </div>
   </div>
 
@@ -3066,6 +3092,185 @@
         }).join('');
       }, (error) => { console.error('載入好友邀請失敗:', error); });
     };
+
+    // ===================== 邀請朋友入房 =====================
+    // 邀請有效期：5 分鐘，過咗期就算撳「加入」都會提示過期，唔會直接放行
+    const ROOM_INVITE_VALID_MS = 5 * 60 * 1000;
+
+    // 房入面空位卡片撳「邀請朋友」：列出我嘅好友，揀邊個就送個邀請畀佢
+    window.openInviteFriendModal = async function() {
+      if (!window.currentUser || !window.db || !window.fs) { window.showToast('請先登入', '⚠️'); return; }
+      if (!state.currentRoomId) { window.showToast('要喺房間入面先可以邀請朋友', '⚠️'); return; }
+      const listEl = document.getElementById('invite-friend-list');
+      if (!listEl) return;
+      listEl.innerHTML = '<p style="font-size:12px; color:#999; text-align:center;">載入緊好友名單...</p>';
+      openModal('modal-invite-friend');
+      try {
+        const snap = await window.fs.getDocs(window.fs.collection(window.db, 'users', window.currentUser.uid, 'friends'));
+        const alreadyInRoom = new Set(Object.keys(state.slotAssignments));
+        alreadyInRoom.add(window.currentUser.uid);
+        const friends = snap.docs.map(d => d.data()).filter(f => !alreadyInRoom.has(f.uid));
+        if (friends.length === 0) {
+          listEl.innerHTML = '<p style="font-size:13px; color:#999; text-align:center; padding:10px 0;">冇好友可以邀請喇（可能全部都已經喺房入面，或者你仲未加任何好友）</p>';
+          return;
+        }
+        listEl.innerHTML = friends.map(f => `
+          <div class="card" style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div class="avatar-circle" style="width:36px; height:36px; font-size:14px;">${(f.username||'U').charAt(0).toUpperCase()}</div>
+              <div>
+                <div style="font-weight:bold; color:var(--brand-800); font-size:13px;">${escapeHtml(f.username||'同學')}</div>
+                <div style="font-size:11px; color:#888;">🆔 ${escapeHtml(f.loginId||'')}</div>
+              </div>
+            </div>
+            <button class="btn btn-primary" type="button" style="font-size:12px; padding:5px 10px;" onclick="inviteFriendToRoom('${f.uid}', '${escapeHtml((f.username||'同學')).replace(/'/g, "\\'")}')">📨 邀請</button>
+          </div>
+        `).join('');
+      } catch (e) {
+        console.error('載入好友名單失敗:', e);
+        listEl.innerHTML = '<p style="font-size:13px; color:#D9764A; text-align:center;">載入失敗，請再試一次</p>';
+      }
+    };
+
+    // 真正送出邀請：連同而家間房嘅最新資料（房名/科目/時長/房主）一齊寫落 roomInvites，
+    // 等對方撳「加入」嗰陣可以直接用呢份資料入返嚟，唔使自己揀返個房間
+    window.inviteFriendToRoom = async function(friendUid, friendUsername) {
+      if (!window.currentUser || !window.db || !window.fs || !state.currentRoomId) return;
+      try {
+        const roomSnap = await window.fs.getDoc(window.fs.doc(window.db, 'rooms', state.currentRoomId));
+        if (!roomSnap.exists()) { window.showToast('房間已經唔存在喇', '🚫'); return; }
+        const room = roomSnap.data();
+
+        const participantsSnap = await window.fs.getDocs(window.fs.collection(window.db, 'rooms', state.currentRoomId, 'participants'));
+        if (participantsSnap.size >= window.ROOM_CAPACITY) {
+          window.showToast(`房間已滿（${window.ROOM_CAPACITY}/${window.ROOM_CAPACITY}），暫時邀請唔到`, '🚫');
+          return;
+        }
+
+        const now = Date.now();
+        await window.fs.addDoc(window.fs.collection(window.db, 'roomInvites'), {
+          roomId: state.currentRoomId,
+          roomName: room.name || '溫習房',
+          subject: room.subject || '',
+          duration: room.duration || 30,
+          hostUid: room.hostUid || null,
+          hostName: room.hostName || '',
+          roomCreatedAt: room.createdAt || now,
+          fromUid: window.currentUser.uid,
+          fromUsername: window.currentUser.username || '同學',
+          toUid: friendUid,
+          toUsername: friendUsername || '',
+          status: 'pending',
+          createdAt: now,
+          expiresAt: now + ROOM_INVITE_VALID_MS
+        });
+        window.showToast(`✅ 已經邀請 ${friendUsername} 入房，等緊佢回應`, '📨');
+        window.closeModal('modal-invite-friend');
+      } catch (e) {
+        window.showToast('邀請失敗：' + (e.message || e), '❌');
+      }
+    };
+
+    // 收到邀請嗰陣嘅彈窗提示：一次淨係彈一張卡，如果同時有多過一張邀請就排隊逐張彈
+    let pendingInviteQueue = [];
+    let inviteModalShowing = false;
+
+    function showNextRoomInvitePopup() {
+      if (inviteModalShowing || pendingInviteQueue.length === 0) return;
+      const invite = pendingInviteQueue.shift();
+      inviteModalShowing = true;
+      window._activeRoomInvite = invite;
+      const textEl = document.getElementById('invite-popup-text');
+      if (textEl) {
+        textEl.innerText = `${invite.fromUsername || '朋友'} 邀請你加入「${invite.roomName || '溫習房'}」`;
+      }
+      openModal('modal-room-invite-popup');
+    }
+
+    // 撳「遲啲先諗」：淨係收埋張彈窗，唔會標記接受／拒絕，邀請本身喺 Firestore
+    // 度仲係 pending，之後想加入嘅話要叫朋友再邀請一次（因為呢個 listener
+    // 淨係喺「新收到」嗰一刻先會再彈一次）
+    window.dismissRoomInvitePopup = function() {
+      closeModal('modal-room-invite-popup');
+      inviteModalShowing = false;
+      window._activeRoomInvite = null;
+      showNextRoomInvitePopup();
+    };
+
+    window.respondRoomInvite = async function(accept) {
+      const invite = window._activeRoomInvite;
+      closeModal('modal-room-invite-popup');
+      inviteModalShowing = false;
+      window._activeRoomInvite = null;
+      if (!invite || !window.db || !window.fs) { showNextRoomInvitePopup(); return; }
+
+      if (!accept) {
+        try {
+          await window.fs.updateDoc(window.fs.doc(window.db, 'roomInvites', invite.id), { status: 'declined', respondedAt: Date.now() });
+        } catch (e) { /* 拒絕失敗都唔緊要，唔阻住用家 */ }
+        window.showToast('已拒絕邀請', 'ℹ️');
+        showNextRoomInvitePopup();
+        return;
+      }
+
+      // 就算已經彈咗出嚟，都要重新核對一次有冇過期先真正放行入房
+      if (invite.expiresAt && Date.now() > invite.expiresAt) {
+        window.showToast('⌛ 呢個邀請已經過期喇，叫朋友再邀請多次啦', '⌛');
+        try { await window.fs.updateDoc(window.fs.doc(window.db, 'roomInvites', invite.id), { status: 'expired' }); } catch (e) {}
+        showNextRoomInvitePopup();
+        return;
+      }
+
+      try {
+        const roomSnap = await window.fs.getDoc(window.fs.doc(window.db, 'rooms', invite.roomId));
+        if (!roomSnap.exists()) {
+          window.showToast('呢個房間已經唔存在喇', '🚫');
+          try { await window.fs.updateDoc(window.fs.doc(window.db, 'roomInvites', invite.id), { status: 'expired' }); } catch (e) {}
+          showNextRoomInvitePopup();
+          return;
+        }
+        const room = roomSnap.data();
+        await window.fs.updateDoc(window.fs.doc(window.db, 'roomInvites', invite.id), { status: 'accepted', respondedAt: Date.now() });
+        const isMyRoom = !!(window.currentUser && room.hostUid === window.currentUser.uid);
+        await window.joinPublicRoom(invite.roomId, room.name, room.subject, room.duration, room.hostName, isMyRoom, room.createdAt, room.hostUid);
+      } catch (e) {
+        window.showToast('加入房間失敗：' + (e.message || e), '❌');
+      }
+      showNextRoomInvitePopup();
+    };
+
+    // 一登入就開始監聽有冇人邀請自己入房（唔使等用家撳入邊個分頁），
+    // 逾期先到嘅邀請（例如岩岩上線先收到一個放咗好耐嘅邀請）就靜靜雞標記做
+    // expired，唔會再彈出嚟煩住個用家
+    let roomInvitesUnsubscribe = null;
+    window.loadRoomInvites = function() {
+      if (!window.currentUser || !window.db || !window.fs) return;
+      if (roomInvitesUnsubscribe) roomInvitesUnsubscribe();
+      const q = window.fs.query(
+        window.fs.collection(window.db, 'roomInvites'),
+        window.fs.where('toUid', '==', window.currentUser.uid),
+        window.fs.where('status', '==', 'pending')
+      );
+      roomInvitesUnsubscribe = window.fs.onSnapshot(q, (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+          if (change.type !== 'added') return;
+          const data = change.doc.data();
+          const invite = { id: change.doc.id, ...data };
+          if (invite.expiresAt && Date.now() > invite.expiresAt) {
+            window.fs.updateDoc(window.fs.doc(window.db, 'roomInvites', invite.id), { status: 'expired' }).catch(() => {});
+            return;
+          }
+          pendingInviteQueue.push(invite);
+          showNextRoomInvitePopup();
+        });
+      }, (error) => { console.error('載入房間邀請失敗:', error); });
+    };
+
+    window.stopRoomInvitesListener = function() {
+      if (typeof roomInvitesUnsubscribe === 'function') { roomInvitesUnsubscribe(); roomInvitesUnsubscribe = null; }
+      pendingInviteQueue = [];
+      inviteModalShowing = false;
+    };
   </script>
 
   <script type="module">
@@ -3219,6 +3424,9 @@
         if (typeof window.loadFriendRequests === 'function') {
           window.loadFriendRequests();
         }
+        if (typeof window.loadRoomInvites === 'function') {
+          window.loadRoomInvites();
+        }
         if (typeof window.loadGachaConfigFromFirestore === 'function') {
           window.loadGachaConfigFromFirestore();
         }
@@ -3355,6 +3563,7 @@
       window.showToast("已成功登出。", "🚪");
       // 登出之後要停止好友相關嘅即時監聽，唔係已經冇權限讀但仍然掛住個 listener
       if (typeof window.stopFriendListeners === 'function') window.stopFriendListeners();
+      if (typeof window.stopRoomInvitesListener === 'function') window.stopRoomInvitesListener();
     };
 
     window.handleRegisterSubmit = function(e) {
@@ -3519,6 +3728,7 @@
         <div class="slot-empty-inner">
           <div class="slot-empty-icon">➕</div>
           <p>等待用家加入...</p>
+          <button class="btn btn-outline" type="button" style="margin-top:8px; font-size:12px; padding:5px 10px;" onclick="openInviteFriendModal()">🤝 邀請朋友</button>
         </div>
       `;
     }
