@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.28.2"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.28.3"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -3446,27 +3446,28 @@
       const listEl = document.getElementById('chat-dock-panel-list');
       if (!listEl || !window.currentUser) return;
       const friends = window.friendsListDataCache || [];
-      if (friends.length === 0) {
-        listEl.innerHTML = '<p style="text-align:center; color:#999; font-size:12px; padding:16px;">仲未有好友，先去「夥伴與讀書會」加返幾個啦！</p>';
+      const friendByUid = {};
+      friends.forEach(f => { friendByUid[f.uid] = f; });
+      const presenceMap = window.friendPresenceMap || {};
+
+      // 面板淨係顯示「真係有對話紀錄」嘅好友（似 Messenger 嘅「最近對話」清單），
+      // 唔係全部好友都會喺度出現——刪除咗嘅對話（見 clearChatHistory 會將
+      // directChats 文件成份刪走）就會自然喺呢個清單消失。想同未傾過偈嘅
+      // 好友開始新對話，去「夥伴與讀書會」個好友卡撳「💬」就得。
+      const conversations = (window.chatDockData || [])
+        .filter(c => c.friendUid && friendByUid[c.friendUid])
+        .slice()
+        .sort((a, b) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0));
+
+      if (conversations.length === 0) {
+        listEl.innerHTML = '<p style="text-align:center; color:#999; font-size:12px; padding:16px;">仲未有任何對話紀錄，去「夥伴與讀書會」揾個好友撳「💬」開始傾偈啦！</p>';
         return;
       }
-      const presenceMap = window.friendPresenceMap || {};
-      const chatByUid = {};
-      (window.chatDockData || []).forEach(c => { chatByUid[c.friendUid] = c; });
 
-      const rows = friends.slice().sort((a, b) => {
-        const aOnline = window.isUidOnline(presenceMap[a.uid]) ? 1 : 0;
-        const bOnline = window.isUidOnline(presenceMap[b.uid]) ? 1 : 0;
-        if (aOnline !== bOnline) return bOnline - aOnline;
-        const aTime = (chatByUid[a.uid] && chatByUid[a.uid].lastMessageAt) || 0;
-        const bTime = (chatByUid[b.uid] && chatByUid[b.uid].lastMessageAt) || 0;
-        return bTime - aTime;
-      });
-
-      listEl.innerHTML = rows.map(f => {
-        const online = window.isUidOnline(presenceMap[f.uid]);
-        const chatInfo = chatByUid[f.uid];
-        const unread = chatInfo ? (chatInfo.unread || 0) : 0;
+      listEl.innerHTML = conversations.map(c => {
+        const f = friendByUid[c.friendUid];
+        const online = window.isUidOnline(presenceMap[c.friendUid]);
+        const unread = c.unread || 0;
         const safeChatName = (f.username || '同學').replace(/'/g, "\\'");
         return `
           <div class="chat-dock-friend-row" onclick="window.openChatWindow('${f.uid}', '${safeChatName}'); window.toggleChatDockPanel();">
@@ -3476,7 +3477,7 @@
             </div>
             <div style="flex:1; min-width:0;">
               <div class="chat-dock-friend-name">${escapeHtml(f.username||'同學')}</div>
-              <div class="chat-dock-friend-preview">${chatInfo && chatInfo.lastMessage ? escapeHtml(chatInfo.lastMessage) : '未有對話紀錄'}</div>
+              <div class="chat-dock-friend-preview">${c.lastMessage ? escapeHtml(c.lastMessage) : '未有對話紀錄'}</div>
             </div>
             ${unread > 0 ? `<span class="chat-dock-friend-unread">${unread > 99 ? '99+' : unread}</span>` : ''}
           </div>
@@ -3674,11 +3675,10 @@
       try {
         const msgsSnap = await window.fs.getDocs(window.fs.collection(window.db, 'directChats', chatId, 'messages'));
         await Promise.all(msgsSnap.docs.map(d => window.fs.deleteDoc(d.ref)));
-        const chatRef = window.fs.doc(window.db, 'directChats', chatId);
-        await window.fs.updateDoc(chatRef, {
-          lastMessage: '', lastMessageAt: 0,
-          unread: { [window.currentUser.uid]: 0 }
-        }).catch(() => {});
+        // 連 directChats 呢份文件本身都一齊刪走（唔係淨係清空欄位），噉樣
+        // 個「即時對話」浮動面板嘅「最近對話」清單先會即刻冇咗呢個對話
+        // （個清單淨係顯示仲有 directChats 文件嘅好友，見 renderChatDockPanel）
+        await window.fs.deleteDoc(window.fs.doc(window.db, 'directChats', chatId));
         chatMessagesCache[chatId] = [];
         renderChatWindowMessages(chatId);
         window.showToast('已刪除對話記錄', '🗑️');
@@ -4702,6 +4702,10 @@
       resetVideoSlots();
       document.getElementById('room-lobby').style.display = 'none';
       document.getElementById('room-active').style.display = 'block';
+      // 「視訊溫習室」呢個畫面本身淨係喺「視訊溫習室」分頁入面，如果用家係
+      // 喺第二個分頁（例如撳咗朋友邀請彈窗）先接受入房，一定要連埋分頁都
+      // 一齊切返去，唔係個房間狀態變咗但畫面仲留喺原本嗰頁，睇落好似冇反應
+      if (typeof window.switchTab === 'function') window.switchTab('room');
 
       startTimer();
       listenToRoomSignaling(roomId);
