@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.22.1"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.23.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -699,6 +699,17 @@
       <div style="background:rgba(255,255,255,.3); border-radius:6px; height:5px; margin-top:4px; overflow:hidden;">
         <div id="global-exp-bar" style="background:#fff; height:100%; width:0%; transition:width .4s ease;"></div>
       </div>
+    </div>
+  </div>
+
+  <!-- 全站置頂嘅「今日目標」進度列：同上面個等級列一樣，唔理揭緊邊個分頁都見到，登入先顯示 -->
+  <div id="global-goal-bar-wrap" style="display:none; background:#fff; border-bottom:1px solid var(--brand-200); padding:5px 16px;">
+    <div style="max-width:480px; margin:0 auto; display:flex; align-items:center; gap:8px; cursor:pointer;" onclick="switchTab('home')" title="睇你今日嘅溫習目標">
+      <span style="font-size:12px; font-weight:700; color:var(--brand-800); white-space:nowrap;">🎯 今日目標</span>
+      <div style="flex:1; background:var(--brand-200); border-radius:99px; height:6px; overflow:hidden;">
+        <div id="global-goal-bar" style="height:100%; background:linear-gradient(90deg,#4A8FA0,#7DB8C5); border-radius:99px; width:0%; transition:width .6s ease;"></div>
+      </div>
+      <span id="global-goal-label" style="font-size:11px; color:var(--brand-600); white-space:nowrap;">0 / 60 分鐘</span>
     </div>
   </div>
   </div>
@@ -1397,7 +1408,7 @@
           <div class="card" style="margin-bottom:12px;">
             <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:8px;">🔍 用帳號 ID 搜尋朋友</h3>
             <div style="display:flex; gap:8px;">
-              <input type="text" id="friend-search-input" class="input-field" style="flex:1;" placeholder="輸入完整帳號 ID，例如：admin_02" onkeydown="if(event.key==='Enter'){event.preventDefault(); searchAccountById();}">
+              <input type="text" id="friend-search-input" class="input-field" style="flex:1;" placeholder="輸入完整帳號 ID，例如：student001" onkeydown="if(event.key==='Enter'){event.preventDefault(); searchAccountById();}">
               <button class="btn btn-primary" type="button" onclick="searchAccountById()">搜尋</button>
             </div>
             <div id="friend-search-result" style="margin-top:10px;"></div>
@@ -1434,7 +1445,7 @@
       <form onsubmit="handleLoginSubmit(event)" style="display:flex; flex-direction:column; gap:10px; margin-top:12px;">
         <div>
           <label style="font-size:13px; font-weight:bold; color:#555;">帳號 ID</label>
-          <input type="text" id="login-account-id" class="input-field" required placeholder="例如：admin_main">
+          <input type="text" id="login-account-id" class="input-field" required placeholder="例如：student001">
         </div>
         <div>
           <label style="font-size:13px; font-weight:bold; color:#555;">密碼 (Password)</label>
@@ -1940,6 +1951,12 @@
       const goalLabel = document.getElementById('home-goal-label');
       if (goalBar) goalBar.style.width = pct + '%';
       if (goalLabel) goalLabel.innerText = `${Math.round(minsToday)} / 60 分鐘`;
+
+      // 全站置頂嗰條「今日目標」進度列（同主頁嗰條數值一樣，淨係擺位唔同）
+      const globalGoalBar = document.getElementById('global-goal-bar');
+      const globalGoalLabel = document.getElementById('global-goal-label');
+      if (globalGoalBar) globalGoalBar.style.width = pct + '%';
+      if (globalGoalLabel) globalGoalLabel.innerText = `${Math.round(minsToday)} / 60 分鐘`;
     }
 
     function updateUserAuthUI() {
@@ -1957,6 +1974,8 @@
         headerStats.style.display = 'flex';
         const globalLevelBar = document.getElementById('global-level-bar');
         if (globalLevelBar) globalLevelBar.style.display = 'block';
+        const globalGoalBarWrap = document.getElementById('global-goal-bar-wrap');
+        if (globalGoalBarWrap) globalGoalBarWrap.style.display = 'block';
 
         headerAuthBtn.className = "btn btn-outline";
         headerAuthBtn.style.borderRadius = "20px";
@@ -2005,6 +2024,8 @@
         headerStats.style.display = 'none';
         const globalLevelBarHidden = document.getElementById('global-level-bar');
         if (globalLevelBarHidden) globalLevelBarHidden.style.display = 'none';
+        const globalGoalBarWrapHidden = document.getElementById('global-goal-bar-wrap');
+        if (globalGoalBarWrapHidden) globalGoalBarWrapHidden.style.display = 'none';
 
         headerAuthBtn.className = "btn btn-primary";
         headerAuthBtn.innerHTML = `🔑 登入 / 註冊`;
@@ -2931,6 +2952,8 @@
           return;
         }
         const u = userSnap.data();
+        const levelInfo = calcLevelInfo(u.exp || 0);
+        const rank = getRankTitle(levelInfo.level);
         resultEl.innerHTML = `
           <div class="card" style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
             <div style="display:flex; align-items:center; gap:10px; cursor:pointer;" onclick="viewUserProfile('${targetUid}')">
@@ -2940,7 +2963,14 @@
                 <div style="font-size:11px; color:#888;">🆔 ${escapeHtml(u.loginId || idLower)}</div>
               </div>
             </div>
-            <button class="btn btn-outline" type="button" style="font-size:12px; padding:5px 10px;" onclick="viewUserProfile('${targetUid}')">睇資料 / 加好友</button>
+            <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+              <div style="text-align:right; font-size:11px; color:#888; line-height:1.5;">
+                <div>🎓 ${escapeHtml(u.grade || '未填寫')}</div>
+                <div style="color:${rank.color};">${rank.emoji} Lv.${levelInfo.level} ${escapeHtml(rank.title)}</div>
+                <div>⏱️ 累積溫習 ${(parseFloat(u.hours) || 0).toFixed(1)} 小時</div>
+              </div>
+              <button class="btn btn-outline" type="button" style="font-size:12px; padding:5px 10px;" onclick="viewUserProfile('${targetUid}')">睇資料 / 加好友</button>
+            </div>
           </div>
         `;
       } catch (e) {
@@ -3266,7 +3296,7 @@
         window.closeModal('modal-register');
         window.updateUserAuthUI();
         window.showToast(`🎉 註冊成功！你嘅帳號 ID 係「${loginId}」，記住佢嚟登入`, "✨");
-        window.switchTab('room');
+        window.switchTab('home');
       } catch (error) {
         // Firestore 寫入失敗（多數係撞正個 ID 岩岩俾人搶咗）：要清理返啱啱建立
         // 嗰個 Auth 帳號，否則會留低一個冇對應 Firestore 資料嘅「孤兒」帳號
@@ -3312,7 +3342,7 @@
         window.closeModal('modal-login');
         window.updateUserAuthUI();
         window.showToast("歡迎回來 ConcenMate！", "👋");
-        window.switchTab('room');
+        window.switchTab('home');
       } catch (error) {
         window.showToast("登入失敗: " + error.message, "❌");
       }
