@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.17.1"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.18.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -966,7 +966,14 @@
                   <span id="room-timer-phase" style="font-weight:bold; white-space:nowrap;">🍅 專注中</span>
                   <span id="room-timer" style="font-family:monospace; font-size:14px; white-space:nowrap;">30:00</span>
                   <span id="pomodoro-cycle-dots" title="已完成 0 個番茄鐘" style="font-size:12px; white-space:nowrap; color:#F2A65A;">—</span>
-                  <div id="room-timer-progress-bar" style="position:absolute; left:0; bottom:0; height:3px; width:0%; background:#F2A65A;"></div>
+                  <!-- 專注時段拆做 4 個「小目標」段落顯示（唔係一條望唔到盡頭嘅長 bar），
+                       等學生覺得每 1/4 都係一個好快捱到嘅小終點，更加容易達成 -->
+                  <div id="room-timer-progress-track" style="position:absolute; left:0; bottom:0; width:100%; height:3px; display:flex; gap:2px;" title="呢輪專注分成 4 個小目標，一段段儲滿佢">
+                    <div class="pomodoro-quarter-seg" style="flex:1; background:#333;"></div>
+                    <div class="pomodoro-quarter-seg" style="flex:1; background:#333;"></div>
+                    <div class="pomodoro-quarter-seg" style="flex:1; background:#333;"></div>
+                    <div class="pomodoro-quarter-seg" style="flex:1; background:#333;"></div>
+                  </div>
                 </div>
                 <button class="btn btn-red" type="button" id="btn-presence-back" onclick="confirmStillHere()" style="display:none; font-size:11px; padding:5px 8px;">⏸️ 已暫停計分，撳返嚟</button>
 
@@ -1517,10 +1524,11 @@
           <select id="modal-room-duration" class="input-field">
             <option value="15">15 分鐘</option>
             <option value="30" selected>30 分鐘</option>
+            <option value="40">40 分鐘</option>
             <option value="45">45 分鐘</option>
             <option value="60">60 分鐘</option>
           </select>
-          <p style="font-size:11px; color:#999; margin-top:4px;">每輪專注完會自動小休 5 分鐘，之後再自動開始新一輪專注，一直循環到退房為止</p>
+          <p style="font-size:11px; color:#999; margin-top:4px;">每輪專注完會自動小休 5 分鐘，之後再自動開始新一輪專注，一直循環到退房為止；每一輪專注途中仲會拆做 4 個小目標，每達成一個都會提示鼓勵一下</p>
         </div>
 
         <div style="display:flex; gap:8px; margin-top:10px; justify-content:flex-end;">
@@ -3540,6 +3548,12 @@
       // 專注階段每滿 60 秒獎勵 1 PTS，小休階段唔計分（避免同時計分令獎勵翻倍）。
       let secondsElapsedInPhase = 0;
 
+      // 依家嘅年輕學生專注力普遍比較弱，成段專注時間（例如 40 分鐘）一次過睇落
+      // 好遙遠、好難捱到終點。所以將專注階段拆做 4 個「小目標」（大約每 1/4 時長
+      // 一個），每達成一個就即時彈提示鼓勵一下、個底部進度條都會一段一段咁儲滿，
+      // 等學生睇到自己一步步接近終點，而唔係得一條望唔到盡頭嘅長 bar。
+      let lastQuarterMilestoneShown = 0;
+
       state.countdownTimer = setInterval(async () => {
         if (state.remainingSeconds > 0) {
           state.remainingSeconds--;
@@ -3551,8 +3565,20 @@
             // 「累積溫習時數」度，等個時數可以同視訊房嘅實際專注時間掛鈎
             awardStudyPoint(1, 1 / 60);
           }
+
+          if (state.pomodoroPhase === 'focus' && !state.awardingPaused) {
+            const quarterSeconds = Math.max(60, Math.round((state.focusDurationSeconds || 1) / 4));
+            const quartersDone = Math.min(4, Math.floor(secondsElapsedInPhase / quarterSeconds));
+            // 第 4 個小目標其實即係「成輪專注完成」，留返俾下面嗰個「番茄鐘完成」
+            // 提示去講就夠，唔使呢度重複彈多次
+            if (quartersDone > lastQuarterMilestoneShown && quartersDone < 4) {
+              lastQuarterMilestoneShown = quartersDone;
+              window.showToast(`🎯 小目標達成！已完成 ${quartersDone}/4 段，繼續加油～`, '🌟');
+            }
+          }
         } else {
           secondsElapsedInPhase = 0;
+          lastQuarterMilestoneShown = 0;
           if (state.pomodoroPhase === 'focus') {
             state.pomodoroPhase = 'break';
             state.remainingSeconds = ROOM_POMODORO_BREAK_SECONDS;
@@ -3989,16 +4015,21 @@
         phaseEl.innerText = state.pomodoroPhase === 'break' ? '☕ 小休中' : '🍅 專注中';
       }
 
-      // 番茄鐘進度條：喺個 widget 底部畫一條幼幼嘅進度線，顯示緊呢一節（專注／小休）
-      // 行咗幾多 %，等學生對「仲有幾耐」有更直覺嘅視覺感受，同時唔會加高成個 widget，
-      // 保持同旁邊其他掣（開啟鏡頭／已靜音／人數）高度一致。
+      // 番茄鐘進度條：喺個 widget 底部畫 4 段幼幼嘅進度線，代表呢一節專注拆開嘅
+      // 4 個小目標，一段一段咁儲滿（唔係一條望唔到盡頭嘅長 bar），等學生覺得每
+      // 1/4 都係一個好快捱到嘅小終點，同時唔會加高成個 widget，保持同旁邊其他掣
+      // （開啟鏡頭／已靜音／人數）高度一致。
       const phaseTotalSeconds = state.pomodoroPhase === 'break' ? ROOM_POMODORO_BREAK_SECONDS : (state.focusDurationSeconds || 1);
       const elapsedInPhase = Math.max(0, phaseTotalSeconds - state.remainingSeconds);
-      const progressPct = phaseTotalSeconds > 0 ? Math.min(100, (elapsedInPhase / phaseTotalSeconds) * 100) : 0;
-      const progressBarEl = document.getElementById('room-timer-progress-bar');
-      if (progressBarEl) {
-        progressBarEl.style.width = progressPct + '%';
-        progressBarEl.style.background = state.pomodoroPhase === 'break' ? '#7DB8C5' : '#F2A65A';
+      const segColor = state.pomodoroPhase === 'break' ? '#7DB8C5' : '#F2A65A';
+      const segEls = document.querySelectorAll('#room-timer-progress-track .pomodoro-quarter-seg');
+      if (segEls && segEls.length) {
+        const quarterTotal = phaseTotalSeconds / segEls.length;
+        segEls.forEach((segEl, i) => {
+          const segElapsed = Math.min(quarterTotal, Math.max(0, elapsedInPhase - i * quarterTotal));
+          const segPct = quarterTotal > 0 ? (segElapsed / quarterTotal) * 100 : 0;
+          segEl.style.background = `linear-gradient(to right, ${segColor} ${segPct}%, #333 ${segPct}%)`;
+        });
       }
 
       // 已完成番茄鐘數量：用實心番茄 emoji 儲住顯示喺同一行，等學生一眼睇到自己今次入房
