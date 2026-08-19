@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.28.3"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.29.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -3644,10 +3644,21 @@
       const now = Date.now();
       const myUid = window.currentUser.uid;
       const friendUid = win.friendUid;
+
       try {
         await window.fs.addDoc(window.fs.collection(window.db, 'directChats', chatId, 'messages'), {
           fromUid: myUid, toUid: friendUid, text, createdAt: now
         });
+      } catch (e) {
+        window.showToast('訊息傳送失敗：' + (e.message || e), '❌');
+        input.value = text; // 送失敗就將打好嘅字放返入輸入框，唔使使用者重打
+        return;
+      }
+
+      // 訊息本身已經送出成功，下面呢個「對話摘要」（畀 dock panel 顯示最後
+      // 一句、未讀數用）就算意外失敗都唔應該話畀用家知「傳送失敗」，
+      // 所以獨立用多一個 try/catch，唔會影響訊息已經送出嘅事實
+      try {
         const chatRef = window.fs.doc(window.db, 'directChats', chatId);
         await window.fs.setDoc(chatRef, {
           participants: [myUid, friendUid],
@@ -3657,8 +3668,17 @@
           unread: { [friendUid]: window.fs.increment(1), [myUid]: 0 }
         }, { merge: true });
       } catch (e) {
-        window.showToast('訊息傳送失敗：' + (e.message || e), '❌');
+        console.error('更新對話摘要失敗:', e);
       }
+
+      // 樂觀更新本機嘅「最近對話」清單，即刻喺 dock panel 見到呢個對話，
+      // 唔使淨係靠 Firestore 個 onSnapshot listener 慢慢傳返嚟先識更新
+      if (!window.chatDockData) window.chatDockData = [];
+      const idx = window.chatDockData.findIndex(c => c.chatId === chatId);
+      const patch = { chatId, friendUid, lastMessage: text, lastMessageAt: now, unread: 0 };
+      if (idx >= 0) window.chatDockData[idx] = Object.assign({}, window.chatDockData[idx], patch);
+      else window.chatDockData.push(patch);
+      if (typeof window.renderChatDockPanel === 'function') window.renderChatDockPanel();
     };
 
     function markChatRead(chatId) {
@@ -3882,7 +3902,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, deleteUser } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs, increment, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs, increment, query, where, orderBy, limit, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDcxw01cH4Xdsp8xK4Xq69lnt3kCsEZTkQ",
@@ -3899,7 +3919,7 @@
     const db = getFirestore(app);
 
     window.db = db;
-    window.fs = { doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs, increment, query, where, orderBy, limit };
+    window.fs = { doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs, increment, query, where, orderBy, limit, arrayUnion, arrayRemove };
 
     // 幽靈房自動清理：房間冇人心跳（見 updateRoomHeartbeat）超過呢個時間，
     // 就當佢係冇人打理嘅幽靈房（例如房主手機突然關機、瀏覽器崩潰，嚟唔切
@@ -4376,6 +4396,7 @@
             <span class="video-tag" style="cursor:pointer;" onclick="viewUserProfile('${uid}')" title="撳一下睇資料／加好友">📹 ${name || '其他用家'}</span>
             <span class="video-tag" id="remote-host-badge-${slotNum}" style="background:#D9EBEF; color:#1E4550; display:none;">👑 房主</span>
             <span class="video-tag" id="stream-status-${uid}" style="background:#3E7A8A; color:#fff;">🔗 連線中...</span>
+            <span class="video-tag" id="kick-btn-${uid}" style="background:#C0524A; color:#fff; cursor:pointer; display:none;" onclick="event.stopPropagation(); window.kickParticipant('${uid}', '${(name||'呢位同學').replace(/'/g, "\\'")}')" title="房主專用：將呢位用家移出房間">🚫 踢走</span>
           </div>
           <div class="sticker-container-box"></div>
         `;
@@ -4410,7 +4431,33 @@
         const uidInThisSlot = Object.keys(state.slotAssignments).find(u => state.slotAssignments[u] === slotNum);
         badge.style.display = (hostUid && uidInThisSlot && uidInThisSlot === hostUid) ? 'flex' : 'none';
       });
+
+      // 「🚫 踢走」掣淨係房主先睇到（每個遠端格都有一粒，跟返 uid 唔跟
+      // slotNum，因為換咗人入嗰格都要即刻更新返啱嘅顯示狀態）
+      const amIHost = !!(state.isHost && myUid && hostUid === myUid);
+      Object.keys(state.slotAssignments).forEach(uid => {
+        const kickBtn = document.getElementById('kick-btn-' + uid);
+        if (kickBtn) kickBtn.style.display = amIHost ? 'flex' : 'none';
+      });
     }
+
+    // 房主專用：將某位用家踢出房間。做法係喺房間文件加一個 kickedUids
+    // 陣列，個目標用家自己個 client 會透過已經有嘅房間文件監聽（見
+    // listenToParticipants 入面嗰個 roomDocUnsubscribe）發現自己被踢，
+    // 自動執行「離開房間」嘅流程——唔使畀房主直接刪第二人嘅 participants
+    // 文件（跨用戶寫入權限太危險，唔想開呢個口）。
+    window.kickParticipant = async function(targetUid, targetName) {
+      if (!state.isHost || !state.currentRoomId || !window.db || !window.fs) return;
+      if (!confirm(`確定要將「${targetName}」移出呢個溫習房？`)) return;
+      try {
+        await window.fs.updateDoc(window.fs.doc(window.db, 'rooms', state.currentRoomId), {
+          kickedUids: window.fs.arrayUnion(targetUid)
+        });
+        window.showToast(`已將「${targetName}」移出房間`, '🚫');
+      } catch (e) {
+        window.showToast('踢走失敗：' + (e.message || e), '❌');
+      }
+    };
 
     // 依對方目前的鏡頭開關狀態，顯示／隱藏「對方鏡頭已關閉」的黑色遮罩
     // （這樣關閉自己鏡頭的一方也不會誤以為對方畫面卡住，而是清楚顯示鏡頭已關閉）
@@ -4552,6 +4599,14 @@
             state.isHost = !!(window.currentUser && data.hostUid === window.currentUser.uid);
             state.currentRoomHostUid = data.hostUid;
             updateHostBadge();
+          }
+
+          // 檢查自己係咪俾房主踢咗出嚟（見 window.kickParticipant）
+          const myUid = window.currentUser ? window.currentUser.uid : null;
+          if (myUid && data && Array.isArray(data.kickedUids) && data.kickedUids.includes(myUid)) {
+            // 順手清走自己個 uid，日後重新入返呢間房唔會一入嚟就即刻又俾判定做「已被踢」
+            window.fs.updateDoc(roomDocRef, { kickedUids: window.fs.arrayRemove(myUid) }).catch(() => {});
+            doLeaveRoom(false, '你已被房主移出呢個溫習房 🚫');
           }
         }
       });
@@ -5426,7 +5481,7 @@
     };
 
     // 共用嘅退出邏輯
-    async function doLeaveRoom(deleteRoom) {
+    async function doLeaveRoom(deleteRoom, customToastMsg) {
       if (deleteRoom && state.currentRoomId && window.fs && window.db) {
         try {
           await window.fs.deleteDoc(window.fs.doc(window.db, "rooms", state.currentRoomId));
@@ -5435,7 +5490,7 @@
       await cleanupRoomConnections();
       document.getElementById('room-active').style.display = 'none';
       document.getElementById('room-lobby').style.display = 'block';
-      window.showToast(deleteRoom ? '已關閉房間' : '已退出溫習房間', '🚪');
+      window.showToast(customToastMsg || (deleteRoom ? '已關閉房間' : '已退出溫習房間'), '🚪');
     }
 
     async function cleanupRoomConnections() {
