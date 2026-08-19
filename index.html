@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.32.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.32.1"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -518,26 +518,39 @@
     .home-stat-icon { font-size: 20px; }
     .home-stat-val { font-size: 16px; font-weight: 800; line-height: 1; }
     .home-stat-label { font-size: 10px; opacity: .75; margin-top: 1px; }
-    /* ── 溫習日曆 ── */
+    /* ── 溫習日曆（細 widget，擺喺主頁右手邊） ── */
+    .study-calendar-nav-btn {
+      width: 18px; height: 18px;
+      border: none;
+      background: transparent;
+      color: var(--brand-600);
+      font-size: 13px;
+      line-height: 1;
+      cursor: pointer;
+      border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .study-calendar-nav-btn:hover { background: var(--brand-100, #EFEAE0); }
     .study-calendar-grid {
       display: grid;
       grid-template-columns: repeat(7, 1fr);
-      gap: 4px;
+      gap: 2px;
     }
     .study-calendar-dow {
       text-align: center;
-      font-size: 11px;
+      font-size: 8.5px;
       font-weight: bold;
       color: #999;
-      padding-bottom: 4px;
+      padding-bottom: 2px;
     }
     .study-calendar-day {
       aspect-ratio: 1;
       display: flex;
       align-items: center;
       justify-content: center;
-      border-radius: 8px;
-      font-size: 12px;
+      border-radius: 4px;
+      font-size: 9px;
       color: #777;
       background: #F5F3F0;
     }
@@ -549,7 +562,7 @@
       font-weight: bold;
     }
     .study-calendar-day.today {
-      box-shadow: 0 0 0 2px var(--brand-700, #2F6070);
+      box-shadow: 0 0 0 1.5px var(--brand-700, #2F6070);
       font-weight: bold;
     }
     /* ── 主體兩欄 ── */
@@ -1098,24 +1111,6 @@
             <button class="btn btn-primary" type="button" style="margin-top:12px;" onclick="feedOtter()">🐟 餵食（<span id="otter-feed-cost-label">10</span> PTS）</button>
           </div>
 
-          <!-- ── 溫習日曆：淨係要有入過視訊溫習室（唔理幾多分鐘）當日就算
-               有溫習，畫月曆俾用家睇返自己邊幾日有溫習過 ── -->
-          <div class="card" id="study-calendar-card">
-            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-              <h3 style="font-size:15px; font-weight:bold; margin:0; color:var(--brand-800);">📅 溫習日曆</h3>
-              <div style="display:flex; align-items:center; gap:6px;">
-                <button type="button" class="btn btn-outline" style="padding:3px 9px; font-size:13px; line-height:1;" onclick="window.shiftStudyCalendarMonth(-1)">‹</button>
-                <span id="study-calendar-month-label" style="font-size:13px; font-weight:bold; color:var(--brand-700); min-width:76px; text-align:center;">--</span>
-                <button type="button" class="btn btn-outline" style="padding:3px 9px; font-size:13px; line-height:1;" onclick="window.shiftStudyCalendarMonth(1)">›</button>
-              </div>
-            </div>
-            <div id="study-calendar-grid" class="study-calendar-grid"></div>
-            <div style="display:flex; justify-content:space-around; margin-top:12px; padding-top:10px; border-top:1px solid #eee; font-size:12px; color:#888;">
-              <div>🔥 <b id="study-calendar-streak" style="color:var(--brand-800); font-size:14px;">0</b> 連續溫習日</div>
-              <div>📚 <b id="study-calendar-total" style="color:var(--brand-800); font-size:14px;">0</b> 總溫習日數</div>
-            </div>
-          </div>
-
           <!-- ── 主體兩欄 ── -->
           <div class="home-body">
 
@@ -1197,6 +1192,25 @@
                 </div>
                 <div style="display:flex; justify-content:space-between; margin-top:6px; font-size:11px; color:#aaa;">
                   <span>0 min</span><span>60 min</span>
+                </div>
+              </div>
+
+              <!-- 溫習日曆（細 widget）：淨係要有入過視訊溫習室（唔理幾多
+                   分鐘）當日就算有溫習，畫個細細嘅月曆俾用家睇返自己邊
+                   幾日有溫習過 -->
+              <div class="home-side-card" id="study-calendar-card" style="padding:10px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+                  <span style="font-size:12px; font-weight:700; color:var(--brand-800);">📅 溫習日曆</span>
+                  <div style="display:flex; align-items:center; gap:2px;">
+                    <button type="button" class="study-calendar-nav-btn" onclick="window.shiftStudyCalendarMonth(-1)">‹</button>
+                    <span id="study-calendar-month-label" style="font-size:10.5px; font-weight:bold; color:var(--brand-700); min-width:46px; text-align:center;">--</span>
+                    <button type="button" class="study-calendar-nav-btn" onclick="window.shiftStudyCalendarMonth(1)">›</button>
+                  </div>
+                </div>
+                <div id="study-calendar-grid" class="study-calendar-grid"></div>
+                <div style="display:flex; justify-content:space-between; margin-top:8px; padding-top:7px; border-top:1px solid #eee; font-size:10.5px; color:#888;">
+                  <span>🔥 <b id="study-calendar-streak" style="color:var(--brand-800);">0</b> 連續</span>
+                  <span>📚 <b id="study-calendar-total" style="color:var(--brand-800);">0</b> 總日數</span>
                 </div>
               </div>
 
@@ -2387,7 +2401,8 @@
       const now = new Date();
       if (studyCalendarViewYear == null) { studyCalendarViewYear = now.getFullYear(); studyCalendarViewMonth = now.getMonth(); }
       const year = studyCalendarViewYear, month = studyCalendarViewMonth;
-      if (monthLabel) monthLabel.innerText = `${year} 年 ${month + 1} 月`;
+      // widget 好窄，用返精簡格式（例如 "26/8"）就夠，唔使成串「2026 年 8 月」
+      if (monthLabel) monthLabel.innerText = `${String(year).slice(2)}/${month + 1}`;
 
       const firstDay = new Date(year, month, 1);
       const startWeekday = firstDay.getDay(); // 0=星期日
