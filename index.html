@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.28.1"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.28.2"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -4029,6 +4029,11 @@
         listenToPublicRooms();
         if (typeof window.loadFriendRequests === 'function') {
           window.loadFriendRequests();
+        }
+        // 好友名單一登入就要即刻載入（唔使等用家真係撳入「夥伴與讀書會」
+        // 分頁），因為即時對話個「💬」浮動掣同上線狀態全站都要用到呢份資料
+        if (typeof window.loadFriendsList === 'function') {
+          window.loadFriendsList();
         }
         if (typeof window.loadRoomInvites === 'function') {
           window.loadRoomInvites();
