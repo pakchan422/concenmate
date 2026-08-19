@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.30.2"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.30.3"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -833,7 +833,8 @@
       <span class="pulse-dot"></span>環境除錯面板
     </div>
     🔧 靜態版號: <span id="version-display" style="color:#4A8FA0; font-weight:bold;"></span> <span style="font-size:12px; color:#888;">(於檔案頂部修改)</span><br>
-    ⏱️ 載入時間: <span id="load-timestamp" style="color:#7DB8C5;">讀取中...</span>
+    ⏱️ 載入時間: <span id="load-timestamp" style="color:#7DB8C5;">讀取中...</span><br>
+    💬 對話清單: <span id="chat-dock-debug" style="color:#7DB8C5;">未載入</span>
   </div>
 
   <div id="toast-box">
@@ -3514,26 +3515,42 @@
         return;
       }
 
-      listEl.innerHTML = conversations.map(c => {
-        const f = friendByUid[c.friendUid];
-        const displayName = c.friendName || (f && f.username) || '同學';
-        const online = window.isUidOnline(presenceMap[c.friendUid]);
-        const unread = c.unread || 0;
-        const safeChatName = displayName.replace(/'/g, "\\'");
-        return `
-          <div class="chat-dock-friend-row" onclick="window.openChatWindow('${c.friendUid}', '${safeChatName}'); window.toggleChatDockPanel();">
-            <div class="avatar-with-dot">
-              <div class="avatar-circle" style="width:34px; height:34px; font-size:14px;">${displayName.charAt(0).toUpperCase()}</div>
-              <span class="presence-dot ${online ? 'online' : ''}"></span>
-            </div>
-            <div style="flex:1; min-width:0;">
-              <div class="chat-dock-friend-name">${escapeHtml(displayName)}</div>
-              <div class="chat-dock-friend-preview">${c.lastMessage ? escapeHtml(c.lastMessage) : '未有對話紀錄'}</div>
-            </div>
-            ${unread > 0 ? `<span class="chat-dock-friend-unread">${unread > 99 ? '99+' : unread}</span>` : ''}
-          </div>
-        `;
-      }).join('');
+      // 成個畫面板嘅過程包多層 try/catch：以前試過如果入面隨便一個步驟
+      // 拋錯（例如某個好友資料格式怪怪地），成個 .map() 就會中途中斷，
+      // 但因為冇 catch，個錯誤會靜靜雞消失喺 console，listEl.innerHTML
+      // 完全冇更新過，畫面就會一直卡住舊有嘅（甚至係初始「仲未有對話」）
+      // 內容，睇落好似「明明有資料但係唔顯示」。而家改成每一行都獨立
+      // try/catch，一行有事都唔會拖冧成個清單，仲會喺 console 留返線索。
+      try {
+        listEl.innerHTML = conversations.map(c => {
+          try {
+            const f = friendByUid[c.friendUid];
+            const displayName = c.friendName || (f && f.username) || '同學';
+            const online = typeof window.isUidOnline === 'function' && window.isUidOnline(presenceMap[c.friendUid]);
+            const unread = c.unread || 0;
+            const safeChatName = displayName.replace(/'/g, "\\'");
+            return `
+              <div class="chat-dock-friend-row" onclick="window.openChatWindow('${c.friendUid}', '${safeChatName}'); window.toggleChatDockPanel();">
+                <div class="avatar-with-dot">
+                  <div class="avatar-circle" style="width:34px; height:34px; font-size:14px;">${displayName.charAt(0).toUpperCase()}</div>
+                  <span class="presence-dot ${online ? 'online' : ''}"></span>
+                </div>
+                <div style="flex:1; min-width:0;">
+                  <div class="chat-dock-friend-name">${escapeHtml(displayName)}</div>
+                  <div class="chat-dock-friend-preview">${c.lastMessage ? escapeHtml(c.lastMessage) : '未有對話紀錄'}</div>
+                </div>
+                ${unread > 0 ? `<span class="chat-dock-friend-unread">${unread > 99 ? '99+' : unread}</span>` : ''}
+              </div>
+            `;
+          } catch (rowErr) {
+            console.error('畫單一對話列失敗:', rowErr, c);
+            return '';
+          }
+        }).join('');
+      } catch (renderErr) {
+        console.error('畫「即時對話」清單失敗:', renderErr);
+        listEl.innerHTML = '<p style="text-align:center; color:#e74c3c; font-size:12px; padding:16px;">⚠️ 對話清單畫面出錯，請截圖 console 錯誤訊息俾開發者</p>';
+      }
     };
 
     // 監聽晒我所有嘅對話（用嚟計總未讀數畫落個圓形掣嘅紅點，同埋畀 dock
@@ -3591,6 +3608,15 @@
         if (totalUnread > 0) { badge.style.display = 'flex'; badge.innerText = totalUnread > 99 ? '99+' : totalUnread; }
         else { badge.style.display = 'none'; }
       }
+      // 除錯面板顯示返呢一刻由伺服器實際查到幾多個對話，同埋自己個 uid
+      // 前 8 位——如果懷疑對方部機睇唔到訊息，截呢一行畀我睇，就可以知道
+      // 究竟係伺服器根本冇呢份文件（0 個對話），定係得返顯示邏輯有問題
+      // （明明有幾個對話但畫唔出嚟）
+      const dockDebugEl = document.getElementById('chat-dock-debug');
+      if (dockDebugEl) {
+        dockDebugEl.style.color = '#7DB8C5';
+        dockDebugEl.innerText = `${window.chatDockData.length} 個（我 uid: ${myUid.slice(0, 8)}…，${new Date().toLocaleTimeString('zh-HK')}）`;
+      }
       window.renderChatDockPanel();
     }
 
@@ -3601,7 +3627,12 @@
       const q = window.fs.query(window.fs.collection(window.db, 'directChats'), window.fs.where('participants', 'array-contains', myUid));
       chatDockUnsub = window.fs.onSnapshot(q, (snapshot) => {
         applyChatDockSnapshot(snapshot, myUid);
-      }, (err) => { console.error('載入對話清單失敗:', err); });
+      }, (err) => {
+        console.error('載入對話清單失敗:', err);
+        const dockDebugEl = document.getElementById('chat-dock-debug');
+        if (dockDebugEl) { dockDebugEl.style.color = '#ff8080'; dockDebugEl.innerText = '❌ 監聽失敗：' + (err.message || err); }
+        window.showToast('⚠️ 對話清單監聽失敗：' + (err.message || err), '❌');
+      });
     };
 
     // 手動強行去伺服器攞一次最新嘅對話清單，唔靠個 realtime listener
@@ -3617,6 +3648,9 @@
         applyChatDockSnapshot(snapshot, myUid);
       } catch (e) {
         console.error('強制重新整理對話清單失敗:', e);
+        const dockDebugEl = document.getElementById('chat-dock-debug');
+        if (dockDebugEl) { dockDebugEl.style.color = '#ff8080'; dockDebugEl.innerText = '❌ 強制重整失敗：' + (e.message || e); }
+        window.showToast('⚠️ 對話清單強制重整失敗：' + (e.message || e), '❌');
       }
     };
 
