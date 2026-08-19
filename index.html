@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.26.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.27.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -84,7 +84,6 @@
       .header-vip-text { display: none; }    /* 只保留 👑 emoji */
       .header-auth-text { display: none; }   /* 只保留 🔑 emoji */
       .header-admin-text { display: none; }  /* 只保留 ⚙️ emoji */
-      .header-layout-text { display: none; } /* 只保留 🪄 emoji */
       aside { width: 48px; padding: 4px; }
       .nav-btn { padding: 10px 0; font-size: 17px; border-radius: 8px; }
       main { padding: 8px; }
@@ -646,154 +645,6 @@
       50% { opacity: 0.4; transform: scale(1.2); }
       100% { opacity: 1; transform: scale(1); }
     }
-
-    /* =====================================================================
-       🪄 Apple 風排版（可切換嘅第二套排版，唔係轉色，係轉字體大小/粗幼/
-       留白/卡片質感/按鈕形狀呢啲「版面」嘢）。淨係喺 <html data-layout="apple">
-       先生效，撳返「🪄 排版」掣會加/走呢個 attribute，兩套排版共用返同一份
-       HTML／功能，冚多一層 CSS，隨時安全切返轉舊排版。
-       好多元件本身用緊 inline style（例如標題直接寫 style="font-size:18px..."），
-       CSS class/tag 選擇器蓋唔到 inline style，所以下面針對 h1/h2/h3 呢類
-       常見標題標籤用咗 !important，先追得到成個 app 嘅視覺統一。
-       ===================================================================== */
-    html[data-layout="apple"] body {
-      background: #fff;
-    }
-    html[data-layout="apple"] h1,
-    html[data-layout="apple"] h2,
-    html[data-layout="apple"] h3 {
-      font-weight: 700 !important;
-      letter-spacing: -0.01em !important;
-    }
-    html[data-layout="apple"] h2 { font-size: 22px !important; }
-    html[data-layout="apple"] h3 { font-size: 17px !important; }
-
-    /* ── Header：變薄、去色、hairline 分隔線，似 Apple 頂部導覽 ── */
-    html[data-layout="apple"] header {
-      background: rgba(255,255,255,.82);
-      border-bottom: 1px solid #E5E5E7;
-      padding: 12px 20px;
-      backdrop-filter: saturate(180%) blur(14px);
-    }
-    html[data-layout="apple"] .logo-title { font-size: 16px; font-weight: 700; letter-spacing: -.01em; }
-    html[data-layout="apple"] .badge { background: #F5F5F7; color: #6E6E73; border-radius: 980px; }
-    html[data-layout="apple"] .user-stats { background: transparent; border: none; color: #6E6E73; font-weight: 500; }
-
-    /* ── 按鈕：Apple 招牌全圓角 pill，去晒陰影，色塊收斂 ── */
-    html[data-layout="apple"] .btn {
-      border-radius: 980px;
-      padding: 8px 18px;
-      font-weight: 600;
-      font-size: 13px;
-      letter-spacing: -.005em;
-      transition: opacity .15s ease, transform .15s ease;
-    }
-    html[data-layout="apple"] .btn-primary { background: var(--brand-500); }
-    html[data-layout="apple"] .btn-primary:hover { background: var(--brand-500); opacity: .85; transform: none; }
-    html[data-layout="apple"] .btn-outline { background: transparent; border: 1px solid #D2D2D7; color: #1D1D1F; }
-    html[data-layout="apple"] .btn-outline:hover { background: #F5F5F7; }
-    html[data-layout="apple"] .btn-amber { background: #F5F5F7; color: #1D1D1F; }
-    html[data-layout="apple"] .btn-amber:hover { background: #E8E8ED; color: #1D1D1F; }
-
-    /* ── 側邊導覽：去色扁平，active 用淺灰底 + 左側幼細強調線 ── */
-    html[data-layout="apple"] aside {
-      background: #FBFBFD;
-      border-right: 1px solid #E5E5E7;
-      padding: 16px 12px;
-    }
-    html[data-layout="apple"] .nav-btn {
-      border-radius: 10px;
-      font-weight: 500;
-      color: #1D1D1F;
-      border-left: 3px solid transparent;
-      padding-left: 9px;
-    }
-    html[data-layout="apple"] .nav-btn.active {
-      background: #F5F5F7;
-      color: #1D1D1F;
-      font-weight: 700;
-      border-left-color: var(--brand-500);
-    }
-    html[data-layout="apple"] .nav-btn:hover:not(.active) { background: #F5F5F7; color: #1D1D1F; }
-
-    html[data-layout="apple"] main { padding: 28px 32px; }
-
-    /* ── 卡片統一去陰影、去彩底，改用幼身 hairline，留白加大 ── */
-    html[data-layout="apple"] .card,
-    html[data-layout="apple"] .room-item-card,
-    html[data-layout="apple"] .home-side-card,
-    html[data-layout="apple"] .home-sec-card,
-    html[data-layout="apple"] .home-primary-card,
-    html[data-layout="apple"] .qa-post-card,
-    html[data-layout="apple"] .create-room-card,
-    html[data-layout="apple"] .profile-edit-card,
-    html[data-layout="apple"] .auth-wall-container {
-      background: #fff;
-      border-color: #E5E5E7 !important;
-      box-shadow: none !important;
-      border-radius: 18px;
-      padding: 22px;
-    }
-    html[data-layout="apple"] .room-item-card:hover,
-    html[data-layout="apple"] .home-sec-card:hover,
-    html[data-layout="apple"] .home-primary-card:hover {
-      box-shadow: none !important;
-      border-color: #D2D2D7 !important;
-      transform: translateY(-1px);
-    }
-    html[data-layout="apple"] .home-primary-card { background: #FBFBFD; }
-
-    /* ── 主頁 Hero：大字重、大留白，去彩色漸變（Apple 常用大留白＋大字取代色塊） ── */
-    html[data-layout="apple"] .home-hero {
-      background: #FBFBFD;
-      color: #1D1D1F;
-      border: 1px solid #E5E5E7;
-      border-radius: 24px;
-      padding: 40px 44px;
-    }
-    html[data-layout="apple"] .home-hero-greeting {
-      font-size: 34px !important;
-      font-weight: 700 !important;
-      letter-spacing: -0.02em !important;
-      color: #1D1D1F;
-    }
-    html[data-layout="apple"] .home-hero-sub { color: #6E6E73; font-size: 15px; margin-top: 6px; }
-    html[data-layout="apple"] .home-stat-pill { background: #fff; border: 1px solid #E5E5E7; }
-    html[data-layout="apple"] .home-stat-val, html[data-layout="apple"] .home-stat-label { color: #1D1D1F; }
-    html[data-layout="apple"] .home-primary-title { font-size: 19px !important; letter-spacing: -.01em; }
-    html[data-layout="apple"] .home-primary-desc { color: #6E6E73; }
-    html[data-layout="apple"] .home-primary-badge { background: var(--brand-500); border-radius: 980px; }
-    html[data-layout="apple"] .home-sec-title { font-size: 14px !important; }
-    html[data-layout="apple"] .home-sec-desc { color: #6E6E73; }
-
-    /* ── Modal：大圓角、柔和陰影、去彩邊 ── */
-    html[data-layout="apple"] .modal-box {
-      border-radius: 22px;
-      border: none;
-      box-shadow: 0 30px 60px rgba(0,0,0,.18);
-      padding: 28px;
-    }
-
-    /* ── 標籤／輸入框：淡灰底代替彩色底 ── */
-    html[data-layout="apple"] .tag,
-    html[data-layout="apple"] .qa-subject-label {
-      background: #F5F5F7; color: #1D1D1F; border-radius: 980px;
-    }
-    html[data-layout="apple"] .qa-subject-btn,
-    html[data-layout="apple"] .flashcard-category-btn {
-      border-radius: 980px; border-color: #D2D2D7;
-    }
-    html[data-layout="apple"] .qa-subject-btn.active,
-    html[data-layout="apple"] .flashcard-category-btn.active {
-      background: var(--brand-500); border-color: var(--brand-500);
-    }
-    html[data-layout="apple"] .input-field {
-      background: #fff; border: 1px solid #D2D2D7; border-radius: 12px; padding: 10px 12px;
-    }
-    html[data-layout="apple"] .input-field:focus { box-shadow: 0 0 0 3px rgba(74,143,160,.15); }
-
-    html[data-layout="apple"] .room-bar { border-color: #E5E5E7; }
-    html[data-layout="apple"] .home-quick-btn:hover { background: #F5F5F7; }
   </style>
 </head>
 <body>
@@ -834,7 +685,6 @@
 
     <div style="display:flex; gap:6px; align-items:center; flex-shrink:0;">
       <button class="btn btn-outline" id="header-admin-btn" type="button" onclick="window.location.hash='admin'" style="padding:6px 10px; display:none;">⚙️ <span class="header-admin-text">管理後台</span></button>
-      <button class="btn btn-outline" id="header-layout-btn" type="button" onclick="toggleUiLayout()" style="padding:6px 10px;" title="切換做 Apple 風排版／轉返經典排版">🪄 <span class="header-layout-text">排版</span></button>
       <button class="btn btn-amber" type="button" onclick="switchTab('vip')" style="padding:6px 10px;">👑 <span class="header-vip-text">VIP</span></button>
       <button class="btn btn-primary" id="header-auth-btn" type="button" onclick="handleHeaderUserClick()" style="padding:6px 10px;">
         🔑 <span class="header-auth-text">登入</span>
@@ -842,23 +692,22 @@
     </div>
   </header>
 
-  <!-- 全站置頂嘅「今日目標」進度列：唔理揭緊邊個分頁都見到，登入先顯示 -->
-  <div id="global-goal-bar-wrap" style="display:none; background:#fff; border-bottom:1px solid var(--brand-200); padding:5px 16px;">
-    <div style="max-width:480px; margin:0 auto; display:flex; align-items:center; gap:8px; cursor:pointer;" onclick="switchTab('home')" title="睇你今日嘅溫習目標">
-      <span style="font-size:12px; font-weight:700; color:var(--brand-800); white-space:nowrap;">🎯 今日目標</span>
-      <div style="flex:1; background:var(--brand-200); border-radius:99px; height:6px; overflow:hidden;">
-        <div id="global-goal-bar" style="height:100%; background:linear-gradient(90deg,#4A8FA0,#7DB8C5); border-radius:99px; width:0%; transition:width .6s ease;"></div>
+  <!-- 全站置頂嘅「今日目標 + 等級／EXP」合併狀態列：唔理揭緊邊個分頁都見到，登入先顯示 -->
+  <div id="global-status-bar" style="display:none; background:linear-gradient(135deg, #4A8FA0, #7DB8C5); padding:6px 16px;">
+    <div style="max-width:480px; margin:0 auto; display:flex; align-items:center; gap:10px;">
+      <div style="flex:1; min-width:0; display:flex; align-items:center; gap:6px; cursor:pointer;" onclick="switchTab('home')" title="睇你今日嘅溫習目標">
+        <span style="font-size:11px; font-weight:700; color:#fff; white-space:nowrap; flex-shrink:0;">🎯 今日目標</span>
+        <div style="flex:1; min-width:20px; background:rgba(255,255,255,.3); border-radius:99px; height:5px; overflow:hidden;">
+          <div id="global-goal-bar" style="height:100%; background:#fff; border-radius:99px; width:0%; transition:width .6s ease;"></div>
+        </div>
+        <span id="global-goal-label" style="font-size:10px; color:rgba(255,255,255,.9); white-space:nowrap; flex-shrink:0;">0/60分鐘</span>
       </div>
-      <span id="global-goal-label" style="font-size:11px; color:var(--brand-600); white-space:nowrap;">0 / 60 分鐘</span>
-    </div>
-  </div>
-
-  <!-- 全站置頂嘅等級/EXP狀態列：唔理你揭緊邊個分頁都會見到，登入先顯示 -->
-  <div id="global-level-bar" style="display:none; background:linear-gradient(135deg, #4A8FA0, #7DB8C5); padding:6px 16px;">
-    <div style="max-width:480px; margin:0 auto; text-align:center; cursor:pointer;" onclick="switchTab('profile')" title="睇你嘅溫習等級">
-      <div id="global-level-badge" style="color:#fff; font-size:13px; font-weight:bold;">🌱 Lv.1 溫習新手 · 重欠 20 EXP 升級</div>
-      <div style="background:rgba(255,255,255,.3); border-radius:6px; height:5px; margin-top:4px; overflow:hidden;">
-        <div id="global-exp-bar" style="background:#fff; height:100%; width:0%; transition:width .4s ease;"></div>
+      <div style="width:1px; align-self:stretch; background:rgba(255,255,255,.3); flex-shrink:0;"></div>
+      <div style="flex-shrink:0; cursor:pointer; text-align:right; max-width:46%;" onclick="openLevelInfoModal()" title="睇升級詳情">
+        <div id="global-level-badge" style="color:#fff; font-size:11px; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">🌱 Lv.1 溫習新手 · 重欠 20 EXP 升級</div>
+        <div style="background:rgba(255,255,255,.3); border-radius:6px; height:4px; margin-top:3px; overflow:hidden;">
+          <div id="global-exp-bar" style="background:#fff; height:100%; width:0%; transition:width .4s ease;"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -1806,6 +1655,17 @@
     </div>
   </div>
 
+  <!-- 等級／升級詳情視窗：撳置頂狀態列嘅 Lv. 果邊會彈出，內容（各段位嘅升級詳情文字）
+       由 Admin後台「🎮 等級系統」入面每個段位嘅「升級詳情文字」欄位控制 -->
+  <div class="modal-backdrop" id="modal-level-info" style="display:none;">
+    <div class="modal-box" style="max-width:400px;">
+      <h3 style="font-size:17px; font-weight:bold; color:var(--brand-800); margin-bottom:4px;">🏅 等級與段位詳情</h3>
+      <div id="level-info-current" style="background:var(--brand-50); border:1px solid var(--brand-200); border-radius:12px; padding:10px 12px; margin:8px 0 12px;"></div>
+      <div id="level-info-tiers" style="display:flex; flex-direction:column; gap:8px; max-height:320px; overflow-y:auto;"></div>
+      <button class="btn btn-outline" type="button" style="width:100%; justify-content:center; margin-top:14px;" onclick="closeModal('modal-level-info')">關閉</button>
+    </div>
+  </div>
+
 
   <script>
     // 開發測試用：自動更新載入時間戳記
@@ -1896,11 +1756,11 @@
       expPerMinute: 1,
       levelCurveFactor: 10, // 公式：升到 Level L 總共需要嘅 EXP = 難度係數 × L × (L−1)
       ranks: [
-        { minLevel: 1,  emoji: '🌱', title: '溫習新手', titleEn: 'Novice',     color: '#6FA96F' },
-        { minLevel: 10, emoji: '📚', title: '專注學徒', titleEn: 'Apprentice', color: '#4A8FA0' },
-        { minLevel: 20, emoji: '🔥', title: '自律達人', titleEn: 'Expert',     color: '#D9764A' },
-        { minLevel: 40, emoji: '👑', title: '專注大師', titleEn: 'Master',     color: '#D9A441' },
-        { minLevel: 60, emoji: '🌌', title: '傳說學霸', titleEn: 'Legend',     color: '#8B5FBF' }
+        { minLevel: 1,  emoji: '🌱', title: '溫習新手', titleEn: 'Novice',     color: '#6FA96F', desc: '啱啱起步，每一分鐘嘅溫習都算數，慢慢儲 EXP 啦！' },
+        { minLevel: 10, emoji: '📚', title: '專注學徒', titleEn: 'Apprentice', color: '#4A8FA0', desc: '已經養成溫習習慣，繼續保持專注，向下一個段位進發。' },
+        { minLevel: 20, emoji: '🔥', title: '自律達人', titleEn: 'Expert',     color: '#D9764A', desc: '自律力爆錶，係身邊同學嘅榜樣！' },
+        { minLevel: 40, emoji: '👑', title: '專注大師', titleEn: 'Master',     color: '#D9A441', desc: '長期堅持先可以去到呢個段位，值得驕傲！' },
+        { minLevel: 60, emoji: '🌌', title: '傳說學霸', titleEn: 'Legend',     color: '#8B5FBF', desc: '傳說級別嘅溫習量，少數人先去到嘅頂尖段位。' }
       ]
     };
     let LEVEL_CONFIG = JSON.parse(JSON.stringify(DEFAULT_LEVEL_CONFIG));
@@ -1967,6 +1827,48 @@
       if (profExpBar) profExpBar.style.width = info.pctToNext + '%';
     }
     window.updateLevelDisplay = updateLevelDisplay;
+
+    // 置頂狀態列撳「Lv.」嗰邊會彈出呢個視窗：列晒全部段位、每個段位嘅升級詳情
+    // 文字（由 Admin後台「🎮 等級系統」控制），並標明用家自己而家去到邊個段位。
+    function openLevelInfoModal() {
+      if (!window.currentUser) return;
+      const info = calcLevelInfo(window.currentUser.exp || 0);
+      const rank = getRankTitle(info.level);
+
+      const currentEl = document.getElementById('level-info-current');
+      if (currentEl) {
+        currentEl.innerHTML = `
+          <div style="font-size:15px; font-weight:bold; color:${rank.color || 'var(--brand-800)'};">${rank.emoji} Lv.${info.level} ${escapeHtml(rank.title || '')}（${escapeHtml(rank.titleEn || '')}）</div>
+          <div style="font-size:12px; color:#888; margin-top:4px;">${info.expIntoLevel} / ${info.expNeededForNext} EXP · 重欠 ${info.expRemaining} EXP 就升到 Lv.${info.level + 1}</div>
+          ${rank.desc ? `<div style="font-size:12px; color:#555; margin-top:6px; line-height:1.5;">${escapeHtml(rank.desc)}</div>` : ''}
+        `;
+      }
+
+      const tiersEl = document.getElementById('level-info-tiers');
+      if (tiersEl) {
+        const ranks = (LEVEL_CONFIG && Array.isArray(LEVEL_CONFIG.ranks) && LEVEL_CONFIG.ranks.length)
+          ? LEVEL_CONFIG.ranks : DEFAULT_LEVEL_CONFIG.ranks;
+        const sorted = ranks.slice().sort((a, b) => (a.minLevel || 0) - (b.minLevel || 0));
+        tiersEl.innerHTML = sorted.map(r => {
+          const reached = info.level >= (r.minLevel || 0);
+          const isCurrent = r === rank || (r.minLevel === rank.minLevel && r.title === rank.title);
+          return `
+            <div style="display:flex; gap:10px; align-items:flex-start; padding:8px 10px; border-radius:10px; border:1px solid ${isCurrent ? 'var(--brand-500)' : '#eee'}; background:${isCurrent ? 'var(--brand-50)' : (reached ? '#fff' : '#fafafa')}; opacity:${reached ? '1' : '.6'};">
+              <div style="font-size:20px; flex-shrink:0;">${r.emoji || '🌟'}</div>
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:13px; font-weight:bold; color:${reached ? (r.color || 'var(--brand-800)') : '#999'};">
+                  Lv.${r.minLevel || 1}+ ${escapeHtml(r.title || '')}${isCurrent ? ' <span style="font-size:11px; color:var(--brand-500);">（目前）</span>' : ''}
+                </div>
+                ${r.desc ? `<div style="font-size:11px; color:#888; margin-top:2px; line-height:1.4;">${escapeHtml(r.desc)}</div>` : ''}
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      openModal('modal-level-info');
+    }
+    window.openLevelInfoModal = openLevelInfoModal;
 
     // ===================== 水獺寵物系統（Tamagotchi 式飼養）=====================
     // 而家係 MVP：靜態水獺（純CSS浮動/擺動，未有行走同進化造型）+ 飽足度 + 餵食。
@@ -2148,10 +2050,8 @@
         unauthScreen.style.display = 'none';
         authContent.style.display = 'block';
         headerStats.style.display = 'flex';
-        const globalLevelBar = document.getElementById('global-level-bar');
-        if (globalLevelBar) globalLevelBar.style.display = 'block';
-        const globalGoalBarWrap = document.getElementById('global-goal-bar-wrap');
-        if (globalGoalBarWrap) globalGoalBarWrap.style.display = 'block';
+        const globalStatusBar = document.getElementById('global-status-bar');
+        if (globalStatusBar) globalStatusBar.style.display = 'block';
 
         headerAuthBtn.className = "btn btn-outline";
         headerAuthBtn.style.borderRadius = "20px";
@@ -2166,7 +2066,6 @@
         syncGachaPtsDisplay();
         updateLevelDisplay();
         updateOtterDisplay();
-        if (typeof window.applyStoredUiLayout === 'function') window.applyStoredUiLayout();
 
         // 主頁歡迎卡片
         const displayName = window.currentUser.username || window.currentUser.email?.split('@')[0] || '同學';
@@ -2199,10 +2098,8 @@
         unauthScreen.style.display = 'block';
         authContent.style.display = 'none';
         headerStats.style.display = 'none';
-        const globalLevelBarHidden = document.getElementById('global-level-bar');
-        if (globalLevelBarHidden) globalLevelBarHidden.style.display = 'none';
-        const globalGoalBarWrapHidden = document.getElementById('global-goal-bar-wrap');
-        if (globalGoalBarWrapHidden) globalGoalBarWrapHidden.style.display = 'none';
+        const globalStatusBarHidden = document.getElementById('global-status-bar');
+        if (globalStatusBarHidden) globalStatusBarHidden.style.display = 'none';
 
         headerAuthBtn.className = "btn btn-primary";
         headerAuthBtn.innerHTML = `🔑 登入 / 註冊`;
@@ -3423,55 +3320,6 @@
       inviteModalShowing = false;
     };
 
-    // ===================== 排版切換（經典 / 🪄 Apple 風） =====================
-    // 呢個唔係轉色，係轉字體大小/粗幼/留白/卡片質感/按鈕形狀（見 <style> 開頭
-    // 嗰組 [data-layout="apple"] 覆蓋規則）。撳一下就成個 app 一齊切換，
-    // 揀嘅排版會記落 users/{uid}.uiLayout，第時登入都保持住。
-    function updateLayoutBtnLabel(layout) {
-      const btn = document.getElementById('header-layout-btn');
-      if (!btn) return;
-      btn.innerHTML = layout === 'apple'
-        ? '🪄 <span class="header-layout-text">經典排版</span>'
-        : '🪄 <span class="header-layout-text">Apple 風</span>';
-    }
-
-    window.setUiLayout = function(layout, opts) {
-      const silent = opts && opts.silent;
-      const valid = layout === 'apple' || layout === 'classic';
-      if (!valid) layout = 'classic';
-
-      if (layout === 'apple') {
-        document.documentElement.setAttribute('data-layout', 'apple');
-      } else {
-        document.documentElement.removeAttribute('data-layout');
-      }
-      updateLayoutBtnLabel(layout);
-
-      if (window.currentUser) {
-        window.currentUser.uiLayout = layout;
-        if (!silent && window.db && window.fs) {
-          window.fs.updateDoc(window.fs.doc(window.db, 'users', window.currentUser.uid), { uiLayout: layout }).catch(() => {});
-        }
-      }
-
-      if (!silent) {
-        window.showToast(layout === 'apple' ? '🪄 已切換做 Apple 風排版' : '🪄 已切換返經典排版', '🪄');
-      }
-    };
-
-    window.toggleUiLayout = function() {
-      const current = document.documentElement.getAttribute('data-layout') === 'apple' ? 'apple' : 'classic';
-      window.setUiLayout(current === 'apple' ? 'classic' : 'apple');
-    };
-
-    // 登入之後套用返用家上次揀嘅排版（喺 updateUserAuthUI() 度 call）
-    window.applyStoredUiLayout = function() {
-      if (window.currentUser && window.currentUser.uiLayout) {
-        window.setUiLayout(window.currentUser.uiLayout, { silent: true });
-      } else {
-        updateLayoutBtnLabel('classic');
-      }
-    };
   </script>
 
   <script type="module">
@@ -3765,8 +3613,6 @@
       // 登出之後要停止好友相關嘅即時監聽，唔係已經冇權限讀但仍然掛住個 listener
       if (typeof window.stopFriendListeners === 'function') window.stopFriendListeners();
       if (typeof window.stopRoomInvitesListener === 'function') window.stopRoomInvitesListener();
-      // 登出之後排版還原做預設經典排版，避免同一部裝置換人登入都用緊上一位嘅排版
-      if (typeof window.setUiLayout === 'function') window.setUiLayout('classic', { silent: true });
     };
 
     window.handleRegisterSubmit = function(e) {
@@ -6412,6 +6258,9 @@
             <label style="font-size:12px; color:#555; display:flex; align-items:center; gap:4px;">顏色
               <input type="color" style="width:36px; height:26px; padding:1px; border:1px solid #ccc; border-radius:4px;" value="${r.color || '#4A8FA0'}" onchange="adminLevelDraft.ranks[${idx}].color = this.value">
             </label>
+            <label style="font-size:12px; color:#555; display:flex; align-items:flex-start; gap:4px; width:100%;">升級詳情文字（用家撳「Lv.」列會彈出視窗顯示）
+              <textarea class="admin-input-sm" rows="2" style="flex:1; min-width:200px; resize:vertical;" oninput="adminLevelDraft.ranks[${idx}].desc = this.value">${escapeHtml(r.desc || '')}</textarea>
+            </label>
           </div>
           <button class="btn btn-red" style="font-size:11px; padding:3px 8px; flex-shrink:0;" onclick="adminRemoveLevelRank(${idx})">🗑 刪除段位</button>
         </div>
@@ -6466,7 +6315,7 @@
 
     window.adminAddLevelRank = function() {
       if (!adminLevelDraft) return;
-      adminLevelDraft.ranks.push({ minLevel: 1, emoji: '🌟', title: '新段位', titleEn: 'NewRank', color: '#4A8FA0' });
+      adminLevelDraft.ranks.push({ minLevel: 1, emoji: '🌟', title: '新段位', titleEn: 'NewRank', color: '#4A8FA0', desc: '' });
       renderAdminLevelTab();
     };
 
