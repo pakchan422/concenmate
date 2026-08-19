@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.19.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.20.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -962,19 +962,19 @@
                 <button class="btn btn-primary" type="button" id="btn-camera" onclick="toggleCamera()">📹 開啟鏡頭</button>
                 <button class="btn btn-red" type="button" id="btn-mic" onclick="toggleMic()">🔇 已靜音</button>
 
-                <div id="pomodoro-widget" style="background:#111; color:white; padding:6px 10px 8px; border-radius:10px; font-size:13px; display:flex; align-items:center; gap:8px; position:relative; overflow:hidden;">
+                <div id="pomodoro-widget" style="background:#fff; color:var(--brand-800); padding:6px 10px 8px; border-radius:10px; font-size:13px; display:flex; align-items:center; gap:8px; position:relative; overflow:hidden; border:1px solid var(--brand-200);">
                   <span id="room-timer-phase" style="font-weight:bold; white-space:nowrap;">🍅 專注中</span>
+                  <span id="pomodoro-round-label" title="呢個房入面而家踏入第幾輪專注（淨係呢次入房計，離開房間會重新計過）" style="font-size:11px; font-weight:700; white-space:nowrap; background:var(--brand-50); color:var(--brand-700); padding:1px 7px; border-radius:10px;">第 1 輪</span>
                   <span id="room-timer" style="font-family:monospace; font-size:14px; white-space:nowrap;">30:00</span>
-                  <span id="pomodoro-cycle-dots" title="已完成 0 個番茄鐘" style="font-size:12px; white-space:nowrap; color:#F2A65A;">—</span>
                   <!-- 專注時段拆做 4 個「小目標」段落顯示（唔係一條望唔到盡頭嘅長 bar），
-                       等學生覺得每 1/4 都係一個好快捱到嘅小終點，更加容易達成。未填色嘅
-                       底色改用淺色半透明（唔再係接近全黑），同個黑色 widget 背景形成清晰
-                       對比，一眼就見到 4 段喺邊、而家儲咗幾多。 -->
-                  <div id="room-timer-progress-track" style="position:absolute; left:0; bottom:0; width:100%; height:5px; display:flex; gap:3px;" title="呢輪專注分成 4 個小目標，一段段儲滿佢">
-                    <div class="pomodoro-quarter-seg" style="flex:1; background:rgba(255,255,255,.28); border-radius:2px;"></div>
-                    <div class="pomodoro-quarter-seg" style="flex:1; background:rgba(255,255,255,.28); border-radius:2px;"></div>
-                    <div class="pomodoro-quarter-seg" style="flex:1; background:rgba(255,255,255,.28); border-radius:2px;"></div>
-                    <div class="pomodoro-quarter-seg" style="flex:1; background:rgba(255,255,255,.28); border-radius:2px;"></div>
+                       每一格啱啱好等如成輪專注時間嘅 25%，等學生覺得每格都係一個好快
+                       捱到嘅小終點，更加容易達成。未填色嘅底色用灰色，同個白色 widget
+                       背景清晰分開，4 段界線同進度都望得清楚。 -->
+                  <div id="room-timer-progress-track" style="position:absolute; left:0; bottom:0; width:100%; height:5px; display:flex; gap:3px;" title="呢輪專注分成 4 個小目標（每格 25%），一段段儲滿佢">
+                    <div class="pomodoro-quarter-seg" style="flex:1; background:#D9D9D9; border-radius:2px;"></div>
+                    <div class="pomodoro-quarter-seg" style="flex:1; background:#D9D9D9; border-radius:2px;"></div>
+                    <div class="pomodoro-quarter-seg" style="flex:1; background:#D9D9D9; border-radius:2px;"></div>
+                    <div class="pomodoro-quarter-seg" style="flex:1; background:#D9D9D9; border-radius:2px;"></div>
                   </div>
                 </div>
                 <button class="btn btn-red" type="button" id="btn-presence-back" onclick="confirmStillHere()" style="display:none; font-size:11px; padding:5px 8px;">⏸️ 已暫停計分，撳返嚟</button>
@@ -4018,15 +4018,16 @@
       }
 
       // 番茄鐘進度條：喺個 widget 底部畫 4 段幼幼嘅進度線，代表呢一節專注拆開嘅
-      // 4 個小目標，一段一段咁儲滿（唔係一條望唔到盡頭嘅長 bar），等學生覺得每
-      // 1/4 都係一個好快捱到嘅小終點，同時唔會加高成個 widget，保持同旁邊其他掣
-      // （開啟鏡頭／已靜音／人數）高度一致。未填色嘅底色用淺色半透明（而唔係深
-      // 灰色），同個黑色 widget 背景清晰分開，4 段界線同進度都望得清楚啲；填滿
-      // 咗嘅段仲會加返少少光暈，等「呢段啱啱達成」更加吸引眼球。
+      // 4 個小目標，一段一段咁儲滿（唔係一條望唔到盡頭嘅長 bar）——每一格啱啱好
+      // 等如成輪專注時間嘅 25%，等學生覺得每格都係一個好快捱到嘅小終點，同時
+      // 唔會加高成個 widget，保持同旁邊其他掣（開啟鏡頭／已靜音／人數）高度
+      // 一致。未填色嘅底色用灰色，同個白色 widget 背景清晰分開，4 段界線同
+      // 進度都望得清楚啲；填滿咗嘅段仲會加返少少光暈，等「呢段啱啱達成」更加
+      // 吸引眼球。
       const phaseTotalSeconds = state.pomodoroPhase === 'break' ? ROOM_POMODORO_BREAK_SECONDS : (state.focusDurationSeconds || 1);
       const elapsedInPhase = Math.max(0, phaseTotalSeconds - state.remainingSeconds);
       const segColor = state.pomodoroPhase === 'break' ? '#7DB8C5' : '#F2A65A';
-      const segTrackColor = 'rgba(255,255,255,.28)';
+      const segTrackColor = '#D9D9D9';
       const segEls = document.querySelectorAll('#room-timer-progress-track .pomodoro-quarter-seg');
       if (segEls && segEls.length) {
         const quarterTotal = phaseTotalSeconds / segEls.length;
@@ -4038,22 +4039,15 @@
         });
       }
 
-      // 已完成番茄鐘數量：用實心番茄 emoji 儲住顯示喺同一行，等學生一眼睇到自己今次入房
-      // 「儲」咗幾多個完整循環，增加目標感／成就感；太多就摺埋做數字，滑鼠停低仲有完整文字提示。
+      // 第幾輪計數器：房間唔會因為房主揀嘅專注時間到咗就自動關閉，學生可以一直
+      // 逗留繼續一輪接一輪咁溫習，所以要有個清晰嘅數字話俾佢知而家踏入第幾輪。
+      // 專注中顯示緊做嘅呢一輪；小休中就顯示啱啱完成嗰一輪（小休完先會跳去下一輪）。
       const completed = state.pomodoroCyclesCompleted || 0;
-      const dotsEl = document.getElementById('pomodoro-cycle-dots');
-      if (dotsEl) {
-        const MAX_DOTS = 6;
-        let dotsText;
-        if (completed === 0) {
-          dotsText = '—';
-        } else if (completed <= MAX_DOTS) {
-          dotsText = '🍅'.repeat(completed);
-        } else {
-          dotsText = '🍅'.repeat(MAX_DOTS) + ` +${completed - MAX_DOTS}`;
-        }
-        dotsEl.innerText = dotsText;
-        dotsEl.title = `已完成 ${completed} 個番茄鐘`;
+      const roundNumber = state.pomodoroPhase === 'break' ? Math.max(1, completed) : completed + 1;
+      const roundLabelEl = document.getElementById('pomodoro-round-label');
+      if (roundLabelEl) {
+        roundLabelEl.innerText = `第 ${roundNumber} 輪`;
+        roundLabelEl.title = `已完成 ${completed} 個完整番茄鐘（呢個計數淨係計呢次入房，離開房間會重新開始計）`;
       }
 
       // 被判定為閒置期間，喺計時器旁邊顯示一個顯眼嘅「撳返嚟」掣，
