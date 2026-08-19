@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.31.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.31.1"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -617,24 +617,41 @@
       position: fixed;
       bottom: 20px;
       right: 20px;
+      z-index: 9999;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+    /* 預設收埋晒，淨係露返呢粒細圓掣：闊高得 30px，唔會再好似以前
+       嗰份成塊半透明面板咁樣，就算隱形都仲喺度阻住背後嘅嘢俾人撳 */
+    #dev-build-badge-toggle {
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      background: rgba(15, 23, 42, 0.55);
+      color: #D2C4AD;
+      border: 1.5px solid rgba(210, 196, 173, 0.6);
+      font-size: 13px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 10px rgba(0,0,0,.2);
+      opacity: 0.35;
+      transition: opacity 0.2s ease;
+    }
+    #dev-build-badge-toggle:hover { opacity: 0.9; }
+    #dev-build-badge-content {
+      position: absolute;
+      bottom: 38px;
+      right: 0;
       background: rgba(15, 23, 42, 0.95);
       color: #B3D6DE;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       font-size: 14px;
       padding: 12px 16px;
       border-radius: 12px;
       border: 2px solid #D2C4AD;
-      z-index: 9999;
       box-shadow: 0 8px 24px rgba(16, 185, 129, 0.25);
-      pointer-events: auto;
       backdrop-filter: blur(8px);
       line-height: 1.6;
-      transition: opacity 0.4s ease;
-      opacity: 0.08;  /* 預設極度半透明 */
+      white-space: nowrap;
     }
-    #dev-build-badge:hover {
-      opacity: 0.95; /* 滑鼠移入時完全顯示 */
-    }
+    #dev-build-badge-content.hidden { display: none; }
     .pulse-dot {
       display: inline-block;
       width: 8px;
@@ -831,13 +848,20 @@
 <body>
 
   <!-- 開發測試用：版本時間戳記 (部署完成後可手動刪除此區塊) -->
-  <div id="dev-build-badge" title="每次推送到 GitHub 前請修改靜態版號，以確認是否載入最新版本">
-    <div style="border-bottom: 1px dashed #3E7A8A; padding-bottom: 4px; margin-bottom: 4px; font-weight: bold; color: white;">
-      <span class="pulse-dot"></span>環境除錯面板
+  <div id="dev-build-badge">
+    <!-- 預設淨係顯示呢粒細細嘅圓形掣，唔會再阻到手指/滑鼠撳背後嘅嘢；
+         想睇先撳一下佢，成個除錯面板先會彈出嚟，再撳一次（或者撳
+         面板嗰粒 ✕）就閂返 -->
+    <button type="button" id="dev-build-badge-toggle" title="除錯面板（撳開/閂）" onclick="window.toggleDevBuildBadge()">🔧</button>
+    <div id="dev-build-badge-content" class="hidden" title="每次推送到 GitHub 前請修改靜態版號，以確認是否載入最新版本">
+      <div style="border-bottom: 1px dashed #3E7A8A; padding-bottom: 4px; margin-bottom: 4px; font-weight: bold; color: white; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+        <span><span class="pulse-dot"></span>環境除錯面板</span>
+        <span style="cursor:pointer; opacity:.7; font-size:13px;" onclick="window.toggleDevBuildBadge()">✕</span>
+      </div>
+      🔧 靜態版號: <span id="version-display" style="color:#4A8FA0; font-weight:bold;"></span> <span style="font-size:12px; color:#888;">(於檔案頂部修改)</span><br>
+      ⏱️ 載入時間: <span id="load-timestamp" style="color:#7DB8C5;">讀取中...</span><br>
+      💬 對話清單: <span id="chat-dock-debug" style="color:#7DB8C5;">未載入</span>
     </div>
-    🔧 靜態版號: <span id="version-display" style="color:#4A8FA0; font-weight:bold;"></span> <span style="font-size:12px; color:#888;">(於檔案頂部修改)</span><br>
-    ⏱️ 載入時間: <span id="load-timestamp" style="color:#7DB8C5;">讀取中...</span><br>
-    💬 對話清單: <span id="chat-dock-debug" style="color:#7DB8C5;">未載入</span>
   </div>
 
   <div id="toast-box">
@@ -1872,6 +1896,12 @@
 
 
   <script>
+    // 開發測試用：除錯面板預設收埋，撳嗰粒細圓掣先展開／收返埋
+    window.toggleDevBuildBadge = function() {
+      const content = document.getElementById('dev-build-badge-content');
+      if (content) content.classList.toggle('hidden');
+    };
+
     // 開發測試用：自動更新載入時間戳記
     document.addEventListener("DOMContentLoaded", () => {
       const timeBadge = document.getElementById('load-timestamp');
