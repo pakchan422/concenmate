@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.30.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.30.1"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -3487,8 +3487,14 @@
       // 唔係全部好友都會喺度出現——刪除咗嘅對話（見 clearChatHistory 會將
       // directChats 文件成份刪走）就會自然喺呢個清單消失。想同未傾過偈嘅
       // 好友開始新對話，去「夥伴與讀書會」個好友卡撳「💬」就得。
+      // 注意：呢度淨係要求 chatId/friendUid 存在，唔再要求呢個 uid 一定要
+      // 喺 friendsListDataCache（好友名單）度搵到先顯示——因為好友名單同
+      // 對話清單係兩條獨立嘅 Firestore listener，載入快慢唔一定同步，
+      // 之前嗰個做法試過令收到訊息嗰一方（未載入完好友名單）睇唔到啱啱
+      // 先收到嘅對話。顯示名／頭像優先用返 c.friendName（傳送訊息嗰陣已經
+      // 存埋落 directChats 文件），friendsListDataCache 淨係做 fallback。
       const conversations = (window.chatDockData || [])
-        .filter(c => c.friendUid && friendByUid[c.friendUid])
+        .filter(c => !!c.friendUid)
         .slice()
         .sort((a, b) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0));
 
@@ -3499,17 +3505,18 @@
 
       listEl.innerHTML = conversations.map(c => {
         const f = friendByUid[c.friendUid];
+        const displayName = c.friendName || (f && f.username) || '同學';
         const online = window.isUidOnline(presenceMap[c.friendUid]);
         const unread = c.unread || 0;
-        const safeChatName = (f.username || '同學').replace(/'/g, "\\'");
+        const safeChatName = displayName.replace(/'/g, "\\'");
         return `
-          <div class="chat-dock-friend-row" onclick="window.openChatWindow('${f.uid}', '${safeChatName}'); window.toggleChatDockPanel();">
+          <div class="chat-dock-friend-row" onclick="window.openChatWindow('${c.friendUid}', '${safeChatName}'); window.toggleChatDockPanel();">
             <div class="avatar-with-dot">
-              <div class="avatar-circle" style="width:34px; height:34px; font-size:14px;">${(f.username||'U').charAt(0).toUpperCase()}</div>
+              <div class="avatar-circle" style="width:34px; height:34px; font-size:14px;">${displayName.charAt(0).toUpperCase()}</div>
               <span class="presence-dot ${online ? 'online' : ''}"></span>
             </div>
             <div style="flex:1; min-width:0;">
-              <div class="chat-dock-friend-name">${escapeHtml(f.username||'同學')}</div>
+              <div class="chat-dock-friend-name">${escapeHtml(displayName)}</div>
               <div class="chat-dock-friend-preview">${c.lastMessage ? escapeHtml(c.lastMessage) : '未有對話紀錄'}</div>
             </div>
             ${unread > 0 ? `<span class="chat-dock-friend-unread">${unread > 99 ? '99+' : unread}</span>` : ''}
@@ -3534,9 +3541,14 @@
         window.chatDockData = snapshot.docs.map(d => {
           const data = d.data();
           const friendUid = (data.participants || []).find(u => u !== myUid);
+          // 顯示名優先用返呢份文件本身存埋嘅 participantNames（傳送訊息嗰陣
+          // 已經連自己個名同對方個名一齊寫落去），淨係喺舊訊息（呢個機制
+          // 加之前留低嘅）冇呢個欄位嗰陣，先 fallback 去好友名單查
+          const friendNameFromDoc = data.participantNames && friendUid ? data.participantNames[friendUid] : null;
           return {
             chatId: d.id,
             friendUid,
+            friendName: friendNameFromDoc || null,
             lastMessage: data.lastMessage || '',
             lastMessageAt: data.lastMessageAt || 0,
             lastSenderUid: data.lastSenderUid || '',
@@ -3555,7 +3567,7 @@
               const win = chatOpenWindows.find(w => w.chatId === c.chatId);
               if (!win || win.minimized) {
                 const friend = (window.friendsListDataCache || []).find(f => f.uid === c.friendUid);
-                const friendName = friend ? (friend.username || '朋友') : '朋友';
+                const friendName = c.friendName || (friend ? friend.username : null) || '朋友';
                 window.showToast(`💬 ${friendName}：${c.lastMessage}`, '💬');
               }
             }
@@ -3729,8 +3741,17 @@
       // 所以獨立用多一個 try/catch，唔會影響訊息已經送出嘅事實
       try {
         const chatRef = window.fs.doc(window.db, 'directChats', chatId);
+        // participantNames：連自己個名同對方個名都一齊存落呢份文件，等
+        // 收訊息嗰一方畫「即時對話」面板嗰陣唔使淨係靠 friendsListDataCache
+        // （好友名單）先攞到顯示名——如果嗰份名單啱啱好未載入完（timing
+        // 問題），之前個做法就會令個對話喺面板度消失唔見，而家改成直接
+        // 存埋個名做 fallback，兩個人邊個開先都睇到。
         await window.fs.setDoc(chatRef, {
           participants: [myUid, friendUid],
+          participantNames: {
+            [myUid]: window.currentUser.username || '同學',
+            [friendUid]: win.friendUsername || '同學'
+          },
           lastMessage: text,
           lastMessageAt: now,
           lastSenderUid: myUid,
