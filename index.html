@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.28.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.28.1"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -66,7 +66,12 @@
     @media (max-width: 768px) {
       aside { width: 56px; padding: 6px 4px; }
       .nav-text { display: none; }
-      .user-stats { display: none; }
+      /* 用 !important：因為登入之後 JS 會幫呢粒 pill 加返 inline
+         style="display:flex"，普通 class 規則蓋唔到 inline style，
+         唔加 !important 嘅話喺窄螢幕度就會同右邊嗰組按鈕（管理後台/VIP/
+         登入）疊埋一齊，因為呢粒 pill 係用 position:absolute 置中，
+         唔受 flex 版面影響，會直接浮喺按鈕上面 */
+      .user-stats { display: none !important; }
       .nav-btn { justify-content: center; padding: 11px 0; font-size: 18px; }
       main { padding: 10px; }
       .home-feature-grid { grid-template-columns: repeat(3, minmax(0, 160px)); gap: 10px; }
@@ -2197,16 +2202,17 @@
       const today = getTodayDateStr();
       const minsToday = (window.currentUser.todayDate === today) ? (window.currentUser.todayMinutes || 0) : 0;
       const pct = Math.min(100, (minsToday / 60) * 100).toFixed(1);
+      const doneSuffix = minsToday >= 60 ? '（已完成）' : '';
       const goalBar = document.getElementById('home-goal-bar');
       const goalLabel = document.getElementById('home-goal-label');
       if (goalBar) goalBar.style.width = pct + '%';
-      if (goalLabel) goalLabel.innerText = `${Math.round(minsToday)} / 60 分鐘`;
+      if (goalLabel) goalLabel.innerText = `${Math.round(minsToday)} / 60 分鐘${doneSuffix}`;
 
       // 全站置頂嗰條「今日目標」進度列（同主頁嗰條數值一樣，淨係擺位唔同）
       const globalGoalBar = document.getElementById('global-goal-bar');
       const globalGoalLabel = document.getElementById('global-goal-label');
       if (globalGoalBar) globalGoalBar.style.width = pct + '%';
-      if (globalGoalLabel) globalGoalLabel.innerText = `${Math.round(minsToday)} / 60 分鐘`;
+      if (globalGoalLabel) globalGoalLabel.innerText = `${Math.round(minsToday)} / 60 分鐘${doneSuffix}`;
     }
 
     function updateUserAuthUI() {
@@ -3573,7 +3579,8 @@
             <div class="chat-window-header" onclick="window.toggleMinimizeChatWindow('${w.chatId}')">
               <span class="presence-dot ${online ? 'online' : ''}" style="position:static;"></span>
               <span class="chat-window-title">${escapeHtml(w.friendUsername)}</span>
-              <button type="button" class="chat-window-close-btn" onclick="event.stopPropagation(); window.closeChatWindow('${w.chatId}')">✕</button>
+              <button type="button" class="chat-window-close-btn" title="刪除對話記錄" onclick="event.stopPropagation(); window.clearChatHistory('${w.chatId}')">🗑️</button>
+              <button type="button" class="chat-window-close-btn" title="閂視窗" onclick="event.stopPropagation(); window.closeChatWindow('${w.chatId}')">✕</button>
             </div>
             <div class="chat-window-body" id="chat-body-${w.chatId}"></div>
             <div class="chat-window-input-row">
@@ -3658,6 +3665,27 @@
       const chatRef = window.fs.doc(window.db, 'directChats', chatId);
       window.fs.updateDoc(chatRef, { ['unread.' + window.currentUser.uid]: 0 }).catch(() => {});
     }
+
+    // 刪除成個對話記錄：兩個人共用同一個對話，撳「🗑️」會即刻刪晒兩個人
+    // 嘅所有訊息（唔係淨係自己隱藏），撳之前會 confirm 一次先，避免手震撳錯
+    window.clearChatHistory = async function(chatId) {
+      if (!window.currentUser || !window.db || !window.fs) return;
+      if (!confirm('確定要刪除呢個對話嘅全部訊息記錄？呢個動作會影響返雙方，刪咗就冚唔返。')) return;
+      try {
+        const msgsSnap = await window.fs.getDocs(window.fs.collection(window.db, 'directChats', chatId, 'messages'));
+        await Promise.all(msgsSnap.docs.map(d => window.fs.deleteDoc(d.ref)));
+        const chatRef = window.fs.doc(window.db, 'directChats', chatId);
+        await window.fs.updateDoc(chatRef, {
+          lastMessage: '', lastMessageAt: 0,
+          unread: { [window.currentUser.uid]: 0 }
+        }).catch(() => {});
+        chatMessagesCache[chatId] = [];
+        renderChatWindowMessages(chatId);
+        window.showToast('已刪除對話記錄', '🗑️');
+      } catch (e) {
+        window.showToast('刪除失敗：' + (e.message || e), '❌');
+      }
+    };
 
     // 登出之後要即刻閂晒所有對話視窗（唔應該仲見到啱啱嗰位用家嘅私訊）
     window.closeAllChatWindows = function() {
