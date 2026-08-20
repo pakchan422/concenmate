@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.34.1"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.35.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -4916,6 +4916,20 @@
           };
         }
 
+        // 停權檢查：一定要喺呢度（撳「登入」嗰一刻）就即刻擋，唔可以淨係
+        // 靠 onAuthStateChanged 嗰個監聽器事後先發現——如果淨係靠嗰邊，
+        // 呢度會照樣即刻顯示咗登入成功嘅畫面同埋觸發埋 forceRefreshChatDock
+        // 等操作，兩者夾埋一齊跑，好大機會撞到 onAuthStateChanged 嗰邊
+        // 先一步 signOut() 咗，於是啲請求會因為認證突然被清走而報
+        // 「Missing or insufficient permissions」，而唔係清清楚楚話畀
+        // 用戶知「你已被停權」。
+        if (window.currentUser && window.currentUser.suspended) {
+          window.currentUser = null;
+          await signOut(auth);
+          window.showToast('你嘅帳戶已被管理員停權，無法登入，如有疑問請聯絡管理員', '🚫');
+          return;
+        }
+
         window.closeModal('modal-login');
         window.updateUserAuthUI();
         window.showToast("歡迎回來 ConcenMate！", "👋");
@@ -8549,6 +8563,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
                 ${status === 'pending' ? `<button class="btn btn-outline" style="font-size:11px; padding:4px 9px;" onclick="window.adminMarkReportStatus('${reportId}', 'dismissed')">🗂️ 駁回（冇問題）</button>` : ''}
                 ${status === 'pending' ? `<button class="btn btn-outline" style="font-size:11px; padding:4px 9px;" onclick="window.adminMarkReportStatus('${reportId}', 'reviewed')">✅ 標記已處理</button>` : ''}
                 ${r.reportedUid ? `<button class="btn btn-red" style="font-size:11px; padding:4px 9px;" onclick="window.adminSuspendFromReport('${reportId}', '${r.reportedUid}')">🚫 停權此帳戶</button>` : ''}
+                ${status !== 'pending' ? `<button class="btn btn-outline" style="font-size:11px; padding:4px 9px; color:#999; border-color:#ccc;" onclick="window.adminDeleteReport('${reportId}')">🗑️ 刪除紀錄</button>` : ''}
               </div>
             </div>
           `;
@@ -8582,6 +8597,18 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
         window.showToast('已停權該帳戶', '🚫');
       } catch (err) {
         window.showToast('操作失敗：' + (err.message || err), '❌');
+      }
+    };
+
+    // 淨係已經處理完（已駁回／已處理）嘅舉報先俾刪，pending 嘅唔會出呢粒掣，
+    // 避免管理員手快手滑刪走仲未跟進嘅證據
+    window.adminDeleteReport = async function(reportId) {
+      if (!confirm('確定刪除呢一則已處理嘅舉報紀錄？連同截圖一齊刪走，刪咗就冇得復原。')) return;
+      try {
+        await window.fs.deleteDoc(window.fs.doc(window.db, 'reports', reportId));
+        window.showToast('已刪除舉報紀錄', '🗑️');
+      } catch (err) {
+        window.showToast('刪除失敗：' + (err.message || err), '❌');
       }
     };
 
