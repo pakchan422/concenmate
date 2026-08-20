@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.38.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.39.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -1801,8 +1801,8 @@
         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
           <span style="font-size:13px; color:#3E7A8A; cursor:pointer;" onclick="closeModal('modal-login'); openModal('modal-register');">還沒有帳號？點此註冊</span>
           <div style="display:flex; gap:6px;">
-            <button class="btn btn-outline" type="button" onclick="closeModal('modal-login')">取消</button>
-            <button class="btn btn-primary" type="submit">登入</button>
+            <button class="btn btn-outline" type="button" id="login-cancel-btn" onclick="closeModal('modal-login')">取消</button>
+            <button class="btn btn-primary" type="submit" id="login-submit-btn">登入</button>
           </div>
         </div>
       </form>
@@ -4627,7 +4627,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, deleteUser } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs, increment, query, where, orderBy, limit, arrayUnion, arrayRemove, documentId } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs, increment, query, where, orderBy, limit, arrayUnion, arrayRemove, documentId, startAfter } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDcxw01cH4Xdsp8xK4Xq69lnt3kCsEZTkQ",
@@ -4644,7 +4644,7 @@
     const db = getFirestore(app);
 
     window.db = db;
-    window.fs = { doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs, increment, query, where, orderBy, limit, arrayUnion, arrayRemove, documentId };
+    window.fs = { doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs, increment, query, where, orderBy, limit, arrayUnion, arrayRemove, documentId, startAfter };
 
     // 幽靈房自動清理：房間冇人心跳（見 updateRoomHeartbeat）超過呢個時間，
     // 就當佢係冇人打理嘅幽靈房（例如房主手機突然關機、瀏覽器崩潰，嚟唔切
@@ -5023,11 +5023,29 @@
       });
     };
 
-    window.handleLoginSubmit = function(e) {
+    window.handleLoginSubmit = async function(e) {
       e.preventDefault();
       const email = document.getElementById('login-account-id').value.trim();
       const password = document.getElementById('login-password').value;
-      window.loginWithFirebase(email, password);
+
+      // 登入要行幾個必要嘅網絡步驟先得（查帳號 ID 對應嘅登入電郵 → 用
+      // Firebase Auth 驗證密碼 → 攞返用戶資料兼檢查有冇被停權），呢幾步
+      // 一環扣一環，每一步都要等上一步嘅結果先知道下一步查邊份文件，
+      // 冇辦法夾埋一齊做，所以網絡差嗰陣始終要等一等——但唔應該畀人
+      // 覺得個網站「死咗機」，所以撳落「登入」之後即刻將粒掣變成
+      // loading 狀態，等用戶清楚知道緊「已經撳中,程式正在處理」，
+      // 唔係凍結咗。
+      const submitBtn = document.getElementById('login-submit-btn');
+      const cancelBtn = document.getElementById('login-cancel-btn');
+      const originalText = submitBtn ? submitBtn.innerText : '登入';
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.innerText = '⏳ 登入緊...'; }
+      if (cancelBtn) cancelBtn.disabled = true;
+      try {
+        await window.loginWithFirebase(email, password);
+      } finally {
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; }
+        if (cancelBtn) cancelBtn.disabled = false;
+      }
     };
 
     window.saveUserProfile = async function(e) {
@@ -8598,64 +8616,123 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
       }
     };
 
+    // 效能優化：以前呢個 tab 係冇上限咁監聽成個 reports collection——舉報
+    // 隨時間累積得越多（連埋每則入面嗰張截圖），管理員每次打開呢頁都要
+    // 一次過下載晒由第一日到而家全部舉報，會越用越重。而家改成分頁：
+    // 淨係即時監聽最新嗰 ADMIN_REPORTS_PAGE_SIZE 則（保持「有新舉報即刻
+    // 見到」呢個實時性），舊嘅要撳「載入更多」先一次性攞（唔會再持續
+    // 監聽,單純減少負擔)。因為排序用嘅 createdAt 一經寫入就唔會再變，
+    // 新舉報插入唔會影響已經攞落嚟嗰批舊資料嘅分頁邊界，所以呢種「頭
+    // 一頁即時、之後嘅頁靜態」嘅做法唔會有資料錯亂嘅問題。
+    const ADMIN_REPORTS_PAGE_SIZE = 30;
+    let adminReportsLoadedDocs = [];
+    let adminReportsAllLoaded = false;
+
+    function buildAdminReportCardHtml(docSnap) {
+      const r = docSnap.data();
+      const reportId = docSnap.id;
+      const status = r.status || 'pending';
+      const statusLabel = status === 'pending' ? '⏳ 待處理' : (status === 'dismissed' ? '已駁回' : '已處理');
+      const statusColor = status === 'pending' ? '#C0524A' : '#999';
+      const when = r.createdAt ? new Date(r.createdAt).toLocaleString('zh-HK') : '—';
+      const screenshotHtml = r.screenshot
+        ? `<img src="${r.screenshot}" style="width:100%; max-width:280px; border-radius:8px; border:1px solid #ddd; margin-top:6px; display:block; cursor:pointer;" onclick="window.open(this.src, '_blank')">`
+        : `<p style="font-size:11.5px; color:#c99; margin-top:6px;">⚠️ 當時攞唔到截圖</p>`;
+      return `
+        <div class="admin-card" style="${status !== 'pending' ? 'opacity:.6;' : ''}">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
+            <span style="font-weight:700; color:${statusColor}; font-size:12.5px;">${statusLabel}</span>
+            <span style="font-size:10.5px; color:#999;">${escapeHtml(when)}</span>
+          </div>
+          <p style="font-size:12.5px; margin-bottom:3px;"><b>被舉報：</b>${escapeHtml(r.reportedName || '—')} ${r.reportedLoginId ? '（🆔 ' + escapeHtml(r.reportedLoginId) + '）' : ''}</p>
+          <p style="font-size:11.5px; color:#888; margin-bottom:3px;">${r.reportedEmail ? escapeHtml(r.reportedEmail) : ''}</p>
+          <p style="font-size:12.5px; margin-bottom:3px;"><b>舉報人：</b>${escapeHtml(r.reporterName || '—')} ${r.reporterLoginId ? '（🆔 ' + escapeHtml(r.reporterLoginId) + '）' : ''}</p>
+          <p style="font-size:12.5px; margin-bottom:3px;"><b>房間：</b>${escapeHtml(r.roomName || r.roomId || '—')}</p>
+          <p style="font-size:12.5px; margin-bottom:3px;"><b>原因：</b>${escapeHtml(r.reason || '—')}</p>
+          ${r.notes ? `<p style="font-size:12px; color:#666; background:#F7F5F2; border-radius:6px; padding:6px 8px; margin-bottom:3px;">${escapeHtml(r.notes)}</p>` : ''}
+          ${screenshotHtml}
+          <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:10px;">
+            ${status === 'pending' ? `<button class="btn btn-outline" style="font-size:11px; padding:4px 9px;" onclick="window.adminMarkReportStatus('${reportId}', 'dismissed')">🗂️ 駁回（冇問題）</button>` : ''}
+            ${status === 'pending' ? `<button class="btn btn-outline" style="font-size:11px; padding:4px 9px;" onclick="window.adminMarkReportStatus('${reportId}', 'reviewed')">✅ 標記已處理</button>` : ''}
+            ${r.reportedUid ? `<button class="btn btn-red" style="font-size:11px; padding:4px 9px;" onclick="window.adminSuspendFromReport('${reportId}', '${r.reportedUid}')">🚫 停權此帳戶</button>` : ''}
+            ${status !== 'pending' ? `<button class="btn btn-outline" style="font-size:11px; padding:4px 9px; color:#999; border-color:#ccc;" onclick="window.adminDeleteReport('${reportId}')">🗑️ 刪除紀錄</button>` : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderAdminReportsListUI() {
+      const container = document.getElementById('admin-tab-reports');
+      if (!container) return;
+      if (adminReportsLoadedDocs.length === 0) {
+        container.innerHTML = '<div class="admin-card" style="text-align:center; color:#999;">目前冇任何舉報記錄</div>';
+        return;
+      }
+      const cards = adminReportsLoadedDocs.map(buildAdminReportCardHtml).join('');
+      const loadMoreHtml = adminReportsAllLoaded
+        ? ''
+        : `<div style="text-align:center; margin-top:12px;">
+             <button class="btn btn-outline" id="admin-reports-load-more-btn" type="button" onclick="window.adminLoadMoreReports()">📜 載入更多（已顯示 ${adminReportsLoadedDocs.length} 則）</button>
+           </div>`;
+      container.innerHTML = `
+        <div style="margin-bottom:10px; background:#FFF7E6; border:1px solid #F0D9A0; border-radius:8px; padding:8px 10px; font-size:11.5px; color:#8a6d1f;">
+          ⚠️ 技術上嘅重要提醒：呢個網站冇獨立伺服器，淨係用緊 Firebase，所以呢度睇唔到、亦都做唔到真正嘅「IP 封鎖」（因為 Firestore 規則見唔到用戶嘅真實 IP）。「停權」呢個功能就實實在在有效——會即刻令該帳戶下次登入被強制登出，亦令佢完全用唔到呢個平台。
+        </div>
+        ${cards}
+        ${loadMoreHtml}
+      `;
+    }
+
     function renderAdminReportsTab() {
       const container = document.getElementById('admin-tab-reports');
       if (!container || !window.db || !window.fs) return;
       container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入緊舉報記錄...</p>';
 
+      adminReportsLoadedDocs = [];
+      adminReportsAllLoaded = false;
+
       if (adminReportsUnsubscribe) adminReportsUnsubscribe();
       const q = window.fs.query(
         window.fs.collection(window.db, 'reports'),
-        window.fs.orderBy('createdAt', 'desc')
+        window.fs.orderBy('createdAt', 'desc'),
+        window.fs.limit(ADMIN_REPORTS_PAGE_SIZE)
       );
       adminReportsUnsubscribe = window.fs.onSnapshot(q, (snapshot) => {
-        if (snapshot.empty) {
-          container.innerHTML = '<div class="admin-card" style="text-align:center; color:#999;">目前冇任何舉報記錄</div>';
-          return;
-        }
-        const cards = snapshot.docs.map(docSnap => {
-          const r = docSnap.data();
-          const reportId = docSnap.id;
-          const status = r.status || 'pending';
-          const statusLabel = status === 'pending' ? '⏳ 待處理' : (status === 'dismissed' ? '已駁回' : '已處理');
-          const statusColor = status === 'pending' ? '#C0524A' : '#999';
-          const when = r.createdAt ? new Date(r.createdAt).toLocaleString('zh-HK') : '—';
-          const screenshotHtml = r.screenshot
-            ? `<img src="${r.screenshot}" style="width:100%; max-width:280px; border-radius:8px; border:1px solid #ddd; margin-top:6px; display:block; cursor:pointer;" onclick="window.open(this.src, '_blank')">`
-            : `<p style="font-size:11.5px; color:#c99; margin-top:6px;">⚠️ 當時攞唔到截圖</p>`;
-          return `
-            <div class="admin-card" style="${status !== 'pending' ? 'opacity:.6;' : ''}">
-              <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
-                <span style="font-weight:700; color:${statusColor}; font-size:12.5px;">${statusLabel}</span>
-                <span style="font-size:10.5px; color:#999;">${escapeHtml(when)}</span>
-              </div>
-              <p style="font-size:12.5px; margin-bottom:3px;"><b>被舉報：</b>${escapeHtml(r.reportedName || '—')} ${r.reportedLoginId ? '（🆔 ' + escapeHtml(r.reportedLoginId) + '）' : ''}</p>
-              <p style="font-size:11.5px; color:#888; margin-bottom:3px;">${r.reportedEmail ? escapeHtml(r.reportedEmail) : ''}</p>
-              <p style="font-size:12.5px; margin-bottom:3px;"><b>舉報人：</b>${escapeHtml(r.reporterName || '—')} ${r.reporterLoginId ? '（🆔 ' + escapeHtml(r.reporterLoginId) + '）' : ''}</p>
-              <p style="font-size:12.5px; margin-bottom:3px;"><b>房間：</b>${escapeHtml(r.roomName || r.roomId || '—')}</p>
-              <p style="font-size:12.5px; margin-bottom:3px;"><b>原因：</b>${escapeHtml(r.reason || '—')}</p>
-              ${r.notes ? `<p style="font-size:12px; color:#666; background:#F7F5F2; border-radius:6px; padding:6px 8px; margin-bottom:3px;">${escapeHtml(r.notes)}</p>` : ''}
-              ${screenshotHtml}
-              <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:10px;">
-                ${status === 'pending' ? `<button class="btn btn-outline" style="font-size:11px; padding:4px 9px;" onclick="window.adminMarkReportStatus('${reportId}', 'dismissed')">🗂️ 駁回（冇問題）</button>` : ''}
-                ${status === 'pending' ? `<button class="btn btn-outline" style="font-size:11px; padding:4px 9px;" onclick="window.adminMarkReportStatus('${reportId}', 'reviewed')">✅ 標記已處理</button>` : ''}
-                ${r.reportedUid ? `<button class="btn btn-red" style="font-size:11px; padding:4px 9px;" onclick="window.adminSuspendFromReport('${reportId}', '${r.reportedUid}')">🚫 停權此帳戶</button>` : ''}
-                ${status !== 'pending' ? `<button class="btn btn-outline" style="font-size:11px; padding:4px 9px; color:#999; border-color:#ccc;" onclick="window.adminDeleteReport('${reportId}')">🗑️ 刪除紀錄</button>` : ''}
-              </div>
-            </div>
-          `;
-        }).join('');
-        container.innerHTML = `
-          <div style="margin-bottom:10px; background:#FFF7E6; border:1px solid #F0D9A0; border-radius:8px; padding:8px 10px; font-size:11.5px; color:#8a6d1f;">
-            ⚠️ 技術上嘅重要提醒：呢個網站冇獨立伺服器，淨係用緊 Firebase，所以呢度睇唔到、亦都做唔到真正嘅「IP 封鎖」（因為 Firestore 規則見唔到用戶嘅真實 IP）。「停權」呢個功能就實實在在有效——會即刻令該帳戶下次登入被強制登出，亦令佢完全用唔到呢個平台。
-          </div>
-          ${cards}
-        `;
+        adminReportsLoadedDocs = snapshot.docs;
+        // 頭一頁攞返嘅數量少過成頁上限，即係話成個 collection 都已經
+        // 攞晒，冇需要再顯示「載入更多」
+        if (snapshot.docs.length < ADMIN_REPORTS_PAGE_SIZE) adminReportsAllLoaded = true;
+        renderAdminReportsListUI();
       }, (err) => {
         container.innerHTML = `<div class="admin-card" style="color:#c0392b;">載入失敗：${err.message || err}</div>`;
       });
     }
     window.renderAdminReportsTab = renderAdminReportsTab;
+
+    // 「載入更多」淨係一次性攞多一頁（唔會幫呢一頁另外加監聽），揭完之後
+    // 就靜態咁擺喺度——舊舉報基本上唔會再變動，唔使成日即時監聽住佢哋
+    window.adminLoadMoreReports = async function() {
+      if (!window.db || !window.fs || adminReportsAllLoaded) return;
+      const lastDoc = adminReportsLoadedDocs[adminReportsLoadedDocs.length - 1];
+      if (!lastDoc) return;
+      const btn = document.getElementById('admin-reports-load-more-btn');
+      if (btn) { btn.disabled = true; btn.innerText = '載入緊...'; }
+      try {
+        const q = window.fs.query(
+          window.fs.collection(window.db, 'reports'),
+          window.fs.orderBy('createdAt', 'desc'),
+          window.fs.startAfter(lastDoc),
+          window.fs.limit(ADMIN_REPORTS_PAGE_SIZE)
+        );
+        const snapshot = await window.fs.getDocs(q);
+        if (snapshot.docs.length < ADMIN_REPORTS_PAGE_SIZE) adminReportsAllLoaded = true;
+        adminReportsLoadedDocs = adminReportsLoadedDocs.concat(snapshot.docs);
+        renderAdminReportsListUI();
+      } catch (e) {
+        window.showToast('載入更多舉報失敗：' + (e.message || e), '❌');
+        if (btn) { btn.disabled = false; btn.innerText = '📜 載入更多'; }
+      }
+    };
 
     window.adminMarkReportStatus = async function(reportId, status) {
       try {
