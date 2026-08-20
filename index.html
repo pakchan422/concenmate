@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.34.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.34.1"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -4730,8 +4730,8 @@
 
     onAuthStateChanged(auth, async (user) => {
       if (user) {
+        const userDocRef = doc(db, "users", user.uid);
         try {
-          const userDocRef = doc(db, "users", user.uid);
           const userDoc = await getDoc(userDocRef);
           if (userDoc.exists()) {
             window.currentUser = userDoc.data();
