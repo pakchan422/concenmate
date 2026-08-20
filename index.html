@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.39.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.39.1"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -3766,6 +3766,12 @@
           if (document.getElementById('friends-list-container')) renderFriendsListRows();
           if (typeof window.renderChatDockPanel === 'function') window.renderChatDockPanel();
           if (typeof window.updateChatWindowPresence === 'function') window.updateChatWindowPresence(uid);
+          // 「邀請朋友入房」個彈出視窗如果啱啱開住，都要一齊即時更新返
+          // 邊個上線／落線，唔使閂咗再開返先見到最新狀態
+          const inviteModalEl = document.getElementById('modal-invite-friend');
+          if (inviteModalEl && inviteModalEl.style.display !== 'none' && typeof window.renderInviteFriendListUI === 'function') {
+            window.renderInviteFriendListUI();
+          }
         }, () => {});
       });
     };
@@ -4447,7 +4453,39 @@
     // 邀請有效期：5 分鐘，過咗期就算撳「加入」都會提示過期，唔會直接放行
     const ROOM_INVITE_VALID_MS = 5 * 60 * 1000;
 
-    // 房入面空位卡片撳「邀請朋友」：列出我嘅好友，揀邊個就送個邀請畀佢
+    // 房入面空位卡片撳「邀請朋友」：列出我嘅好友，揀邊個就送個邀請畀佢。
+    // 用返「夥伴與讀書會」個好友名單同一套上線狀態顯示（綠點 + 「● 在線」
+    // 字樣），等用家一眼就知道邀請緊嘅人係咪真係喺線，唔使估。
+    let inviteFriendListCache = [];
+    function renderInviteFriendListUI() {
+      const listEl = document.getElementById('invite-friend-list');
+      if (!listEl) return;
+      if (inviteFriendListCache.length === 0) {
+        listEl.innerHTML = '<p style="font-size:13px; color:#999; text-align:center; padding:10px 0;">冇好友可以邀請喇（可能全部都已經喺房入面，或者你仲未加任何好友）</p>';
+        return;
+      }
+      const presenceMap = window.friendPresenceMap || {};
+      listEl.innerHTML = inviteFriendListCache.map(f => {
+        const online = typeof window.isUidOnline === 'function' && window.isUidOnline(presenceMap[f.uid]);
+        return `
+        <div class="card" style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div class="avatar-with-dot">
+              <div class="avatar-circle" style="width:36px; height:36px; font-size:14px;">${(f.username||'U').charAt(0).toUpperCase()}</div>
+              <span class="presence-dot ${online ? 'online' : ''}"></span>
+            </div>
+            <div>
+              <div style="font-weight:bold; color:var(--brand-800); font-size:13px;">${escapeHtml(f.username||'同學')} <span style="font-weight:normal; font-size:11px; color:${online ? '#4CAF50' : '#999'};">${online ? '● 在線' : ''}</span></div>
+              <div style="font-size:11px; color:#888;">🆔 ${escapeHtml(f.loginId||'')}</div>
+            </div>
+          </div>
+          <button class="btn btn-primary" type="button" style="font-size:12px; padding:5px 10px;" onclick="inviteFriendToRoom('${f.uid}', '${escapeHtml((f.username||'同學')).replace(/'/g, "\\'")}')">📨 邀請</button>
+        </div>
+      `;
+      }).join('');
+    }
+    window.renderInviteFriendListUI = renderInviteFriendListUI;
+
     window.openInviteFriendModal = async function() {
       if (!window.currentUser || !window.db || !window.fs) { window.showToast('請先登入', '⚠️'); return; }
       if (!state.currentRoomId) { window.showToast('要喺房間入面先可以邀請朋友', '⚠️'); return; }
@@ -4459,23 +4497,8 @@
         const snap = await window.fs.getDocs(window.fs.collection(window.db, 'users', window.currentUser.uid, 'friends'));
         const alreadyInRoom = new Set(Object.keys(state.slotAssignments));
         alreadyInRoom.add(window.currentUser.uid);
-        const friends = snap.docs.map(d => d.data()).filter(f => !alreadyInRoom.has(f.uid));
-        if (friends.length === 0) {
-          listEl.innerHTML = '<p style="font-size:13px; color:#999; text-align:center; padding:10px 0;">冇好友可以邀請喇（可能全部都已經喺房入面，或者你仲未加任何好友）</p>';
-          return;
-        }
-        listEl.innerHTML = friends.map(f => `
-          <div class="card" style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-            <div style="display:flex; align-items:center; gap:10px;">
-              <div class="avatar-circle" style="width:36px; height:36px; font-size:14px;">${(f.username||'U').charAt(0).toUpperCase()}</div>
-              <div>
-                <div style="font-weight:bold; color:var(--brand-800); font-size:13px;">${escapeHtml(f.username||'同學')}</div>
-                <div style="font-size:11px; color:#888;">🆔 ${escapeHtml(f.loginId||'')}</div>
-              </div>
-            </div>
-            <button class="btn btn-primary" type="button" style="font-size:12px; padding:5px 10px;" onclick="inviteFriendToRoom('${f.uid}', '${escapeHtml((f.username||'同學')).replace(/'/g, "\\'")}')">📨 邀請</button>
-          </div>
-        `).join('');
+        inviteFriendListCache = snap.docs.map(d => d.data()).filter(f => !alreadyInRoom.has(f.uid));
+        renderInviteFriendListUI();
       } catch (e) {
         console.error('載入好友名單失敗:', e);
         listEl.innerHTML = '<p style="font-size:13px; color:#D9764A; text-align:center;">載入失敗，請再試一次</p>';
