@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.35.1"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.36.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -345,18 +345,18 @@
       gap: 4px;
     }
 
-    /* 舉報功能：特登「收埋」喺一粒細細嘅「⋮」（更多選項）掣入面，唔會
-       好似踢走掣咁成粒紅色掣咁顯眼，要撳多一下先見到「🚩 舉報」呢個
-       選項，減少唔小心撳中嘅機會 */
-    .report-menu-wrap { position: relative; }
-    .report-menu-toggle {
+    /* 視訊格「更多選項」下拉選單：踢走、轉移房主（房主專用）、舉報
+       （人人都有）全部收埋喺一粒細細嘅「⋮」入面，唔會好似獨立紅色
+       大掣咁顯眼，要撳多一下先揀到，減少唔小心撳中嘅機會 */
+    .video-more-menu-wrap { position: relative; }
+    .video-more-menu-toggle {
       cursor: pointer;
       padding: 4px 8px;
       font-size: 15px;
       opacity: .7;
     }
-    .report-menu-toggle:hover { opacity: 1; }
-    .report-menu-dropdown {
+    .video-more-menu-toggle:hover { opacity: 1; }
+    .video-more-menu-dropdown {
       position: absolute;
       top: 100%;
       right: 0;
@@ -366,14 +366,14 @@
       box-shadow: 0 6px 18px rgba(0,0,0,.35);
       overflow: hidden;
       z-index: 20;
-      min-width: 138px;
+      min-width: 158px;
     }
-    .report-menu-item {
+    .video-more-menu-item {
       display: block;
       width: 100%;
       background: #fff;
       border: none;
-      color: #C0524A;
+      color: #3E7A8A;
       font-size: 12.5px;
       font-weight: 700;
       padding: 9px 12px;
@@ -381,7 +381,9 @@
       cursor: pointer;
       white-space: nowrap;
     }
-    .report-menu-item:hover { background: #FBEAEA; }
+    .video-more-menu-item:hover { background: #EEF6F8; }
+    .video-more-menu-item.danger { color: #C0524A; }
+    .video-more-menu-item.danger:hover { background: #FBEAEA; }
 
     .video-footer {
       position: absolute;
@@ -5168,11 +5170,12 @@
             <span class="video-tag" style="cursor:pointer;" onclick="viewUserProfile('${uid}')" title="撳一下睇資料／加好友">📹 ${name || '其他用家'}</span>
             <span class="video-tag" id="remote-host-badge-${slotNum}" style="background:#D9EBEF; color:#1E4550; display:none;">👑 房主</span>
             <span class="video-tag" id="stream-status-${uid}" style="background:#3E7A8A; color:#fff;">🔗 連線中...</span>
-            <span class="video-tag" id="kick-btn-${uid}" style="background:#C0524A; color:#fff; cursor:pointer; display:none;" onclick="event.stopPropagation(); window.kickParticipant('${uid}', '${(name||'呢位同學').replace(/'/g, "\\'")}')" title="房主專用：將呢位用家移出房間">🚫 踢走</span>
-            <div class="report-menu-wrap">
-              <span class="video-tag report-menu-toggle" onclick="event.stopPropagation(); window.toggleReportMenu('${uid}')" title="更多選項">⋮</span>
-              <div class="report-menu-dropdown" id="report-menu-${uid}" style="display:none;">
-                <button type="button" class="report-menu-item" onclick="event.stopPropagation(); window.toggleReportMenu('${uid}'); window.openReportModal('${uid}', '${(name||'呢位同學').replace(/'/g, "\\'")}')">🚩 舉報呢位同學</button>
+            <div class="video-more-menu-wrap">
+              <span class="video-tag video-more-menu-toggle" onclick="event.stopPropagation(); window.toggleVideoMoreMenu('${uid}')" title="更多選項">⋮</span>
+              <div class="video-more-menu-dropdown" id="video-more-menu-${uid}" style="display:none;">
+                <button type="button" class="video-more-menu-item" id="transfer-host-btn-${uid}" style="display:none;" onclick="event.stopPropagation(); window.toggleVideoMoreMenu('${uid}'); window.transferHostTo('${uid}', '${(name||'呢位同學').replace(/'/g, "\\'")}')">👑 轉移房主俾佢</button>
+                <button type="button" class="video-more-menu-item danger" id="kick-btn-${uid}" style="display:none;" onclick="event.stopPropagation(); window.toggleVideoMoreMenu('${uid}'); window.kickParticipant('${uid}', '${(name||'呢位同學').replace(/'/g, "\\'")}')">🚫 踢走呢位同學</button>
+                <button type="button" class="video-more-menu-item danger" onclick="event.stopPropagation(); window.toggleVideoMoreMenu('${uid}'); window.openReportModal('${uid}', '${(name||'呢位同學').replace(/'/g, "\\'")}')">🚩 舉報呢位同學</button>
               </div>
             </div>
           </div>
@@ -5210,12 +5213,15 @@
         badge.style.display = (hostUid && uidInThisSlot && uidInThisSlot === hostUid) ? 'flex' : 'none';
       });
 
-      // 「🚫 踢走」掣淨係房主先睇到（每個遠端格都有一粒，跟返 uid 唔跟
-      // slotNum，因為換咗人入嗰格都要即刻更新返啱嘅顯示狀態）
+      // 「🚫 踢走」同「👑 轉移房主俾佢」呢兩個選項淨係房主先睇到（每個
+      // 遠端格都有一粒，跟返 uid 唔跟 slotNum，因為換咗人入嗰格都要即刻
+      // 更新返啱嘅顯示狀態）；兩者都收埋喺「⋮」下拉選單入面
       const amIHost = !!(state.isHost && myUid && hostUid === myUid);
       Object.keys(state.slotAssignments).forEach(uid => {
         const kickBtn = document.getElementById('kick-btn-' + uid);
-        if (kickBtn) kickBtn.style.display = amIHost ? 'flex' : 'none';
+        if (kickBtn) kickBtn.style.display = amIHost ? 'block' : 'none';
+        const transferBtn = document.getElementById('transfer-host-btn-' + uid);
+        if (transferBtn) transferBtn.style.display = amIHost ? 'block' : 'none';
       });
     }
 
@@ -5239,23 +5245,43 @@
       }
     };
 
-    // ===================== 🚩 舉報視訊溫習室用家 =====================
-    // 呢個功能主要係為咗保障未成年用家安全：任何參加者（唔淨止房主）
-    // 見到對方有不當行為，都可以即時截低對方畫面做證據，連同原因交俾
-    // 管理員審核，考慮係咪要停權處理。掣特登收埋喺「⋮」入面（見
-    // getOrCreateRemoteSlot 嗰個 report-menu-dropdown），撳「舉報」之後
-    // 仲要揀原因先送到，一共要三個步驟先真正送出，減少誤觸。
+    // 房主專用：將房主身份轉移俾房入面另一位用家。做法同 hostLeaveKeepRoom
+    // 嗰個「自動揀最早入房嗰位」轉移邏輯一樣，都係淨係改返 rooms/{roomId}
+    // 文件嘅 hostUid／hostName，唔同之處係呢度由房主自己揀邊個、亦唔會
+    // 令房主本人離開房間——兩邊 client 都靠現有嘅 roomDocUnsubscribe
+    // listener（見 listenToParticipants）自動偵測到 hostUid 變咗，即時
+    // 更新返 state.isHost／👑 房主牌／邊個睇到「踢走、轉移房主」呢兩個
+    // 選項，唔使額外寫多一套同步邏輯。
+    window.transferHostTo = async function(targetUid, targetName) {
+      if (!state.isHost || !state.currentRoomId || !window.db || !window.fs) return;
+      if (!confirm(`確定要將房主身份轉移俾「${targetName}」？轉移之後你會變返做普通成員，唔會再有踢人／轉移房主嘅權限。`)) return;
+      try {
+        await window.fs.updateDoc(window.fs.doc(window.db, 'rooms', state.currentRoomId), {
+          hostUid: targetUid,
+          hostName: targetName
+        });
+        window.showToast(`已將房主身份轉移俾「${targetName}」`, '👑');
+      } catch (e) {
+        window.showToast('轉移房主失敗：' + (e.message || e), '❌');
+      }
+    };
 
-    window.toggleReportMenu = function(uid) {
-      document.querySelectorAll('.report-menu-dropdown').forEach(el => {
-        if (el.id !== 'report-menu-' + uid) el.style.display = 'none';
+    // ===================== 視訊格「⋮」更多選項選單 =====================
+    // 踢走／轉移房主（房主專用，見 updateHostBadge 點樣控制顯示）同埋
+    // 🚩 舉報（任何人都用到，為咗保障未成年用家安全）都收埋喺呢個選單
+    // 入面，唔會好似獨立大掣咁顯眼，減少誤觸。舉報撳咗之後仲要揀原因
+    // 先送到，一共要三個步驟先真正送出。
+
+    window.toggleVideoMoreMenu = function(uid) {
+      document.querySelectorAll('.video-more-menu-dropdown').forEach(el => {
+        if (el.id !== 'video-more-menu-' + uid) el.style.display = 'none';
       });
-      const menu = document.getElementById('report-menu-' + uid);
+      const menu = document.getElementById('video-more-menu-' + uid);
       if (menu) menu.style.display = (menu.style.display === 'block') ? 'none' : 'block';
     };
     // 撳呢粒「⋮」以外任何地方，開緊嘅選單都要自動收埋
     document.addEventListener('click', () => {
-      document.querySelectorAll('.report-menu-dropdown').forEach(el => { el.style.display = 'none'; });
+      document.querySelectorAll('.video-more-menu-dropdown').forEach(el => { el.style.display = 'none'; });
     });
 
     let pendingReportTarget = null; // { uid, name }
