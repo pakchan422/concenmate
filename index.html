@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.33.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.34.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -254,6 +254,14 @@
       z-index: 1;
       border-radius: 16px;
       background: #000;
+      /* 前置鏡頭原始畫面本身就已經係「鏡像」（好似照鏡咁），瀏覽器
+         擷取（getUserMedia）返嚟嘅畫面同送去對方嗰條視訊軌道都冇再
+         校正返；之前淨係喺自己嗰個 canvas 預覽度用 CSS 校正返做自然
+         鏡像，但對方睇緊你嗰個 <video> 完全冇校正，結果對方睇你就會
+         見到啲字、動作全部係左右反轉晒。修法：喺顯示層（呢個 <video>
+         元素）都加返同一個校正，等任何人睇對方個畫面都係「正常」方向，
+         唔使改去 WebRTC 實際傳緊嘅視訊軌道（改軌道成本高好多，亦冇必要）。*/
+      transform: scaleX(-1);
     }
 
     .video-overlay { 
@@ -4690,6 +4698,7 @@
     }
 
     let unsubscribeRooms = null;
+    let suspensionListenerUnsubscribe = null;
     function listenToPublicRooms() {
       if (unsubscribeRooms) unsubscribeRooms();
 
@@ -4759,6 +4768,21 @@
           return;
         }
 
+        // 即時停權監聽：管理員喺後台撳「停權」嗰刻，唔使等呢個用戶下次
+        // 登入先生效——直接監聽緊自己嗰份 users/{uid} 文件，一見到
+        // suspended 變咗 true 就即刻強制登出，唔理佢而家仲喺唔喺線
+        // （例如仲留喺視訊溫習室入面）都會即時被踢出登入狀態。
+        if (suspensionListenerUnsubscribe) { suspensionListenerUnsubscribe(); suspensionListenerUnsubscribe = null; }
+        suspensionListenerUnsubscribe = onSnapshot(userDocRef, (snap) => {
+          if (snap.exists() && snap.data().suspended && window.currentUser) {
+            window.showToast('你嘅帳戶已被管理員停權，即將登出', '🚫');
+            if (suspensionListenerUnsubscribe) { suspensionListenerUnsubscribe(); suspensionListenerUnsubscribe = null; }
+            signOut(auth);
+          }
+        }, (err) => {
+          console.error('監聽帳戶停權狀態失敗:', err);
+        });
+
         listenToPublicRooms();
         if (typeof window.loadFriendRequests === 'function') {
           window.loadFriendRequests();
@@ -4779,6 +4803,7 @@
         }
       } else {
         window.currentUser = null;
+        if (suspensionListenerUnsubscribe) { suspensionListenerUnsubscribe(); suspensionListenerUnsubscribe = null; }
       }
       if (typeof window.updateUserAuthUI === 'function') {
         window.updateUserAuthUI();
@@ -5220,6 +5245,12 @@
         const canvas = document.createElement('canvas');
         canvas.width = w; canvas.height = h;
         const ctx = canvas.getContext('2d');
+        // <video> 元素本身有用 CSS transform:scaleX(-1) 校正返做自然方向
+        // 畀人睇（見 .remote-video-element），但 drawImage 讀嘅係原始未經
+        // CSS 校正嘅畫面資料，所以呢度都要用返同一個左右反轉，等截圖證據
+        // 同截圖嗰一刻畫面上實際見到嘅方向一致，唔會令管理員睇到相反畫面
+        ctx.translate(w, 0);
+        ctx.scale(-1, 1);
         ctx.drawImage(videoEl, 0, 0, w, h);
         return canvas.toDataURL('image/jpeg', 0.6);
       } catch (e) {
