@@ -9,7 +9,47 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.39.1"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.40.0"; // 每次推送 GitHub 前，喺呢度改版號
+  </script>
+
+  <!-- ========================================
+       📧 電郵驗證設定（EmailJS）
+       ========================================
+       呢個 app 冇自己嘅後端伺服器，冇辦法好似一般網站咁自己寄電郵。
+       用緊 EmailJS——一個俾靜態網站都可以直接（喺瀏覽器度）寄電郵嘅
+       免費第三方服務，唔使自己起後端。用法：
+         1. 去 https://www.emailjs.com 免費開個帳號
+         2. 喺 "Email Services" 度連接一個電郵帳戶（例如你個 Gmail），
+            會攞到一個 Service ID
+         3. 喺 "Email Templates" 度整一個新範本，範本入面要用到
+            {{to_email}}、{{to_name}}、{{verify_link}} 呢三個變數
+            （例如內文寫：「{{to_name}} 你好，撳呢個連結驗證你嘅
+            ConcenMate 帳戶：{{verify_link}}」），會攞到一個 Template ID
+         4. 喺 "Account" → "General" 度攞到你個 Public Key
+         5. 將呢三個值填落下面對應嘅位置
+       填咗之後，新註冊嘅同學一提交表格就會即刻收到驗證電郵。冇填之前
+       （即係仲係下面嘅 PASTE_ 開頭嗰啲預設值），註冊流程完全唔受影響、
+       唔會出錯畀用戶睇到，淨係唔會有電郵寄出（瀏覽器 console 度會見到
+       一句提示，方便你自己核對設定咗未）。 -->
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <script>
+    window.EMAILJS_PUBLIC_KEY = 'PASTE_YOUR_EMAILJS_PUBLIC_KEY';
+    window.EMAILJS_SERVICE_ID = 'PASTE_YOUR_EMAILJS_SERVICE_ID';
+    window.EMAILJS_TEMPLATE_ID = 'PASTE_YOUR_EMAILJS_TEMPLATE_ID';
+    window.EMAILJS_CONFIGURED = false; // 呢個由下面自動判斷，唔使手動改
+    (function initEmailJS() {
+      try {
+        if (typeof emailjs === 'undefined') { console.warn('EmailJS SDK 未載入成功'); return; }
+        if (window.EMAILJS_PUBLIC_KEY.indexOf('PASTE_YOUR_') === 0) {
+          console.warn('⚠️ EmailJS 仲未設定（見 index.html 頭段 "電郵驗證設定"），註冊時唔會寄到驗證電郵。');
+          return;
+        }
+        emailjs.init({ publicKey: window.EMAILJS_PUBLIC_KEY });
+        window.EMAILJS_CONFIGURED = true;
+      } catch (e) {
+        console.error('EmailJS 初始化失敗:', e);
+      }
+    })();
   </script>
 
 <style>
@@ -1590,6 +1630,15 @@
               </div>
 
               <div>
+                <label style="font-size:13px; font-weight:bold; color:#555; display:block;">聯絡電郵 (用於驗證身份 / 日後接收通知)</label>
+                <input type="email" id="prof-contact-email" class="input-field" placeholder="例如：abc@gmail.com">
+                <div style="margin-top:6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                  <span id="prof-email-verify-badge" style="font-size:12px; font-weight:bold; padding:3px 8px; border-radius:12px;"></span>
+                  <button type="button" id="resend-verify-email-btn" onclick="resendVerificationEmail()" class="btn" style="display:none; font-size:12px; padding:4px 10px; background:#E5EEF0; color:var(--brand-800);">📧 重新發送驗證電郵</button>
+                </div>
+              </div>
+
+              <div>
                 <label style="font-size:13px; font-weight:bold; color:#555; display:block;">學校名稱</label>
                 <input type="text" id="prof-school" class="input-field" placeholder="例如：聖保羅男女中學">
               </div>
@@ -1859,9 +1908,9 @@
         </div>
 
         <div>
-          <label style="font-size:13px; font-weight:bold; color:#555;">8. 救援電郵 (可留白)</label>
-          <input type="email" id="reg-contact-email" class="input-field" placeholder="example@school.edu.hk">
-          <p style="font-size:11px; color:#999; margin-top:4px;">唔會用嚟登入，淨係萬一你唔記得密碼／帳號 ID 嗰陣，畀管理員用嚟核實身份幫手</p>
+          <label style="font-size:13px; font-weight:bold; color:#555;">8. 電郵地址 *</label>
+          <input type="email" id="reg-contact-email" class="input-field" required placeholder="example@school.edu.hk">
+          <p style="font-size:11px; color:#999; margin-top:4px;">唔會用嚟登入，但要做電郵驗證：提交表格後會收到一封驗證電郵，記得撳入面個連結確認</p>
         </div>
 
         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
@@ -2616,6 +2665,7 @@
         document.getElementById('prof-grade').value = window.currentUser.grade || '中六 (S6 DSE)';
         document.getElementById('prof-fav').value = window.currentUser.favSubjects || '';
         document.getElementById('prof-dislike').value = window.currentUser.dislikeSubjects || '';
+        if (typeof window.updateProfileEmailVerifyUI === 'function') window.updateProfileEmailVerifyUI();
 
         switchTab('home');
       } else {
@@ -4890,7 +4940,133 @@
       if (typeof window.checkAdminHashRoute === 'function') {
         window.checkAdminHashRoute();
       }
+      if (typeof window.checkEmailVerifyHashRoute === 'function') {
+        window.checkEmailVerifyHashRoute();
+      }
     });
+
+    // ===================== 📧 電郵驗證 =====================
+    // 帳號 ID 登入本身完全唔變——用戶始終係用帳號 ID + 密碼登入，呢個
+    // 「電郵驗證」淨係額外驗證緊 profileData.contactEmail（用戶自己填嘅
+    // 聯絡電郵）係咪佢哋真係擁有嘅電郵，同 Firebase Auth 內部用嗰個合成
+    // email 完全冇關係、唔會影響返登入方式。
+    //
+    // 做法：註冊（或者之後改電郵）嗰陣產生一個隨機 token，存落
+    // users/{uid}.emailVerifyToken，經 EmailJS 寄一個帶住呢個 token 嘅
+    // 連結（#verify-email=uid:token）去用戶個電郵信箱。用戶撳個連結
+    // 開返個網站，程式會檢查而家登入緊嗰個帳戶係咪岩岩好個 uid、token
+    // 啱唔啱，啱先寫 emailVerified: true。因為冇後端，寫入呢步一定要
+    // 用戶本人登入緊先做得到（Firestore 規則淨係俾用戶自己改自己嘅
+    // users/{uid} 文件）。
+    function generateVerifyToken() {
+      const bytes = new Uint8Array(24);
+      (window.crypto || window.msCrypto).getRandomValues(bytes);
+      return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    window.sendVerificationEmail = async function(toEmail, username, uid, token) {
+      if (!toEmail) return;
+      if (!window.EMAILJS_CONFIGURED || typeof emailjs === 'undefined') {
+        console.warn('EmailJS 未設定，冇寄到驗證電郵俾', toEmail, '（見 index.html 頭段「電郵驗證設定」）');
+        return;
+      }
+      const verifyLink = `${window.location.origin}${window.location.pathname}#verify-email=${uid}:${token}`;
+      try {
+        await emailjs.send(window.EMAILJS_SERVICE_ID, window.EMAILJS_TEMPLATE_ID, {
+          to_email: toEmail,
+          to_name: username || '同學',
+          verify_link: verifyLink
+        });
+      } catch (e) {
+        console.error('寄驗證電郵失敗:', e);
+      }
+    };
+
+    // 撳完驗證連結、開返網站之後嘅處理：一登入（或者本身已經登入緊）
+    // 就會 call 一次，睇下網址個 hash 有冇帶住驗證資訊
+    window.checkEmailVerifyHashRoute = async function() {
+      const match = (window.location.hash || '').match(/^#verify-email=([^:]+):([0-9a-f]+)$/);
+      if (!match) return;
+      const [, linkUid, token] = match;
+      if (!window.currentUser) {
+        window.showToast('請先用返嗰個帳戶登入，先可以完成電郵驗證', '⚠️');
+        return;
+      }
+      if (window.currentUser.uid !== linkUid) {
+        window.showToast('呢個驗證連結屬於另一個帳戶，請登出並改用嗰個帳戶登入', '⚠️');
+        return;
+      }
+      if (window.currentUser.emailVerified) {
+        window.location.hash = '';
+        return;
+      }
+      if (window.currentUser.emailVerifyToken !== token) {
+        window.showToast('呢個驗證連結已經失效，可以喺「編輯個人資料」度重新發送', '⚠️');
+        window.location.hash = '';
+        return;
+      }
+      try {
+        await updateDoc(doc(db, 'users', linkUid), { emailVerified: true, emailVerifyToken: null });
+        window.currentUser.emailVerified = true;
+        window.currentUser.emailVerifyToken = null;
+        window.showToast('🎉 電郵驗證成功！', '✅');
+        if (typeof window.updateProfileEmailVerifyUI === 'function') window.updateProfileEmailVerifyUI();
+      } catch (e) {
+        window.showToast('驗證失敗：' + (e.message || e), '❌');
+      }
+      window.location.hash = '';
+    };
+    window.addEventListener('hashchange', () => { window.checkEmailVerifyHashRoute(); });
+
+    // 「編輯個人資料」度嘅「重新發送驗證電郵」掣：改咗電郵、或者第一封
+    // 冇收到，都可以隨時重新整多個新 token 再寄一次
+    window.resendVerificationEmail = async function() {
+      if (!window.currentUser || !auth.currentUser) return;
+      const toEmail = window.currentUser.contactEmail;
+      if (!toEmail) { window.showToast('請先喺上面填返個電郵地址，再撳「儲存修改資料」', '⚠️'); return; }
+      const btn = document.getElementById('resend-verify-email-btn');
+      if (btn) { btn.disabled = true; btn.innerText = '⏳ 發送緊...'; }
+      try {
+        const token = generateVerifyToken();
+        await updateDoc(doc(db, 'users', auth.currentUser.uid), { emailVerifyToken: token, emailVerified: false });
+        window.currentUser.emailVerifyToken = token;
+        window.currentUser.emailVerified = false;
+        await window.sendVerificationEmail(toEmail, window.currentUser.username, auth.currentUser.uid, token);
+        window.showToast('已重新發送驗證電郵，記得check下你個信箱（連埋垃圾郵件夾）', '📧');
+        if (typeof window.updateProfileEmailVerifyUI === 'function') window.updateProfileEmailVerifyUI();
+      } catch (e) {
+        window.showToast('發送失敗：' + (e.message || e), '❌');
+      } finally {
+        if (btn) { btn.disabled = false; btn.innerText = '📧 重新發送驗證電郵'; }
+      }
+    };
+
+    // 「編輯個人資料」表格入面，聯絡電郵嗰行嘅「已驗證／未驗證」徽章、
+    // 同「重新發送驗證電郵」掣，跟返 window.currentUser 現時嘅狀態嚟畫
+    window.updateProfileEmailVerifyUI = function() {
+      const emailInput = document.getElementById('prof-contact-email');
+      const badge = document.getElementById('prof-email-verify-badge');
+      const resendBtn = document.getElementById('resend-verify-email-btn');
+      if (!emailInput || !badge || !resendBtn || !window.currentUser) return;
+
+      emailInput.value = window.currentUser.contactEmail || '';
+
+      if (!window.currentUser.contactEmail) {
+        badge.innerText = '';
+        badge.style.background = 'transparent';
+        resendBtn.style.display = 'none';
+      } else if (window.currentUser.emailVerified) {
+        badge.innerText = '✅ 已驗證';
+        badge.style.background = '#DFF3E3';
+        badge.style.color = '#2A7A46';
+        resendBtn.style.display = 'none';
+      } else {
+        badge.innerText = '⚠️ 未驗證';
+        badge.style.background = '#FDECEA';
+        badge.style.color = '#C0392B';
+        resendBtn.style.display = 'inline-block';
+      }
+    };
 
     // 帳號 ID 登入制度：Firebase Auth 本身淨係支援電郵/密碼，冇「用戶名登入」
     // 呢種 provider，所以做法係：每個帳號 ID 背後仍然對應一個真正嘅 Firebase
@@ -4926,11 +5102,14 @@
       try {
         await setDoc(doc(db, 'usernames', idLower), { uid, authEmail, createdAt: Date.now() });
 
+        const verifyToken = generateVerifyToken();
         const newProfile = {
           uid: uid,
           email: authEmail,
           loginId: loginId,
           contactEmail: profileData.contactEmail || '',
+          emailVerified: false,
+          emailVerifyToken: verifyToken,
           username: profileData.username,
           school: profileData.school,
           grade: profileData.grade,
@@ -4945,6 +5124,13 @@
 
         await setDoc(doc(db, "users", uid), newProfile);
         window.currentUser = newProfile;
+
+        // 寄驗證電郵係「錦上添花」，就算寄唔到（例如 EmailJS 未設定、
+        // 用戶網絡有問題）都唔應該擋住成個註冊流程，所以特登唔用
+        // await、亦都唔理佢嘅失敗
+        if (newProfile.contactEmail) {
+          window.sendVerificationEmail(newProfile.contactEmail, newProfile.username, uid, verifyToken);
+        }
 
         window.closeModal('modal-register');
         window.updateUserAuthUI();
@@ -5040,6 +5226,10 @@
         window.showToast('帳號 ID 格式要係 3-20 個英文字母／數字／底線', '⚠️');
         return;
       }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
+        window.showToast('請輸入一個有效嘅電郵地址，用嚟做電郵驗證', '⚠️');
+        return;
+      }
 
       window.registerWithFirebase(loginId, password, {
         username, school, grade, favSubjects, dislikeSubjects, contactEmail
@@ -5080,20 +5270,44 @@
       const favSubjects = document.getElementById('prof-fav').value.trim();
       const dislikeSubjects = document.getElementById('prof-dislike').value.trim();
       const username = document.getElementById('prof-username').value.trim();
+      const contactEmailInput = document.getElementById('prof-contact-email');
+      const contactEmail = contactEmailInput ? contactEmailInput.value.trim() : (window.currentUser.contactEmail || '');
+
+      if (contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
+        window.showToast('聯絡電郵格式唔啱，請檢查後再試', '⚠️');
+        return;
+      }
+
+      // 電郵改咗（同之前存落 Firestore 嗰個唔一樣），就當作未驗證過，要
+      // 重新整過 token 兼寄多次驗證電郵；淨係打多打少個空格唔算改咗
+      const emailChanged = contactEmail !== (window.currentUser.contactEmail || '');
 
       try {
         const userDocRef = doc(db, "users", auth.currentUser.uid);
-        await updateDoc(userDocRef, {
-          username, school, grade, favSubjects, dislikeSubjects
-        });
+        const updates = { username, school, grade, favSubjects, dislikeSubjects, contactEmail };
+        let newToken = null;
+        if (emailChanged) {
+          newToken = contactEmail ? generateVerifyToken() : null;
+          updates.emailVerified = false;
+          updates.emailVerifyToken = newToken;
+        }
+        await updateDoc(userDocRef, updates);
         window.currentUser.username = username;
         window.currentUser.school = school;
         window.currentUser.grade = grade;
         window.currentUser.favSubjects = favSubjects;
         window.currentUser.dislikeSubjects = dislikeSubjects;
+        window.currentUser.contactEmail = contactEmail;
+        if (emailChanged) {
+          window.currentUser.emailVerified = false;
+          window.currentUser.emailVerifyToken = newToken;
+          if (contactEmail) {
+            window.sendVerificationEmail(contactEmail, username, auth.currentUser.uid, newToken);
+          }
+        }
 
         window.updateUserAuthUI();
-        window.showToast("💾 個人檔案已同步更新至 Firebase！", "✅");
+        window.showToast(emailChanged && contactEmail ? "💾 已更新資料，並寄出新嘅驗證電郵" : "💾 個人檔案已同步更新至 Firebase！", "✅");
       } catch (err) {
         window.showToast("更新失敗: " + err.message, "❌");
       }
