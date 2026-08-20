@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.35.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.35.1"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -4028,6 +4028,12 @@
     // 全新未見過嘅訊息」，先啱彈 toast——唔係就會每次個 listener 一觸發
     // （例如自己標記已讀）都重複彈返同一個通知
     let chatDockKnownLastMessageAt = {};
+    // 呢一登入／重新載入之後，第一次攞返對話清單（唔理係 onSnapshot 嘅
+    // 第一個 snapshot，定係 forceRefreshChatDock 嗰個一次性 getDocs——
+    // 兩者邊個先跑到都得，總之最先嗰次）淨係用嚟起底 baseline，唔應該
+    // 彈 toast：如果冇呢個判斷，每次登入都會將全部本身已經睇過嘅舊訊息
+    // 當做「啱啱先收到」，彈返晒出嚟。之後（真係即時收到新訊息）先要彈。
+    let chatDockBaselineEstablished = false;
 
     // 將一份 directChats 嘅 query snapshot（唔理係 onSnapshot 定係 getDocs
     // 攞返嚟嘅）轉做 window.chatDockData 呢種畫面用嘅格式，仲會順便處理
@@ -4035,6 +4041,8 @@
     // 即時 listener（startChatDockListener）同手動強制重新整理
     // （forceRefreshChatDock）都用同一套邏輯，唔使兩處各寫一份會走樣。
     function applyChatDockSnapshot(snapshot, myUid) {
+      const isBaselineSnapshot = !chatDockBaselineEstablished;
+      chatDockBaselineEstablished = true;
       window.chatDockData = snapshot.docs.map(d => {
         const data = d.data();
         const friendUid = (data.participants || []).find(u => u !== myUid);
@@ -4060,6 +4068,9 @@
         const seenAt = chatDockKnownLastMessageAt[c.chatId] || 0;
         if (c.lastMessageAt > seenAt) {
           chatDockKnownLastMessageAt[c.chatId] = c.lastMessageAt;
+          // 呢次係登入／重新載入之後嘅第一個 snapshot：淨係記低邊個對話
+          // 讀到邊句就算，唔彈 toast（唔係啱啱先收到，係本身就有嘅舊訊息）
+          if (isBaselineSnapshot) return;
           if (c.lastSenderUid && c.lastSenderUid !== myUid) {
             const win = chatOpenWindows.find(w => w.chatId === c.chatId);
             if (!win || win.minimized) {
@@ -4127,6 +4138,7 @@
       if (chatDockUnsub) { chatDockUnsub(); chatDockUnsub = null; }
       window.chatDockData = [];
       chatDockKnownLastMessageAt = {};
+      chatDockBaselineEstablished = false;
       const badge = document.getElementById('chat-dock-badge');
       if (badge) badge.style.display = 'none';
     };
@@ -4773,10 +4785,18 @@
         // suspended 變咗 true 就即刻強制登出，唔理佢而家仲喺唔喺線
         // （例如仲留喺視訊溫習室入面）都會即時被踢出登入狀態。
         if (suspensionListenerUnsubscribe) { suspensionListenerUnsubscribe(); suspensionListenerUnsubscribe = null; }
-        suspensionListenerUnsubscribe = onSnapshot(userDocRef, (snap) => {
+        suspensionListenerUnsubscribe = onSnapshot(userDocRef, async (snap) => {
           if (snap.exists() && snap.data().suspended && window.currentUser) {
             window.showToast('你嘅帳戶已被管理員停權，即將登出', '🚫');
             if (suspensionListenerUnsubscribe) { suspensionListenerUnsubscribe(); suspensionListenerUnsubscribe = null; }
+            // 如果仲留喺視訊溫習室入面（例如房主俾人喺後台停權嗰刻仲喺度
+            // 直播緊），一定要喺 signOut() 之前（趁認證仲有效）行齊「離開
+            // 房間」嗰套清理流程，唔係個 participants 紀錄會冇人清走，
+            // 個位會一直留喺房度、其他人望落去仲以為佢喺度（見返呢個
+            // bug 之前嘅截圖：Test1 俾停權登出咗，個視訊格仍然留低）
+            if (typeof state !== 'undefined' && state.currentRoomId && typeof doLeaveRoom === 'function') {
+              try { await doLeaveRoom(false); } catch (e) { console.error('停權時自動退出房間失敗:', e); }
+            }
             signOut(auth);
           }
         }, (err) => {
