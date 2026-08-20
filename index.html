@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.36.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.38.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -3743,8 +3743,17 @@
       document.removeEventListener('visibilitychange', handlePresenceVisibilityChange);
     };
 
-    // 監聽緊邊個好友嘅上線狀態（逐個 uid 開一個 onSnapshot），每次好友名單
-    // 有更新就會重新訂閱一次——好友通常唔多，呢個做法夠簡單夠用。
+    // 監聽緊邊個好友嘅上線狀態（逐個 uid 開一個 onSnapshot）。
+    //
+    // 呢度之前試過改成用 documentId() + 'in' 一次過批量監聽（減少監聽
+    // 數量、提升效能），但要令呢種批量查詢喺 Firestore 度得到放行，
+    // `users` collection 個 `list`（查詢）規則就要對所有已登入用戶開放
+    // ——但一旦 `list` 開放，任何人都可以用同一個查詢方式，改用一份
+    // 冇任何篩選嘅查詢，一次過將全部用戶（email、就讀學校、年級等）
+    // 掃出嚟，形同任由人下載成個用戶資料庫。因為呢個 app 嘅對象係
+    // 中學生，考慮到私隱／未成年人資料保護，寧願犧牲少少效能，都要
+    // 將 `users` 嘅 `list` 鎖返俾管理員專用，一般用戶淨係俾佢哋逐個
+    // 已知 uid 咁讀（`get`），所以呢度改返用逐個好友獨立監聽嘅做法。
     window.friendPresenceMap = {};
     let friendPresenceUnsubs = {};
     window.startFriendPresenceListeners = function(uids) {
@@ -4618,7 +4627,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, deleteUser } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs, increment, query, where, orderBy, limit, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs, increment, query, where, orderBy, limit, arrayUnion, arrayRemove, documentId } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDcxw01cH4Xdsp8xK4Xq69lnt3kCsEZTkQ",
@@ -4635,7 +4644,7 @@
     const db = getFirestore(app);
 
     window.db = db;
-    window.fs = { doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs, increment, query, where, orderBy, limit, arrayUnion, arrayRemove };
+    window.fs = { doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs, increment, query, where, orderBy, limit, arrayUnion, arrayRemove, documentId };
 
     // 幽靈房自動清理：房間冇人心跳（見 updateRoomHeartbeat）超過呢個時間，
     // 就當佢係冇人打理嘅幽靈房（例如房主手機突然關機、瀏覽器崩潰，嚟唔切
@@ -4713,10 +4722,32 @@
 
     let unsubscribeRooms = null;
     let suspensionListenerUnsubscribe = null;
+
+    // 效能優化：以前呢個 listener 冇上限咁監聽成個 rooms collection，
+    // 用得越耐、（未清走嘅幽靈）房越多，每次房間心跳更新（每 45 秒一次）
+    // 都要重新處理成個 collection 兼重畫成個大廳清單，會越用越慢。而家
+    // 改成淨係揀最近有活動嘅頭 ROOMS_LISTEN_LIMIT 間房（用 lastActiveAt
+    // 排序），大廳一定睇到最新嘅房，同埋唔理房間數量點樣增長，監聽同
+    // 渲染嘅負擔都封頂喺呢個數目。
+    const ROOMS_LISTEN_LIMIT = 40;
+
+    // 效能優化：房間心跳更新頻密（每 45 秒一房），如果好多間房幾乎同
+    // 一時間更新，以前會觸發同樣多次嘅成個大廳重畫。而家用一個好短嘅
+    // debounce（收到之後等一陣，期間嘅重複觸發都合埋一齊），確保短時間
+    // 內嚟幾多次更新，都淨係實際重畫一次。
+    let renderPublicRoomsListTimer = null;
+    function scheduleRenderPublicRoomsList() {
+      if (renderPublicRoomsListTimer) return;
+      renderPublicRoomsListTimer = setTimeout(() => {
+        renderPublicRoomsListTimer = null;
+        renderPublicRoomsList();
+      }, 400);
+    }
+
     function listenToPublicRooms() {
       if (unsubscribeRooms) unsubscribeRooms();
 
-      const roomsRef = collection(db, "rooms");
+      const roomsRef = query(collection(db, "rooms"), orderBy("lastActiveAt", "desc"), limit(ROOMS_LISTEN_LIMIT));
       unsubscribeRooms = onSnapshot(roomsRef, (snapshot) => {
         // 順手掃一次有冇幽靈房（心跳過期），唔使阻住畫面渲染
         gcStaleRooms(snapshot.docs.map(d => ({ id: d.id, data: d.data() })));
@@ -4736,7 +4767,7 @@
           return { id: roomId, room, createdAtMs, isMyRoom };
         });
 
-        renderPublicRoomsList();
+        scheduleRenderPublicRoomsList();
       }, (error) => {
         console.error("監聽公開房間失敗:", error);
       });
