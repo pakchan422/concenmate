@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.32.1"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.33.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
 <style>
@@ -336,6 +336,44 @@
       align-items: center;
       gap: 4px;
     }
+
+    /* 舉報功能：特登「收埋」喺一粒細細嘅「⋮」（更多選項）掣入面，唔會
+       好似踢走掣咁成粒紅色掣咁顯眼，要撳多一下先見到「🚩 舉報」呢個
+       選項，減少唔小心撳中嘅機會 */
+    .report-menu-wrap { position: relative; }
+    .report-menu-toggle {
+      cursor: pointer;
+      padding: 4px 8px;
+      font-size: 15px;
+      opacity: .7;
+    }
+    .report-menu-toggle:hover { opacity: 1; }
+    .report-menu-dropdown {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      margin-top: 4px;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 6px 18px rgba(0,0,0,.35);
+      overflow: hidden;
+      z-index: 20;
+      min-width: 138px;
+    }
+    .report-menu-item {
+      display: block;
+      width: 100%;
+      background: #fff;
+      border: none;
+      color: #C0524A;
+      font-size: 12.5px;
+      font-weight: 700;
+      padding: 9px 12px;
+      text-align: left;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .report-menu-item:hover { background: #FBEAEA; }
 
     .video-footer {
       position: absolute;
@@ -1957,6 +1995,51 @@
       <div id="level-info-current" style="background:var(--brand-50); border:1px solid var(--brand-200); border-radius:12px; padding:10px 12px; margin:8px 0 12px;"></div>
       <div id="level-info-tiers" style="display:flex; flex-direction:column; gap:8px; max-height:320px; overflow-y:auto;"></div>
       <button class="btn btn-outline" type="button" style="width:100%; justify-content:center; margin-top:14px;" onclick="closeModal('modal-level-info')">關閉</button>
+    </div>
+  </div>
+
+  <!-- 🚩 舉報視訊溫習室用家：撳落去嗰刻會即刻截低對方鏡頭一幀畫面做證據，
+       開返呢個 modal 等舉報人揀原因、加補充說明，一齊連同截圖交俾管理員
+       審核。所有欄位淨係管理員先睇得到，唔會公開俾其他用家。 -->
+  <div class="modal-backdrop" id="modal-report-user" style="display:none;">
+    <div class="modal-box" style="max-width:420px;">
+      <div style="text-align:center; margin-bottom:10px;">
+        <div style="font-size:28px;">🚩</div>
+        <h3 style="font-size:17px; font-weight:bold; color:#C0524A;">舉報用家</h3>
+        <p style="font-size:12.5px; color:#666; margin-top:2px;">舉報內容連同截圖只有管理員先睇到，會用嚟審核係咪需要停權處理。惡意亂舉報都會被追究。</p>
+      </div>
+
+      <div style="background:#F7F5F2; border-radius:10px; padding:8px 10px; margin-bottom:10px; font-size:13px;">
+        <b>被舉報用家：</b><span id="report-target-name">—</span>
+      </div>
+
+      <div id="report-screenshot-wrap" style="margin-bottom:10px; display:none;">
+        <label style="font-size:12px; font-weight:bold; color:#555; display:block; margin-bottom:4px;">📸 已自動截取證據截圖（會一齊交俾管理員）</label>
+        <img id="report-screenshot-preview" style="width:100%; border-radius:10px; border:1px solid #ddd; display:block;">
+      </div>
+      <div id="report-screenshot-missing" style="margin-bottom:10px; font-size:12px; color:#c99; display:none;">
+        ⚠️ 呢一刻攞唔到對方畫面（可能對方鏡頭已關閉），舉報仍然會照送出，管理員會睇返其他資料處理。
+      </div>
+
+      <div style="margin-bottom:10px;">
+        <label style="font-size:13px; font-weight:bold; color:#555; display:block; margin-bottom:4px;">舉報原因 *</label>
+        <select id="report-reason" class="input-field">
+          <option value="不當／不雅行為">不當／不雅行為</option>
+          <option value="言語騷擾／欺凌">言語騷擾／欺凌</option>
+          <option value="要求私下聯絡／索取個人資料">要求私下聯絡／索取個人資料</option>
+          <option value="其他">其他</option>
+        </select>
+      </div>
+
+      <div style="margin-bottom:10px;">
+        <label style="font-size:13px; font-weight:bold; color:#555; display:block; margin-bottom:4px;">補充說明（選填）</label>
+        <textarea id="report-notes" class="input-field" rows="3" placeholder="想同管理員講嘅其他細節..." style="resize:vertical;"></textarea>
+      </div>
+
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button class="btn btn-outline" type="button" onclick="window.closeReportModal()">取消</button>
+        <button class="btn btn-red" type="button" id="report-submit-btn" onclick="window.submitReport()">🚩 確認送出舉報</button>
+      </div>
     </div>
   </div>
 
@@ -5027,6 +5110,12 @@
             <span class="video-tag" id="remote-host-badge-${slotNum}" style="background:#D9EBEF; color:#1E4550; display:none;">👑 房主</span>
             <span class="video-tag" id="stream-status-${uid}" style="background:#3E7A8A; color:#fff;">🔗 連線中...</span>
             <span class="video-tag" id="kick-btn-${uid}" style="background:#C0524A; color:#fff; cursor:pointer; display:none;" onclick="event.stopPropagation(); window.kickParticipant('${uid}', '${(name||'呢位同學').replace(/'/g, "\\'")}')" title="房主專用：將呢位用家移出房間">🚫 踢走</span>
+            <div class="report-menu-wrap">
+              <span class="video-tag report-menu-toggle" onclick="event.stopPropagation(); window.toggleReportMenu('${uid}')" title="更多選項">⋮</span>
+              <div class="report-menu-dropdown" id="report-menu-${uid}" style="display:none;">
+                <button type="button" class="report-menu-item" onclick="event.stopPropagation(); window.toggleReportMenu('${uid}'); window.openReportModal('${uid}', '${(name||'呢位同學').replace(/'/g, "\\'")}')">🚩 舉報呢位同學</button>
+              </div>
+            </div>
           </div>
           <div class="sticker-container-box"></div>
         `;
@@ -5088,6 +5177,144 @@
         window.showToast(`已將「${targetName}」移出房間，佢唔可以再加入呢間房`, '🚫');
       } catch (e) {
         window.showToast('踢走失敗：' + (e.message || e), '❌');
+      }
+    };
+
+    // ===================== 🚩 舉報視訊溫習室用家 =====================
+    // 呢個功能主要係為咗保障未成年用家安全：任何參加者（唔淨止房主）
+    // 見到對方有不當行為，都可以即時截低對方畫面做證據，連同原因交俾
+    // 管理員審核，考慮係咪要停權處理。掣特登收埋喺「⋮」入面（見
+    // getOrCreateRemoteSlot 嗰個 report-menu-dropdown），撳「舉報」之後
+    // 仲要揀原因先送到，一共要三個步驟先真正送出，減少誤觸。
+
+    window.toggleReportMenu = function(uid) {
+      document.querySelectorAll('.report-menu-dropdown').forEach(el => {
+        if (el.id !== 'report-menu-' + uid) el.style.display = 'none';
+      });
+      const menu = document.getElementById('report-menu-' + uid);
+      if (menu) menu.style.display = (menu.style.display === 'block') ? 'none' : 'block';
+    };
+    // 撳呢粒「⋮」以外任何地方，開緊嘅選單都要自動收埋
+    document.addEventListener('click', () => {
+      document.querySelectorAll('.report-menu-dropdown').forEach(el => { el.style.display = 'none'; });
+    });
+
+    let pendingReportTarget = null; // { uid, name }
+    let pendingReportScreenshot = null; // base64 data URL，或者 null（例如對方鏡頭關咗，截唔到）
+
+    // 由對方個 <video> 元素度截低目前一幀畫面，縮細到最闊 480px 並用中等
+    // 壓縮質素轉做 JPEG data URL，控制證據截圖嘅檔案大細（呢個 app 冇用
+    // Firebase Storage，截圖係直接連同舉報記錄一齊存落 Firestore 文件，
+    // 壓縮細啲可以確保穩陣噉喺 1MB 嘅文件大細上限之內）
+    function captureRemoteVideoFrame(uid) {
+      const slotNum = state.slotAssignments[uid];
+      if (!slotNum) return null;
+      const el = getSlotElement(slotNum);
+      const videoEl = el ? el.querySelector('video') : null;
+      if (!videoEl || !videoEl.videoWidth) return null;
+      try {
+        const maxWidth = 480;
+        const scale = Math.min(1, maxWidth / videoEl.videoWidth);
+        const w = Math.max(1, Math.round(videoEl.videoWidth * scale));
+        const h = Math.max(1, Math.round(videoEl.videoHeight * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(videoEl, 0, 0, w, h);
+        return canvas.toDataURL('image/jpeg', 0.6);
+      } catch (e) {
+        console.error('截取舉報證據畫面失敗:', e);
+        return null;
+      }
+    }
+
+    // 撳「🚩 舉報呢位同學」嗰一刻即刻截圖（爭取第一時間留低證據，等用家
+    // 之後填緊原因期間對方畫面已經變晒都唔緊要），然後先至彈個 modal
+    // 出嚟畀用家揀舉報原因、加補充說明
+    window.openReportModal = function(targetUid, targetName) {
+      if (!window.currentUser) { window.showToast('請先登入', '⚠️'); return; }
+      if (targetUid === window.currentUser.uid) { window.showToast('唔可以舉報返自己', '⚠️'); return; }
+      pendingReportTarget = { uid: targetUid, name: targetName || '呢位同學' };
+      pendingReportScreenshot = captureRemoteVideoFrame(targetUid);
+
+      const nameEl = document.getElementById('report-target-name');
+      if (nameEl) nameEl.innerText = pendingReportTarget.name;
+
+      const previewWrap = document.getElementById('report-screenshot-wrap');
+      const previewImg = document.getElementById('report-screenshot-preview');
+      const missingEl = document.getElementById('report-screenshot-missing');
+      if (pendingReportScreenshot) {
+        if (previewImg) previewImg.src = pendingReportScreenshot;
+        if (previewWrap) previewWrap.style.display = 'block';
+        if (missingEl) missingEl.style.display = 'none';
+      } else {
+        if (previewWrap) previewWrap.style.display = 'none';
+        if (missingEl) missingEl.style.display = 'block';
+      }
+
+      const reasonEl = document.getElementById('report-reason');
+      const notesEl = document.getElementById('report-notes');
+      if (reasonEl) reasonEl.value = '不當／不雅行為';
+      if (notesEl) notesEl.value = '';
+
+      openModal('modal-report-user');
+    };
+
+    window.closeReportModal = function() {
+      closeModal('modal-report-user');
+      pendingReportTarget = null;
+      pendingReportScreenshot = null;
+    };
+
+    window.submitReport = async function() {
+      if (!pendingReportTarget || !window.currentUser || !window.db || !window.fs) {
+        window.showToast('舉報資料有錯，請重新再試', '❌'); return;
+      }
+      const btn = document.getElementById('report-submit-btn');
+      const reasonEl = document.getElementById('report-reason');
+      const notesEl = document.getElementById('report-notes');
+      const reason = (reasonEl && reasonEl.value) || '其他';
+      const notes = (notesEl && notesEl.value || '').trim();
+
+      if (btn) { btn.disabled = true; btn.innerText = '⏳ 送緊出...'; }
+      try {
+        // 順便攞埋被舉報用家嘅帳號 ID／Email，等管理員唔使再自己查一次
+        // 就知道實際要停權邊個帳戶
+        let targetLoginId = '', targetEmail = '';
+        try {
+          const targetSnap = await window.fs.getDoc(window.fs.doc(window.db, 'users', pendingReportTarget.uid));
+          if (targetSnap.exists()) {
+            const td = targetSnap.data();
+            targetLoginId = td.loginId || '';
+            targetEmail = td.email || '';
+          }
+        } catch (e) {
+          console.error('查詢被舉報用家資料失敗（唔影響舉報送出）:', e);
+        }
+
+        await window.fs.addDoc(window.fs.collection(window.db, 'reports'), {
+          reporterUid: window.currentUser.uid,
+          reporterName: window.currentUser.username || '同學',
+          reporterLoginId: window.currentUser.loginId || '',
+          reportedUid: pendingReportTarget.uid,
+          reportedName: pendingReportTarget.name,
+          reportedLoginId: targetLoginId,
+          reportedEmail: targetEmail,
+          roomId: state.currentRoomId || '',
+          roomName: (document.getElementById('active-room-title') || {}).innerText || '',
+          reason,
+          notes,
+          screenshot: pendingReportScreenshot || null,
+          status: 'pending',
+          createdAt: Date.now()
+        });
+
+        window.showToast('已送出舉報，管理員會盡快跟進，多謝你保障大家嘅安全 🙏', '🚩');
+        window.closeReportModal();
+      } catch (e) {
+        window.showToast('舉報送出失敗：' + (e.message || e), '❌');
+      } finally {
+        if (btn) { btn.disabled = false; btn.innerText = '🚩 確認送出舉報'; }
       }
     };
 
@@ -7052,6 +7279,7 @@
         <button class="btn btn-outline admin-tab-btn" data-tab="users" onclick="switchAdminTab('users')">👤 用戶管理</button>
         <button class="btn btn-outline admin-tab-btn" data-tab="level" onclick="switchAdminTab('level')">🎮 等級系統</button>
         <button class="btn btn-outline admin-tab-btn" data-tab="flashcards" onclick="switchAdminTab('flashcards')">🗂 溫習卡管理</button>
+        <button class="btn btn-outline admin-tab-btn" data-tab="reports" onclick="switchAdminTab('reports')">🚩 舉報處理 <span id="admin-reports-badge" style="display:none; background:#C0524A; color:#fff; border-radius:99px; font-size:10px; padding:1px 6px; margin-left:3px;">0</span></button>
       </div>
 
       <div id="admin-tab-gacha" class="admin-tab-panel"></div>
@@ -7060,6 +7288,7 @@
       <div id="admin-tab-users" class="admin-tab-panel" style="display:none;"></div>
       <div id="admin-tab-level" class="admin-tab-panel" style="display:none;"></div>
       <div id="admin-tab-flashcards" class="admin-tab-panel" style="display:none;"></div>
+      <div id="admin-tab-reports" class="admin-tab-panel" style="display:none;"></div>
 
     </div>
   </div>
@@ -7104,6 +7333,8 @@
     let adminQaUnsubscribe = null;
     let adminUsersUnsubscribe = null;
     let adminFlashcardsUnsubscribe = null;
+    let adminReportsUnsubscribe = null;
+    let adminReportsBadgeUnsubscribe = null;
     let currentAdminTab = 'gacha';
 
     // 網址 hash 路由：#admin 先顯示管理後台，離開就切返正常介面。
@@ -7138,6 +7369,8 @@
         if (adminQaUnsubscribe) { adminQaUnsubscribe(); adminQaUnsubscribe = null; }
         if (adminUsersUnsubscribe) { adminUsersUnsubscribe(); adminUsersUnsubscribe = null; }
         if (adminFlashcardsUnsubscribe) { adminFlashcardsUnsubscribe(); adminFlashcardsUnsubscribe = null; }
+        if (adminReportsUnsubscribe) { adminReportsUnsubscribe(); adminReportsUnsubscribe = null; }
+        if (adminReportsBadgeUnsubscribe) { adminReportsBadgeUnsubscribe(); adminReportsBadgeUnsubscribe = null; }
         setHeaderAdminBtnMode(false);
         return;
       }
@@ -7163,6 +7396,10 @@
       const emailTag = document.getElementById('admin-panel-user-email');
       if (emailTag) emailTag.innerText = `登入身份：${window.currentUser.email}`;
 
+      // 「🚩 舉報處理」個紅點徽章唔理管理員而家揀緊邊個分頁都要見到，
+      // 所以一入管理後台就開始聽，唔使等真係撳入嗰個分頁先識更新
+      if (typeof window.startAdminReportsBadgeListener === 'function') window.startAdminReportsBadgeListener();
+
       switchAdminTab(currentAdminTab || 'gacha');
     }
     window.checkAdminHashRoute = checkAdminHashRoute;
@@ -7184,6 +7421,7 @@
       else if (tab === 'users') renderAdminUsersTab();
       else if (tab === 'level') renderAdminLevelTab();
       else if (tab === 'flashcards') renderAdminFlashcardsTab();
+      else if (tab === 'reports') renderAdminReportsTab();
     };
 
     // ---------- 扭蛋機獎品管理 ----------
@@ -8208,6 +8446,109 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
       try {
         await window.fs.updateDoc(window.fs.doc(window.db, 'users', uid), { suspended: suspend });
         window.showToast(suspend ? '已停權該帳戶' : '已解除停權', suspend ? '🚫' : '✅');
+      } catch (err) {
+        window.showToast('操作失敗：' + (err.message || err), '❌');
+      }
+    };
+
+    // ===================== 舉報處理（Admin） =====================
+    // 呢個 badge listener 一入管理後台就開始聽（唔理而家揀緊邊個分頁），
+    // 淨係計緊 pending 嘅舉報數量，用嚟喺分頁按鈕度提示有未處理嘅舉報。
+    window.startAdminReportsBadgeListener = function() {
+      if (!window.db || !window.fs) return;
+      if (adminReportsBadgeUnsubscribe) return; // 已經聽緊，唔使再聽多次
+      try {
+        const q = window.fs.query(
+          window.fs.collection(window.db, 'reports'),
+          window.fs.where('status', '==', 'pending')
+        );
+        adminReportsBadgeUnsubscribe = window.fs.onSnapshot(q, (snapshot) => {
+          const badge = document.getElementById('admin-reports-badge');
+          if (!badge) return;
+          const count = snapshot.size;
+          badge.innerText = String(count);
+          badge.style.display = count > 0 ? 'inline-block' : 'none';
+        }, (err) => {
+          console.error('監聽舉報數量失敗：', err);
+        });
+      } catch (e) {
+        console.error('啟動舉報 badge listener 失敗：', e);
+      }
+    };
+
+    function renderAdminReportsTab() {
+      const container = document.getElementById('admin-tab-reports');
+      if (!container || !window.db || !window.fs) return;
+      container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入緊舉報記錄...</p>';
+
+      if (adminReportsUnsubscribe) adminReportsUnsubscribe();
+      const q = window.fs.query(
+        window.fs.collection(window.db, 'reports'),
+        window.fs.orderBy('createdAt', 'desc')
+      );
+      adminReportsUnsubscribe = window.fs.onSnapshot(q, (snapshot) => {
+        if (snapshot.empty) {
+          container.innerHTML = '<div class="admin-card" style="text-align:center; color:#999;">目前冇任何舉報記錄</div>';
+          return;
+        }
+        const cards = snapshot.docs.map(docSnap => {
+          const r = docSnap.data();
+          const reportId = docSnap.id;
+          const status = r.status || 'pending';
+          const statusLabel = status === 'pending' ? '⏳ 待處理' : (status === 'dismissed' ? '已駁回' : '已處理');
+          const statusColor = status === 'pending' ? '#C0524A' : '#999';
+          const when = r.createdAt ? new Date(r.createdAt).toLocaleString('zh-HK') : '—';
+          const screenshotHtml = r.screenshot
+            ? `<img src="${r.screenshot}" style="width:100%; max-width:280px; border-radius:8px; border:1px solid #ddd; margin-top:6px; display:block; cursor:pointer;" onclick="window.open(this.src, '_blank')">`
+            : `<p style="font-size:11.5px; color:#c99; margin-top:6px;">⚠️ 當時攞唔到截圖</p>`;
+          return `
+            <div class="admin-card" style="${status !== 'pending' ? 'opacity:.6;' : ''}">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
+                <span style="font-weight:700; color:${statusColor}; font-size:12.5px;">${statusLabel}</span>
+                <span style="font-size:10.5px; color:#999;">${escapeHtml(when)}</span>
+              </div>
+              <p style="font-size:12.5px; margin-bottom:3px;"><b>被舉報：</b>${escapeHtml(r.reportedName || '—')} ${r.reportedLoginId ? '（🆔 ' + escapeHtml(r.reportedLoginId) + '）' : ''}</p>
+              <p style="font-size:11.5px; color:#888; margin-bottom:3px;">${r.reportedEmail ? escapeHtml(r.reportedEmail) : ''}</p>
+              <p style="font-size:12.5px; margin-bottom:3px;"><b>舉報人：</b>${escapeHtml(r.reporterName || '—')} ${r.reporterLoginId ? '（🆔 ' + escapeHtml(r.reporterLoginId) + '）' : ''}</p>
+              <p style="font-size:12.5px; margin-bottom:3px;"><b>房間：</b>${escapeHtml(r.roomName || r.roomId || '—')}</p>
+              <p style="font-size:12.5px; margin-bottom:3px;"><b>原因：</b>${escapeHtml(r.reason || '—')}</p>
+              ${r.notes ? `<p style="font-size:12px; color:#666; background:#F7F5F2; border-radius:6px; padding:6px 8px; margin-bottom:3px;">${escapeHtml(r.notes)}</p>` : ''}
+              ${screenshotHtml}
+              <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:10px;">
+                ${status === 'pending' ? `<button class="btn btn-outline" style="font-size:11px; padding:4px 9px;" onclick="window.adminMarkReportStatus('${reportId}', 'dismissed')">🗂️ 駁回（冇問題）</button>` : ''}
+                ${status === 'pending' ? `<button class="btn btn-outline" style="font-size:11px; padding:4px 9px;" onclick="window.adminMarkReportStatus('${reportId}', 'reviewed')">✅ 標記已處理</button>` : ''}
+                ${r.reportedUid ? `<button class="btn btn-red" style="font-size:11px; padding:4px 9px;" onclick="window.adminSuspendFromReport('${reportId}', '${r.reportedUid}')">🚫 停權此帳戶</button>` : ''}
+              </div>
+            </div>
+          `;
+        }).join('');
+        container.innerHTML = `
+          <div style="margin-bottom:10px; background:#FFF7E6; border:1px solid #F0D9A0; border-radius:8px; padding:8px 10px; font-size:11.5px; color:#8a6d1f;">
+            ⚠️ 技術上嘅重要提醒：呢個網站冇獨立伺服器，淨係用緊 Firebase，所以呢度睇唔到、亦都做唔到真正嘅「IP 封鎖」（因為 Firestore 規則見唔到用戶嘅真實 IP）。「停權」呢個功能就實實在在有效——會即刻令該帳戶下次登入被強制登出，亦令佢完全用唔到呢個平台。
+          </div>
+          ${cards}
+        `;
+      }, (err) => {
+        container.innerHTML = `<div class="admin-card" style="color:#c0392b;">載入失敗：${err.message || err}</div>`;
+      });
+    }
+    window.renderAdminReportsTab = renderAdminReportsTab;
+
+    window.adminMarkReportStatus = async function(reportId, status) {
+      try {
+        await window.fs.updateDoc(window.fs.doc(window.db, 'reports', reportId), { status });
+        window.showToast(status === 'dismissed' ? '已駁回舉報' : '已標記為已處理', '✅');
+      } catch (err) {
+        window.showToast('更新失敗：' + (err.message || err), '❌');
+      }
+    };
+
+    window.adminSuspendFromReport = async function(reportId, reportedUid) {
+      if (!confirm('確定停權呢個被舉報嘅帳戶？佢下次登入會被強制登出。')) return;
+      try {
+        await window.fs.updateDoc(window.fs.doc(window.db, 'users', reportedUid), { suspended: true });
+        await window.fs.updateDoc(window.fs.doc(window.db, 'reports', reportId), { status: 'reviewed' });
+        window.showToast('已停權該帳戶', '🚫');
       } catch (err) {
         window.showToast('操作失敗：' + (err.message || err), '❌');
       }
