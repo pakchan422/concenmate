@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.42.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.43.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -147,7 +147,12 @@
       .home-welcome-card { padding: 14px; gap: 10px; }
       #video-grid-container { grid-template-columns: 1fr; }  /* 視訊格：手機單列（預設），用 #id 原因見上面 768px 斷面嗰句註解 */
       /* 「格仔模式」：房間上限 4 人，2x2 啱啱好一屏睇晒，唔使不斷向下滑 */
-      #video-grid-container.grid-compact { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+      /* minmax(0, 1fr) 而唔淨係 1fr：普通 1fr 軌道嘅預設最小闊度係
+         「auto」，即係格仔入面內容嘅 min-content 闊度——如果左右兩格
+         內容嘅 min-content 唔一樣（例如自己嗰格文字比「等待用家加入」
+         嗰格多），兩欄就會分唔勻，一闊一窄。用 minmax(0, 1fr) 逼兩欄
+         嘅最小闊度都係 0，先保證兩欄實實在在一人一半，唔理內容係咩。 */
+      #video-grid-container.grid-compact { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
       #video-grid-container.grid-compact .video-card-single { border-radius: 12px; }
       .self-video-wrapper { width: 100%; }
       .room-bar { flex-direction: column; align-items: flex-start; gap: 6px; }
@@ -218,6 +223,12 @@
     .video-grid-container {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      /* align-items 預設係 stretch：如果同一行入面有格仔特別高（例如自己
+         嗰格連埋底下嘅表情按鈕列），CSS Grid 會將行內其他格仔一齊谷到
+         同樣高，搞到本身應該一樣大細嘅鏡頭卡片變到有大有細、參差不齊。
+         改用 start，等每個格仔淨係跟自己嘅內容高度，鏡頭卡片先可以真正
+         保持一致大細。 */
+      align-items: start;
       gap: 12px;
       max-width: 1000px;
       margin: 0 auto;
@@ -228,6 +239,14 @@
       display: flex;
       flex-direction: column;
       gap: 6px;
+    }
+
+    /* 一齊溫習嘅時候，睇到同伴先係重點，自己個樣影唔影到冇咁緊要——
+       所以自己嗰個鏡頭卡片刻意縮細（收窄闊度，aspect-ratio 會跟住等
+       比例縮埋高度），將視覺重心留返畀其他同學嘅鏡頭 */
+    .self-video-wrapper .video-card-single {
+      max-width: 70%;
+      margin: 0 auto;
     }
 
     .emoji-reaction-bar {
