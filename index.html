@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.47.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.48.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -242,7 +242,11 @@
        視訊格唔再谷到剛好填滿（咁樣喺闊螢幕度會谷到好扁），改成由 JS
        （updateFullscreenGridSize）按實際可用空間，計出一個保持 4:3
        鏡頭比例、又盡量攞盡空間嘅格仔大細，再用 justify/align-content
-       置中，等四格喺任何螢幕比例下都靚、都唔會變形 */
+       置中，等四格喺任何螢幕比例下都靚、都唔會變形。
+       橫向（電腦、或者手機打橫）嗰陣，room-bar 會由頂部橫向長條，改
+       做右手邊直向細長條——因為橫向螢幕通常係「高度」唔夠用（睇返
+       updateFullscreenGridSize 嘅計算就知），將控制列由食「高度」
+       改做食「闊度」，就可以令鏡頭畫面用盡返個高度，顯示得更大。 */
     #room-active.video-fullscreen-mode {
       position: fixed;
       inset: 0;
@@ -277,6 +281,35 @@
       aspect-ratio: unset;
       width: 100%;
       height: 100%;
+    }
+    @media (orientation: landscape) {
+      #room-active.video-fullscreen-mode {
+        flex-direction: row;
+      }
+      #room-active.video-fullscreen-mode .room-bar {
+        order: 2;
+        flex: none;
+        width: 148px;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        overflow-y: auto;
+        margin-bottom: 0;
+      }
+      #room-active.video-fullscreen-mode .room-bar-btn-group {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+      }
+      #room-active.video-fullscreen-mode #pomodoro-widget {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+        width: 100%;
+        box-sizing: border-box;
+      }
     }
     #video-fullscreen-exit-btn {
       display: none;
@@ -1469,7 +1502,7 @@
                 <span class="tag" style="background:#F0E9DF; color:#1E4550;" id="active-room-subject">數學</span>
               </div>
 
-              <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+              <div class="room-bar-btn-group" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
                 <button class="btn btn-primary" type="button" id="btn-camera" onclick="toggleCamera()">📹 開啟鏡頭</button>
                 <button class="btn btn-red" type="button" id="btn-mic" onclick="toggleMic()">🔇 已靜音</button>
 
@@ -7191,13 +7224,16 @@
             canvas.height = targetH;
           }
           ctx.save();
+          // 註：實測用戶手機之後發現，之前呢兩個方向係啱好調轉咗
+          // （原本 angle===90 用嘅旋轉方向，其實係 angle===270 先啱用，
+          // 反之亦然），所以呢度特登同「感覺上啱」嘅方向掉轉返嚟。
           if (angle === 90) {
-            ctx.translate(canvas.width, 0);
-            ctx.rotate(Math.PI / 2);
-            ctx.drawImage(video, 0, 0, vw, vh);
-          } else if (angle === 270) {
             ctx.translate(0, canvas.height);
             ctx.rotate(-Math.PI / 2);
+            ctx.drawImage(video, 0, 0, vw, vh);
+          } else if (angle === 270) {
+            ctx.translate(canvas.width, 0);
+            ctx.rotate(Math.PI / 2);
             ctx.drawImage(video, 0, 0, vw, vh);
           } else if (angle === 180) {
             ctx.translate(canvas.width, canvas.height);
