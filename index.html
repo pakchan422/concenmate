@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.41.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.42.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -115,7 +115,13 @@
       .nav-btn { justify-content: center; padding: 11px 0; font-size: 18px; }
       main { padding: 10px; }
       .home-feature-grid { grid-template-columns: repeat(3, minmax(0, 160px)); gap: 10px; }
-      .video-grid-container { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+      /* 用 #id 揀而唔淨係 .class：因為下面 212 行附近仲有一句冇加 media
+         query、永遠生效嘅 `.video-grid-container { grid-template-columns:
+         repeat(auto-fit, minmax(280px, 1fr)); }`，佢喺呢個 media query
+         之後先出現，CSS 特異度（specificity）一樣嘅話源碼順序後嗰句會
+         贏，搞到呢句斷面設定形同虛設；改用 #id（特異度必贏 class）先
+         真正確保平板／手機斷面套用到自己嘅版面 */
+      #video-grid-container { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
       .logo-title { font-size: 15px; }
       .rooms-grid { grid-template-columns: 1fr; }
     }
@@ -139,7 +145,10 @@
       .home-feature-btn .btn-label { font-size: 14px; }
       .home-feature-btn .btn-sub { display: none; }   /* 手機太窄，副標題收起 */
       .home-welcome-card { padding: 14px; gap: 10px; }
-      .video-grid-container { grid-template-columns: 1fr; }  /* 視訊格：手機單列 */
+      #video-grid-container { grid-template-columns: 1fr; }  /* 視訊格：手機單列（預設），用 #id 原因見上面 768px 斷面嗰句註解 */
+      /* 「格仔模式」：房間上限 4 人，2x2 啱啱好一屏睇晒，唔使不斷向下滑 */
+      #video-grid-container.grid-compact { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+      #video-grid-container.grid-compact .video-card-single { border-radius: 12px; }
       .self-video-wrapper { width: 100%; }
       .room-bar { flex-direction: column; align-items: flex-start; gap: 6px; }
       .modal-box { border-radius: 14px; padding: 16px; }
@@ -1408,6 +1417,8 @@
                 <div class="room-capacity-tag" id="room-capacity-tag">
                   👥 <span id="room-participant-count">1</span>/4
                 </div>
+
+                <button class="btn btn-outline" type="button" id="video-layout-toggle-btn" style="border-color:#DDCABB; color:#1E4550;" onclick="toggleVideoLayoutMode()" title="手機螢幕細，切換做格仔模式可以一次過睇晒所有人">🔲 格仔模式</button>
 
                 <button class="btn btn-outline" type="button" style="border-color:#DDCABB; color:#1E4550;" onclick="leaveRoom()">🚪 退出房間</button>
               </div>
@@ -5436,6 +5447,31 @@
 
     const ROOM_CAPACITY = 4; // 同一房間最多同時容納的用家人數（包括自己）
     window.ROOM_CAPACITY = ROOM_CAPACITY; // 開放俾其他 <script> 區塊（例如大廳房間卡片）讀取
+
+    // 手機螢幕細，一個房最多 4 人嘅鏡頭全部疊晒一行會睇唔晒、要不斷向下
+    // 滑先睇齊。加一個「格仔模式」掣，等用家自己揀：預設「單列大圖」
+    // （每格大啲，適合淨係想睇清楚一兩個人），撳一下切換做「2x2 格仔」
+    // （4 個人啱啱好一屏睇晒，唔使滑，但每格細啲）。用 localStorage 記住
+    // 揀咗邊個模式，淨係影響呢部裝置嘅瀏覽器，唔使每次入房都揀多次。
+    const VIDEO_LAYOUT_PREF_KEY = 'cm_video_layout_mode';
+    function applyVideoLayoutMode(isCompact) {
+      const container = document.getElementById('video-grid-container');
+      const btn = document.getElementById('video-layout-toggle-btn');
+      if (container) container.classList.toggle('grid-compact', isCompact);
+      if (btn) btn.innerHTML = isCompact ? '🔳 大圖模式' : '🔲 格仔模式';
+    }
+    window.toggleVideoLayoutMode = function() {
+      const container = document.getElementById('video-grid-container');
+      if (!container) return;
+      const willBeCompact = !container.classList.contains('grid-compact');
+      applyVideoLayoutMode(willBeCompact);
+      try { localStorage.setItem(VIDEO_LAYOUT_PREF_KEY, willBeCompact ? 'compact' : 'single'); } catch (e) { /* 私隱模式等場合可能寫唔到，唔緊要，淨係今次唔記得住揀咗咩 */ }
+    };
+    (function restoreVideoLayoutPref() {
+      let saved = null;
+      try { saved = localStorage.getItem(VIDEO_LAYOUT_PREF_KEY); } catch (e) { /* 讀唔到就當冇儲過，用返預設單列 */ }
+      if (saved === 'compact') applyVideoLayoutMode(true);
+    })();
 
     // 之前一直用純 STUN，喺部分網路環境（例如其中一方喺較嚴格嘅 NAT／防火牆後面）
     // 好可能完全連唔通——訊號（Offer/Answer）交換得晒，但實際媒體流永遠過唔到，
