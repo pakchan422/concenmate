@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.46.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.47.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -236,10 +236,13 @@
     /* 全螢幕模式：撳「⛶ 全螢幕」之後，成個 room-active（room-bar 連埋
        四格鏡頭）蓋晒全螢幕——特登連 room-bar 都包埋一齊全螢幕，唔係
        淨係個視訊格，唔係嘅話開咗鏡頭／咪嘅按鈕會俾個黑色遮罩擋晒，
-       撳唔到。用 flex column：room-bar 保持原本高度企喺頂，視訊格
-       攤晒佔餘低嘅全部空間，四格用 2x2 版面平均攤滿（唔跟
-       aspect-ratio，改成剛好填滿），等用戶睇到最大、最清楚嘅四個
-       鏡頭畫面 */
+       撳唔到。room-bar 淨係保留鏡頭／靜音／番茄鐘三樣嘢（見
+       .fs-hide-in-fullscreen），其他資訊（房名、人數、背景音、退出
+       房間等）退出全螢幕先再顯示。
+       視訊格唔再谷到剛好填滿（咁樣喺闊螢幕度會谷到好扁），改成由 JS
+       （updateFullscreenGridSize）按實際可用空間，計出一個保持 4:3
+       鏡頭比例、又盡量攞盡空間嘅格仔大細，再用 justify/align-content
+       置中，等四格喺任何螢幕比例下都靚、都唔會變形 */
     #room-active.video-fullscreen-mode {
       position: fixed;
       inset: 0;
@@ -247,19 +250,28 @@
       background: #000;
       padding: 8px;
       box-sizing: border-box;
-      display: flex;
+      /* 一定要 !important：joinRoom 嗰陣會用 JS 幫 #room-active 加返
+         inline style="display:block"（等房間畫面平時顯示得到），inline
+         style 嘅優先度比 class 選擇器高，唔加 !important 嘅話呢度個
+         display:flex 會完全冇效果，成個全螢幕 flex 版面（連埋令四格
+         保持比例嘅計算）都會跟住失效 */
+      display: flex !important;
       flex-direction: column;
       gap: 8px;
       overflow: hidden;
     }
     #room-active.video-fullscreen-mode > details { display: none; } /* 除錯記錄收埋，讓位畀視訊格 */
+    #room-active.video-fullscreen-mode .fs-hide-in-fullscreen { display: none !important; }
     #room-active.video-fullscreen-mode .video-grid-container {
       flex: 1;
       min-height: 0;
+      min-width: 0;
       max-width: 100%;
       margin: 0;
-      grid-template-rows: repeat(2, minmax(0, 1fr));
-      align-items: stretch;
+      justify-content: center;
+      align-content: center;
+      /* grid-template-columns/rows 嘅實際 px 數值由 JS 動態寫入 inline
+         style（見 updateFullscreenGridSize），保證跟返 4:3 比例 */
     }
     #room-active.video-fullscreen-mode .video-card-single {
       aspect-ratio: unset;
@@ -1452,7 +1464,7 @@
 
           <div id="room-active" style="display:none;">
             <div class="room-bar">
-              <div style="display:flex; align-items:center; gap:6px;">
+              <div class="fs-hide-in-fullscreen" style="display:flex; align-items:center; gap:6px;">
                 <span style="font-weight:bold; font-size:16px;" id="active-room-title">DSE 衝刺專注房</span>
                 <span class="tag" style="background:#F0E9DF; color:#1E4550;" id="active-room-subject">數學</span>
               </div>
@@ -1478,7 +1490,7 @@
                 </div>
                 <button class="btn btn-red" type="button" id="btn-presence-back" onclick="confirmStillHere()" style="display:none; font-size:11px; padding:5px 8px;">⏸️ 已暫停計分，撳返來</button>
 
-                <div style="background:#111; color:white; padding:4px 8px; border-radius:8px; font-size:12px; display:flex; align-items:center; gap:6px;" title="專注背景音，建議戴耳機使用">
+                <div class="fs-hide-in-fullscreen" style="background:#111; color:white; padding:4px 8px; border-radius:8px; font-size:12px; display:flex; align-items:center; gap:6px;" title="專注背景音，建議戴耳機使用">
                   <span>🔊</span>
                   <select id="bg-noise-select" style="background:#222; color:#fff; border:1px solid #444; border-radius:6px; font-size:12px; padding:2px 4px;" onchange="setBgNoiseType(this.value)">
                     <option value="off">背景音：關閉</option>
@@ -1493,13 +1505,13 @@
                   <input type="range" id="bg-noise-volume" min="0" max="1" step="0.05" value="0.3" style="width:60px;" oninput="setBgNoiseVolume(this.value)">
                 </div>
 
-                <div class="room-capacity-tag" id="room-capacity-tag">
+                <div class="room-capacity-tag fs-hide-in-fullscreen" id="room-capacity-tag">
                   👥 <span id="room-participant-count">1</span>/4
                 </div>
 
-                <button class="btn btn-outline" type="button" id="video-fullscreen-btn" style="border-color:#DDCABB; color:#1E4550;" onclick="toggleVideoFullscreenMode()" title="四格鏡頭放到全螢幕，一次過看清楚晒所有人">⛶ 全螢幕</button>
+                <button class="btn btn-outline fs-hide-in-fullscreen" type="button" id="video-fullscreen-btn" style="border-color:#DDCABB; color:#1E4550;" onclick="toggleVideoFullscreenMode()" title="四格鏡頭放到全螢幕，一次過看清楚晒所有人">⛶ 全螢幕</button>
 
-                <button class="btn btn-outline" type="button" style="border-color:#DDCABB; color:#1E4550;" onclick="leaveRoom()">🚪 退出房間</button>
+                <button class="btn btn-outline fs-hide-in-fullscreen" type="button" style="border-color:#DDCABB; color:#1E4550;" onclick="leaveRoom()">🚪 退出房間</button>
               </div>
             </div>
 
@@ -5541,6 +5553,43 @@
     // 更清楚，可以撳「⛶ 全螢幕」——特登連同 room-bar（開鏡頭／咪嘅
     // 按鈕、退出房間等）一齊放大蓋晒成個畫面，唔係淨係得個視訊格，
     // 唔係嘅話全螢幕嗰陣會撳唔到呢啲按鈕（見下面 toggleVideoFullscreenMode）。
+    // 按實際可用空間，計一個保持 4:3（跟返 getUserMedia 理想解像度
+    // 640x480 嘅比例）嘅 2x2 格仔大細，等全螢幕嗰陣唔理個螢幕幾闊幾
+    // 扁，四格都唔會被谷到變形，又盡量攞盡剩低嘅空間。淨係喺仲係全
+    // 螢幕狀態先計，唔係就乜都唔做（例如 resize 事件喺退出咗全螢幕
+    // 之後先觸發嗰種情況）。
+    function updateFullscreenGridSize() {
+      const roomActive = document.getElementById('room-active');
+      const grid = document.getElementById('video-grid-container');
+      if (!roomActive || !grid || !roomActive.classList.contains('video-fullscreen-mode')) return;
+
+      const rect = grid.getBoundingClientRect();
+      const availW = rect.width;
+      const availH = rect.height;
+      if (availW <= 0 || availH <= 0) return;
+
+      const GAP = 12; // 要同 .video-grid-container 嘅 CSS gap 一致
+      const CELL_RATIO = 4 / 3;
+
+      let cellW = (availW - GAP) / 2;
+      let cellH = cellW / CELL_RATIO;
+      if (cellH * 2 + GAP > availH) {
+        cellH = (availH - GAP) / 2;
+        cellW = cellH * CELL_RATIO;
+      }
+      cellW = Math.max(40, Math.floor(cellW));
+      cellH = Math.max(30, Math.floor(cellH));
+
+      grid.style.gridTemplateColumns = `repeat(2, ${cellW}px)`;
+      grid.style.gridTemplateRows = `repeat(2, ${cellH}px)`;
+    }
+    // 視窗大細改變（例如手機轉方向、電腦拉闊縮窄視窗）都要重新計過
+    window.addEventListener('resize', updateFullscreenGridSize);
+    window.addEventListener('orientationchange', () => {
+      // 手機轉向嗰刻讀到嘅 viewport 尺寸有時未即刻更新，等多一個 tick
+      setTimeout(updateFullscreenGridSize, 100);
+    });
+
     window.toggleVideoFullscreenMode = function() {
       const roomActive = document.getElementById('room-active');
       const exitBtn = document.getElementById('video-fullscreen-exit-btn');
@@ -5553,6 +5602,15 @@
       // 全螢幕嗰陣鎖住背景頁面唔畀捲動，唔係嘅話手指喺黑色空隙度拖到
       // 都會意外拉動咗底下嗰版，畀人覺得畫面甩晒版
       document.body.style.overflow = willBeFullscreen ? 'hidden' : '';
+      if (willBeFullscreen) {
+        // 等 class 切換完、CSS 已經套用、room-bar 都已經收埋咗多餘
+        // 按鈕之後，先量度可用空間嚟計格仔大細，唔係就會量到轉換前
+        // 嘅舊尺寸
+        requestAnimationFrame(() => requestAnimationFrame(updateFullscreenGridSize));
+      } else {
+        const grid = document.getElementById('video-grid-container');
+        if (grid) { grid.style.gridTemplateColumns = ''; grid.style.gridTemplateRows = ''; }
+      }
     };
     // 退房、或者第二個 <script> 區塊（doLeaveRoom）要喺唔知而家係咪
     // 全螢幕狀態嘅情況下都安全咁強制退返出嚟，所以獨立開一個「淨係
@@ -5565,6 +5623,10 @@
       if (exitBtn) exitBtn.style.display = 'none';
       if (fsBtn) fsBtn.innerHTML = '⛶ 全螢幕';
       document.body.style.overflow = '';
+      // 清返 inline style，唔係就會用返呢啲 px 數值蓋晒返正常（非全
+      // 螢幕）嗰個 CSS 版面規則
+      const grid = document.getElementById('video-grid-container');
+      if (grid) { grid.style.gridTemplateColumns = ''; grid.style.gridTemplateRows = ''; }
     };
 
     // 表情反應平時收埋，撳個細圓掣先彈出嚟揀（唔係成日用，冇必要成
