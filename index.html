@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.52.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.53.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -5605,6 +5605,12 @@
       setTimeout(() => {
         updateFullscreenGridSize();
         broadcastMyCameraRotation();
+        // 【暫時除錯用】開緊鏡頭嘅時候轉吓部機，喺畫面度彈返個數出嚟，
+        // 等用戶可以直接話低「轉向左/右嗰陣個數係幾多」，唔使再靠估。
+        // 確認方向啱咗之後呢段會拆返走。
+        if (state.isCameraOn && typeof window.showToast === 'function') {
+          window.showToast(`(除錯) 偵測到嘅角度：${getScreenOrientationAngle()}°`, '🧭');
+        }
       }, 100);
     });
 
