@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.43.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.44.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -145,16 +145,14 @@
       .home-feature-btn .btn-label { font-size: 14px; }
       .home-feature-btn .btn-sub { display: none; }   /* 手機太窄，副標題收起 */
       .home-welcome-card { padding: 14px; gap: 10px; }
-      #video-grid-container { grid-template-columns: 1fr; }  /* 視訊格：手機單列（預設），用 #id 原因見上面 768px 斷面嗰句註解 */
-      /* 「格仔模式」：房間上限 4 人，2x2 啱啱好一屏睇晒，唔使不斷向下滑 */
-      /* minmax(0, 1fr) 而唔淨係 1fr：普通 1fr 軌道嘅預設最小闊度係
-         「auto」，即係格仔入面內容嘅 min-content 闊度——如果左右兩格
-         內容嘅 min-content 唔一樣（例如自己嗰格文字比「等待用家加入」
-         嗰格多），兩欄就會分唔勻，一闊一窄。用 minmax(0, 1fr) 逼兩欄
-         嘅最小闊度都係 0，先保證兩欄實實在在一人一半，唔理內容係咩。 */
-      #video-grid-container.grid-compact { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
-      #video-grid-container.grid-compact .video-card-single { border-radius: 12px; }
-      .self-video-wrapper { width: 100%; }
+      /* 手機螢幕細，房間上限 4 人，直接固定做 2x2 格仔做恆常預設版面，
+         一屏睇晒晒所有人，唔使再不斷向下滑。minmax(0, 1fr) 而唔淨係
+         1fr：普通 1fr 軌道嘅預設最小闊度係「auto」，即係格仔入面內容
+         嘅 min-content 闊度——如果左右兩格內容嘅 min-content 唔一樣，
+         兩欄就會分唔勻，一闊一窄。用 minmax(0, 1fr) 逼兩欄嘅最小闊度
+         都係 0，先保證兩欄實實在在一人一半，唔理內容係咩。 */
+      #video-grid-container { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+      #video-grid-container .video-card-single { border-radius: 12px; }
       .room-bar { flex-direction: column; align-items: flex-start; gap: 6px; }
       .modal-box { border-radius: 14px; padding: 16px; }
       .rooms-grid { grid-template-columns: 1fr; }
@@ -223,56 +221,104 @@
     .video-grid-container {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      /* align-items 預設係 stretch：如果同一行入面有格仔特別高（例如自己
-         嗰格連埋底下嘅表情按鈕列），CSS Grid 會將行內其他格仔一齊谷到
-         同樣高，搞到本身應該一樣大細嘅鏡頭卡片變到有大有細、參差不齊。
-         改用 start，等每個格仔淨係跟自己嘅內容高度，鏡頭卡片先可以真正
-         保持一致大細。 */
+      /* align-items 預設係 stretch：如果格仔入面內容多少唔一（例如將來
+         又加返啲額外元素），CSS Grid 會將同一行嘅格仔一齊谷到最高嗰個
+         咁高。改用 start，等每個格仔淨係跟自己個 aspect-ratio 出嚟嘅
+         高度，保證四個鏡頭卡片實實在在一樣大細。 */
       align-items: start;
       gap: 12px;
       max-width: 1000px;
       margin: 0 auto;
     }
 
-    /* 讓「自己嘅鏡頭卡片 + 底下嘅表情按鈕」合埋做一個 grid cell，唔會拆散版面 */
-    .self-video-wrapper {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
+    /* 全螢幕模式：撳「⛶ 全螢幕」之後，成個視訊格蓋晒全螢幕，四格用
+       2x2 版面平均攤晒個畫面（唔跟 aspect-ratio，改成剛好填滿），
+       等用戶睇到最大、最清楚嘅四個鏡頭畫面 */
+    .video-grid-container.video-fullscreen-mode {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: #000;
+      max-width: 100%;
+      margin: 0;
+      padding: 8px;
+      box-sizing: border-box;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-rows: repeat(2, minmax(0, 1fr));
+      align-items: stretch;
+    }
+    .video-grid-container.video-fullscreen-mode .video-card-single {
+      aspect-ratio: unset;
+      width: 100%;
+      height: 100%;
+    }
+    #video-fullscreen-exit-btn {
+      display: none;
+      position: fixed;
+      top: 14px;
+      right: 14px;
+      z-index: 10000;
+      background: rgba(0,0,0,0.7);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 20px;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: bold;
+      cursor: pointer;
     }
 
-    /* 一齊溫習嘅時候，睇到同伴先係重點，自己個樣影唔影到冇咁緊要——
-       所以自己嗰個鏡頭卡片刻意縮細（收窄闊度，aspect-ratio 會跟住等
-       比例縮埋高度），將視覺重心留返畀其他同學嘅鏡頭 */
-    .self-video-wrapper .video-card-single {
-      max-width: 70%;
-      margin: 0 auto;
+    /* 表情反應：平時收埋，撳個細圓掣先彈出嚟揀，用浮層形式蓋喺自己
+       鏡頭畫面上面，唔會影響四格版面大細一致 */
+    .emoji-reaction-toggle-wrap {
+      position: absolute;
+      bottom: 40px;
+      right: 8px;
+      z-index: 11;
     }
-
-    .emoji-reaction-bar {
+    .emoji-reaction-toggle-btn {
+      background: rgba(0,0,0,0.65);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      border: none;
+      color: #fff;
+      font-size: 15px;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      cursor: pointer;
       display: flex;
+      align-items: center;
       justify-content: center;
-      gap: 6px;
-      background: white;
-      border: 1px solid var(--brand-200);
-      border-radius: 12px;
-      padding: 6px;
     }
-    .emoji-reaction-bar button {
+    .emoji-reaction-popover {
+      position: absolute;
+      bottom: 100%;
+      right: 0;
+      margin-bottom: 6px;
+      background: rgba(0,0,0,0.75);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      border-radius: 12px;
+      padding: 4px;
+      display: flex;
+      gap: 2px;
+    }
+    .emoji-reaction-popover button {
       background: transparent;
       border: none;
-      font-size: 24px;
+      font-size: 19px;
       line-height: 1;
       cursor: pointer;
-      padding: 6px 10px;
+      padding: 4px 5px;
       border-radius: 8px;
       transition: transform .15s ease, background .15s ease;
     }
-    .emoji-reaction-bar button:hover {
-      background: var(--brand-100);
+    .emoji-reaction-popover button:hover {
+      background: rgba(255,255,255,0.15);
       transform: scale(1.15);
     }
-    .emoji-reaction-bar button:active {
+    .emoji-reaction-popover button:active {
       transform: scale(0.9);
     }
 
@@ -1437,7 +1483,7 @@
                   👥 <span id="room-participant-count">1</span>/4
                 </div>
 
-                <button class="btn btn-outline" type="button" id="video-layout-toggle-btn" style="border-color:#DDCABB; color:#1E4550;" onclick="toggleVideoLayoutMode()" title="手機螢幕細，切換做格仔模式可以一次過睇晒所有人">🔲 格仔模式</button>
+                <button class="btn btn-outline" type="button" id="video-fullscreen-btn" style="border-color:#DDCABB; color:#1E4550;" onclick="toggleVideoFullscreenMode()" title="四格鏡頭放到全螢幕，一次過睇清楚晒所有人">⛶ 全螢幕</button>
 
                 <button class="btn btn-outline" type="button" style="border-color:#DDCABB; color:#1E4550;" onclick="leaveRoom()">🚪 退出房間</button>
               </div>
@@ -1450,38 +1496,41 @@
             </details>
 
             <div id="video-grid-container" class="video-grid-container">
-              <div class="self-video-wrapper">
-                <div class="video-card-single" id="video-slot-1" onclick="wakeVideoEngine()">
-                  <video id="behind-video-engine" class="behind-stream-video" autoplay playsinline webkit-playsinline muted></video>
-                  <canvas id="canvas-stream-display" class="canvas-stream-display"></canvas>
-                  
-                  <div class="video-overlay" id="self-overlay">
-                    <div class="avatar-circle" id="room-self-avatar">A</div>
-                    <p style="font-size:14px; font-weight:bold; color:#fff;" id="overlay-msg">溫習房已就緒！</p>
-                    <p style="font-size:13px; margin-top:4px; color:#aaa;">請點擊上方「📹 開啟鏡頭」加入 P2P 視訊互聯</p>
-                  </div>
+              <div class="video-card-single" id="video-slot-1" onclick="wakeVideoEngine()">
+                <video id="behind-video-engine" class="behind-stream-video" autoplay playsinline webkit-playsinline muted></video>
+                <canvas id="canvas-stream-display" class="canvas-stream-display"></canvas>
 
-                  <div class="video-header">
-                    <span class="video-tag">
-                      <span id="room-user-name-tag">Alex Wong (你)</span> ✓
-                    </span>
-                    <span class="video-tag" style="background:#D9EBEF; color:#1E4550;" id="room-host-tag">房主專注中</span>
-                  </div>
-
-                  <div class="video-footer">
-                    <span class="video-tag" id="camera-status-tag" style="background:rgba(134,239,172,0.9); color:#1E4550; display:none;">🔴 鏡頭即時串流中</span>
-                    <span class="video-tag" id="mic-status-tag" style="background:rgba(134,239,172,0.9); color:#1E4550; display:none; margin-left:4px;">🎤 已開咪</span>
-                  </div>
-
-                  <div id="sticker-container-box" class="sticker-container-box"></div>
+                <div class="video-overlay" id="self-overlay">
+                  <div class="avatar-circle" id="room-self-avatar">A</div>
+                  <p style="font-size:14px; font-weight:bold; color:#fff;" id="overlay-msg">溫習房已就緒！</p>
+                  <p style="font-size:13px; margin-top:4px; color:#aaa;">請點擊上方「📹 開啟鏡頭」加入 P2P 視訊互聯</p>
                 </div>
 
-                <div class="emoji-reaction-bar">
-                  <button type="button" onclick="sendDanmakuSticker('😆')">😆</button>
-                  <button type="button" onclick="sendDanmakuSticker('😍')">😍</button>
-                  <button type="button" onclick="sendDanmakuSticker('😭')">😭</button>
-                  <button type="button" onclick="sendDanmakuSticker('😴')">😴</button>
+                <div class="video-header">
+                  <span class="video-tag">
+                    <span id="room-user-name-tag">Alex Wong (你)</span> ✓
+                  </span>
+                  <span class="video-tag" style="background:#D9EBEF; color:#1E4550;" id="room-host-tag">房主專注中</span>
                 </div>
+
+                <div class="video-footer">
+                  <span class="video-tag" id="camera-status-tag" style="background:rgba(134,239,172,0.9); color:#1E4550; display:none;">🔴 鏡頭即時串流中</span>
+                  <span class="video-tag" id="mic-status-tag" style="background:rgba(134,239,172,0.9); color:#1E4550; display:none; margin-left:4px;">🎤 已開咪</span>
+                </div>
+
+                <!-- 表情反應：平時收埋（唔常用），撳個細圓掣先彈出嚟揀，
+                     用浮層形式蓋喺鏡頭畫面上面，唔會影響四格版面大細 -->
+                <div class="emoji-reaction-toggle-wrap" onclick="event.stopPropagation();">
+                  <button type="button" class="emoji-reaction-toggle-btn" onclick="toggleEmojiReactionPanel()" title="表情反應">😊</button>
+                  <div class="emoji-reaction-popover" id="emoji-reaction-popover" style="display:none;">
+                    <button type="button" onclick="sendDanmakuSticker('😆'); closeEmojiReactionPanel();">😆</button>
+                    <button type="button" onclick="sendDanmakuSticker('😍'); closeEmojiReactionPanel();">😍</button>
+                    <button type="button" onclick="sendDanmakuSticker('😭'); closeEmojiReactionPanel();">😭</button>
+                    <button type="button" onclick="sendDanmakuSticker('😴'); closeEmojiReactionPanel();">😴</button>
+                  </div>
+                </div>
+
+                <div id="sticker-container-box" class="sticker-container-box"></div>
               </div>
 
               <!-- 預留 3 個空位卡片，供其他用家加入房間後填補（房間上限 4 人） -->
@@ -1507,6 +1556,11 @@
                 </div>
               </div>
             </div>
+
+            <!-- 全螢幕模式先顯示嘅「退出全螢幕」浮動掣：全螢幕嗰陣個視訊
+                 格會蓋晒成個畫面，原本 room-bar 嗰粒「全螢幕」掣會被
+                 遮住，所以要喺呢度加多一粒獨立、位置固定嘅掣先撳得返出嚟 -->
+            <button type="button" id="video-fullscreen-exit-btn" onclick="toggleVideoFullscreenMode()" style="display:none;">✕ 退出全螢幕</button>
 
           </div>
 
@@ -5468,29 +5522,43 @@
     window.ROOM_CAPACITY = ROOM_CAPACITY; // 開放俾其他 <script> 區塊（例如大廳房間卡片）讀取
 
     // 手機螢幕細，一個房最多 4 人嘅鏡頭全部疊晒一行會睇唔晒、要不斷向下
-    // 滑先睇齊。加一個「格仔模式」掣，等用家自己揀：預設「單列大圖」
-    // （每格大啲，適合淨係想睇清楚一兩個人），撳一下切換做「2x2 格仔」
-    // （4 個人啱啱好一屏睇晒，唔使滑，但每格細啲）。用 localStorage 記住
-    // 揀咗邊個模式，淨係影響呢部裝置嘅瀏覽器，唔使每次入房都揀多次。
-    const VIDEO_LAYOUT_PREF_KEY = 'cm_video_layout_mode';
-    function applyVideoLayoutMode(isCompact) {
+    // 滑先睇齊，所以手機斷面（見 CSS ≤480px 嗰段）已經固定用 2x2 格仔
+    // 做恆常版面，四格一致大細，唔使用家自己揀。想再放到最大、睇得更
+    // 清楚，可以另外撳「⛶ 全螢幕」，將四格放大蓋晒成個畫面（見下面
+    // toggleVideoFullscreenMode）。
+    window.toggleVideoFullscreenMode = function() {
       const container = document.getElementById('video-grid-container');
-      const btn = document.getElementById('video-layout-toggle-btn');
-      if (container) container.classList.toggle('grid-compact', isCompact);
-      if (btn) btn.innerHTML = isCompact ? '🔳 大圖模式' : '🔲 格仔模式';
-    }
-    window.toggleVideoLayoutMode = function() {
-      const container = document.getElementById('video-grid-container');
+      const exitBtn = document.getElementById('video-fullscreen-exit-btn');
       if (!container) return;
-      const willBeCompact = !container.classList.contains('grid-compact');
-      applyVideoLayoutMode(willBeCompact);
-      try { localStorage.setItem(VIDEO_LAYOUT_PREF_KEY, willBeCompact ? 'compact' : 'single'); } catch (e) { /* 私隱模式等場合可能寫唔到，唔緊要，淨係今次唔記得住揀咗咩 */ }
+      const willBeFullscreen = !container.classList.contains('video-fullscreen-mode');
+      container.classList.toggle('video-fullscreen-mode', willBeFullscreen);
+      if (exitBtn) exitBtn.style.display = willBeFullscreen ? 'block' : 'none';
+      // 全螢幕嗰陣鎖住背景頁面唔畀捲動，唔係嘅話手指喺黑色空隙度拖到
+      // 都會意外拉動咗底下嗰版，畀人覺得畫面甩晒版
+      document.body.style.overflow = willBeFullscreen ? 'hidden' : '';
     };
-    (function restoreVideoLayoutPref() {
-      let saved = null;
-      try { saved = localStorage.getItem(VIDEO_LAYOUT_PREF_KEY); } catch (e) { /* 讀唔到就當冇儲過，用返預設單列 */ }
-      if (saved === 'compact') applyVideoLayoutMode(true);
-    })();
+    // 退房、或者第二個 <script> 區塊（doLeaveRoom）要喺唔知而家係咪
+    // 全螢幕狀態嘅情況下都安全咁強制退返出嚟，所以獨立開一個「淨係
+    // 退出」嘅版本，而唔淨係得返一個「切換」掣
+    window.exitVideoFullscreenMode = function() {
+      const container = document.getElementById('video-grid-container');
+      const exitBtn = document.getElementById('video-fullscreen-exit-btn');
+      if (container) container.classList.remove('video-fullscreen-mode');
+      if (exitBtn) exitBtn.style.display = 'none';
+      document.body.style.overflow = '';
+    };
+
+    // 表情反應平時收埋，撳個細圓掣先彈出嚟揀（唔係成日用，冇必要成
+    // 日霸住畫面），揀完／再撳一次掣就會自動收返
+    window.toggleEmojiReactionPanel = function() {
+      const pop = document.getElementById('emoji-reaction-popover');
+      if (!pop) return;
+      pop.style.display = (pop.style.display === 'none' || !pop.style.display) ? 'flex' : 'none';
+    };
+    window.closeEmojiReactionPanel = function() {
+      const pop = document.getElementById('emoji-reaction-popover');
+      if (pop) pop.style.display = 'none';
+    };
 
     // 之前一直用純 STUN，喺部分網路環境（例如其中一方喺較嚴格嘅 NAT／防火牆後面）
     // 好可能完全連唔通——訊號（Offer/Answer）交換得晒，但實際媒體流永遠過唔到，
@@ -6881,6 +6949,9 @@
       await cleanupRoomConnections();
       document.getElementById('room-active').style.display = 'none';
       document.getElementById('room-lobby').style.display = 'block';
+      // 退房一定要順手退埋全螢幕：唔係嘅話個全螢幕黑色遮罩仲蓋住成個
+      // 畫面，用戶會以為個 app 死咗機
+      if (typeof window.exitVideoFullscreenMode === 'function') window.exitVideoFullscreenMode();
       window.showToast(customToastMsg || (deleteRoom ? '已關閉房間' : '已退出溫習房間'), '🚪');
     }
 
