@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.48.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.49.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -236,9 +236,12 @@
     /* 全螢幕模式：撳「⛶ 全螢幕」之後，成個 room-active（room-bar 連埋
        四格鏡頭）蓋晒全螢幕——特登連 room-bar 都包埋一齊全螢幕，唔係
        淨係個視訊格，唔係嘅話開咗鏡頭／咪嘅按鈕會俾個黑色遮罩擋晒，
-       撳唔到。room-bar 淨係保留鏡頭／靜音／番茄鐘三樣嘢（見
-       .fs-hide-in-fullscreen），其他資訊（房名、人數、背景音、退出
-       房間等）退出全螢幕先再顯示。
+       撳唔到。room-bar 淨係保留鏡頭／靜音／鏡頭方向／番茄鐘／全螢幕
+       切換呢幾樣嘢（見 .fs-hide-in-fullscreen），其他資訊（房名、
+       人數、背景音、退出房間等）退出全螢幕先再顯示。原本獨立浮動嘅
+       「退出全螢幕」按鈕已經取消——依家 room-bar 個「⛶ 全螢幕」掣
+       喺全螢幕入面都繼續顯示（會自動變返做「退出全螢幕」字樣），
+       避免同新增嘅右邊直向 room-bar 位置重疊。
        視訊格唔再谷到剛好填滿（咁樣喺闊螢幕度會谷到好扁），改成由 JS
        （updateFullscreenGridSize）按實際可用空間，計出一個保持 4:3
        鏡頭比例、又盡量攞盡空間嘅格仔大細，再用 justify/align-content
@@ -311,22 +314,6 @@
         box-sizing: border-box;
       }
     }
-    #video-fullscreen-exit-btn {
-      display: none;
-      position: fixed;
-      top: 14px;
-      right: 14px;
-      z-index: 10000;
-      background: rgba(0,0,0,0.7);
-      color: #fff;
-      border: 1px solid rgba(255,255,255,0.3);
-      border-radius: 20px;
-      padding: 8px 16px;
-      font-size: 13px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
     /* 表情反應：平時收埋，撳個細圓掣先彈出嚟揀，用浮層形式蓋喺自己
        鏡頭畫面上面，唔會影響四格版面大細一致 */
     .emoji-reaction-toggle-wrap {
@@ -1505,6 +1492,7 @@
               <div class="room-bar-btn-group" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
                 <button class="btn btn-primary" type="button" id="btn-camera" onclick="toggleCamera()">📹 開啟鏡頭</button>
                 <button class="btn btn-red" type="button" id="btn-mic" onclick="toggleMic()">🔇 已靜音</button>
+                <button class="btn btn-outline" type="button" id="btn-cam-rotation" onclick="cycleCameraRotationOverride()" style="border-color:#DDCABB; color:#1E4550; font-size:12px; padding:6px 10px;" title="鏡頭方向：自動判斷（撳呢度循環轉換，如果自動判斷唔啱可以自己揀）">🔄 鏡頭方向</button>
 
                 <div id="pomodoro-widget" style="background:#fff; color:var(--brand-800); padding:6px 10px 8px; border-radius:10px; font-size:13px; display:flex; align-items:center; gap:8px; position:relative; overflow:hidden; border:1px solid var(--brand-200);">
                   <span id="room-timer-phase" style="font-weight:bold; white-space:nowrap;">🍅 專注中</span>
@@ -1542,7 +1530,7 @@
                   👥 <span id="room-participant-count">1</span>/4
                 </div>
 
-                <button class="btn btn-outline fs-hide-in-fullscreen" type="button" id="video-fullscreen-btn" style="border-color:#DDCABB; color:#1E4550;" onclick="toggleVideoFullscreenMode()" title="四格鏡頭放到全螢幕，一次過看清楚晒所有人">⛶ 全螢幕</button>
+                <button class="btn btn-outline" type="button" id="video-fullscreen-btn" style="border-color:#DDCABB; color:#1E4550;" onclick="toggleVideoFullscreenMode()" title="四格鏡頭放到全螢幕，一次過看清楚晒所有人">⛶ 全螢幕</button>
 
                 <button class="btn btn-outline fs-hide-in-fullscreen" type="button" style="border-color:#DDCABB; color:#1E4550;" onclick="leaveRoom()">🚪 退出房間</button>
               </div>
@@ -1616,10 +1604,6 @@
               </div>
             </div>
 
-            <!-- 全螢幕模式先顯示嘅「退出全螢幕」浮動掣：全螢幕嗰陣個視訊
-                 格會蓋晒成個畫面，原本 room-bar 嗰粒「全螢幕」掣會被
-                 遮住，所以要喺呢度加多一粒獨立、位置固定嘅掣先撳得返出嚟 -->
-            <button type="button" id="video-fullscreen-exit-btn" onclick="toggleVideoFullscreenMode()" style="display:none;">✕ 退出全螢幕</button>
 
           </div>
 
@@ -5573,8 +5557,23 @@
       presenceAutoLeaveTimer: null, // 暫停計分後再耐都冇反應，自動退房嘅計時器
       presenceConfirmed: true, // 呢一輪確認彈窗，用家係咪已經撳咗確認
       awardingPaused: false, // 被判定為閒置期間，暫停 PTS/EXP 獎勵（防止掛機刷分）
-      canvasOutputStream: null // 由 canvas.captureStream() 攞返嚟嘅畫面串流，經過方向修正後先送俾對方（見 startCanvasRenderLoop）
+      canvasOutputStream: null, // 由 canvas.captureStream() 攞返嚟嘅畫面串流，經過方向修正後先送俾對方（見 startCanvasRenderLoop）
+      cameraRotationOverride: null // null=自動判斷方向；0/90/180/270=用戶手動指定嘅修正角度（見 cycleCameraRotationOverride）
     };
+
+    // 唔同手機型號／瀏覽器讀 screen.orientation.angle 嘅結果未必一致
+    // （尤其係 iOS Safari），自動判斷有機會判錯方向。等用戶可以自己
+    // 撳掣手動循環揀返啱嘅角度，唔使淨係靠自動判斷，設定會存落
+    // localStorage，同一部裝置下次入返嚟都會記得。
+    const CAMERA_ROTATION_OVERRIDE_KEY = 'cm_camera_rotation_override_v1';
+    (function loadCameraRotationOverride() {
+      try {
+        const v = localStorage.getItem(CAMERA_ROTATION_OVERRIDE_KEY);
+        if (v === null || v === '') return;
+        const n = parseInt(v, 10);
+        if ([0, 90, 180, 270].includes(n)) state.cameraRotationOverride = n;
+      } catch (e) { /* 忽略（例如 localStorage 被封鎖） */ }
+    })();
 
     const ROOM_POMODORO_BREAK_SECONDS = 5 * 60; // 房入面每輪專注完之後嘅小休長度，暫時定死 5 分鐘
 
@@ -5625,12 +5624,10 @@
 
     window.toggleVideoFullscreenMode = function() {
       const roomActive = document.getElementById('room-active');
-      const exitBtn = document.getElementById('video-fullscreen-exit-btn');
       const fsBtn = document.getElementById('video-fullscreen-btn');
       if (!roomActive) return;
       const willBeFullscreen = !roomActive.classList.contains('video-fullscreen-mode');
       roomActive.classList.toggle('video-fullscreen-mode', willBeFullscreen);
-      if (exitBtn) exitBtn.style.display = willBeFullscreen ? 'block' : 'none';
       if (fsBtn) fsBtn.innerHTML = willBeFullscreen ? '⛶ 退出全螢幕' : '⛶ 全螢幕';
       // 全螢幕嗰陣鎖住背景頁面唔畀捲動，唔係嘅話手指喺黑色空隙度拖到
       // 都會意外拉動咗底下嗰版，畀人覺得畫面甩晒版
@@ -5650,10 +5647,8 @@
     // 退出」嘅版本，而唔淨係得返一個「切換」掣
     window.exitVideoFullscreenMode = function() {
       const roomActive = document.getElementById('room-active');
-      const exitBtn = document.getElementById('video-fullscreen-exit-btn');
       const fsBtn = document.getElementById('video-fullscreen-btn');
       if (roomActive) roomActive.classList.remove('video-fullscreen-mode');
-      if (exitBtn) exitBtn.style.display = 'none';
       if (fsBtn) fsBtn.innerHTML = '⛶ 全螢幕';
       document.body.style.overflow = '';
       // 清返 inline style，唔係就會用返呢啲 px 數值蓋晒返正常（非全
@@ -7186,6 +7181,43 @@
       return 0;
     }
 
+    // 真正用嚟畫落 canvas 嘅角度：用戶如果手動揀咗一個角度
+    // （cameraRotationOverride），就以佢為準；冇揀就用返自動判斷。
+    // 因為唔同手機/瀏覽器嘅方向 API 表現唔一致，自動判斷未必每部機
+    // 都啱，所以留呢個手動選項畀用戶自己校正。
+    function getEffectiveRotationAngle() {
+      return state.cameraRotationOverride === null ? getScreenOrientationAngle() : state.cameraRotationOverride;
+    }
+
+    const CAMERA_ROTATION_LABELS = { '__auto__': '自動判斷', '0': '不旋轉', '90': '向右轉 90°', '180': '180°（上下顛倒）', '270': '向左轉 90°' };
+    const CAMERA_ROTATION_CYCLE = [null, 0, 90, 180, 270];
+    // 撳一下「🔄 鏡頭方向」掣，就會喺「自動判斷 → 不旋轉 → 向右90°
+    // → 180° → 向左90° → 返去自動判斷」呢個循環度轉一格，等用戶可以
+    // 自己試到邊個角度先啱（唔使等自動判斷）
+    window.cycleCameraRotationOverride = function() {
+      const idx = CAMERA_ROTATION_CYCLE.indexOf(state.cameraRotationOverride);
+      const next = CAMERA_ROTATION_CYCLE[(idx + 1) % CAMERA_ROTATION_CYCLE.length];
+      state.cameraRotationOverride = next;
+      try {
+        if (next === null) localStorage.removeItem(CAMERA_ROTATION_OVERRIDE_KEY);
+        else localStorage.setItem(CAMERA_ROTATION_OVERRIDE_KEY, String(next));
+      } catch (e) { /* 忽略 */ }
+      syncCameraRotationButtonUI();
+      const label = CAMERA_ROTATION_LABELS[next === null ? '__auto__' : String(next)];
+      if (typeof window.showToast === 'function') window.showToast(`鏡頭方向：${label}`, '🔄');
+    };
+    function syncCameraRotationButtonUI() {
+      const btn = document.getElementById('btn-cam-rotation');
+      if (!btn) return;
+      const label = CAMERA_ROTATION_LABELS[state.cameraRotationOverride === null ? '__auto__' : String(state.cameraRotationOverride)];
+      btn.title = `鏡頭方向：${label}（撳呢度循環轉換，如果自動判斷唔啱可以自己揀）`;
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', syncCameraRotationButtonUI);
+    } else {
+      syncCameraRotationButtonUI();
+    }
+
     function startCanvasRenderLoop() {
       const video = document.getElementById('behind-video-engine');
       const canvas = document.getElementById('canvas-stream-display');
@@ -7215,7 +7247,7 @@
           // （呢個係好多瀏覽器/裝置嘅共同限制），所以要自己靠螢幕方向
           // 角度，喺畫落 canvas 之前手動旋轉返啱，等自己個預覽同送俾
           // 對方嘅畫面都係啱方向。
-          const angle = getScreenOrientationAngle();
+          const angle = getEffectiveRotationAngle();
           const rotated90or270 = (angle === 90 || angle === 270);
           const targetW = rotated90or270 ? vh : vw;
           const targetH = rotated90or270 ? vw : vh;
