@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.44.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.46.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -116,12 +116,11 @@
       main { padding: 10px; }
       .home-feature-grid { grid-template-columns: repeat(3, minmax(0, 160px)); gap: 10px; }
       /* 用 #id 揀而唔淨係 .class：因為下面 212 行附近仲有一句冇加 media
-         query、永遠生效嘅 `.video-grid-container { grid-template-columns:
-         repeat(auto-fit, minmax(280px, 1fr)); }`，佢喺呢個 media query
-         之後先出現，CSS 特異度（specificity）一樣嘅話源碼順序後嗰句會
-         贏，搞到呢句斷面設定形同虛設；改用 #id（特異度必贏 class）先
-         真正確保平板／手機斷面套用到自己嘅版面 */
-      #video-grid-container { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+         query、永遠生效嘅 `.video-grid-container { ... }`，佢喺呢個 media
+         query 之後先出現，CSS 特異度（specificity）一樣嘅話源碼順序後
+         嗰句會贏，搞到呢句斷面設定形同虛設；改用 #id（特異度必贏
+         class）先真正確保平板斷面套用到自己嘅版面 */
+      #video-grid-container { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .logo-title { font-size: 15px; }
       .rooms-grid { grid-template-columns: 1fr; }
     }
@@ -220,7 +219,10 @@
 
     .video-grid-container {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      /* 固定 2 欄（唔跟 auto-fit 睇闊度自己加減欄數）：房間上限 4 人，
+         恆常都係 2x2「四格漫畫」咁嘅版面，唔理電腦畫面幾闊都唔會自動
+         變 3 欄、4 欄 */
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       /* align-items 預設係 stretch：如果格仔入面內容多少唔一（例如將來
          又加返啲額外元素），CSS Grid 會將同一行嘅格仔一齊谷到最高嗰個
          咁高。改用 start，等每個格仔淨係跟自己個 aspect-ratio 出嚟嘅
@@ -231,23 +233,35 @@
       margin: 0 auto;
     }
 
-    /* 全螢幕模式：撳「⛶ 全螢幕」之後，成個視訊格蓋晒全螢幕，四格用
-       2x2 版面平均攤晒個畫面（唔跟 aspect-ratio，改成剛好填滿），
-       等用戶睇到最大、最清楚嘅四個鏡頭畫面 */
-    .video-grid-container.video-fullscreen-mode {
+    /* 全螢幕模式：撳「⛶ 全螢幕」之後，成個 room-active（room-bar 連埋
+       四格鏡頭）蓋晒全螢幕——特登連 room-bar 都包埋一齊全螢幕，唔係
+       淨係個視訊格，唔係嘅話開咗鏡頭／咪嘅按鈕會俾個黑色遮罩擋晒，
+       撳唔到。用 flex column：room-bar 保持原本高度企喺頂，視訊格
+       攤晒佔餘低嘅全部空間，四格用 2x2 版面平均攤滿（唔跟
+       aspect-ratio，改成剛好填滿），等用戶睇到最大、最清楚嘅四個
+       鏡頭畫面 */
+    #room-active.video-fullscreen-mode {
       position: fixed;
       inset: 0;
       z-index: 9999;
       background: #000;
-      max-width: 100%;
-      margin: 0;
       padding: 8px;
       box-sizing: border-box;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      overflow: hidden;
+    }
+    #room-active.video-fullscreen-mode > details { display: none; } /* 除錯記錄收埋，讓位畀視訊格 */
+    #room-active.video-fullscreen-mode .video-grid-container {
+      flex: 1;
+      min-height: 0;
+      max-width: 100%;
+      margin: 0;
       grid-template-rows: repeat(2, minmax(0, 1fr));
       align-items: stretch;
     }
-    .video-grid-container.video-fullscreen-mode .video-card-single {
+    #room-active.video-fullscreen-mode .video-card-single {
       aspect-ratio: unset;
       width: 100%;
       height: 100%;
@@ -1105,7 +1119,7 @@
     </div>
 
     <div class="user-stats" id="header-user-stats" style="display:none;">
-      <span id="header-level-badge" style="font-weight:bold; color:#4A8FA0;" onclick="switchTab('profile')" title="睇你嘅溫習等級">🌱 Lv.1</span>
+      <span id="header-level-badge" style="font-weight:bold; color:#4A8FA0;" onclick="switchTab('profile')" title="看你的溫習等級">🌱 Lv.1</span>
       <span style="color:#ccc">|</span>
       <span>⏱️ <span id="stat-hours">0.0</span>h</span>
       <span style="color:#ccc">|</span>
@@ -1124,7 +1138,7 @@
   <!-- 全站置頂嘅「今日目標 + 等級／EXP」合併狀態列：唔理揭緊邊個分頁都見到，登入先顯示 -->
   <div id="global-status-bar" style="display:none; background:linear-gradient(135deg, #4A8FA0, #7DB8C5); padding:6px 16px;">
     <div style="max-width:480px; margin:0 auto; display:flex; align-items:stretch; gap:10px;">
-      <div style="flex:1; min-width:0; cursor:pointer;" onclick="switchTab('home')" title="睇你今日嘅溫習目標">
+      <div style="flex:1; min-width:0; cursor:pointer;" onclick="switchTab('home')" title="看你今日的溫習目標">
         <div style="display:flex; align-items:baseline; justify-content:space-between; gap:6px;">
           <span style="font-size:11px; font-weight:700; color:#fff; white-space:nowrap;">🎯 今日目標</span>
           <span id="global-goal-label" style="font-size:10px; color:rgba(255,255,255,.9); white-space:nowrap;">0/60分鐘</span>
@@ -1134,7 +1148,7 @@
         </div>
       </div>
       <div style="width:1px; align-self:stretch; background:rgba(255,255,255,.3); flex-shrink:0;"></div>
-      <div style="flex:1; min-width:0; cursor:pointer;" onclick="openLevelInfoModal()" title="睇升級詳情">
+      <div style="flex:1; min-width:0; cursor:pointer;" onclick="openLevelInfoModal()" title="看升級詳情">
         <div id="global-level-badge" style="color:#fff; font-size:11px; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">🌱 Lv.1 溫習新手 · 仍欠 20 EXP 升級</div>
         <div style="background:rgba(255,255,255,.3); border-radius:6px; height:5px; margin-top:3px; overflow:hidden;">
           <div id="global-exp-bar" style="background:#fff; height:100%; width:0%; transition:width .4s ease;"></div>
@@ -1176,14 +1190,14 @@
 
       <div id="verify-email-screen" class="auth-wall-container" style="display:none;">
         <div style="font-size:52px; margin-bottom:12px;">📧🔒</div>
-        <h2 style="font-size:22px; font-weight:bold; color:var(--brand-800);">請先驗證你嘅電郵地址</h2>
+        <h2 style="font-size:22px; font-weight:bold; color:var(--brand-800);">請先驗證你的電郵地址</h2>
         <p style="font-size:14px; color:#666; margin-top:6px; line-height:1.5;">
-          我哋已經寄咗一封驗證電郵去 <strong id="verify-gate-email">-</strong><br>
-          撳入面嘅連結完成驗證，先可以開始使用 ConcenMate 書伴。
+          我們已經寄了一封驗證電郵去 <strong id="verify-gate-email">-</strong><br>
+          撳入面的連結完成驗證，先可以開始使用 ConcenMate 書伴。
         </p>
         <div style="display:flex; justify-content:center; gap:12px; margin-top:20px; flex-wrap:wrap;">
           <button class="btn btn-primary" id="verify-gate-resend-btn" type="button" onclick="resendVerificationEmail()">📧 重新發送驗證電郵</button>
-          <button class="btn btn-outline" type="button" onclick="recheckEmailVerification()">🔄 已經驗證咗，重新整理</button>
+          <button class="btn btn-outline" type="button" onclick="recheckEmailVerification()">🔄 已經驗證了，重新整理</button>
           <button class="btn btn-outline" type="button" onclick="logoutWithFirebase()">🚪 登出</button>
         </div>
         <p style="font-size:12px; color:#999; margin-top:16px;">見唔到封信？記得check埋垃圾郵件夾，或者撳「重新發送」。</p>
@@ -1333,7 +1347,7 @@
                     <span class="home-sec-badge" id="home-social-badge" style="display:none;"></span>
                   </div>
                   <div class="home-sec-title">夥伴與讀書會</div>
-                  <div class="home-sec-desc">揾書友，一齊讀</div>
+                  <div class="home-sec-desc">找書友，一齊讀</div>
                 </button>
 
                 <button class="home-sec-card" onclick="switchTab('vip')">
@@ -1449,20 +1463,20 @@
 
                 <div id="pomodoro-widget" style="background:#fff; color:var(--brand-800); padding:6px 10px 8px; border-radius:10px; font-size:13px; display:flex; align-items:center; gap:8px; position:relative; overflow:hidden; border:1px solid var(--brand-200);">
                   <span id="room-timer-phase" style="font-weight:bold; white-space:nowrap;">🍅 專注中</span>
-                  <span id="pomodoro-round-label" title="呢個房入面而家踏入第幾輪專注（淨係呢次入房計，離開房間會重新計過）" style="font-size:11px; font-weight:700; white-space:nowrap; background:var(--brand-50); color:var(--brand-700); padding:1px 7px; border-radius:10px;">第 1 輪</span>
+                  <span id="pomodoro-round-label" title="這個房入面現在踏入第幾輪專注（只是這次入房計，離開房間會重新計過）" style="font-size:11px; font-weight:700; white-space:nowrap; background:var(--brand-50); color:var(--brand-700); padding:1px 7px; border-radius:10px;">第 1 輪</span>
                   <span id="room-timer" style="font-family:monospace; font-size:14px; white-space:nowrap;">30:00</span>
                   <!-- 專注時段拆做 4 個「小目標」段落顯示（唔係一條望唔到盡頭嘅長 bar），
                        每一格啱啱好等如成輪專注時間嘅 25%，等學生覺得每格都係一個好快
                        捱到嘅小終點，更加容易達成。未填色嘅底色用灰色，同個白色 widget
                        背景清晰分開，4 段界線同進度都望得清楚。 -->
-                  <div id="room-timer-progress-track" style="position:absolute; left:0; bottom:0; width:100%; height:5px; display:flex; gap:3px;" title="呢輪專注分成 4 個小目標（每格 25%），一段段儲滿佢">
+                  <div id="room-timer-progress-track" style="position:absolute; left:0; bottom:0; width:100%; height:5px; display:flex; gap:3px;" title="呢輪專注分成 4 個小目標（每格 25%），一段段儲滿他">
                     <div class="pomodoro-quarter-seg" style="flex:1; background:#D9D9D9; border-radius:2px;"></div>
                     <div class="pomodoro-quarter-seg" style="flex:1; background:#D9D9D9; border-radius:2px;"></div>
                     <div class="pomodoro-quarter-seg" style="flex:1; background:#D9D9D9; border-radius:2px;"></div>
                     <div class="pomodoro-quarter-seg" style="flex:1; background:#D9D9D9; border-radius:2px;"></div>
                   </div>
                 </div>
-                <button class="btn btn-red" type="button" id="btn-presence-back" onclick="confirmStillHere()" style="display:none; font-size:11px; padding:5px 8px;">⏸️ 已暫停計分，撳返嚟</button>
+                <button class="btn btn-red" type="button" id="btn-presence-back" onclick="confirmStillHere()" style="display:none; font-size:11px; padding:5px 8px;">⏸️ 已暫停計分，撳返來</button>
 
                 <div style="background:#111; color:white; padding:4px 8px; border-radius:8px; font-size:12px; display:flex; align-items:center; gap:6px;" title="專注背景音，建議戴耳機使用">
                   <span>🔊</span>
@@ -1483,14 +1497,14 @@
                   👥 <span id="room-participant-count">1</span>/4
                 </div>
 
-                <button class="btn btn-outline" type="button" id="video-fullscreen-btn" style="border-color:#DDCABB; color:#1E4550;" onclick="toggleVideoFullscreenMode()" title="四格鏡頭放到全螢幕，一次過睇清楚晒所有人">⛶ 全螢幕</button>
+                <button class="btn btn-outline" type="button" id="video-fullscreen-btn" style="border-color:#DDCABB; color:#1E4550;" onclick="toggleVideoFullscreenMode()" title="四格鏡頭放到全螢幕，一次過看清楚晒所有人">⛶ 全螢幕</button>
 
                 <button class="btn btn-outline" type="button" style="border-color:#DDCABB; color:#1E4550;" onclick="leaveRoom()">🚪 退出房間</button>
               </div>
             </div>
 
             <details style="max-width:1000px; margin:0 auto 12px; background:#111; border-radius:10px; padding:8px 12px; color:#7DB8C5; font-size:13px;">
-              <summary style="cursor:pointer; color:#B3D6DE; font-weight:bold;">🛠️ WebRTC 連線記錄（手機都睇到，除錯用）</summary>
+              <summary style="cursor:pointer; color:#B3D6DE; font-weight:bold;">🛠️ WebRTC 連線記錄（手機都看到，除錯用）</summary>
               <div id="webrtc-debug-log" style="max-height:180px; overflow-y:auto; white-space:pre-wrap; margin-top:8px; line-height:1.6; font-family:monospace; color:#D2C4AD;"></div>
               <button type="button" onclick="copyWebrtcLog()" style="margin-top:8px; background:#333; color:#fff; border:none; padding:5px 12px; border-radius:6px; font-size:13px; cursor:pointer;">📋 複製記錄</button>
             </details>
@@ -1515,7 +1529,7 @@
 
                 <div class="video-footer">
                   <span class="video-tag" id="camera-status-tag" style="background:rgba(134,239,172,0.9); color:#1E4550; display:none;">🔴 鏡頭即時串流中</span>
-                  <span class="video-tag" id="mic-status-tag" style="background:rgba(134,239,172,0.9); color:#1E4550; display:none; margin-left:4px;">🎤 已開咪</span>
+                  <span class="video-tag" id="mic-status-tag" style="background:rgba(134,239,172,0.9); color:#1E4550; display:none; margin-left:4px;">🎤 已開啟麥克風</span>
                 </div>
 
                 <!-- 表情反應：平時收埋（唔常用），撳個細圓掣先彈出嚟揀，
@@ -1579,7 +1593,7 @@
           <div id="study-sub-flashcards">
 
             <div id="flashcards-manage-view">
-              <p style="font-size:12px; color:#999; margin-bottom:10px;">呢啲溫習卡由老師／管理員準備，你只需要負責複習就得㗎喇！</p>
+              <p style="font-size:12px; color:#999; margin-bottom:10px;">這些溫習卡由老師／管理員準備，你只需要負責複習就得㗎喇！</p>
 
               <!-- 學科 Tab 列，格局同「疑難解答區」一致：左對齊、唔限寬，未有內容嘅學科
                    都會顯示個 tab 出嚟，但暫時撳唔到，等學生知道呢科將來會有溫習卡 -->
@@ -1666,12 +1680,12 @@
 
               <div>
                 <label style="font-size:13px; font-weight:bold; color:#555;">問題標題</label>
-                <input type="text" id="qa-title" class="input-field" placeholder="例：DSE 數學 2024 Paper 1 Q18 點解？" maxlength="80">
+                <input type="text" id="qa-title" class="input-field" placeholder="例：DSE 數學 2024 Paper 1 Q18 為什麼？" maxlength="80">
               </div>
 
               <div>
                 <label style="font-size:13px; font-weight:bold; color:#555;">詳細描述</label>
-                <textarea id="qa-body" class="input-field" rows="4" placeholder="描述你嘅問題，或補充更多資料…" style="resize:vertical;"></textarea>
+                <textarea id="qa-body" class="input-field" rows="4" placeholder="描述你的問題，或補充更多資料…" style="resize:vertical;"></textarea>
               </div>
 
               <div>
@@ -1695,7 +1709,7 @@
 
             <div style="border-top:1px solid var(--brand-200); margin-top:14px; padding-top:12px;">
               <label style="font-size:13px; font-weight:bold; color:#555;">留言回答</label>
-              <textarea id="qa-comment-input" class="input-field" rows="3" placeholder="分享你嘅解題方法…" style="margin-top:4px; resize:vertical;"></textarea>
+              <textarea id="qa-comment-input" class="input-field" rows="3" placeholder="分享你的解題方法…" style="margin-top:4px; resize:vertical;"></textarea>
               <div style="margin-top:8px;">
                 <label style="font-size:12px; font-weight:bold; color:#555;">附上圖片（最多 3 張）</label>
                 <input type="file" id="qa-comment-photos" accept="image/*" multiple style="margin-top:4px; font-size:13px; width:100%;">
@@ -1780,7 +1794,7 @@
               <div id="profile-exp-bar" style="background:linear-gradient(90deg,#4A8FA0,#7DB8C5); height:100%; width:0%; transition:width .4s ease;"></div>
             </div>
             <div id="profile-exp-text" style="font-size:11px; color:#999; margin-top:4px;">0 / 20 EXP</div>
-            <p style="font-size:11px; color:#aaa; margin-top:8px;">💡 每溫習 1 分鐘就會賺 1 點 EXP，EXP 只升唔跌，記錄你嘅總溫習成就；PTS 就用嚟扭蛋。</p>
+            <p style="font-size:11px; color:#aaa; margin-top:8px;">💡 每溫習 1 分鐘就會賺 1 點 EXP，EXP 只升唔跌，記錄你的總溫習成就；PTS 就用來扭蛋。</p>
           </div>
 
           <div class="card" style="margin-top:16px;">
@@ -1796,7 +1810,7 @@
             <h2 style="font-size:20px; font-weight:800; color:var(--brand-800); margin-bottom:10px;">溫習資源 & VIP</h2>
             <p style="font-size:15px; color:#7DB8C5; font-weight:600; margin-bottom:8px;">⏳ 期待日後更新</p>
             <p style="font-size:13px; color:#aaa; line-height:1.7; max-width:320px; margin:0 auto;">
-              呢個功能仍在開發中，日後將會提供精選溫習資源、老師上傳練習題及 VIP 專屬內容，敬請期待！
+              這個功能仍在開發中，日後將會提供精選溫習資源、老師上傳練習題及 VIP 專屬內容，敬請期待！
             </p>
           </div>
         </section>
@@ -1910,7 +1924,7 @@
           </div>
 
           <div class="card" id="friend-requests-card" style="margin-bottom:12px; display:none;">
-            <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:8px;">📨 收到嘅好友邀請</h3>
+            <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:8px;">📨 收到的好友邀請</h3>
             <div id="friend-requests-list"></div>
           </div>
 
@@ -1969,7 +1983,7 @@
         <div>
           <label style="font-size:13px; font-weight:bold; color:#555;">2. 帳號 ID（登入用）*</label>
           <input type="text" id="reg-account-id" class="input-field" required placeholder="例如：alex_wong2026" pattern="[A-Za-z0-9_]{3,20}" maxlength="20">
-          <p style="font-size:11px; color:#999; margin-top:4px;">3-20 個英文字母／數字／底線，設定咗就要用嚟登入，揀個記得住嘅</p>
+          <p style="font-size:11px; color:#999; margin-top:4px;">3-20 個英文字母／數字／底線，設定了就要用來登入，揀個記得住的</p>
         </div>
 
         <div>
@@ -2009,7 +2023,7 @@
         <div>
           <label style="font-size:13px; font-weight:bold; color:#555;">8. 電郵地址 *</label>
           <input type="email" id="reg-contact-email" class="input-field" required placeholder="example@school.edu.hk">
-          <p style="font-size:11px; color:#999; margin-top:4px;">唔會用嚟登入，但要做電郵驗證：提交表格後會收到一封驗證電郵，記得撳入面個連結確認</p>
+          <p style="font-size:11px; color:#999; margin-top:4px;">唔會用來登入，但要做電郵驗證：提交表格後會收到一封驗證電郵，記得撳入面個連結確認</p>
         </div>
 
         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
@@ -2093,7 +2107,7 @@
   <div class="modal-backdrop" id="modal-invite-friend" style="display:none;">
     <div class="modal-box">
       <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); margin-bottom:4px;">🤝 邀請朋友入房</h3>
-      <p style="font-size:12px; color:#888; margin-bottom:12px;">邀請會喺 5 分鐘內有效，之後就會過期</p>
+      <p style="font-size:12px; color:#888; margin-bottom:12px;">邀請會在 5 分鐘內有效，之後就會過期</p>
       <div id="invite-friend-list" style="max-height:320px; overflow-y:auto; display:flex; flex-direction:column; gap:8px;"></div>
       <button class="btn btn-outline" type="button" style="width:100%; justify-content:center; margin-top:12px;" onclick="closeModal('modal-invite-friend')">關閉</button>
     </div>
@@ -2108,7 +2122,7 @@
         <button class="btn btn-outline" type="button" style="flex:1; justify-content:center;" onclick="respondRoomInvite(false)">❌ 拒絕</button>
         <button class="btn btn-primary" type="button" style="flex:1; justify-content:center;" onclick="respondRoomInvite(true)">✅ 加入</button>
       </div>
-      <button class="btn btn-outline" type="button" style="width:100%; justify-content:center; margin-top:8px; font-size:12px;" onclick="dismissRoomInvitePopup()">遲啲先諗</button>
+      <button class="btn btn-outline" type="button" style="width:100%; justify-content:center; margin-top:8px; font-size:12px;" onclick="dismissRoomInvitePopup()">遲些先想</button>
     </div>
   </div>
 
@@ -2164,7 +2178,7 @@
       <div style="text-align:center; margin-bottom:10px;">
         <div style="font-size:28px;">🚩</div>
         <h3 style="font-size:17px; font-weight:bold; color:#C0524A;">舉報用家</h3>
-        <p style="font-size:12.5px; color:#666; margin-top:2px;">舉報內容連同截圖只有管理員先睇到，會用嚟審核係咪需要停權處理。惡意亂舉報都會被追究。</p>
+        <p style="font-size:12.5px; color:#666; margin-top:2px;">舉報內容連同截圖只有管理員先看到，會用來審核是否需要停權處理。惡意亂舉報都會被追究。</p>
       </div>
 
       <div style="background:#F7F5F2; border-radius:10px; padding:8px 10px; margin-bottom:10px; font-size:13px;">
@@ -2172,11 +2186,11 @@
       </div>
 
       <div id="report-screenshot-wrap" style="margin-bottom:10px; display:none;">
-        <label style="font-size:12px; font-weight:bold; color:#555; display:block; margin-bottom:4px;">📸 已自動截取證據截圖（會一齊交俾管理員）</label>
+        <label style="font-size:12px; font-weight:bold; color:#555; display:block; margin-bottom:4px;">📸 已自動截取證據截圖（會一齊交給管理員）</label>
         <img id="report-screenshot-preview" style="width:100%; border-radius:10px; border:1px solid #ddd; display:block;">
       </div>
       <div id="report-screenshot-missing" style="margin-bottom:10px; font-size:12px; color:#c99; display:none;">
-        ⚠️ 呢一刻攞唔到對方畫面（可能對方鏡頭已關閉），舉報仍然會照送出，管理員會睇返其他資料處理。
+        ⚠️ 呢一刻攞唔到對方畫面（可能對方鏡頭已關閉），舉報仍然會照送出，管理員會看返其他資料處理。
       </div>
 
       <div style="margin-bottom:10px;">
@@ -2191,7 +2205,7 @@
 
       <div style="margin-bottom:10px;">
         <label style="font-size:13px; font-weight:bold; color:#555; display:block; margin-bottom:4px;">補充說明（選填）</label>
-        <textarea id="report-notes" class="input-field" rows="3" placeholder="想同管理員講嘅其他細節..." style="resize:vertical;"></textarea>
+        <textarea id="report-notes" class="input-field" rows="3" placeholder="想同管理員講的其他細節..." style="resize:vertical;"></textarea>
       </div>
 
       <div style="display:flex; gap:8px; justify-content:flex-end;">
@@ -2297,11 +2311,11 @@
       expPerMinute: 1,
       levelCurveFactor: 10, // 公式：升到 Level L 總共需要嘅 EXP = 難度係數 × L × (L−1)
       ranks: [
-        { minLevel: 1,  emoji: '🌱', title: '溫習新手', titleEn: 'Novice',     color: '#6FA96F', desc: '啱啱起步，每一分鐘嘅溫習都算數，慢慢儲 EXP 啦！' },
+        { minLevel: 1,  emoji: '🌱', title: '溫習新手', titleEn: 'Novice',     color: '#6FA96F', desc: '啱啱起步，每一分鐘的溫習都算數，慢慢儲 EXP 啦！' },
         { minLevel: 10, emoji: '📚', title: '專注學徒', titleEn: 'Apprentice', color: '#4A8FA0', desc: '已經養成溫習習慣，繼續保持專注，向下一個段位進發。' },
-        { minLevel: 20, emoji: '🔥', title: '自律達人', titleEn: 'Expert',     color: '#D9764A', desc: '自律力爆錶，係身邊同學嘅榜樣！' },
-        { minLevel: 40, emoji: '👑', title: '專注大師', titleEn: 'Master',     color: '#D9A441', desc: '長期堅持先可以去到呢個段位，值得驕傲！' },
-        { minLevel: 60, emoji: '🌌', title: '傳說學霸', titleEn: 'Legend',     color: '#8B5FBF', desc: '傳說級別嘅溫習量，少數人先去到嘅頂尖段位。' }
+        { minLevel: 20, emoji: '🔥', title: '自律達人', titleEn: 'Expert',     color: '#D9764A', desc: '自律力爆錶，是身邊同學的榜樣！' },
+        { minLevel: 40, emoji: '👑', title: '專注大師', titleEn: 'Master',     color: '#D9A441', desc: '長期堅持先可以去到這個段位，值得驕傲！' },
+        { minLevel: 60, emoji: '🌌', title: '傳說學霸', titleEn: 'Legend',     color: '#8B5FBF', desc: '傳說級別的溫習量，少數人先去到的頂尖段位。' }
       ]
     };
     let LEVEL_CONFIG = JSON.parse(JSON.stringify(DEFAULT_LEVEL_CONFIG));
@@ -2486,7 +2500,7 @@
       if (!window.currentUser) { window.showToast('請先登入先可以餵水獺', '🔒'); return; }
       const hunger = calcOtterHunger(window.currentUser.otterLastFed);
       if (hunger >= 95) {
-        window.showToast('水獺仲好飽，唔使而家餵佢喇🦦', '😋');
+        window.showToast('水獺仲好飽，不用現在餵他喇🦦', '😋');
         return;
       }
       const pts = window.currentUser.points || 0;
@@ -2935,7 +2949,7 @@
         posts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
         if (posts.length === 0) {
-          list.innerHTML = '<div style="text-align:center; padding:40px; color:#aaa; font-size:13px;">呢個學科暫時未有提問，你先嚟發起第一題！</div>';
+          list.innerHTML = '<div style="text-align:center; padding:40px; color:#aaa; font-size:13px;">這個學科暫時未有提問，你先來發起第一題！</div>';
           return;
         }
 
@@ -3052,7 +3066,7 @@
 
     window.deleteQAPost = async function(event, postId) {
       event.stopPropagation();
-      if (!confirm('確定刪除呢個提問嗎？')) return;
+      if (!confirm('確定刪除這個提問嗎？')) return;
       try {
         await window.fs.deleteDoc(window.fs.doc(window.db, 'qa_posts', postId));
         window.showToast('提問已刪除', '🗑️');
@@ -3100,7 +3114,7 @@
         const commentList = document.getElementById('qa-comment-list');
         if (!commentList) return;
         if (comments.length === 0) {
-          commentList.innerHTML = '<div style="font-size:12px; color:#aaa; text-align:center; padding:10px;">未有回答，你係第一個！</div>';
+          commentList.innerHTML = '<div style="font-size:12px; color:#aaa; text-align:center; padding:10px;">未有回答，你是第一個！</div>';
           return;
         }
         const myUid = window.currentUser ? window.currentUser.uid : null;
@@ -3184,7 +3198,7 @@
     };
 
     window.deleteComment = async function(commentId) {
-      if (!confirm('確定刪除呢個留言？')) return;
+      if (!confirm('確定刪除這個留言？')) return;
       try {
         await window.fs.deleteDoc(
           window.fs.doc(window.db, 'qa_posts', qaCurrentPostId, 'comments', commentId)
@@ -3232,7 +3246,7 @@
 
     window.saveEditComment = async function(commentId) {
       const newBody = document.getElementById('edit-input-' + commentId)?.value.trim();
-      if (!newBody) { window.showToast('內容唔可以係空白', '⚠️'); return; }
+      if (!newBody) { window.showToast('內容唔可以是空白', '⚠️'); return; }
       try {
         await window.fs.updateDoc(
           window.fs.doc(window.db, 'qa_posts', qaCurrentPostId, 'comments', commentId),
@@ -3325,7 +3339,7 @@
       }
 
       // 扣分：畫面即刻扣，同時寫入 Firestore（背景執行、唔阻住動畫），
-      // 之前呢度淨係改咗畫面文字、冇真正寫入資料庫，導致用家淨係reload個網就會「回血」，而家修正咗。
+      // 之前這裡只是改了畫面文字、沒有真正寫入資料庫，導致用家只是reload個網就會「回血」，現在修正了。
       if (ptsEl) ptsEl.innerText = pts - cost;
       syncGachaPtsDisplay();
       const gachaHomePtsEl = document.getElementById('home-stat-pts');
@@ -3360,7 +3374,7 @@
       resultBox.style.background = prize.bg;
       resultBox.style.borderColor = prize.tierColor;
       resultBox.style.display = 'block';
-      // 如果管理員有幫呢個獎品上傳圖片，優先展示相片；冇嘅話就繼續用返 emoji
+      // 如果管理員有幫這個獎品上傳圖片，優先展示相片；沒有的話就繼續用返 emoji
       const resultEmojiEl = document.getElementById('gacha-result-emoji');
       if (prize.photo) {
         resultEmojiEl.innerHTML = `<img src="${prize.photo}" alt="${escapeHtml(prize.name || '')}" style="width:88px; height:88px; object-fit:cover; border-radius:12px; border:2px solid ${prize.tierColor || '#2F6070'}; box-shadow:0 2px 8px rgba(0,0,0,.15);">`;
@@ -3385,12 +3399,12 @@
         window.showToast(`✨ 稀有！抽到「${prize.name}」！`, '💎');
       }
 
-      // 加入歷史記錄（本頁顯示 + 儲存去 Firestore 俾個人資料頁查閱）
+      // 加入歷史記錄（本頁顯示 + 儲存去 Firestore 給個人資料頁查閱）
       addGachaHistory(prize, type);
       saveGachaHistoryToFirestore(prize, type);
     };
 
-    // 將中獎記錄寫入 Firestore，俾用家可以喺「個人資料」頁隨時查返自己嘅中獎記錄
+    // 將中獎記錄寫入 Firestore，給用家可以在「個人資料」頁隨時查返自己的中獎記錄
     async function saveGachaHistoryToFirestore(prize, type) {
       try {
         if (!window.currentUser || !window.currentUser.uid || !window.fs || !window.db) return;
@@ -3412,7 +3426,7 @@
       }
     }
 
-    // 載入並顯示目前用家自己嘅中獎記錄（喺「個人資料」分頁使用）
+    // 載入並顯示目前用家自己的中獎記錄（在「個人資料」分頁使用）
     window.loadMyGachaHistory = async function() {
       const listEl = document.getElementById('profile-gacha-history-list');
       const emptyEl = document.getElementById('profile-gacha-history-empty');
@@ -3500,7 +3514,7 @@
       }
     }
 
-    // 找出某位用家對應嘅視訊卡片，並在上面播放表情動畫（自己或其他人皆適用）
+    // 找出某位用家對應的視訊卡片，並在上面播放表情動畫（自己或其他人皆適用）
     function playReactionForUid(uid, emoji) {
       const myUid = window.currentUser ? window.currentUser.uid : null;
       let container;
@@ -3517,7 +3531,7 @@
       spawnSticker(container, emoji);
     }
 
-    // 監聽房間內其他人（包括自己）發送嘅表情廣播
+    // 監聽房間內其他人（包括自己）發送的表情廣播
     function listenToReactions(roomId) {
       if (state.reactionsUnsubscribe) state.reactionsUnsubscribe();
 
@@ -3526,7 +3540,7 @@
       state.reactionsUnsubscribe = window.fs.onSnapshot(reactionsRef, (snapshot) => {
         if (isFirstSnapshot) {
           isFirstSnapshot = false;
-          return; // 唔重播加入房間前已經存在嘅舊表情紀錄
+          return; // 唔重播加入房間前已經存在的舊表情紀錄
         }
         snapshot.docChanges().forEach((change) => {
           if (change.type !== 'added') return;
@@ -3543,15 +3557,15 @@
     //   friendRequests/{uidA_uidB}（排序後） → { fromUid, toUid, ...status: pending/accepted/declined }
     //   users/{uid}/friends/{friendUid}     → { uid, loginId, username, addedAt }（雙方各存一份）
 
-    // 兩個 uid 排咗序合埋做一個固定嘅 doc id，等同一對用家之間永遠得返一份
-    // 邀請記錄，唔會因為邊個先發起而各自開多一份。
+    // 兩個 uid 排了序合埋做一個固定的 doc id，等同一對用家之間永遠得返一份
+    // 邀請記錄，唔會因為誰先發起而各自開多一份。
     function friendRequestDocId(uidA, uidB) {
       return [uidA, uidB].sort().join('_');
     }
     window.friendRequestDocId = friendRequestDocId;
 
-    // 撳個名／頭像開返呢位用家嘅資料卡；如果撳嘅係自己就直接開「我的帳號」，
-    // 唔使再顯示多一次自己嘅資料。
+    // 撳個名／頭像開返呢位用家的資料卡；如果撳的是自己就直接開「我的帳號」，
+    // 不用再顯示多一次自己的資料。
     async function viewUserProfile(uid) {
       if (!uid) return;
       if (window.currentUser && uid === window.currentUser.uid) {
@@ -3572,7 +3586,7 @@
       try {
         const snap = await window.fs.getDoc(window.fs.doc(window.db, 'users', uid));
         if (!snap.exists()) {
-          if (nameEl) nameEl.innerText = '搵唔到呢位用家';
+          if (nameEl) nameEl.innerText = '找不到呢位用家';
           return;
         }
         const u = snap.data();
@@ -3592,8 +3606,8 @@
     }
     window.viewUserProfile = viewUserProfile;
 
-    // 根據我同呢位用家之間嘅關係（陌生／已送邀請／等緊我回覆／已經係好友），
-    // 喺資料卡下面畫返啱嘅按鈕
+    // 根據我同呢位用家之間的關係（陌生／已送邀請／等緊我回覆／已經是好友），
+    // 在資料卡下面畫返啱的按鈕
     async function renderFriendActionButtons(targetUid, targetUserData) {
       const container = document.getElementById('pop-user-friend-actions');
       if (!container || !window.currentUser || !window.db || !window.fs) return;
@@ -3650,11 +3664,11 @@
       try {
         const existing = await window.fs.getDoc(reqRef);
         if (existing.exists() && existing.data().status === 'pending') {
-          window.showToast('已經送咗邀請，等緊對方回覆', 'ℹ️');
+          window.showToast('已經送了邀請，等緊對方回覆', 'ℹ️');
           return;
         }
         if (existing.exists() && existing.data().status === 'accepted') {
-          window.showToast('你哋已經係好友喇', 'ℹ️');
+          window.showToast('你們已經是好友喇', 'ℹ️');
           return;
         }
         await window.fs.setDoc(reqRef, {
@@ -3733,17 +3747,17 @@
       try {
         const mapSnap = await window.fs.getDoc(window.fs.doc(window.db, 'usernames', idLower));
         if (!mapSnap.exists()) {
-          resultEl.innerHTML = '<p style="font-size:13px; color:#D9764A;">搵唔到呢個帳號 ID，請檢查有冇打錯</p>';
+          resultEl.innerHTML = '<p style="font-size:13px; color:#D9764A;">找不到這個帳號 ID，請檢查有沒有打錯</p>';
           return;
         }
         const targetUid = mapSnap.data().uid;
         if (targetUid === window.currentUser.uid) {
-          resultEl.innerHTML = '<p style="font-size:13px; color:#999;">呢個係你自己嘅帳號 ID 😄</p>';
+          resultEl.innerHTML = '<p style="font-size:13px; color:#999;">這個是你自己的帳號 ID 😄</p>';
           return;
         }
         const userSnap = await window.fs.getDoc(window.fs.doc(window.db, 'users', targetUid));
         if (!userSnap.exists()) {
-          resultEl.innerHTML = '<p style="font-size:13px; color:#D9764A;">搵唔到呢位用家嘅資料</p>';
+          resultEl.innerHTML = '<p style="font-size:13px; color:#D9764A;">找不到呢位用家的資料</p>';
           return;
         }
         const u = userSnap.data();
@@ -3764,7 +3778,7 @@
                 <div style="color:${rank.color};">${rank.emoji} Lv.${levelInfo.level} ${escapeHtml(rank.title)}</div>
                 <div>⏱️ 累積溫習 ${(parseFloat(u.hours) || 0).toFixed(1)} 小時</div>
               </div>
-              <button class="btn btn-outline" type="button" style="font-size:12px; padding:5px 10px;" onclick="viewUserProfile('${targetUid}')">睇資料 / 加好友</button>
+              <button class="btn btn-outline" type="button" style="font-size:12px; padding:5px 10px;" onclick="viewUserProfile('${targetUid}')">看資料 / 加好友</button>
             </div>
           </div>
         `;
@@ -3783,7 +3797,7 @@
       if (typeof window.stopFriendPresenceListeners === 'function') window.stopFriendPresenceListeners();
     };
 
-    // 「夥伴與讀書會」分頁：即時載入我嘅好友名單
+    // 「夥伴與讀書會」分頁：即時載入我的好友名單
     let friendsListUnsubscribe = null;
     window.friendsListDataCache = [];
     window.loadFriendsList = function() {
@@ -3805,14 +3819,14 @@
       );
     };
 
-    // 好友名單實際畫出嚟嗰段，獨立成一個函數：每次好友名單有更新，或者
-    // 邊個好友嘅上線狀態有更新，都會 call 呢個函數重新畫返成個列表
+    // 好友名單實際畫出來嗰段，獨立成一個函數：每次好友名單有更新，或者
+    // 誰好友的上線狀態有更新，都會 call 這個函數重新畫返成個列表
     function renderFriendsListRows() {
       const container = document.getElementById('friends-list-container');
       if (!container) return;
       const friends = window.friendsListDataCache || [];
       if (friends.length === 0) {
-        container.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:20px;">仲未有好友，用返上面嘅帳號 ID 搜尋加返幾個啦！</p>';
+        container.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:20px;">仲未有好友，用返上面的帳號 ID 搜尋加返幾個啦！</p>';
         return;
       }
       const presenceMap = window.friendPresenceMap || {};
@@ -3833,7 +3847,7 @@
             </div>
             <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
               <button class="btn btn-outline" type="button" style="font-size:12px; padding:5px 8px;" onclick="window.openChatWindow('${f.uid}', '${safeChatName}')" title="傳送訊息">💬</button>
-              <span style="font-size:12px; color:#3E7A8A; cursor:pointer;" onclick="viewUserProfile('${f.uid}')">睇資料 ›</span>
+              <span style="font-size:12px; color:#3E7A8A; cursor:pointer;" onclick="viewUserProfile('${f.uid}')">看資料 ›</span>
             </div>
           </div>
         `;
@@ -3841,8 +3855,8 @@
     }
     window.renderFriendsListRows = renderFriendsListRows;
 
-    // 「夥伴與讀書會」分頁：即時載入收到嘅好友邀請。呢個 listener 一登入就會
-    // 開始監聽（唔使等用家真係撳入分頁），等側欄／主頁個「未讀邀請」小紅點
+    // 「夥伴與讀書會」分頁：即時載入收到的好友邀請。這個 listener 一登入就會
+    // 開始監聽（不用等用家真是撳入分頁），等側欄／主頁個「未讀邀請」小紅點
     // 都可以即時反映到，等用家一眼就知道有人加緊自己做好友。
     let friendRequestsUnsubscribe = null;
     window.loadFriendRequests = function() {
@@ -3863,7 +3877,7 @@
 
         const card = document.getElementById('friend-requests-card');
         const listEl = document.getElementById('friend-requests-list');
-        if (!card || !listEl) return; // 分頁未渲染出嚟（唔喺「夥伴與讀書會」分頁）都唔緊要，個紅點已經更新咗
+        if (!card || !listEl) return; // 分頁未渲染出來（唔在「夥伴與讀書會」分頁）都唔緊要，個紅點已經更新了
         if (snapshot.empty) {
           card.style.display = 'none';
           listEl.innerHTML = '';
@@ -3889,11 +3903,11 @@
     };
 
     // ===================== 上線狀態（Presence） =====================
-    // Firestore 冇好似 Realtime Database 咁有 onDisconnect，所以用「心跳」噉做：
-    // 登入之後每 45 秒 update 一次 users/{uid}.lastSeenAt，第二方睇你個
-    // lastSeenAt 喺唔喺 2 分鐘之內，就當你「在線」。呢個做法唔使加多個
-    // Firebase 產品，用返而家已經有嘅 Firestore 就得，代價係「落線」冇即時
-    // 反應（要等心跳過期），對呢個 app 嘅規模嚟講已經夠用。
+    // Firestore 沒有好似 Realtime Database 那樣有 onDisconnect，所以用「心跳」噉做：
+    // 登入之後每 45 秒 update 一次 users/{uid}.lastSeenAt，第二方看你個
+    // lastSeenAt 在唔在 2 分鐘之內，就當你「在線」。這個做法不用加多個
+    // Firebase 產品，用返現在已經有的 Firestore 就得，代價是「落線」沒有即時
+    // 反應（要等心跳過期），對這個 app 的規模來講已經夠用。
     const PRESENCE_HEARTBEAT_MS = 45 * 1000;
     const PRESENCE_ONLINE_THRESHOLD_MS = 2 * 60 * 1000;
     let presenceHeartbeatTimer = null;
@@ -3910,11 +3924,11 @@
     function handlePresenceVisibilityChange() {
       if (document.visibilityState !== 'visible') return;
       sendPresenceHeartbeat();
-      // 手機瀏覽器（尤其係 iOS Safari）將個分頁擺去背景一輪之後，Firestore
-      // 個即時監聽有時會靜靜雞斷咗、冇再收新資料，但又唔會報錯，搞到訊息
-      // 話明明送咗但對話面板／未讀紅點冇反應，要用家自己撳一次先「醒返」。
-      // 所以每次個分頁翻返做前景，即時對話相關嘅監聽全部重新訂閱一次，
-      // 確保即刻攞到最新資料，唔使乾等一個可能已經死咗嘅 listener。
+      // 手機瀏覽器（尤其是 iOS Safari）將個分頁擺去背景一輪之後，Firestore
+      // 個即時監聽有時會靜靜雞斷了、沒有再收新資料，但又唔會報錯，搞到訊息
+      // 話明明送了但對話面板／未讀紅點沒有反應，要用家自己撳一次先「醒返」。
+      // 所以每次個分頁翻返做前景，即時對話相關的監聽全部重新訂閱一次，
+      // 確保即刻攞到最新資料，不用乾等一個可能已經死了的 listener。
       if (window.currentUser) {
         if (typeof window.startChatDockListener === 'function') window.startChatDockListener();
         if (typeof window.refreshOpenChatWindows === 'function') window.refreshOpenChatWindows();
@@ -3933,17 +3947,17 @@
       document.removeEventListener('visibilitychange', handlePresenceVisibilityChange);
     };
 
-    // 監聽緊邊個好友嘅上線狀態（逐個 uid 開一個 onSnapshot）。
+    // 監聽緊誰好友的上線狀態（逐個 uid 開一個 onSnapshot）。
     //
-    // 呢度之前試過改成用 documentId() + 'in' 一次過批量監聽（減少監聽
-    // 數量、提升效能），但要令呢種批量查詢喺 Firestore 度得到放行，
+    // 這裡之前試過改成用 documentId() + 'in' 一次過批量監聽（減少監聽
+    // 數量、提升效能），但要令呢種批量查詢在 Firestore 度得到放行，
     // `users` collection 個 `list`（查詢）規則就要對所有已登入用戶開放
     // ——但一旦 `list` 開放，任何人都可以用同一個查詢方式，改用一份
-    // 冇任何篩選嘅查詢，一次過將全部用戶（email、就讀學校、年級等）
-    // 掃出嚟，形同任由人下載成個用戶資料庫。因為呢個 app 嘅對象係
+    // 沒有任何篩選的查詢，一次過將全部用戶（email、就讀學校、年級等）
+    // 掃出來，形同任由人下載成個用戶資料庫。因為這個 app 的對象是
     // 中學生，考慮到私隱／未成年人資料保護，寧願犧牲少少效能，都要
-    // 將 `users` 嘅 `list` 鎖返俾管理員專用，一般用戶淨係俾佢哋逐個
-    // 已知 uid 咁讀（`get`），所以呢度改返用逐個好友獨立監聽嘅做法。
+    // 將 `users` 的 `list` 鎖返給管理員專用，一般用戶只是給他們逐個
+    // 已知 uid 那樣讀（`get`），所以這裡改返用逐個好友獨立監聽的做法。
     window.friendPresenceMap = {};
     let friendPresenceUnsubs = {};
     window.startFriendPresenceListeners = function(uids) {
@@ -3957,7 +3971,7 @@
           if (typeof window.renderChatDockPanel === 'function') window.renderChatDockPanel();
           if (typeof window.updateChatWindowPresence === 'function') window.updateChatWindowPresence(uid);
           // 「邀請朋友入房」個彈出視窗如果啱啱開住，都要一齊即時更新返
-          // 邊個上線／落線，唔使閂咗再開返先見到最新狀態
+          // 誰上線／落線，不用閂了再開返先見到最新狀態
           const inviteModalEl = document.getElementById('modal-invite-friend');
           if (inviteModalEl && inviteModalEl.style.display !== 'none' && typeof window.renderInviteFriendListUI === 'function') {
             window.renderInviteFriendListUI();
@@ -3972,9 +3986,9 @@
     };
 
     // ===================== 即時對話（好友之間一對一私訊，FB 式浮動視窗） =====================
-    // 兩個人嘅對話用 chatId 識別：將兩個 uid 由細到大排序、用 "_" 連埋一齊
+    // 兩個人的對話用 chatId 識別：將兩個 uid 由細到大排序、用 "_" 連埋一齊
     // （例如 "abc_xyz"）。因為 chatId 本身就包含晒兩個 uid，Firestore 規則
-    // 淨係憑 documentId 就知道邊兩個人有權限，寫法簡單好多。
+    // 只是憑 documentId 就知道邊兩個人有權限，寫法簡單好多。
     function directChatId(uidA, uidB) {
       return [uidA, uidB].sort().join('_');
     }
@@ -3984,25 +3998,25 @@
     let chatMessagesUnsubs = {}; // chatId -> unsub
     let chatMessagesCache = {}; // chatId -> 訊息陣列（畫面用）
     let chatDockUnsub = null;
-    window.chatDockData = []; // 我每個好友最近一次對話（含未讀數），畀 dock panel 用
+    window.chatDockData = []; // 我每個好友最近一次對話（含未讀數），給 dock panel 用
 
     const CHAT_MAX_OPEN_WINDOWS_DESKTOP = 3;
     const CHAT_MAX_OPEN_WINDOWS_MOBILE = 1;
 
     // ===================== 浮動元件可以隨意拖曳（撳掣、對話視窗都得）=====================
-    // 用 Pointer Events（滑鼠、觸控都通用）寫一個好簡單、通用嘅拖曳工具：
-    // 拖住邊個掣（handleEl）就搬動邊個元素（targetEl，一定要係 position:fixed）。
-    // 特登分得到「真係拖緊」同「純粹撳一下」——郁得少過 6px 就當係普通
-    // click，唔會打斷本身嘅 onclick（例如撳掣開/閂對話清單、撳 header
-    // 縮埋視窗）；郁得多就當真係拖緊，拖完之後會吞咗嗰下 click，唔會
-    // 又觸發返個掣本身嘅動作（唔係咁一拖完就即刻彈開/縮埋，好core）。
+    // 用 Pointer Events（滑鼠、觸控都通用）寫一個好簡單、通用的拖曳工具：
+    // 拖住誰掣（handleEl）就搬動誰元素（targetEl，一定要是 position:fixed）。
+    // 特登分得到「真是拖緊」同「純粹撳一下」——郁得少過 6px 就當是普通
+    // click，唔會打斷本身的 onclick（例如撳掣開/閂對話清單、撳 header
+    // 縮埋視窗）；郁得多就當真是拖緊，拖完之後會吞了嗰下 click，唔會
+    // 又觸發返個掣本身的動作（不是那樣一拖完就即刻彈開/縮埋，好core）。
     function makeDraggable(handleEl, targetEl, opts) {
       opts = opts || {};
       let dragging = false, moved = false, pointerId = null;
       let startX = 0, startY = 0, startLeft = 0, startTop = 0;
 
       function onPointerDown(e) {
-        if (e.button !== undefined && e.button !== 0) return; // 淨係應滑鼠左掣/單指拖
+        if (e.button !== undefined && e.button !== 0) return; // 只是應滑鼠左掣/單指拖
         if (opts.shouldIgnore && opts.shouldIgnore(e)) return;
         const rect = targetEl.getBoundingClientRect();
         dragging = true; moved = false; pointerId = e.pointerId;
@@ -4036,12 +4050,12 @@
         document.removeEventListener('pointercancel', onPointerUp);
         if (moved) {
           if (opts.onDragEnd) opts.onDragEnd(targetEl);
-          // 要吞嘅係「拖完之後、觸發返個 handle 本身動作」嗰下 click（例如
+          // 要吞的是「拖完之後、觸發返個 handle 本身動作」嗰下 click（例如
           // 撳掣開/閂對話清單、撳 header 縮埋視窗），唔可以連埋 header
-          // 入面嘅子元素（🗑️／✕呢啲有自己 onclick 嘅掣）都一齊吞埋——
-          // 呢個 listener 用 capture:true 掛喺 handle 度，捕捉階段會喺
-          // 個 click 去到子元素之前就先過一次呢度，如果唔特登過濾走，
-          // 拖完隨便撳邊粒子掣都會俾呢個「食」咗，冇反應。
+          // 入面的子元素（🗑️／✕這些有自己 onclick 的掣）都一齊吞埋——
+          // 這個 listener 用 capture:true 掛在 handle 度，捕捉階段會在
+          // 個 click 去到子元素之前就先過一次這裡，如果唔特登過濾走，
+          // 拖完隨便撳邊粒子掣都會給這個「食」了，沒有反應。
           const swallow = (ce) => {
             if (opts.shouldIgnore && opts.shouldIgnore(ce)) return;
             ce.stopPropagation(); ce.preventDefault();
@@ -4053,8 +4067,8 @@
     }
     window.makeDraggable = makeDraggable;
 
-    // 畫面大細一變（例如手機轉橫直），拖到出咗界嘅浮動元件就拉返入嚟，
-    // 唔會俾人搵唔返或者卡喺睇唔到嘅位
+    // 畫面大細一變（例如手機轉橫直），拖到出了界的浮動元件就拉返入來，
+    // 唔會給人找唔返或者卡在看唔到的位
     function clampFixedElementToViewport(el) {
       if (!el || !el.style || el.style.left === '' || el.style.left === 'auto') return;
       const rect = el.getBoundingClientRect();
@@ -4070,8 +4084,8 @@
     });
 
     // 💬 掣本身可以拖去螢幕任何位置，放手嗰陣會自動貼返去畫面左邊或右邊
-    // （睇邊邊近），上下位置就跟返你放低嗰個位，仲會記落 localStorage，
-    // 下次入返嚟／refresh 都保持喺你拖過嘅位置
+    // （看邊邊近），上下位置就跟返你放低那個位，仲會記落 localStorage，
+    // 下次入返來／refresh 都保持在你拖過的位置
     const CHAT_DOCK_POS_KEY = 'concenmate_chatDockTogglePos_v1';
     function saveChatDockTogglePos(side, top) {
       try { localStorage.setItem(CHAT_DOCK_POS_KEY, JSON.stringify({ side, top })); } catch (e) {}
@@ -4116,9 +4130,9 @@
       });
     })();
 
-    // 對話清單面板要開喺撳掣附近（掣自己都拖得走，面板梗係要跟埋去），
-    // 唔可以再淨係靠寫死嘅 CSS 位置——每次撳開之前，即時計返個掣而家喺
-    // 邊，面板就開喺佢上面（或者下面，如果掣已經好近螢幕頂）、同一邊
+    // 對話清單面板要開在撳掣附近（掣自己都拖得走，面板當然要跟埋去），
+    // 唔可以再只是靠寫死的 CSS 位置——每次撳開之前，即時計返個掣現在在
+    // 邊，面板就開在他上面（或者下面，如果掣已經好近螢幕頂）、同一邊
     window.positionChatDockPanel = function() {
       const btn = document.getElementById('chat-dock-toggle');
       const panel = document.getElementById('chat-dock-panel');
@@ -4153,16 +4167,16 @@
       panel.style.display = showing ? 'none' : 'flex';
       if (!showing) {
         window.renderChatDockPanel();
-        // 每次撳開個 dock panel，都額外主動查一次伺服器最新資料（唔淨係靠
+        // 每次撳開個 dock panel，都額外主動查一次伺服器最新資料（唔只是靠
         // onSnapshot 個 listener）——如果個 realtime listener 因為任何原因
-        // （網絡環境、瀏覽器背景分頁等）冇更新到，呢個係多一重保險，等
-        // 用家撳開個掣嗰刻起碼一定攞到最新嘅對話清單
+        // （網絡環境、瀏覽器背景分頁等）沒有更新到，這個是多一重保險，等
+        // 用家撳開個掣嗰刻起碼一定攞到最新的對話清單
         if (typeof window.forceRefreshChatDock === 'function') window.forceRefreshChatDock();
       }
     };
 
-    // 畫返個「撳掣彈出嚟」嘅好友清單：有邊個上線行先、最近同邊個傾緊偈、
-    // 未讀幾多，全部一眼睇晒
+    // 畫返個「撳掣彈出來」的好友清單：有誰上線行先、最近同誰傾緊偈、
+    // 未讀幾多，全部一眼看晒
     window.renderChatDockPanel = function() {
       const listEl = document.getElementById('chat-dock-panel-list');
       if (!listEl || !window.currentUser) return;
@@ -4171,32 +4185,32 @@
       friends.forEach(f => { friendByUid[f.uid] = f; });
       const presenceMap = window.friendPresenceMap || {};
 
-      // 面板淨係顯示「真係有對話紀錄」嘅好友（似 Messenger 嘅「最近對話」清單），
-      // 唔係全部好友都會喺度出現——刪除咗嘅對話（見 clearChatHistory 會將
-      // directChats 文件成份刪走）就會自然喺呢個清單消失。想同未傾過偈嘅
+      // 面板只是顯示「真是有對話紀錄」的好友（似 Messenger 的「最近對話」清單），
+      // 不是全部好友都會在出現——刪除了的對話（見 clearChatHistory 會將
+      // directChats 文件成份刪走）就會自然在這個清單消失。想同未傾過偈的
       // 好友開始新對話，去「夥伴與讀書會」個好友卡撳「💬」就得。
-      // 注意：呢度淨係要求 chatId/friendUid 存在，唔再要求呢個 uid 一定要
-      // 喺 friendsListDataCache（好友名單）度搵到先顯示——因為好友名單同
-      // 對話清單係兩條獨立嘅 Firestore listener，載入快慢唔一定同步，
-      // 之前嗰個做法試過令收到訊息嗰一方（未載入完好友名單）睇唔到啱啱
-      // 先收到嘅對話。顯示名／頭像優先用返 c.friendName（傳送訊息嗰陣已經
-      // 存埋落 directChats 文件），friendsListDataCache 淨係做 fallback。
+      // 注意：這裡只是要求 chatId/friendUid 存在，唔再要求這個 uid 一定要
+      // 在 friendsListDataCache（好友名單）度找到先顯示——因為好友名單同
+      // 對話清單是兩條獨立的 Firestore listener，載入快慢唔一定同步，
+      // 之前那個做法試過令收到訊息嗰一方（未載入完好友名單）看唔到啱啱
+      // 先收到的對話。顯示名／頭像優先用返 c.friendName（傳送訊息嗰陣已經
+      // 存埋落 directChats 文件），friendsListDataCache 只是做 fallback。
       const conversations = (window.chatDockData || [])
         .filter(c => !!c.friendUid)
         .slice()
         .sort((a, b) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0));
 
       if (conversations.length === 0) {
-        listEl.innerHTML = '<p style="text-align:center; color:#999; font-size:12px; padding:16px;">仲未有任何對話紀錄，去「夥伴與讀書會」揾個好友撳「💬」開始傾偈啦！</p>';
+        listEl.innerHTML = '<p style="text-align:center; color:#999; font-size:12px; padding:16px;">仲未有任何對話紀錄，去「夥伴與讀書會」找個好友撳「💬」開始聊天啦！</p>';
         return;
       }
 
-      // 成個畫面板嘅過程包多層 try/catch：以前試過如果入面隨便一個步驟
+      // 成個畫面板的過程包多層 try/catch：以前試過如果入面隨便一個步驟
       // 拋錯（例如某個好友資料格式怪怪地），成個 .map() 就會中途中斷，
-      // 但因為冇 catch，個錯誤會靜靜雞消失喺 console，listEl.innerHTML
-      // 完全冇更新過，畫面就會一直卡住舊有嘅（甚至係初始「仲未有對話」）
-      // 內容，睇落好似「明明有資料但係唔顯示」。而家改成每一行都獨立
-      // try/catch，一行有事都唔會拖冧成個清單，仲會喺 console 留返線索。
+      // 但因為沒有 catch，個錯誤會靜靜雞消失在 console，listEl.innerHTML
+      // 完全沒有更新過，畫面就會一直卡住舊有的（甚至是初始「仲未有對話」）
+      // 內容，看落好似「明明有資料但是唔顯示」。現在改成每一行都獨立
+      // try/catch，一行有事都唔會拖冧成個清單，仲會在 console 留返線索。
       try {
         listEl.innerHTML = conversations.map(c => {
           try {
@@ -4225,7 +4239,7 @@
         }).join('');
       } catch (renderErr) {
         console.error('畫「即時對話」清單失敗:', renderErr);
-        listEl.innerHTML = '<p style="text-align:center; color:#e74c3c; font-size:12px; padding:16px;">⚠️ 對話清單畫面出錯，請截圖 console 錯誤訊息俾開發者</p>';
+        listEl.innerHTML = '<p style="text-align:center; color:#e74c3c; font-size:12px; padding:16px;">⚠️ 對話清單畫面出錯，請截圖 console 錯誤訊息給開發者</p>';
       }
     };
 
@@ -4514,7 +4528,7 @@
       if (!bodyEl || !window.currentUser) return;
       const messages = chatMessagesCache[chatId] || [];
       if (messages.length === 0) {
-        bodyEl.innerHTML = '<p style="text-align:center; color:#999; font-size:12px; padding:16px;">傾偈啦～同呢位朋友講聲哈囉！</p>';
+        bodyEl.innerHTML = '<p style="text-align:center; color:#999; font-size:12px; padding:16px;">聊天啦～同呢位朋友講聲哈囉！</p>';
         return;
       }
       const myUid = window.currentUser.uid;
@@ -4576,7 +4590,7 @@
           await window.fs.setDoc(chatRef, chatSummaryPayload, { merge: true });
         } catch (e2) {
           console.error('更新對話摘要失敗（重試都失敗）:', e2);
-          window.showToast('⚠️ 對話摘要未同步俾對方（' + (e2.message || e2) + '），訊息本身已送出', '⚠️');
+          window.showToast('⚠️ 對話摘要未同步給對方（' + (e2.message || e2) + '），訊息本身已送出', '⚠️');
         }
       }
 
@@ -4600,7 +4614,7 @@
     // 嘅所有訊息（唔係淨係自己隱藏），撳之前會 confirm 一次先，避免手震撳錯
     window.clearChatHistory = async function(chatId) {
       if (!window.currentUser || !window.db || !window.fs) return;
-      if (!confirm('確定要刪除呢個對話嘅全部訊息記錄？呢個動作會影響返雙方，刪咗就冚唔返。')) return;
+      if (!confirm('確定要刪除這個對話的全部訊息記錄？這個動作會影響返雙方，刪了就冚唔返。')) return;
       try {
         const msgsSnap = await window.fs.getDocs(window.fs.collection(window.db, 'directChats', chatId, 'messages'));
         await Promise.all(msgsSnap.docs.map(d => window.fs.deleteDoc(d.ref)));
@@ -4651,7 +4665,7 @@
       const listEl = document.getElementById('invite-friend-list');
       if (!listEl) return;
       if (inviteFriendListCache.length === 0) {
-        listEl.innerHTML = '<p style="font-size:13px; color:#999; text-align:center; padding:10px 0;">冇好友可以邀請喇（可能全部都已經喺房入面，或者你仲未加任何好友）</p>';
+        listEl.innerHTML = '<p style="font-size:13px; color:#999; text-align:center; padding:10px 0;">沒有好友可以邀請喇（可能全部都已經在房入面，或者你仲未加任何好友）</p>';
         return;
       }
       const presenceMap = window.friendPresenceMap || {};
@@ -4678,7 +4692,7 @@
 
     window.openInviteFriendModal = async function() {
       if (!window.currentUser || !window.db || !window.fs) { window.showToast('請先登入', '⚠️'); return; }
-      if (!state.currentRoomId) { window.showToast('要喺房間入面先可以邀請朋友', '⚠️'); return; }
+      if (!state.currentRoomId) { window.showToast('要在房間入面先可以邀請朋友', '⚠️'); return; }
       const listEl = document.getElementById('invite-friend-list');
       if (!listEl) return;
       listEl.innerHTML = '<p style="font-size:12px; color:#999; text-align:center;">載入緊好友名單...</p>';
@@ -4727,7 +4741,7 @@
           createdAt: now,
           expiresAt: now + ROOM_INVITE_VALID_MS
         });
-        window.showToast(`✅ 已經邀請 ${friendUsername} 入房，等緊佢回應`, '📨');
+        window.showToast(`✅ 已經邀請 ${friendUsername} 入房，等緊他回應`, '📨');
         window.closeModal('modal-invite-friend');
       } catch (e) {
         window.showToast('邀請失敗：' + (e.message || e), '❌');
@@ -4778,7 +4792,7 @@
 
       // 就算已經彈咗出嚟，都要重新核對一次有冇過期先真正放行入房
       if (invite.expiresAt && Date.now() > invite.expiresAt) {
-        window.showToast('⌛ 呢個邀請已經過期喇，叫朋友再邀請多次啦', '⌛');
+        window.showToast('⌛ 這個邀請已經過期喇，叫朋友再邀請多次啦', '⌛');
         try { await window.fs.updateDoc(window.fs.doc(window.db, 'roomInvites', invite.id), { status: 'expired' }); } catch (e) {}
         showNextRoomInvitePopup();
         return;
@@ -4787,7 +4801,7 @@
       try {
         const roomSnap = await window.fs.getDoc(window.fs.doc(window.db, 'rooms', invite.roomId));
         if (!roomSnap.exists()) {
-          window.showToast('呢個房間已經唔存在喇', '🚫');
+          window.showToast('這個房間已經唔存在喇', '🚫');
           try { await window.fs.updateDoc(window.fs.doc(window.db, 'roomInvites', invite.id), { status: 'expired' }); } catch (e) {}
           showNextRoomInvitePopup();
           return;
@@ -5021,7 +5035,7 @@
         // 觸發多一次 onAuthStateChanged（user=null），到時先處理登出後
         // 嘅畫面更新，所以呢度可以直接 return。
         if (window.currentUser && window.currentUser.suspended) {
-          window.showToast('你嘅帳戶已被管理員停權，如有疑問請聯絡管理員', '🚫');
+          window.showToast('你的帳戶已被管理員停權，如有疑問請聯絡管理員', '🚫');
           await signOut(auth);
           return;
         }
@@ -5033,7 +5047,7 @@
         if (suspensionListenerUnsubscribe) { suspensionListenerUnsubscribe(); suspensionListenerUnsubscribe = null; }
         suspensionListenerUnsubscribe = onSnapshot(userDocRef, async (snap) => {
           if (snap.exists() && snap.data().suspended && window.currentUser) {
-            window.showToast('你嘅帳戶已被管理員停權，即將登出', '🚫');
+            window.showToast('你的帳戶已被管理員停權，即將登出', '🚫');
             if (suspensionListenerUnsubscribe) { suspensionListenerUnsubscribe(); suspensionListenerUnsubscribe = null; }
             // 如果仲留喺視訊溫習室入面（例如房主俾人喺後台停權嗰刻仲喺度
             // 直播緊），一定要喺 signOut() 之前（趁認證仲有效）行齊「離開
@@ -5107,7 +5121,7 @@
     window.sendVerificationEmail = async function(toEmail, username, uid, token) {
       if (!toEmail) return;
       if (!window.EMAILJS_CONFIGURED || typeof emailjs === 'undefined') {
-        console.warn('EmailJS 未設定，冇寄到驗證電郵俾', toEmail, '（見 index.html 頭段「電郵驗證設定」）');
+        console.warn('EmailJS 未設定，沒有寄到驗證電郵給', toEmail, '（見 index.html 頭段「電郵驗證設定」）');
         return;
       }
       const verifyLink = `${window.location.origin}${window.location.pathname}#verify-email=${uid}:${token}`;
@@ -5129,11 +5143,11 @@
       if (!match) return;
       const [, linkUid, token] = match;
       if (!window.currentUser) {
-        window.showToast('請先用返嗰個帳戶登入，先可以完成電郵驗證', '⚠️');
+        window.showToast('請先用返那個帳戶登入，先可以完成電郵驗證', '⚠️');
         return;
       }
       if (window.currentUser.uid !== linkUid) {
-        window.showToast('呢個驗證連結屬於另一個帳戶，請登出並改用嗰個帳戶登入', '⚠️');
+        window.showToast('這個驗證連結屬於另一個帳戶，請登出並改用那個帳戶登入', '⚠️');
         return;
       }
       if (window.currentUser.emailVerified) {
@@ -5141,7 +5155,7 @@
         return;
       }
       if (window.currentUser.emailVerifyToken !== token) {
-        window.showToast('呢個驗證連結已經失效，可以喺「編輯個人資料」度重新發送', '⚠️');
+        window.showToast('這個驗證連結已經失效，可以在「編輯個人資料」度重新發送', '⚠️');
         window.location.hash = '';
         return;
       }
@@ -5165,7 +5179,7 @@
     window.resendVerificationEmail = async function() {
       if (!window.currentUser || !auth.currentUser) return;
       const toEmail = window.currentUser.contactEmail;
-      if (!toEmail) { window.showToast('請先喺上面填返個電郵地址，再撳「儲存修改資料」', '⚠️'); return; }
+      if (!toEmail) { window.showToast('請先在上面填返個電郵地址，再撳「儲存修改資料」', '⚠️'); return; }
       const btn = document.getElementById('resend-verify-email-btn');
       if (btn) { btn.disabled = true; btn.innerText = '⏳ 發送緊...'; }
       try {
@@ -5248,7 +5262,7 @@
         return;
       }
       if (existing.exists()) {
-        window.showToast('呢個帳號 ID 已經有人用咗，換一個啦', '⚠️');
+        window.showToast('這個帳號 ID 已經有人用了，換一個啦', '⚠️');
         return;
       }
 
@@ -5298,17 +5312,17 @@
         window.closeModal('modal-register');
         window.updateUserAuthUI();
         if (newProfile.contactEmail) {
-          window.showToast(`🎉 註冊成功！你嘅帳號 ID 係「${loginId}」，記住佢嚟登入。仲要撳埋寄咗去你電郵嘅驗證連結，先可以正式開始用`, "✨");
+          window.showToast(`🎉 註冊成功！你的帳號 ID 是「${loginId}」，記住他來登入。仲要撳埋寄了去你電郵的驗證連結，先可以正式開始用`, "✨");
         } else {
-          window.showToast(`🎉 註冊成功！你嘅帳號 ID 係「${loginId}」，記住佢嚟登入`, "✨");
+          window.showToast(`🎉 註冊成功！你的帳號 ID 是「${loginId}」，記住他來登入`, "✨");
         }
         window.switchTab('home');
       } catch (error) {
         // Firestore 寫入失敗（多數係撞正個 ID 岩岩俾人搶咗）：要清理返啱啱建立
         // 嗰個 Auth 帳號，否則會留低一個冇對應 Firestore 資料嘅「孤兒」帳號
-        console.error('註冊寫入 Firestore 失敗，清理返啱啱建立嘅 Auth 帳號:', error);
+        console.error('註冊寫入 Firestore 失敗，清理返啱啱建立的 Auth 帳號:', error);
         try { await deleteUser(userCredential.user); } catch (e2) { /* 清理失敗都唔緊要，唔好擋住原本嘅錯誤訊息 */ }
-        window.showToast("註冊失敗，可能個帳號 ID 啱啱俾人用咗，換一個再試：" + error.message, "❌");
+        window.showToast("註冊失敗，可能個帳號 ID 啱啱給人用了，換一個再試：" + error.message, "❌");
       }
     };
 
@@ -5316,13 +5330,13 @@
       try {
         // 登入一律用帳號 ID，唔再支援直接打電郵登入
         if (idOrEmail.includes('@')) {
-          window.showToast('請用「帳號 ID」登入，唔好打電郵喇', '⚠️');
+          window.showToast('請用「帳號 ID」登入，不要打電郵喇', '⚠️');
           return;
         }
         const idLower = idOrEmail.toLowerCase();
         const mapSnap = await getDoc(doc(db, 'usernames', idLower));
         if (!mapSnap.exists()) {
-          window.showToast('搵唔到呢個帳號 ID，請檢查有冇打錯', '❌');
+          window.showToast('找不到這個帳號 ID，請檢查有沒有打錯', '❌');
           return;
         }
         const authEmail = mapSnap.data().authEmail;
@@ -5355,7 +5369,7 @@
         if (window.currentUser && window.currentUser.suspended) {
           window.currentUser = null;
           await signOut(auth);
-          window.showToast('你嘅帳戶已被管理員停權，無法登入，如有疑問請聯絡管理員', '🚫');
+          window.showToast('你的帳戶已被管理員停權，無法登入，如有疑問請聯絡管理員', '🚫');
           return;
         }
 
@@ -5390,11 +5404,11 @@
       const contactEmail = document.getElementById('reg-contact-email').value.trim();
 
       if (!/^[A-Za-z0-9_]{3,20}$/.test(loginId)) {
-        window.showToast('帳號 ID 格式要係 3-20 個英文字母／數字／底線', '⚠️');
+        window.showToast('帳號 ID 格式要是 3-20 個英文字母／數字／底線', '⚠️');
         return;
       }
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
-        window.showToast('請輸入一個有效嘅電郵地址，用嚟做電郵驗證', '⚠️');
+        window.showToast('請輸入一個有效的電郵地址，用來做電郵驗證', '⚠️');
         return;
       }
 
@@ -5474,7 +5488,7 @@
         }
 
         window.updateUserAuthUI();
-        window.showToast(emailChanged && contactEmail ? "💾 已更新資料，並寄出新嘅驗證電郵" : "💾 個人檔案已同步更新至 Firebase！", "✅");
+        window.showToast(emailChanged && contactEmail ? "💾 已更新資料，並寄出新的驗證電郵" : "💾 個人檔案已同步更新至 Firebase！", "✅");
       } catch (err) {
         window.showToast("更新失敗: " + err.message, "❌");
       }
@@ -5513,7 +5527,8 @@
       presenceTimeoutTimer: null, // 彈窗後 2 分鐘未確認就暫停計分嘅計時器
       presenceAutoLeaveTimer: null, // 暫停計分後再耐都冇反應，自動退房嘅計時器
       presenceConfirmed: true, // 呢一輪確認彈窗，用家係咪已經撳咗確認
-      awardingPaused: false // 被判定為閒置期間，暫停 PTS/EXP 獎勵（防止掛機刷分）
+      awardingPaused: false, // 被判定為閒置期間，暫停 PTS/EXP 獎勵（防止掛機刷分）
+      canvasOutputStream: null // 由 canvas.captureStream() 攞返嚟嘅畫面串流，經過方向修正後先送俾對方（見 startCanvasRenderLoop）
     };
 
     const ROOM_POMODORO_BREAK_SECONDS = 5 * 60; // 房入面每輪專注完之後嘅小休長度，暫時定死 5 分鐘
@@ -5521,18 +5536,20 @@
     const ROOM_CAPACITY = 4; // 同一房間最多同時容納的用家人數（包括自己）
     window.ROOM_CAPACITY = ROOM_CAPACITY; // 開放俾其他 <script> 區塊（例如大廳房間卡片）讀取
 
-    // 手機螢幕細，一個房最多 4 人嘅鏡頭全部疊晒一行會睇唔晒、要不斷向下
-    // 滑先睇齊，所以手機斷面（見 CSS ≤480px 嗰段）已經固定用 2x2 格仔
-    // 做恆常版面，四格一致大細，唔使用家自己揀。想再放到最大、睇得更
-    // 清楚，可以另外撳「⛶ 全螢幕」，將四格放大蓋晒成個畫面（見下面
-    // toggleVideoFullscreenMode）。
+    // 房間上限 4 人，鏡頭恆常都用 2x2「四格漫畫」版面（見 CSS，唔理
+    // 螢幕幾闊都唔會變 3 欄、4 欄），四格一致大細。想再放到最大、睇得
+    // 更清楚，可以撳「⛶ 全螢幕」——特登連同 room-bar（開鏡頭／咪嘅
+    // 按鈕、退出房間等）一齊放大蓋晒成個畫面，唔係淨係得個視訊格，
+    // 唔係嘅話全螢幕嗰陣會撳唔到呢啲按鈕（見下面 toggleVideoFullscreenMode）。
     window.toggleVideoFullscreenMode = function() {
-      const container = document.getElementById('video-grid-container');
+      const roomActive = document.getElementById('room-active');
       const exitBtn = document.getElementById('video-fullscreen-exit-btn');
-      if (!container) return;
-      const willBeFullscreen = !container.classList.contains('video-fullscreen-mode');
-      container.classList.toggle('video-fullscreen-mode', willBeFullscreen);
+      const fsBtn = document.getElementById('video-fullscreen-btn');
+      if (!roomActive) return;
+      const willBeFullscreen = !roomActive.classList.contains('video-fullscreen-mode');
+      roomActive.classList.toggle('video-fullscreen-mode', willBeFullscreen);
       if (exitBtn) exitBtn.style.display = willBeFullscreen ? 'block' : 'none';
+      if (fsBtn) fsBtn.innerHTML = willBeFullscreen ? '⛶ 退出全螢幕' : '⛶ 全螢幕';
       // 全螢幕嗰陣鎖住背景頁面唔畀捲動，唔係嘅話手指喺黑色空隙度拖到
       // 都會意外拉動咗底下嗰版，畀人覺得畫面甩晒版
       document.body.style.overflow = willBeFullscreen ? 'hidden' : '';
@@ -5541,10 +5558,12 @@
     // 全螢幕狀態嘅情況下都安全咁強制退返出嚟，所以獨立開一個「淨係
     // 退出」嘅版本，而唔淨係得返一個「切換」掣
     window.exitVideoFullscreenMode = function() {
-      const container = document.getElementById('video-grid-container');
+      const roomActive = document.getElementById('room-active');
       const exitBtn = document.getElementById('video-fullscreen-exit-btn');
-      if (container) container.classList.remove('video-fullscreen-mode');
+      const fsBtn = document.getElementById('video-fullscreen-btn');
+      if (roomActive) roomActive.classList.remove('video-fullscreen-mode');
       if (exitBtn) exitBtn.style.display = 'none';
+      if (fsBtn) fsBtn.innerHTML = '⛶ 全螢幕';
       document.body.style.overflow = '';
     };
 
@@ -5659,13 +5678,13 @@
             <p style="font-size:12px; color:#ccc; margin-top:6px;">對方鏡頭已關閉</p>
           </div>
           <div class="video-header">
-            <span class="video-tag" style="cursor:pointer;" onclick="viewUserProfile('${uid}')" title="撳一下睇資料／加好友">📹 ${name || '其他用家'}</span>
+            <span class="video-tag" style="cursor:pointer;" onclick="viewUserProfile('${uid}')" title="撳一下看資料／加好友">📹 ${name || '其他用家'}</span>
             <span class="video-tag" id="remote-host-badge-${slotNum}" style="background:#D9EBEF; color:#1E4550; display:none;">👑 房主</span>
             <span class="video-tag" id="stream-status-${uid}" style="background:#3E7A8A; color:#fff;">🔗 連線中...</span>
             <div class="video-more-menu-wrap">
               <span class="video-tag video-more-menu-toggle" onclick="event.stopPropagation(); window.toggleVideoMoreMenu('${uid}')" title="更多選項">⋮</span>
               <div class="video-more-menu-dropdown" id="video-more-menu-${uid}" style="display:none;">
-                <button type="button" class="video-more-menu-item" id="transfer-host-btn-${uid}" style="display:none;" onclick="event.stopPropagation(); window.toggleVideoMoreMenu('${uid}'); window.transferHostTo('${uid}', '${(name||'呢位同學').replace(/'/g, "\\'")}')">👑 轉移房主俾佢</button>
+                <button type="button" class="video-more-menu-item" id="transfer-host-btn-${uid}" style="display:none;" onclick="event.stopPropagation(); window.toggleVideoMoreMenu('${uid}'); window.transferHostTo('${uid}', '${(name||'呢位同學').replace(/'/g, "\\'")}')">👑 轉移房主給他</button>
                 <button type="button" class="video-more-menu-item danger" id="kick-btn-${uid}" style="display:none;" onclick="event.stopPropagation(); window.toggleVideoMoreMenu('${uid}'); window.kickParticipant('${uid}', '${(name||'呢位同學').replace(/'/g, "\\'")}')">🚫 踢走呢位同學</button>
                 <button type="button" class="video-more-menu-item danger" onclick="event.stopPropagation(); window.toggleVideoMoreMenu('${uid}'); window.openReportModal('${uid}', '${(name||'呢位同學').replace(/'/g, "\\'")}')">🚩 舉報呢位同學</button>
               </div>
@@ -5726,12 +5745,12 @@
     // 同一間房都會俾 enterRoomSetup 擋返出去，直到呢間房執咗為止。
     window.kickParticipant = async function(targetUid, targetName) {
       if (!state.isHost || !state.currentRoomId || !window.db || !window.fs) return;
-      if (!confirm(`確定要將「${targetName}」移出呢個溫習房？佢之後都唔可以再加入返呢間房。`)) return;
+      if (!confirm(`確定要將「${targetName}」移出這個溫習房？他之後都唔可以再加入返呢間房。`)) return;
       try {
         await window.fs.updateDoc(window.fs.doc(window.db, 'rooms', state.currentRoomId), {
           bannedUids: window.fs.arrayUnion(targetUid)
         });
-        window.showToast(`已將「${targetName}」移出房間，佢唔可以再加入呢間房`, '🚫');
+        window.showToast(`已將「${targetName}」移出房間，他唔可以再加入呢間房`, '🚫');
       } catch (e) {
         window.showToast('踢走失敗：' + (e.message || e), '❌');
       }
@@ -5746,13 +5765,13 @@
     // 選項，唔使額外寫多一套同步邏輯。
     window.transferHostTo = async function(targetUid, targetName) {
       if (!state.isHost || !state.currentRoomId || !window.db || !window.fs) return;
-      if (!confirm(`確定要將房主身份轉移俾「${targetName}」？轉移之後你會變返做普通成員，唔會再有踢人／轉移房主嘅權限。`)) return;
+      if (!confirm(`確定要將房主身份轉移給「${targetName}」？轉移之後你會變返做普通成員，唔會再有踢人／轉移房主的權限。`)) return;
       try {
         await window.fs.updateDoc(window.fs.doc(window.db, 'rooms', state.currentRoomId), {
           hostUid: targetUid,
           hostName: targetName
         });
-        window.showToast(`已將房主身份轉移俾「${targetName}」`, '👑');
+        window.showToast(`已將房主身份轉移給「${targetName}」`, '👑');
       } catch (e) {
         window.showToast('轉移房主失敗：' + (e.message || e), '❌');
       }
@@ -5892,7 +5911,7 @@
           createdAt: Date.now()
         });
 
-        window.showToast('已送出舉報，管理員會盡快跟進，多謝你保障大家嘅安全 🙏', '🚩');
+        window.showToast('已送出舉報，管理員會盡快跟進，多謝你保障大家的安全 🙏', '🚩');
         window.closeReportModal();
       } catch (e) {
         window.showToast('舉報送出失敗：' + (e.message || e), '❌');
@@ -6048,7 +6067,7 @@
           // 俾 enterRoomSetup 嗰個檢查擋返出去，唔可以再入返嚟。
           const myUid = window.currentUser ? window.currentUser.uid : null;
           if (myUid && data && Array.isArray(data.bannedUids) && data.bannedUids.includes(myUid)) {
-            doLeaveRoom(false, '你已被房主移出呢個溫習房，之後都唔可以再加入 🚫');
+            doLeaveRoom(false, '你已被房主移出這個溫習房，之後都唔可以再加入 🚫');
           }
         }
       });
@@ -6170,7 +6189,7 @@
         const roomCheckSnap = await window.fs.getDoc(window.fs.doc(window.db, 'rooms', roomId));
         const roomCheckData = roomCheckSnap.exists() ? roomCheckSnap.data() : null;
         if (roomCheckData && Array.isArray(roomCheckData.bannedUids) && roomCheckData.bannedUids.includes(window.currentUser.uid)) {
-          window.showToast('你已經俾房主移出過呢間房，唔可以再加入', '🚫');
+          window.showToast('你已經給房主移出過呢間房，唔可以再加入', '🚫');
           return false;
         }
       } catch (e) {
@@ -6417,7 +6436,7 @@
           const newLevel = calcLevelInfo(window.currentUser.exp).level;
           if (newLevel > prevLevel) {
             const rank = getRankTitle(newLevel);
-            window.showToast(`🎉 升級喇！而家係 Lv.${newLevel} ${rank.emoji} ${rank.title}！`, '⬆️');
+            window.showToast(`🎉 升級喇！現在是 Lv.${newLevel} ${rank.emoji} ${rank.title}！`, '⬆️');
           }
           if (hoursIncrement > 0) {
             const newHours = (parseFloat(window.currentUser.hours) || 0) + hoursIncrement;
@@ -6615,7 +6634,7 @@
         const active = flashcardsFilterCategory === cat.label;
         const cls = 'flashcard-category-btn' + (active ? ' active' : '') + (disabled ? ' disabled' : '');
         return disabled
-          ? `<button type="button" class="${cls}" disabled title="呢個範疇暫時未有詞卡">${escapeHtml(cat.label)}（0）</button>`
+          ? `<button type="button" class="${cls}" disabled title="這個範疇暫時未有詞卡">${escapeHtml(cat.label)}（0）</button>`
           : `<button type="button" class="${cls}" onclick="switchFlashcardCategory('${cat.label}')">${escapeHtml(cat.label)}（${count}）</button>`;
       }).join('');
       wrap.innerHTML = allBtn + catBtns;
@@ -6660,11 +6679,11 @@
 
       if (!listEl) return;
       if (flashcardsCache.length === 0) {
-        listEl.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:20px;">而家仲未有溫習卡，等下老師／管理員新增啦！</p>';
+        listEl.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:20px;">現在仲未有溫習卡，等下老師／管理員新增啦！</p>';
         return;
       }
       if (visible.length === 0) {
-        listEl.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:20px;">呢個篩選範圍暫時未有溫習卡，試吓揀返「全部」睇吓！</p>';
+        listEl.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:20px;">這個篩選範圍暫時未有溫習卡，試吓揀返「全部」看看！</p>';
         return;
       }
 
@@ -6691,7 +6710,7 @@
       const now = Date.now();
       flashcardReviewQueue = getVisibleFlashcards().filter(c => (c.nextReviewAt || 0) <= now);
       if (flashcardReviewQueue.length === 0) {
-        window.showToast('而家冇待複習嘅卡片，遲啲再返嚟啦！', 'ℹ️');
+        window.showToast('現在沒有待複習的卡片，遲些再返來啦！', 'ℹ️');
         return;
       }
       flashcardReviewIndex = 0;
@@ -6811,7 +6830,7 @@
       const roundLabelEl = document.getElementById('pomodoro-round-label');
       if (roundLabelEl) {
         roundLabelEl.innerText = `第 ${roundNumber} 輪`;
-        roundLabelEl.title = `已完成 ${completed} 個完整番茄鐘（呢個計數淨係計呢次入房，離開房間會重新開始計）`;
+        roundLabelEl.title = `已完成 ${completed} 個完整番茄鐘（這個計數只是計這次入房，離開房間會重新開始計）`;
       }
 
       // 被判定為閒置期間，喺計時器旁邊顯示一個顯眼嘅「撳返嚟」掣，
@@ -6861,7 +6880,7 @@
     function handlePresenceTimeout() {
       state.awardingPaused = true;
       updateTimerDisplay();
-      window.showToast('偵測到你可能唔喺度，已暫停計分。返嚟後撳「已暫停計分，撳返嚟」即可恢復', '⏸️');
+      window.showToast('偵測到你可能唔在，已暫停計分。返來後撳「已暫停計分，撳返來」即可恢復', '⏸️');
 
       if (state.presenceAutoLeaveTimer) clearTimeout(state.presenceAutoLeaveTimer);
       state.presenceAutoLeaveTimer = setTimeout(() => {
@@ -6987,6 +7006,10 @@
         state.mediaStream.getTracks().forEach(track => track.stop());
         state.mediaStream = null;
       }
+      if (state.canvasOutputStream) {
+        state.canvasOutputStream.getTracks().forEach(track => track.stop());
+        state.canvasOutputStream = null;
+      }
       state.isCameraOn = false;
       state.isMicOn = false;
 
@@ -7051,27 +7074,98 @@
       }
     };
 
+    // 讀返手機／裝置而家嘅螢幕方向角度（0／90／180／270）。
+    // 大部分 Android 裝置用 screen.orientation.angle 就讀到；iOS Safari
+    // 對呢個 API 支援唔完整，退而求其次用返舊式、已棄用但仍然可用嘅
+    // window.orientation（注意佢淨係得 -90／0／90／180 呢幾個值）。
+    // 讀唔到就當 0 度（即係冇特別打橫，唔使做任何修正）。
+    function getScreenOrientationAngle() {
+      try {
+        if (screen.orientation && typeof screen.orientation.angle === 'number') {
+          return ((screen.orientation.angle % 360) + 360) % 360;
+        }
+      } catch (e) { /* 忽略 */ }
+      if (typeof window.orientation === 'number') {
+        return ((window.orientation % 360) + 360) % 360;
+      }
+      return 0;
+    }
+
     function startCanvasRenderLoop() {
       const video = document.getElementById('behind-video-engine');
       const canvas = document.getElementById('canvas-stream-display');
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
 
+      // 用 canvas.captureStream() 攞返一條「已經做咗方向修正」嘅畫面串流，
+      // 之後送俾對方睇嗰條 WebRTC video track 會用呢條，而唔係原始鏡頭
+      // track——先至可以確保「手機打橫」呢個修正，唔淨係自己個預覽睇到，
+      // 對方都真係收到啱方向嘅畫面（見 getOutgoingMediaTracks）。
+      if (!state.canvasOutputStream) {
+        try {
+          state.canvasOutputStream = canvas.captureStream(24);
+        } catch (e) {
+          console.warn('canvas.captureStream 唔支援，將會改用原始鏡頭畫面（打橫轉向修正就做唔到）:', e);
+          state.canvasOutputStream = null;
+        }
+      }
+
       function drawFrame() {
         if (!state.isCameraOn) return;
         if (video.paused && video.srcObject) video.play().catch(() => {});
 
         if (video.readyState >= 2 && video.videoWidth > 0) {
-          if (canvas.width !== video.videoWidth) {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
+          const vw = video.videoWidth, vh = video.videoHeight;
+          // 手機喺拍緊嘅過程中打橫，鏡頭嘅原始畫面唔會自動跟住轉向
+          // （呢個係好多瀏覽器/裝置嘅共同限制），所以要自己靠螢幕方向
+          // 角度，喺畫落 canvas 之前手動旋轉返啱，等自己個預覽同送俾
+          // 對方嘅畫面都係啱方向。
+          const angle = getScreenOrientationAngle();
+          const rotated90or270 = (angle === 90 || angle === 270);
+          const targetW = rotated90or270 ? vh : vw;
+          const targetH = rotated90or270 ? vw : vh;
+          if (canvas.width !== targetW || canvas.height !== targetH) {
+            canvas.width = targetW;
+            canvas.height = targetH;
           }
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          ctx.save();
+          if (angle === 90) {
+            ctx.translate(canvas.width, 0);
+            ctx.rotate(Math.PI / 2);
+            ctx.drawImage(video, 0, 0, vw, vh);
+          } else if (angle === 270) {
+            ctx.translate(0, canvas.height);
+            ctx.rotate(-Math.PI / 2);
+            ctx.drawImage(video, 0, 0, vw, vh);
+          } else if (angle === 180) {
+            ctx.translate(canvas.width, canvas.height);
+            ctx.rotate(Math.PI);
+            ctx.drawImage(video, 0, 0, vw, vh);
+          } else {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          }
+          ctx.restore();
         }
         state.renderFrameId = requestAnimationFrame(drawFrame);
       }
 
       state.renderFrameId = requestAnimationFrame(drawFrame);
+    }
+
+    // 揀返而家真正應該送俾其他人嘅 track：聲音直接用麥克風原始 track；
+    // 畫面就優先用 canvasOutputStream（已經做咗方向修正嗰條），
+    // 如果裝置唔支援 captureStream 先退返去用原始鏡頭 track。
+    function getOutgoingMediaTracks() {
+      const tracks = [];
+      if (!state.mediaStream) return tracks;
+      state.mediaStream.getAudioTracks().forEach(t => tracks.push(t));
+      const canvasVideoTrack = state.canvasOutputStream ? state.canvasOutputStream.getVideoTracks()[0] : null;
+      if (canvasVideoTrack) {
+        tracks.push(canvasVideoTrack);
+      } else {
+        state.mediaStream.getVideoTracks().forEach(t => tracks.push(t));
+      }
+      return tracks;
     }
 
     // 當自己開咗鏡頭／咪，需要讓對方知道「我依家有 track 可以送」。
@@ -7105,7 +7199,7 @@
         // 呢個唔會因為自己 sender track 變 null 而受影響），先至喺真係冇
         // 任何相關 transceiver 嘅情況先用 addTrack 開一條新嘅。
         const existingSenderKinds = new Set(pc.getSenders().filter(s => s.track).map(s => s.track.kind));
-        for (const track of state.mediaStream.getTracks()) {
+        for (const track of getOutgoingMediaTracks()) {
           if (existingSenderKinds.has(track.kind)) continue;
 
           const reusableTransceiver = pc.getTransceivers().find(t =>
@@ -7123,15 +7217,15 @@
               } else if (reusableTransceiver.direction === 'inactive') {
                 reusableTransceiver.direction = 'sendonly';
               }
-              wrtcLog(`重用返同 ${remoteUid} 嘅舊 ${track.kind} transceiver（避免重複 m-line）`);
+              wrtcLog(`重用返同 ${remoteUid} 的舊 ${track.kind} transceiver（避免重複 m-line）`);
             } catch (e) {
               console.warn(`replaceTrack 失敗，改用 addTrack (${remoteUid}, ${track.kind}):`, e);
               pc.addTrack(track, state.mediaStream);
-              wrtcLog(`加入 ${track.kind} track 到與 ${remoteUid} 嘅連線`);
+              wrtcLog(`加入 ${track.kind} track 到與 ${remoteUid} 的連線`);
             }
           } else {
             pc.addTrack(track, state.mediaStream);
-            wrtcLog(`加入 ${track.kind} track 到與 ${remoteUid} 嘅連線`);
+            wrtcLog(`加入 ${track.kind} track 到與 ${remoteUid} 的連線`);
           }
         }
 
@@ -7161,7 +7255,7 @@
         // handleIncomingOffer 嗰邊嘅 polite/impolite 邏輯去化解（一方讓步、
         // 一方堅持）。
         if (pc.signalingState !== 'stable') {
-          wrtcLog(`與 ${remoteUid} 嘅連線暫時未 stable（${pc.signalingState}），跳過呢次重新協商`);
+          wrtcLog(`與 ${remoteUid} 的連線暫時未 stable（${pc.signalingState}），跳過這次重新協商`);
           continue;
         }
 
@@ -7191,7 +7285,7 @@
         micBtn.className = 'btn btn-outline';
         if (micTag) {
           micTag.style.display = state.isCameraOn ? 'flex' : 'none';
-          micTag.innerText = '🎤 已開咪';
+          micTag.innerText = '🎤 已開啟麥克風';
           micTag.style.background = 'rgba(134,239,172,0.9)';
         }
       } else {
@@ -7223,7 +7317,7 @@
     // 統一將 getUserMedia 的錯誤代碼轉做用家睇得明嘅訊息
     function describeMediaError(err) {
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        return '權限被拒絕。請到瀏覽器／系統設定允許呢個網站使用鏡頭與麥克風後再試一次。';
+        return '權限被拒絕。請到瀏覽器／系統設定允許這個網站使用鏡頭與麥克風後再試一次。';
       }
       if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
         return '未偵測到鏡頭或麥克風裝置。';
@@ -7241,7 +7335,7 @@
       // 令同一位用家出現兩條互相衝突嘅 P2P 連線。加返呢個鎖之後，
       // 呼叫緊嗰陣其他呼叫會直接被忽略。
       if (state.cameraToggleInProgress) {
-        wrtcLog('⚠️ 開/關鏡頭操作進行緊，忽略重複嘅呼叫');
+        wrtcLog('⚠️ 開/關鏡頭操作進行緊，忽略重複的呼叫');
         return;
       }
       state.cameraToggleInProgress = true;
@@ -7424,7 +7518,7 @@
         name: window.currentUser.username || '同學',
         timestamp: Date.now()
       }, { merge: true });
-      wrtcLog(`已廣播上線通知（我嘅 UID: ${myUid}）`);
+      wrtcLog(`已廣播上線通知（我的 UID: ${myUid}）`);
     }
 
     // 開鏡頭當下，主動掃描房內「早已存在」的其他用家並嘗試建立連線。
@@ -7446,7 +7540,7 @@
 
           // (a) 對方的上線通知（presence）→ 依 UID 排序決定是否由我方主動發起 Offer
           if (data.uid && data.uid !== myUid) {
-            wrtcLog(`發現房內用家: ${data.uid}（我 ${myUid < data.uid ? '負責發起' : '等佢發起'}）`);
+            wrtcLog(`發現房內用家: ${data.uid}（我 ${myUid < data.uid ? '負責發起' : '等他發起'}）`);
             getOrCreateRemoteSlot(data.uid, data.name);
             if (myUid < data.uid && !state.peerConnections[data.uid]) {
               await createOfferTo(roomId, data.uid, data.name);
@@ -7456,7 +7550,7 @@
 
           // (b) 指名給我、但之前鏡頭未開而被略過的 Offer → 現在補上 Answer
           if (data.to === myUid && data.offer && state.lastProcessedOfferTs[data.from] !== data.timestamp) {
-            wrtcLog(`發現一份之前錯過嘅 Offer ← ${data.from}，補上處理`);
+            wrtcLog(`發現一份之前錯過的 Offer ← ${data.from}，補上處理`);
             state.lastProcessedOfferTs[data.from] = data.timestamp;
             await handleIncomingOffer(roomId, data.from, data.offer);
           }
@@ -7522,7 +7616,7 @@
     async function createOfferTo(roomId, remoteUid, remoteName) {
       // 防止監聽器同掃描同時對同一個 peer 發起多條 offer
       if (state.connectingTo.has(remoteUid)) {
-        wrtcLog(`⚠️ 已經喺向 ${remoteUid} 發起連線嘅途中，跳過重複請求`);
+        wrtcLog(`⚠️ 已經在向 ${remoteUid} 發起連線的途中，跳過重複請求`);
         return;
       }
       state.connectingTo.add(remoteUid);
@@ -7577,17 +7671,17 @@
         // 或者舊連線已經死咗（failed／closed，即真係代表對方重新入房）嗰陣，
         // 先重新建立；如果連線仲生生猛猛，就沿用返同一個 pc 做正常重新協商。
         if (pc) {
-          wrtcLog(`與 ${fromUid} 嘅舊連線已經死咗，捨棄並用新 Offer 重新建立`);
+          wrtcLog(`與 ${fromUid} 的舊連線已經死了，捨棄並用新 Offer 重新建立`);
           pc.close();
         }
         pc = createPeerConnection(fromUid, null);
         state.peerConnections[fromUid] = pc;
       } else if (pc.signalingState === 'have-local-offer') {
         if (!polite) {
-          wrtcLog(`⚠️ 與 ${fromUid} 嘅重新協商撞正，我方 UID 較細，忽略對方呢個 Offer`);
+          wrtcLog(`⚠️ 與 ${fromUid} 的重新協商撞正，我方 UID 較細，忽略對方這個 Offer`);
           return;
         }
-        wrtcLog(`⚠️ 與 ${fromUid} 嘅重新協商撞正，我方讓步，捨棄自己未完成嘅 Offer`);
+        wrtcLog(`⚠️ 與 ${fromUid} 的重新協商撞正，我方讓步，捨棄自己未完成的 Offer`);
         await pc.setLocalDescription({ type: 'rollback' });
       }
 
@@ -7626,7 +7720,7 @@
       // currentRemoteDescription 準確得多——後者一旦第一次協商成功之後就會
       // 永遠得個真，令之後任何重新協商嘅 answer 都被誤判成「已經處理過」而略過。
       if (pc.signalingState !== 'have-local-offer') {
-        wrtcLog(`⚠️ 收到 ${fromUid} 嘅 Answer，但目前狀態係 ${pc.signalingState}，忽略`);
+        wrtcLog(`⚠️ 收到 ${fromUid} 的 Answer，但目前狀態是 ${pc.signalingState}，忽略`);
         return;
       }
       wrtcLog(`收到 Answer ← ${fromUid}`);
@@ -7698,11 +7792,11 @@
       // 如果未開鏡頭，就先建立空白連線接收對方嘅畫面，
       // 等之後開鏡頭時再由 renegotiateWithPeers 加入軌道並重新協商。
       if (state.mediaStream) {
-        state.mediaStream.getTracks().forEach(track => pc.addTrack(track, state.mediaStream));
+        getOutgoingMediaTracks().forEach(track => pc.addTrack(track, state.mediaStream));
       }
 
       pc.ontrack = (event) => {
-        wrtcLog(`收到 ${remoteUid} 嘅 track: ${event.track.kind}, streams: ${event.streams.length}`);
+        wrtcLog(`收到 ${remoteUid} 的 track: ${event.track.kind}, streams: ${event.streams.length}`);
         const remoteVideo = getOrCreateRemoteSlot(remoteUid, remoteName);
         if (!remoteVideo) return;
 
@@ -7747,16 +7841,16 @@
       // 診斷用日誌：如果之後仍然連唔到，喺瀏覽器 Console 睇呢啲 log
       // 可以清楚知道係卡喺邊一步（訊號交換？ICE 收集？定係實際連線？）
       pc.oniceconnectionstatechange = () => {
-        wrtcLog(`與 ${remoteUid} 嘅 ICE 連線狀態: ${pc.iceConnectionState}`);
+        wrtcLog(`與 ${remoteUid} 的 ICE 連線狀態: ${pc.iceConnectionState}`);
       };
       pc.onicegatheringstatechange = () => {
-        wrtcLog(`與 ${remoteUid} 嘅 ICE 收集狀態: ${pc.iceGatheringState}`);
+        wrtcLog(`與 ${remoteUid} 的 ICE 收集狀態: ${pc.iceGatheringState}`);
       };
       pc.onsignalingstatechange = () => {
-        wrtcLog(`與 ${remoteUid} 嘅 signaling 狀態: ${pc.signalingState}`);
+        wrtcLog(`與 ${remoteUid} 的 signaling 狀態: ${pc.signalingState}`);
       };
       pc.onconnectionstatechange = () => {
-        wrtcLog(`與 ${remoteUid} 嘅整體連線狀態: ${pc.connectionState}`);
+        wrtcLog(`與 ${remoteUid} 的整體連線狀態: ${pc.connectionState}`);
         if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) {
           console.warn(`與 ${remoteUid} 的連線狀態變為 ${pc.connectionState}`);
         }
@@ -7781,7 +7875,7 @@
       if (state.peerConnections[remoteUid] !== pc) return; // 已經俾一條新連線取代咗，唔使處理
       delete state.peerConnections[remoteUid];
       releaseRemoteSlot(remoteUid);
-      wrtcLog(`已清理與 ${remoteUid} 嘅失效連線`);
+      wrtcLog(`已清理與 ${remoteUid} 的失效連線`);
 
       if (state.currentRoomId && window.currentUser) {
         try {
@@ -7794,8 +7888,8 @@
   <div class="modal-backdrop" id="modal-host-leave" style="display:none;">
     <div class="modal-box" style="text-align:center;">
       <div style="font-size:32px; margin-bottom:8px;">🚪</div>
-      <h3 style="font-size:16px; font-weight:bold; margin-bottom:6px;">你係房主，想點處理呢個房間？</h3>
-      <p style="font-size:12px; color:#666; margin-bottom:20px;">其他成員仍然喺度，你可以選擇保留房間讓佢哋繼續使用，或者直接關閉整個房間。</p>
+      <h3 style="font-size:16px; font-weight:bold; margin-bottom:6px;">你是房主，想點處理這個房間？</h3>
+      <p style="font-size:12px; color:#666; margin-bottom:20px;">其他成員仍然在，你可以選擇保留房間讓他們繼續使用，或者直接關閉整個房間。</p>
       <div style="display:flex; flex-direction:column; gap:10px;">
         <button class="btn btn-primary" type="button" onclick="hostLeaveKeepRoom()" style="padding:12px;">
           ✅ 保留房間，自己退出
@@ -7814,10 +7908,10 @@
   <div class="modal-backdrop" id="modal-presence-check" style="display:none;">
     <div class="modal-box" style="text-align:center;">
       <div style="font-size:32px; margin-bottom:8px;">🦦</div>
-      <h3 style="font-size:16px; font-weight:bold; margin-bottom:6px;">仲喺度學緊嘢嗎？</h3>
-      <p style="font-size:12px; color:#666; margin-bottom:20px;">為咗確保積分／經驗值淨係俾真係喺度專注緊嘅同學，請喺 2 分鐘內撳一下確認。逾時未確認會暫停計分，長時間無回應仲會自動幫你退出房間。</p>
+      <h3 style="font-size:16px; font-weight:bold; margin-bottom:6px;">仲在學緊東西嗎？</h3>
+      <p style="font-size:12px; color:#666; margin-bottom:20px;">為了確保積分／經驗值只是給真是在專注緊的同學，請在 2 分鐘內撳一下確認。逾時未確認會暫停計分，長時間無回應仲會自動幫你退出房間。</p>
       <button class="btn btn-primary" type="button" onclick="confirmStillHere()" style="width:100%; padding:12px;">
-        ✅ 係，我仲喺度溫緊書
+        ✅ 是，我仲在溫緊書
       </button>
     </div>
   </div>
@@ -7882,8 +7976,8 @@
   <div id="admin-denied-container" style="display:none; min-height:100vh;">
     <div style="max-width:420px; margin:0 auto; padding-top:80px; text-align:center; padding-left:24px; padding-right:24px;">
       <div style="font-size:40px;">🚫</div>
-      <h2 style="font-size:18px; font-weight:bold; color:var(--brand-800); margin-top:8px;">冇權限進入呢個頁面</h2>
-      <p style="font-size:13px; color:#666; margin-top:6px;">呢個係管理員專用頁面，如有需要請聯絡系統管理員。</p>
+      <h2 style="font-size:18px; font-weight:bold; color:var(--brand-800); margin-top:8px;">沒有權限進入這個頁面</h2>
+      <p style="font-size:13px; color:#666; margin-top:6px;">這個是管理員專用頁面，如有需要請聯絡系統管理員。</p>
       <button class="btn btn-primary" type="button" style="margin-top:16px;" onclick="window.location.hash=''">返回主頁</button>
     </div>
   </div>
@@ -8054,7 +8148,7 @@
           <tr>
             <td>
               <div style="display:flex; flex-direction:column; align-items:center; gap:3px;">
-                <div id="${thumbId}" onclick="document.getElementById('${inputId}').click()" title="撳呢度上傳圖片" style="width:44px; height:44px; border-radius:8px; background:#F0F6F8; border:1px dashed #B3D6DE; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden;">${thumbInner}</div>
+                <div id="${thumbId}" onclick="document.getElementById('${inputId}').click()" title="撳這裡上傳圖片" style="width:44px; height:44px; border-radius:8px; background:#F0F6F8; border:1px dashed #B3D6DE; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden;">${thumbInner}</div>
                 <input type="file" accept="image/*" id="${inputId}" style="display:none;" onchange="adminUploadGachaPhoto('${poolKey}',${idx},this)">
                 ${p.photo ? `<button type="button" class="btn btn-outline" style="font-size:9px; padding:1px 6px;" onclick="adminRemoveGachaPhoto('${poolKey}',${idx})">移除圖片</button>` : ''}
               </div>
@@ -8087,7 +8181,7 @@
                 <tbody>${rows || '<tr><td colspan="7" style="text-align:center; color:#999; padding:16px;">未有獎品，撳「新增獎品」開始</td></tr>'}</tbody>
               </table>
             </div>
-            <p style="font-size:11px; color:#888; margin-top:8px;">總權重：<span id="admin-gacha-total-${poolKey}">${totalWeight}</span>（右邊「≈ %」欄會喺你打緊數字嗰陣即時更新，撳「調整做啱好 100」會將所有權重等比例縮放到啱啱好加埋等於 100，之後嗰個 % 就會同權重數字一致）</p>
+            <p style="font-size:11px; color:#888; margin-top:8px;">總權重：<span id="admin-gacha-total-${poolKey}">${totalWeight}</span>（右邊「≈ %」欄會在你打緊數字嗰陣即時更新，撳「調整做啱好 100」會將所有權重等比例縮放到啱啱好加埋等於 100，之後那個 % 就會同權重數字一致）</p>
           </div>
         `;
       }
@@ -8105,7 +8199,7 @@
         ${renderPoolTable('lucky', '✨ 幸運扭蛋獎池')}
 
         <div style="display:flex; gap:8px; justify-content:flex-end;">
-          <button class="btn btn-outline" type="button" onclick="adminResetGachaDraft()">↩️ 還原未儲存嘅改動</button>
+          <button class="btn btn-outline" type="button" onclick="adminResetGachaDraft()">↩️ 還原未儲存的改動</button>
           <button class="btn btn-primary" type="button" id="btn-admin-save-gacha" onclick="adminSaveGachaConfig()">💾 儲存全部改動</button>
         </div>
       `;
@@ -8194,7 +8288,7 @@
       const pool = adminGachaDraft[poolKey];
       const total = pool.reduce((s, p) => s + (parseFloat(p.weight) || 0), 0);
       if (total <= 0) {
-        window.showToast('所有權重都係 0，冇得調整', '⚠️');
+        window.showToast('所有權重都是 0，沒辦法調整', '⚠️');
         return;
       }
       let runningTotal = 0;
@@ -8221,7 +8315,7 @@
 
     window.adminRemoveGachaPrize = function(poolKey, idx) {
       if (!adminGachaDraft) return;
-      if (!confirm('確定刪除呢個獎品？')) return;
+      if (!confirm('確定刪除這個獎品？')) return;
       adminGachaDraft[poolKey].splice(idx, 1);
       renderAdminGachaTab();
     };
@@ -8229,7 +8323,7 @@
     window.adminResetGachaDraft = function() {
       adminGachaDraft = null;
       renderAdminGachaTab();
-      window.showToast('已還原返上次儲存嘅版本', '↩️');
+      window.showToast('已還原返上次儲存的版本', '↩️');
     };
 
     window.adminSaveGachaConfig = async function() {
@@ -8254,7 +8348,7 @@
       // 好過真係俾 Firestore 拒絕先發現。
       const approxBytes = new Blob([JSON.stringify(payload)]).size;
       if (approxBytes > 900000) {
-        window.showToast(`資料太大（約 ${(approxBytes / 1024).toFixed(0)}KB，Firestore 單一文件上限係 1024KB），請幫少幾個獎品換相或者揀細啲嘅相`, '⚠️');
+        window.showToast(`資料太大（約 ${(approxBytes / 1024).toFixed(0)}KB，Firestore 單一文件上限是 1024KB），請幫少幾個獎品換相或者揀細些的相`, '⚠️');
         return;
       }
 
@@ -8303,7 +8397,7 @@
         console.error('讀取扭蛋機設定失敗:', err);
         gachaConfigLoaded = true; // 唔好卡死喺「載入緊...」畫面，起碼俾程式碼入面嘅預設值可以用
         if (typeof window.isCurrentUserAdmin === 'function' && window.isCurrentUserAdmin()) {
-          window.showToast('讀取扭蛋機設定失敗（可能係 Firestore 規則未生效）：' + (err.message || err), '⚠️');
+          window.showToast('讀取扭蛋機設定失敗（可能是 Firestore 規則未生效）：' + (err.message || err), '⚠️');
         }
       });
     }
@@ -8373,20 +8467,20 @@
               <input class="admin-input-sm" type="number" min="1" step="1" style="width:70px;" value="${adminLevelDraft.levelCurveFactor}" oninput="adminLevelDraft.levelCurveFactor = parseFloat(this.value)||10; adminRefreshLevelPreview();">
             </label>
           </div>
-          <p style="font-size:11px; color:#888;">公式：升到第 L 級總共需要嘅 EXP = 難度係數 × L × (L−1)。難度係數越大，升級越慢。</p>
+          <p style="font-size:11px; color:#888;">公式：升到第 L 級總共需要的 EXP = 難度係數 × L × (L−1)。難度係數越大，升級越慢。</p>
           <p id="admin-level-preview" style="font-size:12px; color:#4A8FA0; font-weight:bold; margin-top:6px;"></p>
         </div>
 
         <div class="admin-card" style="margin-top:12px;">
           <h3 style="font-size:14px; font-weight:bold; margin-bottom:4px;">🏅 段位稱號 + 水獺造型（由低到高，建議第一行等級門檻＝1）</h3>
-          <p style="font-size:11px; color:#888; margin-bottom:10px;">每個段位可以上傳專屬水獺相片，用家升到嗰個等級，主頁「我的水獺」就會自動換成嗰張相；唔上傳就用返共用嘅預設插畫（有心情表情變化）。</p>
+          <p style="font-size:11px; color:#888; margin-bottom:10px;">每個段位可以上傳專屬水獺相片，用家升到那個等級，主頁「我的水獺」就會自動換成嗰張相；唔上傳就用返共用的預設插畫（有心情表情變化）。</p>
           <div>${ranksCards}</div>
           <button class="btn btn-outline" style="margin-top:4px; font-size:12px;" onclick="adminAddLevelRank()">➕ 新增段位</button>
         </div>
 
         <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">
           <button class="btn btn-primary" onclick="adminSaveLevelConfig()">💾 儲存全部改動</button>
-          <button class="btn btn-outline" onclick="adminResetLevelDraft()">↩️ 還原未儲存嘅改動</button>
+          <button class="btn btn-outline" onclick="adminResetLevelDraft()">↩️ 還原未儲存的改動</button>
         </div>
       `;
       adminRefreshLevelPreview();
@@ -8458,7 +8552,7 @@
       };
       const approxBytes = new Blob([JSON.stringify(payload)]).size;
       if (approxBytes > 900000) {
-        window.showToast(`資料太大（約 ${(approxBytes / 1024).toFixed(0)}KB，Firestore 單一文件上限係 1024KB），請幫少幾個段位換相或者揀細啲嘅相`, '⚠️');
+        window.showToast(`資料太大（約 ${(approxBytes / 1024).toFixed(0)}KB，Firestore 單一文件上限是 1024KB），請幫少幾個段位換相或者揀細些的相`, '⚠️');
         return;
       }
       try {
@@ -8496,7 +8590,7 @@
         console.error('讀取等級系統設定失敗:', err);
         levelConfigLoaded = true;
         if (typeof window.isCurrentUserAdmin === 'function' && window.isCurrentUserAdmin()) {
-          window.showToast('讀取等級系統設定失敗（可能係 Firestore 規則未生效）：' + (err.message || err), '⚠️');
+          window.showToast('讀取等級系統設定失敗（可能是 Firestore 規則未生效）：' + (err.message || err), '⚠️');
         }
       });
     }
@@ -8520,7 +8614,7 @@
       if (adminRoomsUnsubscribe) adminRoomsUnsubscribe();
       adminRoomsUnsubscribe = window.fs.onSnapshot(window.fs.collection(window.db, 'rooms'), (snapshot) => {
         if (snapshot.empty) {
-          container.innerHTML = '<div class="admin-card" style="text-align:center; color:#999;">目前冇任何溫習房</div>';
+          container.innerHTML = '<div class="admin-card" style="text-align:center; color:#999;">目前沒有任何溫習房</div>';
           return;
         }
         const rows = snapshot.docs.map(docSnap => {
@@ -8556,7 +8650,7 @@
     window.renderAdminRoomsTab = renderAdminRoomsTab;
 
     window.adminDeleteRoom = async function(roomId, roomName) {
-      if (!confirm(`確定要強制關閉房間「${roomName}」？裡面嘅同學會即時被移返大廳。`)) return;
+      if (!confirm(`確定要強制關閉房間「${roomName}」？裡面的同學會即時被移返大廳。`)) return;
       try {
         await window.fs.deleteDoc(window.fs.doc(window.db, 'rooms', roomId));
         window.showToast('已強制關閉該房間', '🗑️');
@@ -8574,7 +8668,7 @@
       if (adminQaUnsubscribe) adminQaUnsubscribe();
       adminQaUnsubscribe = window.fs.onSnapshot(window.fs.collection(window.db, 'qa_posts'), (snapshot) => {
         if (snapshot.empty) {
-          container.innerHTML = '<div class="admin-card" style="text-align:center; color:#999;">目前冇任何提問</div>';
+          container.innerHTML = '<div class="admin-card" style="text-align:center; color:#999;">目前沒有任何提問</div>';
           return;
         }
         const docs = snapshot.docs.slice().sort((a, b) => (b.data().createdAt || 0) - (a.data().createdAt || 0));
@@ -8607,7 +8701,7 @@
     window.renderAdminQaTab = renderAdminQaTab;
 
     window.adminDeleteQaPost = async function(postId) {
-      if (!confirm('確定刪除呢個提問？裡面嘅留言都會一齊清埋。')) return;
+      if (!confirm('確定刪除這個提問？裡面的留言都會一齊清埋。')) return;
       try {
         // 先刪晒 comments 呢個 subcollection 入面嘅所有文件，先刪返個 post 本身
         // （Firestore 刪除文件唔會自動連 subcollection 一齊刪，要自己手動清）
@@ -8662,7 +8756,7 @@
 
           <div id="admin-flashcard-generic-fields" style="display:none; margin-top:8px;">
             <label style="font-size:13px; font-weight:600; color:#555;">問題（正面）</label>
-            <textarea id="admin-flashcard-front-input" class="input-field" rows="2" placeholder="例如：牛頓第二定律係咩？"></textarea>
+            <textarea id="admin-flashcard-front-input" class="input-field" rows="2" placeholder="例如：牛頓第二定律是咩？"></textarea>
             <label style="font-size:13px; font-weight:600; color:#555; margin-top:8px; display:block;">答案（背面）</label>
             <textarea id="admin-flashcard-back-input" class="input-field" rows="2" placeholder="例如：F = ma"></textarea>
             <label style="font-size:13px; font-weight:600; color:#555; margin-top:8px; display:block;">科目（可選）</label>
@@ -8676,7 +8770,7 @@
 
         <div class="admin-card" style="margin-top:12px;">
           <h3 style="font-size:15px; font-weight:bold; margin-bottom:6px; color:var(--brand-800);">📋 批量貼上匯入（英文詞彙）</h3>
-          <p style="font-size:12px; color:#888; margin-bottom:8px;">日後有大量新詞語想加，唔使一個個手動填：每行一張卡，格式係「<code>英文詞語 | 詞性 | 中文意思 | 例句 | 例句中文翻譯</code>」（例句／翻譯可以留空），成段貼低就得。想要現成內容嘅話，可以叫 Claude 幫手按呢個格式準備一批新詞彙，複製貼落嚟就即刻匯入，唔使再改程式碼或者重新部署。</p>
+          <p style="font-size:12px; color:#888; margin-bottom:8px;">日後有大量新詞語想加，不用一個個手動填：每行一張卡，格式是「<code>英文詞語 | 詞性 | 中文意思 | 例句 | 例句中文翻譯</code>」（例句／翻譯可以留空），成段貼低就得。想要現成內容的話，可以叫 Claude 幫手按這個格式準備一批新詞彙，複製貼落來就即刻匯入，不用再改程式碼或者重新部署。</p>
           <label style="font-size:13px; font-weight:600; color:#555;">範疇</label>
           <select id="admin-flashcard-bulk-category-select" class="input-field">${categoryOptions}</select>
           <label style="font-size:13px; font-weight:600; color:#555; margin-top:8px; display:block;">貼上內容（每行一張卡）</label>
@@ -8748,7 +8842,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
       }
 
       if (adminFlashcardsAllDocs.length === 0) {
-        listContainer.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">目前冇任何溫習卡，喺上面新增第一張啦！</div>';
+        listContainer.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">目前沒有任何溫習卡，在上面新增第一張啦！</div>';
         return;
       }
 
@@ -8762,7 +8856,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
       });
 
       if (docs.length === 0) {
-        listContainer.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">呢個篩選範圍暫時未有溫習卡</div>';
+        listContainer.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">這個篩選範圍暫時未有溫習卡</div>';
         return;
       }
 
@@ -8811,7 +8905,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
       }).join('');
 
       listContainer.innerHTML = `
-        <p style="font-size:12px; color:#888; margin-bottom:10px;">共 ${adminFlashcardsAllDocs.length} 張溫習卡（篩選後顯示 ${docs.length} 張），全部學生都會睇到（下面直接改欄位會即時儲存）</p>
+        <p style="font-size:12px; color:#888; margin-bottom:10px;">共 ${adminFlashcardsAllDocs.length} 張溫習卡（篩選後顯示 ${docs.length} 張），全部學生都會看到（下面直接改欄位會即時儲存）</p>
         <div style="overflow-x:auto;">
           <table class="admin-table">
             <thead><tr><th>問題（正面）</th><th>答案（背面）</th><th>科目</th><th>範疇</th><th></th></tr></thead>
@@ -8908,7 +9002,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
       const category = categoryEl ? categoryEl.value : '';
       const raw = textEl ? textEl.value : '';
       const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
-      if (lines.length === 0) { window.showToast('未貼咗任何內容，先貼低啲詞卡先啦', '⚠️'); return; }
+      if (lines.length === 0) { window.showToast('未貼了任何內容，先貼低些詞卡先啦', '⚠️'); return; }
 
       const items = [];
       let badLineCount = 0;
@@ -8923,7 +9017,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
         items.push({ word, pos, meaning, example, exampleTranslation });
       });
 
-      if (items.length === 0) { window.showToast('冇解析到任何有效嘅詞卡，檢查吓每行係咪用「 | 」分隔㗎', '⚠️'); return; }
+      if (items.length === 0) { window.showToast('沒有解析到任何有效的詞卡，檢查吓每行是否用「 | 」分隔㗎', '⚠️'); return; }
       if (!confirm(`將會匯入 ${items.length} 張詞卡（範疇：${category}）${badLineCount ? '，另外有 ' + badLineCount + ' 行格式唔啱會跳過' : ''}，確定嗎？`)) return;
 
       const btn = document.getElementById('btn-bulk-import-flashcards');
@@ -8972,7 +9066,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
       if (adminUsersUnsubscribe) adminUsersUnsubscribe();
       adminUsersUnsubscribe = window.fs.onSnapshot(window.fs.collection(window.db, 'users'), (snapshot) => {
         if (snapshot.empty) {
-          container.innerHTML = '<div class="admin-card" style="text-align:center; color:#999;">目前冇任何用戶</div>';
+          container.innerHTML = '<div class="admin-card" style="text-align:center; color:#999;">目前沒有任何用戶</div>';
           return;
         }
         const rows = snapshot.docs.map(docSnap => {
@@ -8997,7 +9091,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
         }).join('');
         container.innerHTML = `
           <div class="admin-card">
-            <p style="font-size:11px; color:#888; margin-bottom:10px;">改完積分／時數／EXP 之後記得逐行撳「💾 儲存」；EXP 決定用戶嘅溫習等級同段位，一般唔使人手改，特殊情況（例如補發）先用。「停權」會令該用戶下次登入時被強制登出。</p>
+            <p style="font-size:11px; color:#888; margin-bottom:10px;">改完積分／時數／EXP 之後記得逐行撳「💾 儲存」；EXP 決定用戶的溫習等級同段位，一般不用人手改，特殊情況（例如補發）先用。「停權」會令該用戶下次登入時被強制登出。</p>
             <div style="overflow-x:auto;">
               <table class="admin-table">
                 <thead><tr><th>用戶名</th><th>帳號 ID</th><th>Email</th><th>學校</th><th>積分</th><th>時數</th><th>EXP</th><th></th></tr></thead>
@@ -9028,7 +9122,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
     };
 
     window.adminToggleSuspendUser = async function(uid, suspend) {
-      if (!confirm(suspend ? '確定停權呢個帳戶？佢下次登入會被強制登出。' : '確定解除呢個帳戶嘅停權？')) return;
+      if (!confirm(suspend ? '確定停權這個帳戶？他下次登入會被強制登出。' : '確定解除這個帳戶的停權？')) return;
       try {
         await window.fs.updateDoc(window.fs.doc(window.db, 'users', uid), { suspended: suspend });
         window.showToast(suspend ? '已停權該帳戶' : '已解除停權', suspend ? '🚫' : '✅');
@@ -9098,7 +9192,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
           ${r.notes ? `<p style="font-size:12px; color:#666; background:#F7F5F2; border-radius:6px; padding:6px 8px; margin-bottom:3px;">${escapeHtml(r.notes)}</p>` : ''}
           ${screenshotHtml}
           <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:10px;">
-            ${status === 'pending' ? `<button class="btn btn-outline" style="font-size:11px; padding:4px 9px;" onclick="window.adminMarkReportStatus('${reportId}', 'dismissed')">🗂️ 駁回（冇問題）</button>` : ''}
+            ${status === 'pending' ? `<button class="btn btn-outline" style="font-size:11px; padding:4px 9px;" onclick="window.adminMarkReportStatus('${reportId}', 'dismissed')">🗂️ 駁回（沒問題）</button>` : ''}
             ${status === 'pending' ? `<button class="btn btn-outline" style="font-size:11px; padding:4px 9px;" onclick="window.adminMarkReportStatus('${reportId}', 'reviewed')">✅ 標記已處理</button>` : ''}
             ${r.reportedUid ? `<button class="btn btn-red" style="font-size:11px; padding:4px 9px;" onclick="window.adminSuspendFromReport('${reportId}', '${r.reportedUid}')">🚫 停權此帳戶</button>` : ''}
             ${status !== 'pending' ? `<button class="btn btn-outline" style="font-size:11px; padding:4px 9px; color:#999; border-color:#ccc;" onclick="window.adminDeleteReport('${reportId}')">🗑️ 刪除紀錄</button>` : ''}
@@ -9111,7 +9205,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
       const container = document.getElementById('admin-tab-reports');
       if (!container) return;
       if (adminReportsLoadedDocs.length === 0) {
-        container.innerHTML = '<div class="admin-card" style="text-align:center; color:#999;">目前冇任何舉報記錄</div>';
+        container.innerHTML = '<div class="admin-card" style="text-align:center; color:#999;">目前沒有任何舉報記錄</div>';
         return;
       }
       const cards = adminReportsLoadedDocs.map(buildAdminReportCardHtml).join('');
@@ -9122,7 +9216,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
            </div>`;
       container.innerHTML = `
         <div style="margin-bottom:10px; background:#FFF7E6; border:1px solid #F0D9A0; border-radius:8px; padding:8px 10px; font-size:11.5px; color:#8a6d1f;">
-          ⚠️ 技術上嘅重要提醒：呢個網站冇獨立伺服器，淨係用緊 Firebase，所以呢度睇唔到、亦都做唔到真正嘅「IP 封鎖」（因為 Firestore 規則見唔到用戶嘅真實 IP）。「停權」呢個功能就實實在在有效——會即刻令該帳戶下次登入被強制登出，亦令佢完全用唔到呢個平台。
+          ⚠️ 技術上的重要提醒：這個網站沒有獨立伺服器，只是用緊 Firebase，所以這裡看唔到、亦都做唔到真正的「IP 封鎖」（因為 Firestore 規則見唔到用戶的真實 IP）。「停權」這個功能就實實在在有效——會即刻令該帳戶下次登入被強制登出，亦令他完全用唔到這個平台。
         </div>
         ${cards}
         ${loadMoreHtml}
@@ -9190,7 +9284,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
     };
 
     window.adminSuspendFromReport = async function(reportId, reportedUid) {
-      if (!confirm('確定停權呢個被舉報嘅帳戶？佢下次登入會被強制登出。')) return;
+      if (!confirm('確定停權這個被舉報的帳戶？他下次登入會被強制登出。')) return;
       try {
         await window.fs.updateDoc(window.fs.doc(window.db, 'users', reportedUid), { suspended: true });
         await window.fs.updateDoc(window.fs.doc(window.db, 'reports', reportId), { status: 'reviewed' });
@@ -9203,7 +9297,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
     // 淨係已經處理完（已駁回／已處理）嘅舉報先俾刪，pending 嘅唔會出呢粒掣，
     // 避免管理員手快手滑刪走仲未跟進嘅證據
     window.adminDeleteReport = async function(reportId) {
-      if (!confirm('確定刪除呢一則已處理嘅舉報紀錄？連同截圖一齊刪走，刪咗就冇得復原。')) return;
+      if (!confirm('確定刪除呢一則已處理的舉報紀錄？連同截圖一齊刪走，刪了就沒辦法復原。')) return;
       try {
         await window.fs.deleteDoc(window.fs.doc(window.db, 'reports', reportId));
         window.showToast('已刪除舉報紀錄', '🗑️');
