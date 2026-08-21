@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.49.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.50.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -1492,7 +1492,7 @@
               <div class="room-bar-btn-group" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
                 <button class="btn btn-primary" type="button" id="btn-camera" onclick="toggleCamera()">📹 開啟鏡頭</button>
                 <button class="btn btn-red" type="button" id="btn-mic" onclick="toggleMic()">🔇 已靜音</button>
-                <button class="btn btn-outline" type="button" id="btn-cam-rotation" onclick="cycleCameraRotationOverride()" style="border-color:#DDCABB; color:#1E4550; font-size:12px; padding:6px 10px;" title="鏡頭方向：自動判斷（撳呢度循環轉換，如果自動判斷唔啱可以自己揀）">🔄 鏡頭方向</button>
+                <button class="btn btn-outline" type="button" id="btn-cam-rotation" onclick="cycleCameraRotationOverride()" style="border-color:#DDCABB; color:#1E4550; font-size:12px; padding:6px 10px;" title="校正鏡頭方向：自動判斷（撳呢度循環轉換；會同時校正自己個預覽，同埋通知其他人跟住校正佢哋度睇到你嘅畫面）">🔄 鏡頭方向</button>
 
                 <div id="pomodoro-widget" style="background:#fff; color:var(--brand-800); padding:6px 10px 8px; border-radius:10px; font-size:13px; display:flex; align-items:center; gap:8px; position:relative; overflow:hidden; border:1px solid var(--brand-200);">
                   <span id="room-timer-phase" style="font-weight:bold; white-space:nowrap;">🍅 專注中</span>
@@ -5557,7 +5557,6 @@
       presenceAutoLeaveTimer: null, // 暫停計分後再耐都冇反應，自動退房嘅計時器
       presenceConfirmed: true, // 呢一輪確認彈窗，用家係咪已經撳咗確認
       awardingPaused: false, // 被判定為閒置期間，暫停 PTS/EXP 獎勵（防止掛機刷分）
-      canvasOutputStream: null, // 由 canvas.captureStream() 攞返嚟嘅畫面串流，經過方向修正後先送俾對方（見 startCanvasRenderLoop）
       cameraRotationOverride: null // null=自動判斷方向；0/90/180/270=用戶手動指定嘅修正角度（見 cycleCameraRotationOverride）
     };
 
@@ -5619,7 +5618,12 @@
     window.addEventListener('resize', updateFullscreenGridSize);
     window.addEventListener('orientationchange', () => {
       // 手機轉向嗰刻讀到嘅 viewport 尺寸有時未即刻更新，等多一個 tick
-      setTimeout(updateFullscreenGridSize, 100);
+      setTimeout(() => {
+        updateFullscreenGridSize();
+        // 冇手動指定方向（即係跟自動判斷）先至需要因應轉向重新廣播，
+        // 手動指定咗嘅話個角度唔會因為轉向而改變，唔使重新廣播
+        if (state.cameraRotationOverride === null) broadcastMyCameraRotation();
+      }, 100);
     });
 
     window.toggleVideoFullscreenMode = function() {
@@ -6021,6 +6025,26 @@
       if (overlay) overlay.style.display = cameraOn ? 'none' : 'flex';
     }
 
+    // 跟返對方廣播落嚟嘅鏡頭方向角度（見 broadcastMyCameraRotation），
+    // 喺 .remote-video-element 度加返對應嘅 CSS rotate，等對方打橫
+    // 手機嗰陣，自己度睇到嘅都自動跟住轉返啱方向。轉咗 90／270 度之後
+    // 順便縮細少少（scale 0.75），等個長方形畫面唔會爆出固定嘅格仔。
+    function updateRemoteSlotRotation(uid, angle) {
+      const slotNum = state.slotAssignments[uid];
+      if (!slotNum) return;
+      const el = getSlotElement(slotNum);
+      if (!el) return;
+      const video = el.querySelector('.remote-video-element');
+      if (!video) return;
+      if (!angle) {
+        video.style.transform = ''; // 跟返 CSS class 預設嘅 scaleX(-1) 就夠
+        return;
+      }
+      const rotated90or270 = (angle === 90 || angle === 270);
+      const scale = rotated90or270 ? 0.75 : 1;
+      video.style.transform = `scaleX(-1) rotate(${angle}deg) scale(${scale})`;
+    }
+
     // 收到對方實際的視訊畫面（track）後，把狀態標籤改成「即時串流」
     function markSlotLive(uid) {
       const statusTag = document.getElementById('stream-status-' + uid);
@@ -6096,6 +6120,22 @@
       }
     }
 
+    // 廣播自己目前嘅鏡頭方向修正角度（見 getEffectiveRotationAngle），
+    // 等其他人個瀏覽器可以喺顯示層（.remote-video-element）加返同一個
+    // CSS 旋轉，令佢哋睇你個畫面都係啱方向——特登唔改實際送出去嗰條
+    // WebRTC 視訊軌道（同 .remote-video-element 嗰個鏡像修正用返一樣
+    // 嘅思路：改顯示層，唔改軌道本身，成本低好多亦唔會影響到連線）。
+    async function broadcastMyCameraRotation() {
+      if (!window.currentUser || !state.currentRoomId || !window.db || !state.isCameraOn) return;
+      try {
+        await window.fs.setDoc(window.fs.doc(window.db, "rooms", state.currentRoomId, "participants", window.currentUser.uid), {
+          camRotation: getEffectiveRotationAngle()
+        }, { merge: true });
+      } catch (e) {
+        console.error("更新鏡頭方向失敗:", e);
+      }
+    }
+
     // 監聽房間目前的用家名單，動態分配 / 釋放格子，並更新人數顯示
     function listenToParticipants(roomId) {
       if (state.participantsUnsubscribe) state.participantsUnsubscribe();
@@ -6120,6 +6160,7 @@
         others.forEach(p => {
           if (!state.slotAssignments[p.uid]) getOrCreateRemoteSlot(p.uid, p.name);
           updateRemoteSlotCameraState(p.uid, !!p.cameraOn);
+          updateRemoteSlotRotation(p.uid, p.camRotation || 0);
         });
 
         // 保險起見再掃一次：格子分配一有變動（新人入房／有人走咗），
@@ -7096,10 +7137,6 @@
         state.mediaStream.getTracks().forEach(track => track.stop());
         state.mediaStream = null;
       }
-      if (state.canvasOutputStream) {
-        state.canvasOutputStream.getTracks().forEach(track => track.stop());
-        state.canvasOutputStream = null;
-      }
       state.isCameraOn = false;
       state.isMicOn = false;
 
@@ -7203,6 +7240,7 @@
         else localStorage.setItem(CAMERA_ROTATION_OVERRIDE_KEY, String(next));
       } catch (e) { /* 忽略 */ }
       syncCameraRotationButtonUI();
+      broadcastMyCameraRotation(); // 通知返其他人，等佢哋個畫面都跟住轉返啱方向
       const label = CAMERA_ROTATION_LABELS[next === null ? '__auto__' : String(next)];
       if (typeof window.showToast === 'function') window.showToast(`鏡頭方向：${label}`, '🔄');
     };
@@ -7210,7 +7248,7 @@
       const btn = document.getElementById('btn-cam-rotation');
       if (!btn) return;
       const label = CAMERA_ROTATION_LABELS[state.cameraRotationOverride === null ? '__auto__' : String(state.cameraRotationOverride)];
-      btn.title = `鏡頭方向：${label}（撳呢度循環轉換，如果自動判斷唔啱可以自己揀）`;
+      btn.title = `校正鏡頭方向：${label}（撳呢度循環轉換；會同時校正自己個預覽，同埋通知其他人跟住校正佢哋度睇到你嘅畫面）`;
     }
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', syncCameraRotationButtonUI);
@@ -7223,19 +7261,13 @@
       const canvas = document.getElementById('canvas-stream-display');
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
-
-      // 用 canvas.captureStream() 攞返一條「已經做咗方向修正」嘅畫面串流，
-      // 之後送俾對方睇嗰條 WebRTC video track 會用呢條，而唔係原始鏡頭
-      // track——先至可以確保「手機打橫」呢個修正，唔淨係自己個預覽睇到，
-      // 對方都真係收到啱方向嘅畫面（見 getOutgoingMediaTracks）。
-      if (!state.canvasOutputStream) {
-        try {
-          state.canvasOutputStream = canvas.captureStream(24);
-        } catch (e) {
-          console.warn('canvas.captureStream 唔支援，將會改用原始鏡頭畫面（打橫轉向修正就做唔到）:', e);
-          state.canvasOutputStream = null;
-        }
-      }
+      // 曾經試過用 canvas.captureStream() 攞一條「已經做咗方向修正」嘅
+      // 畫面串流，改為送呢條去對方（唔再送原始鏡頭 track），等對方都
+      // 見到啱方向。但實測發現部分裝置／瀏覽器用呢個方法會令對方個
+      // WebRTC 連線收唔到畫面、卡喺「連線中...」（核心嘅睇到對方鏡頭
+      // 功能反而壞咗），所以已經還原返送原始鏡頭 track 呢個做法
+      // （見 getOutgoingMediaTracks），寧願方向修正暫時只做到自己個
+      // 預覽，都唔想累到基本嘅視訊連線都用唔到。
 
       function drawFrame() {
         if (!state.isCameraOn) return;
@@ -7245,8 +7277,16 @@
           const vw = video.videoWidth, vh = video.videoHeight;
           // 手機喺拍緊嘅過程中打橫，鏡頭嘅原始畫面唔會自動跟住轉向
           // （呢個係好多瀏覽器/裝置嘅共同限制），所以要自己靠螢幕方向
-          // 角度，喺畫落 canvas 之前手動旋轉返啱，等自己個預覽同送俾
-          // 對方嘅畫面都係啱方向。
+          // 角度，喺畫落 canvas 之前手動旋轉返啱，令自己個預覽睇落去
+          // 都係啱方向。
+          // 注意：呢度改嘅淨係自己個預覽（canvas-stream-display）畫面，
+          // 冇改實際送俾對方嗰條 WebRTC track（見 getOutgoingMediaTracks
+          // 嘅註解——曾經試過連埋送出去嗰條都轉正，但會累到部分裝置嘅
+          // 視訊連線斷晒，所以還原返送原始 track）。想令對方都睇到啱
+          // 方向，係靠 broadcastMyCameraRotation() 將呢個角度寫入
+          // participants 文件，等對方個瀏覽器喺顯示層（.remote-video-
+          // element）加返 CSS rotate 嚟做（見 updateRemoteSlotRotation），
+          // 唔會影響到 WebRTC 軌道本身。
           const angle = getEffectiveRotationAngle();
           const rotated90or270 = (angle === 90 || angle === 270);
           const targetW = rotated90or270 ? vh : vw;
@@ -7282,19 +7322,14 @@
       state.renderFrameId = requestAnimationFrame(drawFrame);
     }
 
-    // 揀返而家真正應該送俾其他人嘅 track：聲音直接用麥克風原始 track；
-    // 畫面就優先用 canvasOutputStream（已經做咗方向修正嗰條），
-    // 如果裝置唔支援 captureStream 先退返去用原始鏡頭 track。
+    // 揀返而家真正應該送俾其他人嘅 track：聲音、畫面都直接用麥克風／
+    // 鏡頭原始 track（曾經試過改用 canvas.captureStream() 嚟做埋方向
+    // 修正，但會累到部分裝置嘅 WebRTC 連線收唔到對方畫面，所以還原返
+    // 送原始 track，保住基本嘅視訊連線可靠）。
     function getOutgoingMediaTracks() {
       const tracks = [];
       if (!state.mediaStream) return tracks;
-      state.mediaStream.getAudioTracks().forEach(t => tracks.push(t));
-      const canvasVideoTrack = state.canvasOutputStream ? state.canvasOutputStream.getVideoTracks()[0] : null;
-      if (canvasVideoTrack) {
-        tracks.push(canvasVideoTrack);
-      } else {
-        state.mediaStream.getVideoTracks().forEach(t => tracks.push(t));
-      }
+      state.mediaStream.getTracks().forEach(t => tracks.push(t));
       return tracks;
     }
 
@@ -7586,6 +7621,7 @@
           }
 
           updateMyCameraStatus(true);
+          broadcastMyCameraRotation();
           window.showToast('鏡頭與 P2P 串流已順利啟動！', '📹');
         } catch (err) {
           console.error("相機存取失敗:", err);
