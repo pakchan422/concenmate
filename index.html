@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.51.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.52.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -1492,7 +1492,6 @@
               <div class="room-bar-btn-group" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
                 <button class="btn btn-primary" type="button" id="btn-camera" onclick="toggleCamera()">📹 開啟鏡頭</button>
                 <button class="btn btn-red" type="button" id="btn-mic" onclick="toggleMic()">🔇 已靜音</button>
-                <button class="btn btn-outline" type="button" id="btn-cam-rotation" onclick="cycleCameraRotationOverride()" style="border-color:#DDCABB; color:#1E4550; font-size:12px; padding:6px 10px;" title="校正鏡頭方向：自動判斷（撳呢度循環轉換；會同時校正自己個預覽，同埋通知其他人跟住校正佢哋度睇到你嘅畫面）">🔄 鏡頭方向</button>
 
                 <div id="pomodoro-widget" style="background:#fff; color:var(--brand-800); padding:6px 10px 8px; border-radius:10px; font-size:13px; display:flex; align-items:center; gap:8px; position:relative; overflow:hidden; border:1px solid var(--brand-200);">
                   <span id="room-timer-phase" style="font-weight:bold; white-space:nowrap;">🍅 專注中</span>
@@ -5556,23 +5555,8 @@
       presenceTimeoutTimer: null, // 彈窗後 2 分鐘未確認就暫停計分嘅計時器
       presenceAutoLeaveTimer: null, // 暫停計分後再耐都冇反應，自動退房嘅計時器
       presenceConfirmed: true, // 呢一輪確認彈窗，用家係咪已經撳咗確認
-      awardingPaused: false, // 被判定為閒置期間，暫停 PTS/EXP 獎勵（防止掛機刷分）
-      cameraRotationOverride: null // null=自動判斷方向；0/90/180/270=用戶手動指定嘅修正角度（見 cycleCameraRotationOverride）
+      awardingPaused: false // 被判定為閒置期間，暫停 PTS/EXP 獎勵（防止掛機刷分）
     };
-
-    // 唔同手機型號／瀏覽器讀 screen.orientation.angle 嘅結果未必一致
-    // （尤其係 iOS Safari），自動判斷有機會判錯方向。等用戶可以自己
-    // 撳掣手動循環揀返啱嘅角度，唔使淨係靠自動判斷，設定會存落
-    // localStorage，同一部裝置下次入返嚟都會記得。
-    const CAMERA_ROTATION_OVERRIDE_KEY = 'cm_camera_rotation_override_v1';
-    (function loadCameraRotationOverride() {
-      try {
-        const v = localStorage.getItem(CAMERA_ROTATION_OVERRIDE_KEY);
-        if (v === null || v === '') return;
-        const n = parseInt(v, 10);
-        if ([0, 90, 180, 270].includes(n)) state.cameraRotationOverride = n;
-      } catch (e) { /* 忽略（例如 localStorage 被封鎖） */ }
-    })();
 
     const ROOM_POMODORO_BREAK_SECONDS = 5 * 60; // 房入面每輪專注完之後嘅小休長度，暫時定死 5 分鐘
 
@@ -5620,9 +5604,7 @@
       // 手機轉向嗰刻讀到嘅 viewport 尺寸有時未即刻更新，等多一個 tick
       setTimeout(() => {
         updateFullscreenGridSize();
-        // 冇手動指定方向（即係跟自動判斷）先至需要因應轉向重新廣播，
-        // 手動指定咗嘅話個角度唔會因為轉向而改變，唔使重新廣播
-        if (state.cameraRotationOverride === null) broadcastMyCameraRotation();
+        broadcastMyCameraRotation();
       }, 100);
     });
 
@@ -6131,7 +6113,7 @@
       }
     }
 
-    // 廣播自己目前嘅鏡頭方向修正角度（見 getEffectiveRotationAngle），
+    // 廣播自己目前嘅鏡頭方向角度（見 getScreenOrientationAngle），
     // 等其他人個瀏覽器可以喺顯示層（.remote-video-element）加返同一個
     // CSS 旋轉，令佢哋睇你個畫面都係啱方向——特登唔改實際送出去嗰條
     // WebRTC 視訊軌道（同 .remote-video-element 嗰個鏡像修正用返一樣
@@ -6140,7 +6122,7 @@
       if (!window.currentUser || !state.currentRoomId || !window.db || !state.isCameraOn) return;
       try {
         await window.fs.setDoc(window.fs.doc(window.db, "rooms", state.currentRoomId, "participants", window.currentUser.uid), {
-          camRotation: getEffectiveRotationAngle()
+          camRotation: getScreenOrientationAngle()
         }, { merge: true });
       } catch (e) {
         console.error("更新鏡頭方向失敗:", e);
@@ -7229,44 +7211,6 @@
       return 0;
     }
 
-    // 真正用嚟畫落 canvas 嘅角度：用戶如果手動揀咗一個角度
-    // （cameraRotationOverride），就以佢為準；冇揀就用返自動判斷。
-    // 因為唔同手機/瀏覽器嘅方向 API 表現唔一致，自動判斷未必每部機
-    // 都啱，所以留呢個手動選項畀用戶自己校正。
-    function getEffectiveRotationAngle() {
-      return state.cameraRotationOverride === null ? getScreenOrientationAngle() : state.cameraRotationOverride;
-    }
-
-    const CAMERA_ROTATION_LABELS = { '__auto__': '自動判斷', '0': '不旋轉', '90': '向右轉 90°', '180': '180°（上下顛倒）', '270': '向左轉 90°' };
-    const CAMERA_ROTATION_CYCLE = [null, 0, 90, 180, 270];
-    // 撳一下「🔄 鏡頭方向」掣，就會喺「自動判斷 → 不旋轉 → 向右90°
-    // → 180° → 向左90° → 返去自動判斷」呢個循環度轉一格，等用戶可以
-    // 自己試到邊個角度先啱（唔使等自動判斷）
-    window.cycleCameraRotationOverride = function() {
-      const idx = CAMERA_ROTATION_CYCLE.indexOf(state.cameraRotationOverride);
-      const next = CAMERA_ROTATION_CYCLE[(idx + 1) % CAMERA_ROTATION_CYCLE.length];
-      state.cameraRotationOverride = next;
-      try {
-        if (next === null) localStorage.removeItem(CAMERA_ROTATION_OVERRIDE_KEY);
-        else localStorage.setItem(CAMERA_ROTATION_OVERRIDE_KEY, String(next));
-      } catch (e) { /* 忽略 */ }
-      syncCameraRotationButtonUI();
-      broadcastMyCameraRotation(); // 通知返其他人，等佢哋個畫面都跟住轉返啱方向
-      const label = CAMERA_ROTATION_LABELS[next === null ? '__auto__' : String(next)];
-      if (typeof window.showToast === 'function') window.showToast(`鏡頭方向：${label}`, '🔄');
-    };
-    function syncCameraRotationButtonUI() {
-      const btn = document.getElementById('btn-cam-rotation');
-      if (!btn) return;
-      const label = CAMERA_ROTATION_LABELS[state.cameraRotationOverride === null ? '__auto__' : String(state.cameraRotationOverride)];
-      btn.title = `校正鏡頭方向：${label}（撳呢度循環轉換；會同時校正自己個預覽，同埋通知其他人跟住校正佢哋度睇到你嘅畫面）`;
-    }
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', syncCameraRotationButtonUI);
-    } else {
-      syncCameraRotationButtonUI();
-    }
-
     function startCanvasRenderLoop() {
       const video = document.getElementById('behind-video-engine');
       const canvas = document.getElementById('canvas-stream-display');
@@ -7298,7 +7242,7 @@
           // participants 文件，等對方個瀏覽器喺顯示層（.remote-video-
           // element）加返 CSS rotate 嚟做（見 updateRemoteSlotRotation），
           // 唔會影響到 WebRTC 軌道本身。
-          const angle = getEffectiveRotationAngle();
+          const angle = getScreenOrientationAngle();
           const rotated90or270 = (angle === 90 || angle === 270);
           const targetW = rotated90or270 ? vh : vw;
           const targetH = rotated90or270 ? vw : vh;
