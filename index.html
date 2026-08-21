@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.40.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.41.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -1098,6 +1098,21 @@
           <button class="btn btn-primary" style="padding:10px 20px; font-size:16px;" onclick="openModal('modal-login')">🔑 會員登入</button>
           <button class="btn btn-amber" style="padding:10px 20px; font-size:16px;" onclick="openModal('modal-register')">📝 新用戶註冊</button>
         </div>
+      </div>
+
+      <div id="verify-email-screen" class="auth-wall-container" style="display:none;">
+        <div style="font-size:52px; margin-bottom:12px;">📧🔒</div>
+        <h2 style="font-size:22px; font-weight:bold; color:var(--brand-800);">請先驗證你嘅電郵地址</h2>
+        <p style="font-size:14px; color:#666; margin-top:6px; line-height:1.5;">
+          我哋已經寄咗一封驗證電郵去 <strong id="verify-gate-email">-</strong><br>
+          撳入面嘅連結完成驗證，先可以開始使用 ConcenMate 書伴。
+        </p>
+        <div style="display:flex; justify-content:center; gap:12px; margin-top:20px; flex-wrap:wrap;">
+          <button class="btn btn-primary" id="verify-gate-resend-btn" type="button" onclick="resendVerificationEmail()">📧 重新發送驗證電郵</button>
+          <button class="btn btn-outline" type="button" onclick="recheckEmailVerification()">🔄 已經驗證咗，重新整理</button>
+          <button class="btn btn-outline" type="button" onclick="logoutWithFirebase()">🚪 登出</button>
+        </div>
+        <p style="font-size:12px; color:#999; margin-top:16px;">見唔到封信？記得check埋垃圾郵件夾，或者撳「重新發送」。</p>
       </div>
 
       <div id="authenticated-app-content">
@@ -2595,8 +2610,49 @@
     function updateUserAuthUI() {
       const unauthScreen = document.getElementById('unauth-screen');
       const authContent = document.getElementById('authenticated-app-content');
+      const verifyScreen = document.getElementById('verify-email-screen');
       const headerAuthBtn = document.getElementById('header-auth-btn');
       const headerStats = document.getElementById('header-user-stats');
+      if (verifyScreen) verifyScreen.style.display = 'none';
+
+      // 電郵驗證未完成，就完全鎖死，除咗「重新發送」「重新整理」「登出」
+      // 之外咩都用唔到——一定要撳咗驗證連結先算數，唔係嘅話個驗證形同虛設。
+      // 淨係限制「有填咗聯絡電郵、但未撳連結」嗰批帳號：
+      //   1. 冇填過聯絡電郵嘅舊帳號（呢個功能推出之前註冊嗰批）唔受影響，
+      //      唔係嘅話會即刻鎖死晒所有現有帳號
+      //   2. 管理員帳號（ADMIN_LOGIN_IDS）豁免，唔係嘅話萬一 admin 自己個
+      //      聯絡電郵一時三刻未驗證到，會鎖到自己都入唔到管理後台
+      const needsEmailVerification = !!(
+        window.currentUser &&
+        window.currentUser.contactEmail &&
+        !window.currentUser.emailVerified &&
+        !(typeof window.isCurrentUserAdmin === 'function' && window.isCurrentUserAdmin())
+      );
+
+      if (window.currentUser && needsEmailVerification) {
+        closeModal('modal-login');
+        closeModal('modal-register');
+
+        unauthScreen.style.display = 'none';
+        authContent.style.display = 'none';
+        if (verifyScreen) {
+          verifyScreen.style.display = 'block';
+          const emailSpan = document.getElementById('verify-gate-email');
+          if (emailSpan) emailSpan.innerText = window.currentUser.contactEmail || '';
+        }
+        headerStats.style.display = 'none';
+        const globalStatusBarGated = document.getElementById('global-status-bar');
+        if (globalStatusBarGated) globalStatusBarGated.style.display = 'none';
+        const chatDockToggleGated = document.getElementById('chat-dock-toggle');
+        if (chatDockToggleGated) chatDockToggleGated.style.display = 'none';
+
+        headerAuthBtn.className = "btn btn-outline";
+        headerAuthBtn.style.borderRadius = "20px";
+        headerAuthBtn.style.padding = "4px 10px";
+        headerAuthBtn.style.fontSize = "11px";
+        headerAuthBtn.innerHTML = `⏳ 待驗證電郵`;
+        return;
+      }
 
       if (window.currentUser) {
         closeModal('modal-login');
@@ -5011,6 +5067,8 @@
         window.currentUser.emailVerifyToken = null;
         window.showToast('🎉 電郵驗證成功！', '✅');
         if (typeof window.updateProfileEmailVerifyUI === 'function') window.updateProfileEmailVerifyUI();
+        // 驗證完成即刻解鎖返個 app，唔使用戶自己再撳多次「重新整理」
+        if (typeof window.updateUserAuthUI === 'function') window.updateUserAuthUI();
       } catch (e) {
         window.showToast('驗證失敗：' + (e.message || e), '❌');
       }
@@ -5038,6 +5096,27 @@
         window.showToast('發送失敗：' + (e.message || e), '❌');
       } finally {
         if (btn) { btn.disabled = false; btn.innerText = '📧 重新發送驗證電郵'; }
+      }
+    };
+
+    // 「請先驗證電郵」鎖畫面度嘅「已經驗證咗，重新整理」掣：因為驗證
+    // 連結可能喺第二個分頁／裝置撳嘅，呢邊個 window.currentUser 未必
+    // 即時知道，所以要重新去 Firestore 攞返最新狀態先可以判斷解唔解鎖
+    window.recheckEmailVerification = async function() {
+      if (!window.currentUser || !auth.currentUser) return;
+      try {
+        const snap = await getDoc(doc(db, 'users', auth.currentUser.uid));
+        if (snap.exists()) {
+          window.currentUser = snap.data();
+        }
+        if (window.currentUser.emailVerified) {
+          window.showToast('🎉 電郵已驗證，歡迎使用 ConcenMate！', '✅');
+        } else {
+          window.showToast('都仲未驗證到喎，記得check清楚封信、撳埋入面個連結', '📧');
+        }
+        window.updateUserAuthUI();
+      } catch (e) {
+        window.showToast('檢查失敗：' + (e.message || e), '❌');
       }
     };
 
@@ -5134,7 +5213,11 @@
 
         window.closeModal('modal-register');
         window.updateUserAuthUI();
-        window.showToast(`🎉 註冊成功！你嘅帳號 ID 係「${loginId}」，記住佢嚟登入`, "✨");
+        if (newProfile.contactEmail) {
+          window.showToast(`🎉 註冊成功！你嘅帳號 ID 係「${loginId}」，記住佢嚟登入。仲要撳埋寄咗去你電郵嘅驗證連結，先可以正式開始用`, "✨");
+        } else {
+          window.showToast(`🎉 註冊成功！你嘅帳號 ID 係「${loginId}」，記住佢嚟登入`, "✨");
+        }
         window.switchTab('home');
       } catch (error) {
         // Firestore 寫入失敗（多數係撞正個 ID 岩岩俾人搶咗）：要清理返啱啱建立
