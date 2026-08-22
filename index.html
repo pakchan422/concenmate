@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.63.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.64.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -5019,6 +5019,22 @@
     // 就當佢係冇人打理嘅幽靈房（例如房主手機突然關機、瀏覽器崩潰，嚟唔切
     // 觸發正常嘅退房流程），下次有人打開大廳就會順手刪走，唔使等房主親自嚟關。
     const ROOM_STALE_MS = 5 * 60 * 1000; // 5 分鐘
+
+    // 幽靈房快速清理：如果房間人數已經跌返 0/4（例如最後一個人直接關咗
+    // 瀏覽器，冇正式觸發退房流程），唔使等到成 5 分鐘冇心跳先清走，只要
+    // 過咗一個短緩衝期（避開啱啱建立房間、host 仲未真正加入嗰陣一閃即
+    // 逝嘅 0 人狀態，見 handleCreateRoomSubmit／joinRoomParticipants）就
+    // 即刻清，唔留低「🟢 直播中」但其實已經冇人嘅幽靈房卡喺大廳。
+    // ⚠️ 呢個快速清理需要 Firestore 安全規則配合先真正得——目前
+    // rooms/{roomId} 嘅 delete 規則淨係容許房主本人即時刪，或者任何人喺
+    // 房間已經 5 分鐘冇心跳之後先可以刪。要令非房主用家都可以「即刻」刪走
+    // 一間 0 人嘅房，需要手動喺 Firebase Console 幫個 delete 規則加多一個
+    // 條件（記得連同你其他 collection 嘅規則一齊保留，唔好覆蓋走）：
+    //   resource.data.participantCount is number && resource.data.participantCount <= 0
+    // 冇加呢條規則之前，呢個快速清理喺「執行緊清理嗰個人啱啱好就係房主」
+    // 先會成功；如果唔係房主，Firestore 會拒絕呢次刪除，而個房照舊會喺
+    // 現有嘅 5 分鐘冇心跳機制之下自動清走（唔會即刻，但仍然會自動清）。
+    const EMPTY_ROOM_GRACE_MS = 20 * 1000; // 20 秒緩衝期
     let lastGcAttempt = 0;
     async function gcStaleRooms(roomEntries) {
       const now = Date.now();
@@ -5028,8 +5044,12 @@
         const lastActive = typeof data.lastActiveAt === 'number'
           ? data.lastActiveAt
           : (typeof data.createdAt === 'number' ? data.createdAt : 0);
-        if (lastActive && (now - lastActive > ROOM_STALE_MS)) {
-          try { await deleteDoc(doc(db, "rooms", id)); } catch (e) { /* 可能已經被其他人清走，忽略 */ }
+        const createdAt = typeof data.createdAt === 'number' ? data.createdAt : lastActive;
+        const isStale = !!(lastActive && (now - lastActive > ROOM_STALE_MS));
+        const isEmptyPastGrace = typeof data.participantCount === 'number' && data.participantCount <= 0
+          && !!createdAt && (now - createdAt > EMPTY_ROOM_GRACE_MS);
+        if (isStale || isEmptyPastGrace) {
+          try { await deleteDoc(doc(db, "rooms", id)); } catch (e) { /* 可能已經被其他人清走，或者權限未足夠，忽略 */ }
         }
       }
     }
@@ -6374,13 +6394,35 @@
       }
     }
 
-    // 分頁關閉 / 重新整理時盡量清理自己的 participants 紀錄
+    // 分頁關閉 / 重新整理時盡量清理自己的 participants 紀錄。
+    // 呢個 handler 盡量重現 leaveRoomParticipants()（正式退房流程）嘅邏輯：
+    // 刪走自己個 participant 紀錄之後，check 埋房入面係咪已經冇晒人，如果
+    // 自己啱啱好係最後一個，就連房間文件本身都一拼刪走，唔好留低一間
+    // 「0/4 人但仲顯示🟢直播中」嘅幽靈房喺大廳（見用家反映嘅問題）。
+    // ⚠️ 注意：beforeunload 入面嘅 async 操作，瀏覽器唔保證一定會俾佢行
+    // 完先關閉分頁（尤其係要兩個來回嘅 getDocs→deleteDoc），所以呢度只
+    // 係盡做，唔可以完全倚賴——大廳嗰邊嘅 gcStaleRooms 快速清理（見上面
+    // EMPTY_ROOM_GRACE_MS）同埋原本嘅 5 分鐘冇心跳清理機制會做埋後備。
     window.addEventListener('beforeunload', () => {
       if (state.currentRoomId && window.currentUser && window.db && window.fs) {
-        window.fs.deleteDoc(window.fs.doc(window.db, "rooms", state.currentRoomId, "participants", window.currentUser.uid)).catch(() => {});
-        window.fs.updateDoc(window.fs.doc(window.db, "rooms", state.currentRoomId), {
-          participantCount: window.fs.increment(-1)
-        }).catch(() => {});
+        const roomId = state.currentRoomId;
+        const myUid = window.currentUser.uid;
+        window.fs.deleteDoc(window.fs.doc(window.db, "rooms", roomId, "participants", myUid)).catch(() => {});
+        window.fs.getDocs(window.fs.collection(window.db, "rooms", roomId, "participants")).then(snap => {
+          const remaining = snap.docs.filter(d => d.id !== myUid);
+          if (remaining.length === 0) {
+            window.fs.deleteDoc(window.fs.doc(window.db, "rooms", roomId)).catch(() => {});
+          } else {
+            window.fs.updateDoc(window.fs.doc(window.db, "rooms", roomId), {
+              participantCount: window.fs.increment(-1)
+            }).catch(() => {});
+          }
+        }).catch(() => {
+          // 連讀取都失敗嘅話，至少退返舊做法扣返個人數
+          window.fs.updateDoc(window.fs.doc(window.db, "rooms", roomId), {
+            participantCount: window.fs.increment(-1)
+          }).catch(() => {});
+        });
       }
     });
 
