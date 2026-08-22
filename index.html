@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.59.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.60.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -267,7 +267,6 @@
       gap: 8px;
       overflow: hidden;
     }
-    #room-active.video-fullscreen-mode > details { display: none; } /* 除錯記錄收埋，讓位畀視訊格 */
     #room-active.video-fullscreen-mode .fs-hide-in-fullscreen { display: none !important; }
     /* 全螢幕專用嘅「🔊 背景音」掣：平時收埋（見 .fs-bg-noise-only 個
        inline display:none），入咗全螢幕先現形，等有需要先撳開細面板揀
@@ -275,11 +274,18 @@
     #room-active.video-fullscreen-mode .fs-bg-noise-only { display: flex !important; }
 
     /* 全螢幕控制列「收埋」掣：平時（唔係全螢幕）收埋（inline
-       display:none），入咗全螢幕先現形。撳一下就將 room-bar 入面除咗
-       呢粒掣本身以外嘅所有嘢（鏡頭／靜音／番茄鐘／背景音／全螢幕切換
-       等）都隱藏，等鏡頭畫面盡用返成個螢幕；再撳一下就顯示返晒。 */
-    #room-active.video-fullscreen-mode #fs-room-bar-collapse-btn { display: inline-flex !important; }
-    #room-active.video-fullscreen-mode.controls-collapsed .room-bar-btn-group > *:not(#fs-room-bar-collapse-btn) {
+       display:none），入咗全螢幕先現形，固定喺左下角（唔理直向定橫向、
+       room-bar 而家收埋緊定顯示緊都唔會郁）。撳一下就將 room-bar 入面
+       所有嘢（鏡頭／靜音／番茄鐘／背景音／全螢幕切換等）都隱藏，等
+       鏡頭畫面盡用返成個螢幕；再撳一下就顯示返晒。 */
+    #room-active.video-fullscreen-mode #fs-room-bar-collapse-btn {
+      display: flex !important;
+      position: fixed;
+      left: 8px;
+      bottom: 8px;
+      z-index: 10;
+    }
+    #room-active.video-fullscreen-mode.controls-collapsed .room-bar-btn-group > * {
       display: none !important;
     }
     #room-active.video-fullscreen-mode.controls-collapsed .room-bar {
@@ -1519,19 +1525,12 @@
               </div>
 
               <div class="room-bar-btn-group" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
-                <!-- 全螢幕控制列收埋掣：平時收埋（inline display:none），
-                     入咗全螢幕先現形（見 CSS #fs-room-bar-collapse-btn）。
-                     刻意擺喺 room-bar-btn-group 第一個位置，因為收埋嗰陣
-                     除咗呢粒掣、其他所有嘢都會俾 CSS 隱藏，呢粒掣就會係
-                     成條 room-bar 剩返嘅唯一內容，等用戶隨時搵到、撳返
-                     出嚟。 -->
-                <button type="button" id="fs-room-bar-collapse-btn" onclick="toggleFsRoomBarCollapse()" title="收埋／顯示控制列" style="display:none; background:rgba(0,0,0,.4); color:#fff; border:1px solid rgba(255,255,255,.3); border-radius:8px; font-size:14px; padding:6px 8px; cursor:pointer; line-height:1;">➖</button>
                 <button class="btn btn-primary" type="button" id="btn-camera" onclick="toggleCamera()">📹 開啟鏡頭</button>
                 <button class="btn btn-red" type="button" id="btn-mic" onclick="toggleMic()">🔇 已靜音</button>
 
                 <div id="pomodoro-widget" style="background:#fff; color:var(--brand-800); padding:6px 10px 8px; border-radius:10px; font-size:13px; display:flex; align-items:center; gap:8px; position:relative; overflow:hidden; border:1px solid var(--brand-200);">
                   <span id="room-timer-phase" style="font-weight:bold; white-space:nowrap;">🍅 專注中</span>
-                  <span id="pomodoro-round-label" title="這個房入面現在踏入第幾輪專注（只是這次入房計，離開房間會重新計過）" style="font-size:11px; font-weight:700; white-space:nowrap; background:var(--brand-50); color:var(--brand-700); padding:1px 7px; border-radius:10px;">第 1 輪</span>
+                  <span id="pomodoro-round-label" title="這個房入面現在踏入第幾輪專注（只是這次入房計，離開房間會重新計過）" style="font-size:13px; font-weight:700; white-space:nowrap; background:var(--brand-50); color:var(--brand-700); padding:1px 7px; border-radius:10px;">第 1 輪</span>
                   <span id="room-timer" style="font-family:monospace; font-size:14px; white-space:nowrap;">30:00</span>
                   <!-- 專注時段拆做 4 個「小目標」段落顯示（唔係一條望唔到盡頭嘅長 bar），
                        每一格啱啱好等如成輪專注時間嘅 25%，等學生覺得每格都係一個好快
@@ -1604,11 +1603,12 @@
               </div>
             </div>
 
-            <details style="max-width:1000px; margin:0 auto 12px; background:#111; border-radius:10px; padding:8px 12px; color:#7DB8C5; font-size:13px;">
-              <summary style="cursor:pointer; color:#B3D6DE; font-weight:bold;">🛠️ WebRTC 連線記錄（手機都看到，除錯用）</summary>
-              <div id="webrtc-debug-log" style="max-height:180px; overflow-y:auto; white-space:pre-wrap; margin-top:8px; line-height:1.6; font-family:monospace; color:#D2C4AD;"></div>
-              <button type="button" onclick="copyWebrtcLog()" style="margin-top:8px; background:#333; color:#fff; border:none; padding:5px 12px; border-radius:6px; font-size:13px; cursor:pointer;">📋 複製記錄</button>
-            </details>
+            <!-- 全螢幕控制列收埋掣：平時收埋（inline display:none），入咗
+                 全螢幕先現形（見 CSS #fs-room-bar-collapse-btn）。刻意擺喺
+                 左下角、獨立喺 room-bar 之外（position:fixed），唔理你而家
+                 直向定橫向、room-bar 收埋咗定顯示緊，呢粒掣都會一直留喺
+                 呢個固定角落，等用戶隨時搵到、撳返出嚟。 -->
+            <button type="button" id="fs-room-bar-collapse-btn" onclick="toggleFsRoomBarCollapse()" title="收埋／顯示控制列" style="display:none; background:rgba(0,0,0,.4); color:#fff; border:1px solid rgba(255,255,255,.3); border-radius:8px; font-size:14px; padding:6px 8px; cursor:pointer; line-height:1;">➖</button>
 
             <div id="video-grid-container" class="video-grid-container">
               <div class="video-card-single" id="video-slot-1" onclick="wakeVideoEngine()">
