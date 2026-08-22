@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.56.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.57.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -2300,6 +2300,11 @@
     window.openModal = openModal;
     window.closeModal = closeModal;
 
+    // ⚠️ 呢個函數之前試過俾人用 window.switchTab = function(...) { 舊嘅(...);
+    // ...新嘅嘢... } 咁樣「加外皮」加多兩次，變咗三層 wrapper 疊埋一齊行，
+    // 好難追蹤邊個分頁實際會觸發乜嘢。而家已經全部整合返喺呢一個函數
+    // 度，日後想加/減邊個分頁一開會做啲乜，直接嚟呢度改，唔好再加新
+    // 一層 wrapper。
     function switchTab(tabId, btn) {
       if (!window.currentUser) {
         openModal('modal-login');
@@ -2308,7 +2313,7 @@
 
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
-      
+
       const targetTab = document.getElementById('tab-' + tabId);
       if (targetTab) targetTab.classList.add('active');
 
@@ -2327,6 +2332,15 @@
         if (typeof window.loadFriendsList === 'function') window.loadFriendsList();
         if (typeof window.loadFriendRequests === 'function') window.loadFriendRequests();
       }
+
+      // 「疑難解答區」分頁一開就即刻載入提問（已有監聽器嘅話只會重畫，唔會再問 Firestore）
+      if (tabId === 'qa' && window.db && window.fs && typeof loadQAPosts === 'function') loadQAPosts();
+
+      // 「時數兌換所」分頁一開就更新返積分顯示
+      if (tabId === 'store' && typeof syncGachaPtsDisplay === 'function') syncGachaPtsDisplay();
+
+      // 「個人資料」分頁一開就載入中獎記錄
+      if (tabId === 'profile' && typeof window.loadMyGachaHistory === 'function') window.loadMyGachaHistory();
     }
     window.switchTab = switchTab;
 
@@ -2951,57 +2965,74 @@
     };
     let qaCurrentSubject = 'all';
     let qaUnsubscribe = null;
+    let qaPostsCache = [];
     let qaCurrentPostId = null;
     let qaCommentUnsubscribe = null;
 
+    // 切換科目篩選：qa_posts 個 Firestore 監聽器（見 loadQAPosts）一開咗
+    // 就會維持住成個 session，呢度淨係換緊「而家想睇邊科」呢個本機篩選
+    // 條件，喺已經有齊嘅 qaPostsCache 度 filter 再重新畫一次就得，完全
+    // 唔使再問 Firestore。之前嘅寫法係每撳一次科目掣，就將全部提問嘅
+    // 監聽器拆咗再重裝一次、畫面清空變返「載入中」，撳幾多下科目掣就
+    // 閃幾多下 loading，用戶體驗好差，而且完全冇必要。
     function switchQASubject(subject, btn) {
       qaCurrentSubject = subject;
       document.querySelectorAll('.qa-subject-btn').forEach(b => b.classList.remove('active'));
       if (btn) btn.classList.add('active');
-      loadQAPosts();
+      renderQAPostsList();
     }
     window.switchQASubject = switchQASubject;
 
+    function renderQAPostsList() {
+      const list = document.getElementById('qa-post-list');
+      if (!list) return;
+      let posts = qaPostsCache.filter(p => qaCurrentSubject === 'all' || p.subject === qaCurrentSubject);
+      posts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+      if (posts.length === 0) {
+        list.innerHTML = '<div style="text-align:center; padding:40px; color:#aaa; font-size:13px;">這個學科暫時未有提問，你先來發起第一題！</div>';
+        return;
+      }
+
+      list.innerHTML = posts.map(p => {
+        const isOwn = window.currentUser && p.uid === window.currentUser.uid;
+        const photos = (p.photos || []).map(src =>
+          `<img src="${src}" class="qa-photo-thumb" onclick="event.stopPropagation(); openLightbox('${src}')">`
+        ).join('');
+        return `
+          <div class="qa-post-card" onclick="openQADetail('${p.id}')">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+              <span class="qa-subject-label">${QA_SUBJECTS[p.subject] || p.subject}</span>
+              ${isOwn ? `<button class="btn btn-red" style="font-size:10px; padding:3px 8px;" onclick="deleteQAPost(event,'${p.id}')">🗑️ 刪除</button>` : ''}
+            </div>
+            <h4 style="font-size:13px; font-weight:700; margin:4px 0; color:var(--brand-800);">${escapeHtml(p.title)}</h4>
+            <p style="font-size:11px; color:#666; line-height:1.5; margin-bottom:6px;">${escapeHtml(p.body || '').substring(0,100)}${(p.body||'').length > 100 ? '…' : ''}</p>
+            ${photos ? `<div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px;">${photos}</div>` : ''}
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px; color:#aaa;">
+              <span>👤 ${escapeHtml(p.authorName || '匿名')} · ${formatTime(p.createdAt)}</span>
+              <span>💬 ${p.commentCount || 0} 個回答</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // 呢個監聽器一開咗就會維持住成個 session（唔會因為切換科目篩選、或者
+    // 反覆入返「疑難解答區」分頁而拆咗再重裝）——Firestore 有更新會自動
+    // 經 onSnapshot 落嚟、實時更新埋 qaPostsCache 再重畫，唔使自己手動
+    // 重新 fetch。已經訂閱緊嘅話，呢度淨係即刻用返 cache 重畫一次
+    // （冇網絡來回、唔會再閃「載入中」）。
     function loadQAPosts() {
       if (!window.db || !window.fs) return;
-      if (qaUnsubscribe) qaUnsubscribe();
+      if (qaUnsubscribe) { renderQAPostsList(); return; }
 
       const list = document.getElementById('qa-post-list');
       if (list) list.innerHTML = '<div style="text-align:center; padding:30px; color:#7DB8C5; font-size:13px;">載入中…</div>';
 
       let ref = window.fs.collection(window.db, 'qa_posts');
       qaUnsubscribe = window.fs.onSnapshot(ref, (snapshot) => {
-        if (!list) return;
-        let posts = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-        posts = posts.filter(p => qaCurrentSubject === 'all' || p.subject === qaCurrentSubject);
-        posts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-
-        if (posts.length === 0) {
-          list.innerHTML = '<div style="text-align:center; padding:40px; color:#aaa; font-size:13px;">這個學科暫時未有提問，你先來發起第一題！</div>';
-          return;
-        }
-
-        list.innerHTML = posts.map(p => {
-          const isOwn = window.currentUser && p.uid === window.currentUser.uid;
-          const photos = (p.photos || []).map(src =>
-            `<img src="${src}" class="qa-photo-thumb" onclick="event.stopPropagation(); openLightbox('${src}')">`
-          ).join('');
-          return `
-            <div class="qa-post-card" onclick="openQADetail('${p.id}')">
-              <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                <span class="qa-subject-label">${QA_SUBJECTS[p.subject] || p.subject}</span>
-                ${isOwn ? `<button class="btn btn-red" style="font-size:10px; padding:3px 8px;" onclick="deleteQAPost(event,'${p.id}')">🗑️ 刪除</button>` : ''}
-              </div>
-              <h4 style="font-size:13px; font-weight:700; margin:4px 0; color:var(--brand-800);">${escapeHtml(p.title)}</h4>
-              <p style="font-size:11px; color:#666; line-height:1.5; margin-bottom:6px;">${escapeHtml(p.body || '').substring(0,100)}${(p.body||'').length > 100 ? '…' : ''}</p>
-              ${photos ? `<div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px;">${photos}</div>` : ''}
-              <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px; color:#aaa;">
-                <span>👤 ${escapeHtml(p.authorName || '匿名')} · ${formatTime(p.createdAt)}</span>
-                <span>💬 ${p.commentCount || 0} 個回答</span>
-              </div>
-            </div>
-          `;
-        }).join('');
+        qaPostsCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderQAPostsList();
       });
     }
 
@@ -3301,17 +3332,6 @@
              d.toLocaleTimeString('zh-HK', { hour:'2-digit', minute:'2-digit', hour12:false });
     }
 
-    // 切換到 QA tab 時自動載入
-    const _origSwitchTab2 = window.switchTab;
-    if (typeof _origSwitchTab2 === 'function') {
-      window.switchTab = function(tab, el) {
-        _origSwitchTab2(tab, el);
-        if (tab === 'qa' && window.db && window.fs) loadQAPosts();
-        if (tab === 'store') syncGachaPtsDisplay();
-      };
-    }
-
-
     // ===================== 扭蛋機系統 =====================
 
 
@@ -3454,7 +3474,12 @@
       }
     }
 
-    // 載入並顯示目前用家自己的中獎記錄（在「個人資料」分頁使用）
+    // 載入並顯示目前用家自己的中獎記錄（在「個人資料」分頁使用）。每次
+    // 撳返「個人資料」分頁都會 call 一次嚟同步新戰績，但如果今次 session
+    // 之前已經成功載入過一次，就唔好將個列表清空變返「載入緊...」——
+    // 舊內容留喺畫面度，喺背景靜靜雞攞新資料，攞到先換新，唔會每次撳
+    // 返呢個分頁都閃一次 loading。
+    let gachaHistoryHasLoadedOnce = false;
     window.loadMyGachaHistory = async function() {
       const listEl = document.getElementById('profile-gacha-history-list');
       const emptyEl = document.getElementById('profile-gacha-history-empty');
@@ -3464,13 +3489,16 @@
         if (emptyEl) emptyEl.style.display = 'block';
         return;
       }
-      listEl.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:10px;">載入緊中獎記錄...</p>';
-      if (emptyEl) emptyEl.style.display = 'none';
+      if (!gachaHistoryHasLoadedOnce) {
+        listEl.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:10px;">載入緊中獎記錄...</p>';
+        if (emptyEl) emptyEl.style.display = 'none';
+      }
       try {
         const snap = await window.fs.getDocs(window.fs.collection(window.db, 'users', window.currentUser.uid, 'gachaHistory'));
         let entries = snap.docs.map(d => d.data());
         entries.sort((a, b) => (b.ts || 0) - (a.ts || 0));
         entries = entries.slice(0, 30);
+        gachaHistoryHasLoadedOnce = true;
         if (entries.length === 0) {
           listEl.innerHTML = '';
           if (emptyEl) emptyEl.style.display = 'block';
@@ -3489,7 +3517,11 @@
         }).join('');
       } catch (e) {
         console.error('載入中獎記錄失敗', e);
-        listEl.innerHTML = '<p style="text-align:center; color:#e55; font-size:13px; padding:10px;">載入中獎記錄失敗，請稍後再試</p>';
+        // 淨係第一次載入就失敗先顯示錯誤訊息；如果背景靜靜雞 refresh 嗰次
+        // 先失敗，舊資料已經喺畫面度，唔好用錯誤訊息蓋走佢
+        if (!gachaHistoryHasLoadedOnce) {
+          listEl.innerHTML = '<p style="text-align:center; color:#e55; font-size:13px; padding:10px;">載入中獎記錄失敗，請稍後再試</p>';
+        }
       }
     };
 
@@ -3512,16 +3544,6 @@
       list.insertBefore(entry, list.firstChild);
       // 只保留最近 10 筆
       while (list.children.length > 10) list.removeChild(list.lastChild);
-    }
-
-    // 切換到 store tab 時更新積分顯示；切換到 profile tab 時載入中獎記錄
-    const _origSwitchTab = window.switchTab;
-    if (typeof _origSwitchTab === 'function') {
-      window.switchTab = function(tab, el) {
-        _origSwitchTab(tab, el);
-        if (tab === 'store') syncGachaPtsDisplay();
-        if (tab === 'profile') window.loadMyGachaHistory();
-      };
     }
 
 
@@ -3828,11 +3850,18 @@
     // 「夥伴與讀書會」分頁：即時載入我的好友名單
     let friendsListUnsubscribe = null;
     window.friendsListDataCache = [];
+    // 呢個監聽器一登入就已經開始咗（見 onAuthStateChanged），成個 session
+    // 都會自動同步好友名單，唔理你而家係咪真係企喺「夥伴與讀書會」呢個
+    // 分頁度。所以每次撳返呢個分頁再 call 一次呢個函數，其實唔使再拆
+    // 咗個監聽器重新裝一次（嗰次多餘嘅網絡來回都幫唔到手，仲會累人多
+    // 等一下）——已經訂閱緊嘅話，即刻用返 cache 重畫一次就夠。登出時
+    // stopFriendListeners() 會清返 friendsListUnsubscribe，下次登入
+    // 先會重新訂閱。
     window.loadFriendsList = function() {
       const container = document.getElementById('friends-list-container');
       const countEl = document.getElementById('friends-count');
       if (!container || !window.currentUser || !window.db || !window.fs) return;
-      if (friendsListUnsubscribe) friendsListUnsubscribe();
+      if (friendsListUnsubscribe) { renderFriendsListRows(); return; }
       friendsListUnsubscribe = window.fs.onSnapshot(
         window.fs.collection(window.db, 'users', window.currentUser.uid, 'friends'),
         (snapshot) => {
@@ -3887,9 +3916,12 @@
     // 開始監聽（不用等用家真是撳入分頁），等側欄／主頁個「未讀邀請」小紅點
     // 都可以即時反映到，等用家一眼就知道有人加緊自己做好友。
     let friendRequestsUnsubscribe = null;
+    // 同 loadFriendsList 一樣：呢個監聽器一登入就已經喺度持續運作緊、
+    // 不斷更新緊個紅點同邀請列表（唔理你而家喺唔喺「夥伴與讀書會」呢個
+    // 分頁），所以已經訂閱緊嘅話唔使再拆咗重裝一次。
     window.loadFriendRequests = function() {
       if (!window.currentUser || !window.db || !window.fs) return;
-      if (friendRequestsUnsubscribe) friendRequestsUnsubscribe();
+      if (friendRequestsUnsubscribe) return;
       const q = window.fs.query(
         window.fs.collection(window.db, 'friendRequests'),
         window.fs.where('toUid', '==', window.currentUser.uid),
@@ -6642,10 +6674,19 @@
     // 學生淨係讀取內容，唔可以自己新增/編輯/刪除。每個學生自己嘅複習進度
     // （記憶等級、下次複習時間）就分開存喺 users/{uid}/flashcardProgress，
     // 咁樣就算大家睇緊同一批卡，各自嘅複習排程都唔會撞埋一齊。
+    // 每次撳「學科溫習卡」分頁都會 call 呢個函數，用嚟同步返最新內容／
+    // 複習進度。但如果已經有 cache（唔係第一次入呢個分頁），就唔好將
+    // 個列表清空變返「🔄 載入緊...」——用返而家個 cache 令畫面即刻顯示
+    // 返舊資料，然後喺背景靜靜雞問 Firestore 攞新資料，攞到先換新，
+    // 咁樣就唔會每次撳返呢個分頁都閃一次 loading（之前嘅寫法係無論
+    // 有冇 cache 都即刻清空畫面，用戶感覺成日都喺度載入緊）。
+    let flashcardsHasLoadedOnce = false;
     async function loadFlashcards() {
       if (!window.currentUser || !window.currentUser.uid || !window.fs || !window.db) return;
       const listEl = document.getElementById('flashcards-list-container');
-      if (listEl) listEl.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:20px;">🔄 載入緊溫習卡...</p>';
+      if (!flashcardsHasLoadedOnce && listEl) {
+        listEl.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:20px;">🔄 載入緊溫習卡...</p>';
+      }
       try {
         const [cardsSnap, progressSnap] = await Promise.all([
           window.fs.getDocs(window.fs.collection(window.db, 'flashcards')),
@@ -6667,11 +6708,12 @@
           };
         });
         flashcardsCache.sort((a, b) => (a.nextReviewAt || 0) - (b.nextReviewAt || 0));
+        flashcardsHasLoadedOnce = true;
         renderFlashcardSubjectTabs();
         renderFlashcardsList();
       } catch (e) {
         console.error('載入溫習卡失敗', e);
-        if (listEl) listEl.innerHTML = '<p style="text-align:center; color:#D9764A; font-size:13px; padding:20px;">載入失敗，請重新整理頁面再試</p>';
+        if (!flashcardsHasLoadedOnce && listEl) listEl.innerHTML = '<p style="text-align:center; color:#D9764A; font-size:13px; padding:20px;">載入失敗，請重新整理頁面再試</p>';
       }
     }
     window.loadFlashcards = loadFlashcards;
