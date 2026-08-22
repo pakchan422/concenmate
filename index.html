@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.58.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.59.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -273,6 +273,20 @@
        inline display:none），入咗全螢幕先現形，等有需要先撳開細面板揀
        背景音，唔會長期霸住全螢幕控制列嘅位置 */
     #room-active.video-fullscreen-mode .fs-bg-noise-only { display: flex !important; }
+
+    /* 全螢幕控制列「收埋」掣：平時（唔係全螢幕）收埋（inline
+       display:none），入咗全螢幕先現形。撳一下就將 room-bar 入面除咗
+       呢粒掣本身以外嘅所有嘢（鏡頭／靜音／番茄鐘／背景音／全螢幕切換
+       等）都隱藏，等鏡頭畫面盡用返成個螢幕；再撳一下就顯示返晒。 */
+    #room-active.video-fullscreen-mode #fs-room-bar-collapse-btn { display: inline-flex !important; }
+    #room-active.video-fullscreen-mode.controls-collapsed .room-bar-btn-group > *:not(#fs-room-bar-collapse-btn) {
+      display: none !important;
+    }
+    #room-active.video-fullscreen-mode.controls-collapsed .room-bar {
+      background: rgba(0,0,0,.35);
+      border: none;
+      padding: 4px;
+    }
     #room-active.video-fullscreen-mode .video-grid-container {
       flex: 1;
       min-height: 0;
@@ -304,6 +318,13 @@
         gap: 8px;
         overflow-y: auto;
         margin-bottom: 0;
+      }
+      /* 橫向全螢幕收埋控制列：窄條由 148px 縮到剩返粒掣咁闊，畀返個
+         空間鏡頭畫面 */
+      #room-active.video-fullscreen-mode.controls-collapsed .room-bar {
+        width: 44px;
+        height: auto;
+        overflow: visible;
       }
       #room-active.video-fullscreen-mode .room-bar-btn-group {
         flex-direction: column;
@@ -1498,6 +1519,13 @@
               </div>
 
               <div class="room-bar-btn-group" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                <!-- 全螢幕控制列收埋掣：平時收埋（inline display:none），
+                     入咗全螢幕先現形（見 CSS #fs-room-bar-collapse-btn）。
+                     刻意擺喺 room-bar-btn-group 第一個位置，因為收埋嗰陣
+                     除咗呢粒掣、其他所有嘢都會俾 CSS 隱藏，呢粒掣就會係
+                     成條 room-bar 剩返嘅唯一內容，等用戶隨時搵到、撳返
+                     出嚟。 -->
+                <button type="button" id="fs-room-bar-collapse-btn" onclick="toggleFsRoomBarCollapse()" title="收埋／顯示控制列" style="display:none; background:rgba(0,0,0,.4); color:#fff; border:1px solid rgba(255,255,255,.3); border-radius:8px; font-size:14px; padding:6px 8px; cursor:pointer; line-height:1;">➖</button>
                 <button class="btn btn-primary" type="button" id="btn-camera" onclick="toggleCamera()">📹 開啟鏡頭</button>
                 <button class="btn btn-red" type="button" id="btn-mic" onclick="toggleMic()">🔇 已靜音</button>
 
@@ -1541,7 +1569,14 @@
                      背景音，唔使成幅全螢幕視訊畫面都長期佔住呢個控制列位置。 -->
                 <div class="fs-bg-noise-only" style="display:none; position:relative;">
                   <button class="btn btn-outline" type="button" id="fs-bg-noise-toggle-btn" onclick="toggleFsBgNoisePanel()" title="選擇背景音" style="border-color:#DDCABB; color:#1E4550;">🔊 背景音</button>
-                  <div id="fs-bg-noise-panel" style="display:none; position:absolute; z-index:20; top:calc(100% + 6px); left:0; background:#111; color:#fff; padding:8px; border-radius:10px; font-size:12px; flex-direction:column; gap:6px; min-width:150px; box-shadow:0 4px 14px rgba(0,0,0,.35);">
+                  <!-- ⚠️ position:fixed（唔係 absolute）：room-bar 喺橫向全螢幕
+                       嗰陣係個 148px 闊嘅直向窄條，仲有 overflow-y:auto（會連
+                       帶令 overflow-x 都變成 auto），如果個面板用 absolute
+                       掛喺呢個窄條入面，寬度一超出 148px 就會俾窄條裁走、
+                       顯示唔晒。改用 fixed 之後由 JS（toggleFsBgNoisePanel）
+                       按掣嘅實際位置同螢幕邊界計返個唔會裁走、唔會出界嘅
+                       座標。 -->
+                  <div id="fs-bg-noise-panel" style="display:none; position:fixed; z-index:10001; background:#111; color:#fff; padding:8px; border-radius:10px; font-size:12px; flex-direction:column; gap:6px; width:170px; box-sizing:border-box; box-shadow:0 4px 14px rgba(0,0,0,.35);">
                     <select id="fs-bg-noise-select" style="background:#222; color:#fff; border:1px solid #444; border-radius:6px; font-size:12px; padding:4px;" onchange="setBgNoiseType(this.value)">
                       <option value="off">背景音：關閉</option>
                       <option value="white">白噪音</option>
@@ -5698,10 +5733,11 @@
       } else {
         const grid = document.getElementById('video-grid-container');
         if (grid) { grid.style.gridTemplateColumns = ''; grid.style.gridTemplateRows = ''; }
-        // 退返出全螢幕：全螢幕專用嘅背景音細面板收返埋，等下次再入
-        // 全螢幕都係由收埋狀態開始
+        // 退返出全螢幕：全螢幕專用嘅背景音細面板收返埋，控制列都還原
+        // 返做「顯示緊」狀態，等下次再入全螢幕都係由呢個乾淨狀態開始
         const fsBgNoisePanel = document.getElementById('fs-bg-noise-panel');
         if (fsBgNoisePanel) fsBgNoisePanel.style.display = 'none';
+        resetFsRoomBarCollapse();
       }
     };
     // 退房、或者第二個 <script> 區塊（doLeaveRoom）要喺唔知而家係咪
@@ -5719,7 +5755,37 @@
       if (grid) { grid.style.gridTemplateColumns = ''; grid.style.gridTemplateRows = ''; }
       const fsBgNoisePanel = document.getElementById('fs-bg-noise-panel');
       if (fsBgNoisePanel) fsBgNoisePanel.style.display = 'none';
+      resetFsRoomBarCollapse();
     };
+
+    // 全螢幕控制列收埋／顯示：撳一下就將 room-bar 收埋到淨返呢粒掣咁大
+    // （靠 CSS .controls-collapsed 隱藏晒其他嘢、橫向嗰陣仲會將條窄
+    // 控制條由 148px 縮到 44px，畀返空間鏡頭畫面），再撳一下就還原。
+    window.toggleFsRoomBarCollapse = function() {
+      const roomActive = document.getElementById('room-active');
+      const btn = document.getElementById('fs-room-bar-collapse-btn');
+      if (!roomActive) return;
+      const collapsed = roomActive.classList.toggle('controls-collapsed');
+      if (btn) {
+        btn.innerText = collapsed ? '☰' : '➖';
+        btn.title = collapsed ? '顯示控制列' : '收埋控制列';
+      }
+      // 收埋緊控制列嗰陣，背景音細面板（如果啱啱開緊）都會跟住俾隱藏
+      // 咗嘅祖先元素蓋埋見唔到，順便都將個 display 狀態校正返做「關閉」，
+      // 唔係遲啲重新顯示控制列會無啦啦見到個面板彈返出嚟
+      if (collapsed) {
+        const panel = document.getElementById('fs-bg-noise-panel');
+        if (panel) panel.style.display = 'none';
+      }
+    };
+    // 退出全螢幕／退房嗰陣還原返做「顯示緊」，唔好帶住「已收埋」嘅
+    // 狀態去下一次入返全螢幕
+    function resetFsRoomBarCollapse() {
+      const roomActive = document.getElementById('room-active');
+      const btn = document.getElementById('fs-room-bar-collapse-btn');
+      if (roomActive) roomActive.classList.remove('controls-collapsed');
+      if (btn) { btn.innerText = '➖'; btn.title = '收埋控制列'; }
+    }
 
     // 表情反應平時收埋，撳個細圓掣先彈出嚟揀（唔係成日用，冇必要成
     // 日霸住畫面），揀完／再撳一次掣就會自動收返
@@ -6579,12 +6645,68 @@
     // 晒，一入到全螢幕先現形（見 CSS .fs-bg-noise-only）；掣本身撳一下
     // 就開／關個細面板，等用戶有需要至打開嚟揀，唔會成塊全螢幕視訊畫面
     // 都長期霸住呢個控制列位置。
+    //
+    // 面板用 position:fixed（見 HTML 度個註解），所以要用 JS 計實際
+    // 座標——按「🔊 背景音」呢粒掣而家喺畫面邊度（getBoundingClientRect），
+    // 揀返貼近掣、又唔會出晒螢幕邊界嘅位置（橫向全螢幕嗰陣 room-bar
+    // 喺右手邊窄條，面板應該向左伸展；直向全螢幕 room-bar 喺頂部，面板
+    // 應該喺掣下面伸展），先至唔會好似之前咁樣一部分俾窄條裁走、顯示唔晒。
+    function positionFsBgNoisePanel() {
+      const btn = document.getElementById('fs-bg-noise-toggle-btn');
+      const panel = document.getElementById('fs-bg-noise-panel');
+      if (!btn || !panel) return;
+      const margin = 8;
+      const btnRect = btn.getBoundingClientRect();
+      const panelRect = panel.getBoundingClientRect();
+      const panelW = panelRect.width || 170;
+      const panelH = panelRect.height || 120;
+
+      // 先試「貼喺掣個右邊」，出晒界先改做「貼喺掣個左邊」；
+      // 兩邊都唔夠位（例如窄手機直向）就索性同螢幕右邊界留返個 margin
+      let left = btn.getBoundingClientRect().right + margin;
+      if (left + panelW > window.innerWidth - margin) {
+        left = btnRect.left - panelW - margin;
+      }
+      if (left < margin) left = Math.max(margin, window.innerWidth - panelW - margin);
+
+      // 垂直方向：先試同粒掣頂對齊，出晒螢幕下邊界先向上挪返
+      let top = btnRect.top;
+      if (top + panelH > window.innerHeight - margin) {
+        top = window.innerHeight - panelH - margin;
+      }
+      if (top < margin) top = margin;
+
+      panel.style.left = left + 'px';
+      panel.style.top = top + 'px';
+    }
+
     window.toggleFsBgNoisePanel = function() {
       const panel = document.getElementById('fs-bg-noise-panel');
       if (!panel) return;
       const willOpen = panel.style.display !== 'flex';
-      panel.style.display = willOpen ? 'flex' : 'none';
+      if (willOpen) {
+        // 要先擺出嚟先量到 panelRect 嘅實際闊高，所以分兩步：
+        // 隱形咁擺出嚟度尺 → 計位 → 先真正顯示
+        panel.style.visibility = 'hidden';
+        panel.style.display = 'flex';
+        positionFsBgNoisePanel();
+        panel.style.visibility = 'visible';
+      } else {
+        panel.style.display = 'none';
+      }
     };
+
+    // 轉螢幕方向／窗口大細變咗（例如手機由直向轉橫向）嗰陣，如果個
+    // 背景音面板啱啱好開緊，要即時重新計位，唔係就會停留喺轉向之前
+    // 嗰個已經唔啱嘅座標
+    window.addEventListener('resize', () => {
+      const panel = document.getElementById('fs-bg-noise-panel');
+      if (panel && panel.style.display === 'flex') positionFsBgNoisePanel();
+    });
+    window.addEventListener('orientationchange', () => {
+      const panel = document.getElementById('fs-bg-noise-panel');
+      if (panel && panel.style.display === 'flex') setTimeout(positionFsBgNoisePanel, 100);
+    });
 
     function startTimer() {
       if (state.countdownTimer) clearInterval(state.countdownTimer);
@@ -7262,6 +7384,7 @@
       });
       const fsBgNoisePanel = document.getElementById('fs-bg-noise-panel');
       if (fsBgNoisePanel) fsBgNoisePanel.style.display = 'none';
+      if (typeof resetFsRoomBarCollapse === 'function') resetFsRoomBarCollapse();
 
       // 完整結束鏡頭＋麥克風（離開房間跟單純「關閉鏡頭」不同，要整個釋放掉）
       // 注意釋放次序：先斷開 P2P 連線入面 sender 對軌道嘅參照 → 解除 <video>
