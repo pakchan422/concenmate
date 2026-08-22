@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.64.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.65.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -1507,7 +1507,6 @@
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
               <div>
                 <h2 style="font-size:18px; font-weight:bold; color:var(--brand-800);">🌐 公開溫習大廳</h2>
-                <p style="font-size:13px; color:#666;">連接 Firebase (concenmate-app) 即時同步各同學的溫習房！</p>
               </div>
               <button class="btn btn-primary" type="button" onclick="openModal('modal-create-room')">
                 🚀 + 建立新溫習房
@@ -1541,6 +1540,40 @@
                 <button class="btn btn-primary" type="button" id="btn-camera" onclick="toggleCamera()">📹 開啟鏡頭</button>
                 <button class="btn btn-red" type="button" id="btn-mic" onclick="toggleMic()">🔇 已靜音</button>
 
+                <!-- 全螢幕專用嘅背景音掣：平時（唔係全螢幕）呢粒掣係收埋嘅，正常
+                     背景音控制擺喺下面嗰個 .fs-hide-in-fullscreen div 度顯示緊。
+                     一旦入咗全螢幕，嗰個會被隱藏（見 .fs-hide-in-fullscreen 嘅
+                     全螢幕 CSS），呢粒掣先會現形，等用戶有需要先撳開個細面板揀
+                     背景音，唔使成幅全螢幕視訊畫面都長期佔住呢個控制列位置。
+                     擺喺呢個位置（開鏡頭／靜音之後、番茄鐘之前）係跟返用家
+                     喺全螢幕控制列想要嘅第 3 個位置。 -->
+                <div class="fs-bg-noise-only" style="display:none; position:relative;">
+                  <button class="btn btn-outline" type="button" id="fs-bg-noise-toggle-btn" onclick="toggleFsBgNoisePanel()" title="選擇背景音" style="border-color:#DDCABB; color:#1E4550;">🔊 背景音</button>
+                  <!-- ⚠️ position:fixed（唔係 absolute）：room-bar 喺橫向全螢幕
+                       嗰陣係個 148px 闊嘅直向窄條，仲有 overflow-y:auto（會連
+                       帶令 overflow-x 都變成 auto），如果個面板用 absolute
+                       掛喺呢個窄條入面，寬度一超出 148px 就會俾窄條裁走、
+                       顯示唔晒。改用 fixed 之後由 JS（toggleFsBgNoisePanel）
+                       按掣嘅實際位置同螢幕邊界計返個唔會裁走、唔會出界嘅
+                       座標。 -->
+                  <div id="fs-bg-noise-panel" style="display:none; position:fixed; z-index:10001; background:#111; color:#fff; padding:8px; border-radius:10px; font-size:13px; flex-direction:column; gap:6px; width:170px; box-sizing:border-box; box-shadow:0 4px 14px rgba(0,0,0,.35);">
+                    <select id="fs-bg-noise-select" style="background:#222; color:#fff; border:1px solid #444; border-radius:6px; font-size:13px; padding:4px;" onchange="setBgNoiseType(this.value)">
+                      <option value="off">背景音：關閉</option>
+                      <option value="white">白噪音</option>
+                      <option value="rain1">🌧️ 雨聲 1</option>
+                      <option value="rain2">🌧️ 雨聲 2</option>
+                      <option value="cafe1">☕ 咖啡室環境聲 1</option>
+                      <option value="cafe2">☕ 咖啡室環境聲 2</option>
+                      <option value="train1">🚆 火車聲 1</option>
+                      <option value="train2">🚆 火車聲 2</option>
+                    </select>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                      <input type="range" id="fs-bg-noise-volume" min="0" max="1" step="0.05" value="0.39" style="flex:1;" oninput="setBgNoiseVolume(this.value)">
+                      <button type="button" id="fs-bg-noise-pause-btn" onclick="toggleBgNoisePause()" disabled title="暫停／繼續背景音" style="background:#333; color:#fff; border:1px solid #555; border-radius:6px; font-size:13px; padding:2px 6px; cursor:pointer; opacity:.4; line-height:1.4;">⏸️</button>
+                    </div>
+                  </div>
+                </div>
+
                 <div id="pomodoro-widget" style="background:#fff; color:var(--brand-800); padding:6px 10px 8px; border-radius:10px; font-size:13px; display:flex; align-items:center; gap:8px; position:relative; overflow:hidden; border:1px solid var(--brand-200);">
                   <span id="room-timer-phase" style="font-weight:bold; white-space:nowrap;">🍅 專注中</span>
                   <span id="pomodoro-round-label" title="這個房入面現在踏入第幾輪專注（只是這次入房計，離開房間會重新計過）" style="font-size:13px; font-weight:700; white-space:nowrap; background:var(--brand-50); color:var(--brand-700); padding:1px 7px; border-radius:10px;">第 1 輪</span>
@@ -1572,38 +1605,6 @@
                   </select>
                   <input type="range" id="bg-noise-volume" min="0" max="1" step="0.05" value="0.39" style="width:60px;" oninput="setBgNoiseVolume(this.value)">
                   <button type="button" id="bg-noise-pause-btn" onclick="toggleBgNoisePause()" disabled title="暫停／繼續背景音" style="background:#333; color:#fff; border:1px solid #555; border-radius:6px; font-size:13px; padding:2px 6px; cursor:pointer; opacity:.4; line-height:1.4;">⏸️</button>
-                </div>
-
-                <!-- 全螢幕專用嘅背景音掣：平時（唔係全螢幕）呢粒掣係收埋嘅，正常
-                     背景音控制已經喺上面嗰個 .fs-hide-in-fullscreen div 度顯示緊。
-                     一旦入咗全螢幕，上面嗰個會被隱藏（見 .fs-hide-in-fullscreen 嘅
-                     全螢幕 CSS），呢粒掣先會現形，等用戶有需要先撳開個細面板揀
-                     背景音，唔使成幅全螢幕視訊畫面都長期佔住呢個控制列位置。 -->
-                <div class="fs-bg-noise-only" style="display:none; position:relative;">
-                  <button class="btn btn-outline" type="button" id="fs-bg-noise-toggle-btn" onclick="toggleFsBgNoisePanel()" title="選擇背景音" style="border-color:#DDCABB; color:#1E4550;">🔊 背景音</button>
-                  <!-- ⚠️ position:fixed（唔係 absolute）：room-bar 喺橫向全螢幕
-                       嗰陣係個 148px 闊嘅直向窄條，仲有 overflow-y:auto（會連
-                       帶令 overflow-x 都變成 auto），如果個面板用 absolute
-                       掛喺呢個窄條入面，寬度一超出 148px 就會俾窄條裁走、
-                       顯示唔晒。改用 fixed 之後由 JS（toggleFsBgNoisePanel）
-                       按掣嘅實際位置同螢幕邊界計返個唔會裁走、唔會出界嘅
-                       座標。 -->
-                  <div id="fs-bg-noise-panel" style="display:none; position:fixed; z-index:10001; background:#111; color:#fff; padding:8px; border-radius:10px; font-size:13px; flex-direction:column; gap:6px; width:170px; box-sizing:border-box; box-shadow:0 4px 14px rgba(0,0,0,.35);">
-                    <select id="fs-bg-noise-select" style="background:#222; color:#fff; border:1px solid #444; border-radius:6px; font-size:13px; padding:4px;" onchange="setBgNoiseType(this.value)">
-                      <option value="off">背景音：關閉</option>
-                      <option value="white">白噪音</option>
-                      <option value="rain1">🌧️ 雨聲 1</option>
-                      <option value="rain2">🌧️ 雨聲 2</option>
-                      <option value="cafe1">☕ 咖啡室環境聲 1</option>
-                      <option value="cafe2">☕ 咖啡室環境聲 2</option>
-                      <option value="train1">🚆 火車聲 1</option>
-                      <option value="train2">🚆 火車聲 2</option>
-                    </select>
-                    <div style="display:flex; align-items:center; gap:6px;">
-                      <input type="range" id="fs-bg-noise-volume" min="0" max="1" step="0.05" value="0.39" style="flex:1;" oninput="setBgNoiseVolume(this.value)">
-                      <button type="button" id="fs-bg-noise-pause-btn" onclick="toggleBgNoisePause()" disabled title="暫停／繼續背景音" style="background:#333; color:#fff; border:1px solid #555; border-radius:6px; font-size:13px; padding:2px 6px; cursor:pointer; opacity:.4; line-height:1.4;">⏸️</button>
-                    </div>
-                  </div>
                 </div>
 
                 <div class="room-capacity-tag fs-hide-in-fullscreen" id="room-capacity-tag">
