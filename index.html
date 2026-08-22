@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.57.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.58.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -269,6 +269,10 @@
     }
     #room-active.video-fullscreen-mode > details { display: none; } /* 除錯記錄收埋，讓位畀視訊格 */
     #room-active.video-fullscreen-mode .fs-hide-in-fullscreen { display: none !important; }
+    /* 全螢幕專用嘅「🔊 背景音」掣：平時收埋（見 .fs-bg-noise-only 個
+       inline display:none），入咗全螢幕先現形，等有需要先撳開細面板揀
+       背景音，唔會長期霸住全螢幕控制列嘅位置 */
+    #room-active.video-fullscreen-mode .fs-bg-noise-only { display: flex !important; }
     #room-active.video-fullscreen-mode .video-grid-container {
       flex: 1;
       min-height: 0;
@@ -580,7 +584,11 @@
       100% { opacity: 0; transform: translateY(-180px) scale(1) rotate(calc(var(--rot, 0deg) + 10deg)); }
     }
 
-    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; backdrop-filter: blur(4px); }
+    /* ⚠️ z-index 一定要高過 #room-active.video-fullscreen-mode 嗰個
+       9999（見上面全螢幕模式），唔係嘅話喺全螢幕視訊溫習室入面撳
+       「邀請朋友」呢類彈出視窗會俾全螢幕黑色遮罩蓋住，變相要退出
+       全螢幕先撳得到。 */
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 16px; backdrop-filter: blur(4px); }
     .modal-box { background: white; border-radius: 20px; padding: 20px; max-width: 440px; width: 100%; border: 2px solid var(--brand-200); max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
 
     .card { background: white; border-radius: 16px; padding: 14px; border: 1px solid var(--brand-200); margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
@@ -1522,7 +1530,33 @@
                     <option value="train1">🚆 火車聲 1</option>
                     <option value="train2">🚆 火車聲 2</option>
                   </select>
-                  <input type="range" id="bg-noise-volume" min="0" max="1" step="0.05" value="0.3" style="width:60px;" oninput="setBgNoiseVolume(this.value)">
+                  <input type="range" id="bg-noise-volume" min="0" max="1" step="0.05" value="0.39" style="width:60px;" oninput="setBgNoiseVolume(this.value)">
+                  <button type="button" id="bg-noise-pause-btn" onclick="toggleBgNoisePause()" disabled title="暫停／繼續背景音" style="background:#333; color:#fff; border:1px solid #555; border-radius:6px; font-size:12px; padding:2px 6px; cursor:pointer; opacity:.4; line-height:1.4;">⏸️</button>
+                </div>
+
+                <!-- 全螢幕專用嘅背景音掣：平時（唔係全螢幕）呢粒掣係收埋嘅，正常
+                     背景音控制已經喺上面嗰個 .fs-hide-in-fullscreen div 度顯示緊。
+                     一旦入咗全螢幕，上面嗰個會被隱藏（見 .fs-hide-in-fullscreen 嘅
+                     全螢幕 CSS），呢粒掣先會現形，等用戶有需要先撳開個細面板揀
+                     背景音，唔使成幅全螢幕視訊畫面都長期佔住呢個控制列位置。 -->
+                <div class="fs-bg-noise-only" style="display:none; position:relative;">
+                  <button class="btn btn-outline" type="button" id="fs-bg-noise-toggle-btn" onclick="toggleFsBgNoisePanel()" title="選擇背景音" style="border-color:#DDCABB; color:#1E4550;">🔊 背景音</button>
+                  <div id="fs-bg-noise-panel" style="display:none; position:absolute; z-index:20; top:calc(100% + 6px); left:0; background:#111; color:#fff; padding:8px; border-radius:10px; font-size:12px; flex-direction:column; gap:6px; min-width:150px; box-shadow:0 4px 14px rgba(0,0,0,.35);">
+                    <select id="fs-bg-noise-select" style="background:#222; color:#fff; border:1px solid #444; border-radius:6px; font-size:12px; padding:4px;" onchange="setBgNoiseType(this.value)">
+                      <option value="off">背景音：關閉</option>
+                      <option value="white">白噪音</option>
+                      <option value="rain1">🌧️ 雨聲 1</option>
+                      <option value="rain2">🌧️ 雨聲 2</option>
+                      <option value="cafe1">☕ 咖啡室環境聲 1</option>
+                      <option value="cafe2">☕ 咖啡室環境聲 2</option>
+                      <option value="train1">🚆 火車聲 1</option>
+                      <option value="train2">🚆 火車聲 2</option>
+                    </select>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                      <input type="range" id="fs-bg-noise-volume" min="0" max="1" step="0.05" value="0.39" style="flex:1;" oninput="setBgNoiseVolume(this.value)">
+                      <button type="button" id="fs-bg-noise-pause-btn" onclick="toggleBgNoisePause()" disabled title="暫停／繼續背景音" style="background:#333; color:#fff; border:1px solid #555; border-radius:6px; font-size:12px; padding:2px 6px; cursor:pointer; opacity:.4; line-height:1.4;">⏸️</button>
+                    </div>
+                  </div>
                 </div>
 
                 <div class="room-capacity-tag fs-hide-in-fullscreen" id="room-capacity-tag">
@@ -5664,6 +5698,10 @@
       } else {
         const grid = document.getElementById('video-grid-container');
         if (grid) { grid.style.gridTemplateColumns = ''; grid.style.gridTemplateRows = ''; }
+        // 退返出全螢幕：全螢幕專用嘅背景音細面板收返埋，等下次再入
+        // 全螢幕都係由收埋狀態開始
+        const fsBgNoisePanel = document.getElementById('fs-bg-noise-panel');
+        if (fsBgNoisePanel) fsBgNoisePanel.style.display = 'none';
       }
     };
     // 退房、或者第二個 <script> 區塊（doLeaveRoom）要喺唔知而家係咪
@@ -5679,6 +5717,8 @@
       // 螢幕）嗰個 CSS 版面規則
       const grid = document.getElementById('video-grid-container');
       if (grid) { grid.style.gridTemplateColumns = ''; grid.style.gridTemplateRows = ''; }
+      const fsBgNoisePanel = document.getElementById('fs-bg-noise-panel');
+      if (fsBgNoisePanel) fsBgNoisePanel.style.display = 'none';
     };
 
     // 表情反應平時收埋，撳個細圓掣先彈出嚟揀（唔係成日用，冇必要成
@@ -6450,16 +6490,59 @@
 
     let bgAudioEl = null;
 
+    // 背景音而家有兩組控制項會同時存在喺畫面度：一組喺正常（非全螢幕）
+    // room-bar 度（id 前綴 bg-noise-），一組喺全螢幕專用嘅細面板度（id
+    // 前綴 fs-bg-noise-，平時收埋，撳「🔊 背景音」先打開）。兩組控制項
+    // 揀嘅嘢一定要保持一致，唔理你喺邊一組度操作，所以呢度用呢個共用
+    // helper 揸住呢兩組 id，逐樣同步返個值/狀態。
+    const BG_NOISE_SELECT_IDS = ['bg-noise-select', 'fs-bg-noise-select'];
+    const BG_NOISE_VOLUME_IDS = ['bg-noise-volume', 'fs-bg-noise-volume'];
+    const BG_NOISE_PAUSE_BTN_IDS = ['bg-noise-pause-btn', 'fs-bg-noise-pause-btn'];
+
     function stopBgNoise() {
       if (bgAudioEl) {
         bgAudioEl.pause();
         bgAudioEl.src = '';
         bgAudioEl = null;
       }
+      updateBgNoisePauseBtn();
+    }
+
+    // 暫停／繼續已經在播緊嘅背景音，唔會好似之前咁樣完全停咗再要重新
+    // 揀一次先再播（會由頭開始播），保留返播放緊嗰個位置。
+    window.toggleBgNoisePause = function() {
+      if (!bgAudioEl) return;
+      if (bgAudioEl.paused) {
+        bgAudioEl.play().catch((err) => {
+          console.warn('背景音繼續播放失敗：', err);
+        });
+      } else {
+        bgAudioEl.pause();
+      }
+      updateBgNoisePauseBtn();
+    };
+
+    function updateBgNoisePauseBtn() {
+      const hasSound = !!bgAudioEl;
+      const isPaused = hasSound && bgAudioEl.paused;
+      BG_NOISE_PAUSE_BTN_IDS.forEach(id => {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        btn.disabled = !hasSound;
+        btn.innerText = isPaused ? '▶️' : '⏸️';
+        btn.style.opacity = hasSound ? '1' : '.4';
+      });
     }
 
     window.setBgNoiseType = function(type) {
       stopBgNoise();
+      // 兩組背景音控制項嘅揀選狀態要同步——例如喺全螢幕細面板度揀咗
+      // 「雨聲 1」，退返出全螢幕之後，正常嗰組 select 都應該顯示緊
+      // 「雨聲 1」，唔應該打回「關閉」
+      BG_NOISE_SELECT_IDS.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = type;
+      });
       if (type === 'off') return;
       const preset = BG_SOUND_FILES[type];
       if (!preset) return;
@@ -6467,17 +6550,40 @@
       bgAudioEl = new Audio(preset.file);
       bgAudioEl.loop = true;
       const volEl = document.getElementById('bg-noise-volume');
-      bgAudioEl.volume = volEl ? parseFloat(volEl.value) : 0.3;
-      bgAudioEl.play().catch((err) => {
+      bgAudioEl.volume = volEl ? parseFloat(volEl.value) : 0.39;
+      // play() 係 async，未必即刻 resolve/reject，先即刻更新一次暫停掣
+      // 狀態（呢個時候 bgAudioEl 已經存在，暫停掣應該即刻變得撳）,
+      // 等 play() 真正有結果之後、下面 .then()/.catch() 再校正返
+      // 播放中／暫停緊嘅圖示
+      updateBgNoisePauseBtn();
+      bgAudioEl.play().then(() => {
+        updateBgNoisePauseBtn();
+      }).catch((err) => {
         // 大部分瀏覽器要求音頻播放一定要響用戶手動操作（呢度即係揀 select）
         // 入面觸發先得，正常情況呢度唔會撞到，但都保留錯誤處理以防萬一
         console.warn('背景音播放失敗：', err);
         window.showToast('背景音播放失敗，請再揀一次', '⚠️');
+        updateBgNoisePauseBtn();
       });
     };
 
     window.setBgNoiseVolume = function(vol) {
+      BG_NOISE_VOLUME_IDS.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = vol;
+      });
       if (bgAudioEl) bgAudioEl.volume = parseFloat(vol);
+    };
+
+    // 全螢幕入面「🔊 背景音」呢粒掣：平時（唔係全螢幕）呢個位置收埋
+    // 晒，一入到全螢幕先現形（見 CSS .fs-bg-noise-only）；掣本身撳一下
+    // 就開／關個細面板，等用戶有需要至打開嚟揀，唔會成塊全螢幕視訊畫面
+    // 都長期霸住呢個控制列位置。
+    window.toggleFsBgNoisePanel = function() {
+      const panel = document.getElementById('fs-bg-noise-panel');
+      if (!panel) return;
+      const willOpen = panel.style.display !== 'flex';
+      panel.style.display = willOpen ? 'flex' : 'none';
     };
 
     function startTimer() {
@@ -7145,10 +7251,17 @@
       if (state.heartbeatTimer) { clearInterval(state.heartbeatTimer); state.heartbeatTimer = null; }
       stopPresenceCheckLoop();
 
-      // 離開房間就要停止背景白噪音，唔可以帶去大廳／其他分頁繼續播
+      // 離開房間就要停止背景白噪音，唔可以帶去大廳／其他分頁繼續播；
+      // 兩組控制項（正常 + 全螢幕細面板）嘅 select 都要打返去「關閉」，
+      // 全螢幕嗰個細面板亦都要收埋返，等下次入返房、開全螢幕都係由
+      // 收埋狀態開始
       stopBgNoise();
-      const bgSelectEl = document.getElementById('bg-noise-select');
-      if (bgSelectEl) bgSelectEl.value = 'off';
+      ['bg-noise-select', 'fs-bg-noise-select'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = 'off';
+      });
+      const fsBgNoisePanel = document.getElementById('fs-bg-noise-panel');
+      if (fsBgNoisePanel) fsBgNoisePanel.style.display = 'none';
 
       // 完整結束鏡頭＋麥克風（離開房間跟單純「關閉鏡頭」不同，要整個釋放掉）
       // 注意釋放次序：先斷開 P2P 連線入面 sender 對軌道嘅參照 → 解除 <video>
