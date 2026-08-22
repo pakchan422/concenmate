@@ -2,14 +2,14 @@
 <html lang="zh-HK">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>ConcenMate 書伴 - 虛擬溫習空間</title>
 
   <!-- ========================================
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.60.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.61.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -280,10 +280,18 @@
        鏡頭畫面盡用返成個螢幕；再撳一下就顯示返晒。 */
     #room-active.video-fullscreen-mode #fs-room-bar-collapse-btn {
       display: flex !important;
+      align-items: center;
+      justify-content: center;
       position: fixed;
-      left: 8px;
-      bottom: 8px;
-      z-index: 10;
+      /* env(safe-area-inset-*) 喺 iPhone 呢類有底部手勢橫條／瀏海嘅
+         裝置度攞返「安全區域」嘅留白，唔加嘅話喺部分手機用 Safari 全
+         螢幕瀏覽（尤其 Safari 個動態工具列會不定時喺畫面底部彈出/收埋）
+         度，粒掣可能會俾底部工具列或者手勢橫條擋住/踩住，睇落好似
+         「唔見咗」咁。max() 保證就算冇安全區域嘅裝置都最少留返 10px。 */
+      left: max(10px, env(safe-area-inset-left) + 10px);
+      bottom: max(10px, env(safe-area-inset-bottom) + 10px);
+      z-index: 30;
+      box-shadow: 0 2px 10px rgba(0,0,0,.4);
     }
     #room-active.video-fullscreen-mode.controls-collapsed .room-bar-btn-group > * {
       display: none !important;
@@ -1608,7 +1616,7 @@
                  左下角、獨立喺 room-bar 之外（position:fixed），唔理你而家
                  直向定橫向、room-bar 收埋咗定顯示緊，呢粒掣都會一直留喺
                  呢個固定角落，等用戶隨時搵到、撳返出嚟。 -->
-            <button type="button" id="fs-room-bar-collapse-btn" onclick="toggleFsRoomBarCollapse()" title="收埋／顯示控制列" style="display:none; background:rgba(0,0,0,.4); color:#fff; border:1px solid rgba(255,255,255,.3); border-radius:8px; font-size:14px; padding:6px 8px; cursor:pointer; line-height:1;">➖</button>
+            <button type="button" id="fs-room-bar-collapse-btn" onclick="toggleFsRoomBarCollapse()" title="收埋／顯示控制列" style="display:none; width:38px; height:38px; background:rgba(0,0,0,.6); color:#fff; border:1px solid rgba(255,255,255,.4); border-radius:10px; font-size:17px; padding:0; cursor:pointer; line-height:1;">➖</button>
 
             <div id="video-grid-container" class="video-grid-container">
               <div class="video-card-single" id="video-slot-1" onclick="wakeVideoEngine()">
@@ -7364,7 +7372,12 @@
       // 退房一定要順手退埋全螢幕：唔係嘅話個全螢幕黑色遮罩仲蓋住成個
       // 畫面，用戶會以為個 app 死咗機
       if (typeof window.exitVideoFullscreenMode === 'function') window.exitVideoFullscreenMode();
-      window.showToast(customToastMsg || (deleteRoom ? '已關閉房間' : '已退出溫習房間'), '🚪');
+      // 自己主動撳「退出房間」/「關閉房間」唔再彈 toast——畫面已經即時
+      // 由房間切返去大廳，結果好明顯，唔使再額外講一次。但如果係俾人
+      // 踢走／房主移交呢啲對方主動觸發、用戶未必預期到嘅情況，
+      // customToastMsg 會帶住明確原因傳入嚟，呢啲仍然要顯示（唔係
+      // 用戶會唔知發生咗咩事）。
+      if (customToastMsg) window.showToast(customToastMsg, '🚪');
     }
 
     async function cleanupRoomConnections() {
@@ -7849,7 +7862,10 @@
 
           updateMyCameraStatus(true);
           broadcastMyCameraRotation();
-          window.showToast('鏡頭與 P2P 串流已順利啟動！', '📹');
+          // 開鏡頭成功唔再彈 toast——掣本身已經由「📹 開啟鏡頭」變咗做
+          // 「🔴 關閉鏡頭」、畫面亦已經即時見到自己個鏡頭預覽，呢個結果
+          // 已經好清楚，唔使再額外彈一個字幕重複講一次，減少每次撳掣
+          // 都有嘢彈出嚟嘅視覺干擾
         } catch (err) {
           console.error("相機存取失敗:", err);
           window.showToast(describeMediaError(err), '❌');
