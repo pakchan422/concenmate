@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.53.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.54.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -6018,13 +6018,11 @@
     // 手機嗰陣，自己度睇到嘅都自動跟住轉返啱方向。轉咗 90／270 度之後
     // 順便縮細少少（scale 0.75），等個長方形畫面唔會爆出固定嘅格仔。
     //
-    // 重要：CSS 嘅 rotate(90deg) 係順時針，同 startCanvasRenderLoop() 度
-    // 用嚟做自己個預覽嘅 canvas 旋轉方向（angle===90 嗰陣用嘅其實係
-    // 反時針、angle===270 先係順時針——見嗰邊嘅註解，經用戶實機測試
-    // 特登調轉咗）唔一致。之前呢度直接攞 angle 個數字落去做
-    // rotate(${angle}deg)，冇跟返 canvas 嗰邊嘅調轉，所以其他人睇到
-    // 嘅方向會同自己個預覽反晒——依家喺呢度都跟返 canvas 嗰個「調轉
-    // 咗」嘅方向，等其他人睇到嘅同自己個預覽一致。
+    // CSS 嘅 rotate(90deg) 係順時針、rotate(270deg) 即係反時針轉返 90
+    // 度（270 順時針同 -90 即 90 反時針係同一個最終方向），呢個岩岩
+    // 同 startCanvasRenderLoop() 度自己個預覽用緊嘅旋轉方向一致
+    // （angle===90 順時針、angle===270 反時針——見嗰邊嘅註解），所以
+    // 呢度可以直接用返 angle 個數字落去做 rotate，唔使再額外調轉。
     function updateRemoteSlotRotation(uid, angle) {
       const slotNum = state.slotAssignments[uid];
       if (!slotNum) return;
@@ -6038,10 +6036,7 @@
       }
       const rotated90or270 = (angle === 90 || angle === 270);
       const scale = rotated90or270 ? 0.75 : 1;
-      // 同 canvas 嗰邊嘅旋轉方向對齊：angle===90 要轉 -90deg（反時針），
-      // angle===270 要轉 +90deg（順時針），先同自己個預覽睇落一致。
-      const cssAngle = angle === 90 ? -90 : angle === 270 ? 90 : angle;
-      video.style.transform = `scaleX(-1) rotate(${cssAngle}deg) scale(${scale})`;
+      video.style.transform = `scaleX(-1) rotate(${angle}deg) scale(${scale})`;
     }
 
     // 收到對方實際的視訊畫面（track）後，把狀態標籤改成「即時串流」
@@ -7257,16 +7252,18 @@
             canvas.height = targetH;
           }
           ctx.save();
-          // 註：實測用戶手機之後發現，之前呢兩個方向係啱好調轉咗
-          // （原本 angle===90 用嘅旋轉方向，其實係 angle===270 先啱用，
-          // 反之亦然），所以呢度特登同「感覺上啱」嘅方向掉轉返嚟。
+          // 註：用戶實機測試（除錯提示）確認咗——手機向左轉時，
+          // screen.orientation.angle 讀到 90 度；向右轉時讀到 270 度。
+          // 而根據用戶實際睇到嘅方向，向左轉（angle=90）要順時針轉返
+          // 90 度先啱，向右轉（angle=270）就要反時針轉返 90 度先啱
+          // （同之前一版「掉轉咗」嘅寫法岩岩相反，之前嗰版係錯嘅）。
           if (angle === 90) {
-            ctx.translate(0, canvas.height);
-            ctx.rotate(-Math.PI / 2);
-            ctx.drawImage(video, 0, 0, vw, vh);
-          } else if (angle === 270) {
             ctx.translate(canvas.width, 0);
             ctx.rotate(Math.PI / 2);
+            ctx.drawImage(video, 0, 0, vw, vh);
+          } else if (angle === 270) {
+            ctx.translate(0, canvas.height);
+            ctx.rotate(-Math.PI / 2);
             ctx.drawImage(video, 0, 0, vw, vh);
           } else if (angle === 180) {
             ctx.translate(canvas.width, canvas.height);
