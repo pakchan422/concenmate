@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.68.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.69.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -1265,7 +1265,7 @@
         <button class="nav-btn" id="nav-btn-study" type="button" onclick="switchTab('study', this)">🗂 <span class="nav-text">學科溫習卡</span></button>
         <button class="nav-btn" id="nav-btn-qa" type="button" onclick="switchTab('qa', this)">❓ <span class="nav-text">疑難解答區</span></button>
         <button class="nav-btn" id="nav-btn-vip" type="button" onclick="switchTab('vip', this)">👑 <span class="nav-text">溫習資源 & VIP</span></button>
-        <button class="nav-btn" id="nav-btn-store" type="button" onclick="switchTab('store', this)">🎁 <span class="nav-text">時數兌換所</span></button>
+        <button class="nav-btn" id="nav-btn-store" type="button" onclick="switchTab('store', this)">🎁 <span class="nav-text">時數扭蛋機</span></button>
         <button class="nav-btn" id="nav-btn-social" type="button" onclick="switchTab('social', this)">👥 <span class="nav-text">夥伴與讀書會</span> <span class="home-sec-badge" id="nav-social-badge" style="display:none; margin-left:auto;"></span></button>
         <button class="nav-btn" id="nav-btn-verification" type="button" onclick="switchTab('verification', this)">🎓 <span class="nav-text">學生身份驗證</span></button>
       </div>
@@ -1435,7 +1435,7 @@
                     <span class="home-sec-icon">🎰</span>
                     <span class="home-sec-badge" id="home-gacha-badge" style="display:none; background:#4A8FA0; color:white;">可扭蛋</span>
                   </div>
-                  <div class="home-sec-title">扭蛋機兌換所</div>
+                  <div class="home-sec-title">時數扭蛋機</div>
                   <div class="home-sec-desc">用積分抽取學習大獎</div>
                 </button>
 
@@ -1936,7 +1936,7 @@
           <div class="card" style="margin-top:16px;">
             <h3 style="font-size:15px; font-weight:bold; margin-bottom:10px;">🎁 我的中獎記錄</h3>
             <div id="profile-gacha-history-list" style="display:flex; flex-direction:column; gap:6px; font-size:13px;"></div>
-            <p id="profile-gacha-history-empty" style="display:none; text-align:center; color:#999; font-size:13px; padding:10px;">你仲未扭過蛋，去「時數兌換所」試吓手氣啦！</p>
+            <p id="profile-gacha-history-empty" style="display:none; text-align:center; color:#999; font-size:13px; padding:10px;">你仲未扭過蛋，去「時數扭蛋機」試吓手氣啦！</p>
           </div>
         </section>
 
@@ -1958,7 +1958,6 @@
           <div class="card" style="background: linear-gradient(135deg, #D9EBEF, #D9C9B5); color:#1E4550; text-align:center;">
             <div style="font-size:28px; margin-bottom:4px;">🎰</div>
             <h2 style="font-size:18px; font-weight:bold;">Ottiee 時數幸運扭蛋機</h2>
-            <p style="font-size:14px; margin-top:4px; opacity:.9;">用積分抽獎，換取學習大獎！</p>
             <div style="margin-top:10px; background:rgba(255,255,255,0.2); border-radius:10px; padding:8px; display:inline-block;">
               <span style="font-size:15px; font-weight:bold;">你的積分：<span id="gacha-pts-display">180</span> PTS</span>
             </div>
@@ -2041,13 +2040,28 @@
             </div>
           </div>
 
-          <!-- 抽獎歷史 -->
+          <!-- 抽獎歷史：只顯示頭 10 筆，撳「顯示更多」先再攞多 10 筆出嚟，
+               如此類推，唔會一次過成頁都係記錄。 -->
           <div class="card" id="gacha-history-card" style="display:none;">
             <h3 style="font-size:15px; font-weight:bold; margin-bottom:8px;">📜 最近抽獎記錄</h3>
             <div id="gacha-history-list" style="display:flex; flex-direction:column; gap:6px; font-size:13px;"></div>
+            <button type="button" id="gacha-history-more-btn" onclick="showMoreGachaHistory()" class="btn btn-outline" style="display:none; width:100%; margin-top:10px; font-size:13px;">顯示更多</button>
           </div>
 
         </section>
+
+        <!-- 扭蛋結果放大燈箱：撳「連續抽十次」grid 入面任何一格獎品圖片
+             都會彈呢個出嚟，放大顯示嗰個獎品嘅圖片／emoji、等級、名稱、
+             描述，撳背景或者「關閉」先返返去。 -->
+        <div id="gacha-prize-lightbox" style="display:none; position:fixed; inset:0; z-index:3000; background:rgba(0,0,0,.55); align-items:center; justify-content:center;" onclick="closeGachaPrizeLightbox()">
+          <div style="background:#fff; border-radius:16px; padding:22px; max-width:280px; width:86vw; text-align:center;" onclick="event.stopPropagation();">
+            <div id="gacha-lightbox-emoji" style="font-size:56px;"></div>
+            <div id="gacha-lightbox-tier" style="font-size:14px; font-weight:bold; margin-top:8px;"></div>
+            <div id="gacha-lightbox-name" style="font-size:17px; font-weight:bold; margin-top:4px; color:#1E4550;"></div>
+            <div id="gacha-lightbox-desc" style="font-size:13px; color:#2F6070; margin-top:8px;"></div>
+            <button type="button" onclick="closeGachaPrizeLightbox()" class="btn btn-outline" style="margin-top:16px; width:100%;">關閉</button>
+          </div>
+        </div>
 
 
         <section id="tab-social" class="tab-content">
@@ -2446,7 +2460,7 @@
       // 「疑難解答區」分頁一開就即刻載入提問（已有監聽器嘅話只會重畫，唔會再問 Firestore）
       if (tabId === 'qa' && window.db && window.fs && typeof loadQAPosts === 'function') loadQAPosts();
 
-      // 「時數兌換所」分頁一開就更新返積分顯示
+      // 「時數扭蛋機」分頁一開就更新返積分顯示
       if (tabId === 'store' && typeof syncGachaPtsDisplay === 'function') syncGachaPtsDisplay();
 
       // 「個人資料」分頁一開就載入中獎記錄
@@ -3610,14 +3624,17 @@
 
       // 連續抽 10 次（用返 lucky 池嘅機率），每次獨立 roll
       const prizes = Array.from({ length: 10 }, () => gachaRoll('lucky'));
+      // 存低成組結果，等用戶撳任何一格圖片放大睇嗰陣（見
+      // window.showGachaPrizeDetail）攞得返完整資料
+      window._lastGachaBatchPrizes = prizes;
 
       const gridEl = document.getElementById('gacha-result-batch-grid');
-      gridEl.innerHTML = prizes.map(prize => {
+      gridEl.innerHTML = prizes.map((prize, idx) => {
         const thumb = prize.photo
           ? `<img src="${prize.photo}" alt="${escapeHtml(prize.name || '')}" style="width:38px; height:38px; object-fit:cover; border-radius:8px;">`
           : `<span style="font-size:30px;">${escapeHtml(prize.emoji || '🎁')}</span>`;
         return `
-          <div style="background:${prize.bg}; border:2px solid ${prize.tierColor}; border-radius:12px; padding:8px 4px; text-align:center;" title="${escapeHtml(prize.tier || '')}：${escapeHtml(prize.name || '')}">
+          <div onclick="showGachaPrizeDetail(${idx})" style="cursor:pointer; background:${prize.bg}; border:2px solid ${prize.tierColor}; border-radius:12px; padding:8px 4px; text-align:center;" title="撳落放大睇：${escapeHtml(prize.tier || '')}：${escapeHtml(prize.name || '')}">
             <div>${thumb}</div>
             <div style="font-size:14px; font-weight:bold; color:${prize.tierColor}; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(prize.tier || '')}</div>
           </div>`;
@@ -3644,6 +3661,35 @@
         saveGachaHistoryToFirestore(prize, 'lucky', i === 0 ? cost : 0);
       });
     }
+
+    // 撳十連抽 grid 入面任何一格獎品，放大顯示嗰個獎品嘅圖片／emoji、
+    // 等級、名稱、描述。撳背景或者「關閉」掣先返返去。
+    window.showGachaPrizeDetail = function(idx) {
+      const prize = (window._lastGachaBatchPrizes || [])[idx];
+      if (!prize) return;
+      // 打開放大燈箱之後就取消個「8 秒自動關閉」計時器，等使用者慢慢睇，
+      // 唔會睇到一半十連抽結果視窗自己收埋咗
+      clearTimeout(window._gachaResultAutoCloseTimer);
+
+      const emojiEl = document.getElementById('gacha-lightbox-emoji');
+      if (prize.photo) {
+        emojiEl.innerHTML = `<img src="${prize.photo}" alt="${escapeHtml(prize.name || '')}" style="width:120px; height:120px; object-fit:cover; border-radius:14px; border:2px solid ${prize.tierColor || '#2F6070'};">`;
+      } else {
+        emojiEl.innerHTML = '';
+        emojiEl.innerText = prize.emoji || '🎁';
+      }
+      const tierEl = document.getElementById('gacha-lightbox-tier');
+      tierEl.innerText = prize.tier || '';
+      tierEl.style.color = prize.tierColor || '#2F6070';
+      document.getElementById('gacha-lightbox-name').innerText = prize.name || '';
+      document.getElementById('gacha-lightbox-desc').innerText = prize.desc || '';
+      document.getElementById('gacha-prize-lightbox').style.display = 'flex';
+    };
+
+    window.closeGachaPrizeLightbox = function() {
+      const el = document.getElementById('gacha-prize-lightbox');
+      if (el) el.style.display = 'none';
+    };
 
     // 將中獎記錄寫入 Firestore，給用家可以在「個人資料」頁隨時查返自己的中獎記錄。
     // costOverride：得「連續抽十次」會傳呢個參數（見 doGachaBatch），
@@ -3720,27 +3766,57 @@
       }
     };
 
+    // 「最近抽獎記錄」卡（時數扭蛋機分頁本身，唔係個人資料頁嗰個）：
+    // 以前呢個 list 淨係喺 DOM 度保留最新 10 筆，舊嗰啲一過 10 筆就即刻
+    // 刪走，見都見唔返。而家改成成個 session 嘅記錄都留喺呢個陣列度，
+    // 一開始淨係顯示頭 10 筆，撳「顯示更多」先再攞多 10 筆出嚟顯示，
+    // 冇更多先隱藏返個掣。
+    let gachaHistoryEntries = [];
+    let gachaHistoryVisibleCount = 10;
+    const GACHA_HISTORY_PAGE_SIZE = 10;
+
     function addGachaHistory(prize, type, costOverride) {
       const card = document.getElementById('gacha-history-card');
-      const list = document.getElementById('gacha-history-list');
-      if (!card || !list) return;
-      card.style.display = 'block';
+      if (!card) return;
 
       const cost = typeof costOverride === 'number' ? costOverride : GACHA_COST[type];
       const time = new Date().toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit' });
-      const entry = document.createElement('div');
-      entry.style.cssText = `display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px; background:${prize.bg}; border:1px solid ${prize.tierColor}33;`;
-      entry.innerHTML = `
-        <span style="font-size:20px;">${prize.emoji}</span>
-        <div style="flex:1;">
-          <strong style="color:${prize.tierColor};">${prize.tier}</strong> · ${prize.name}
-          <div style="color:#7DB8C5; font-size:13px;">${type === 'lucky' ? '🎉 十連抽' : '🎯 抽一次'} · ${time} · -${cost} PTS</div>
-        </div>
-      `;
-      list.insertBefore(entry, list.firstChild);
-      // 只保留最近 10 筆
-      while (list.children.length > 10) list.removeChild(list.lastChild);
+      gachaHistoryEntries.unshift({ prize, type, cost, time });
+      renderGachaHistoryList();
     }
+
+    function renderGachaHistoryList() {
+      const card = document.getElementById('gacha-history-card');
+      const list = document.getElementById('gacha-history-list');
+      const moreBtn = document.getElementById('gacha-history-more-btn');
+      if (!card || !list) return;
+
+      if (gachaHistoryEntries.length === 0) {
+        card.style.display = 'none';
+        return;
+      }
+      card.style.display = 'block';
+
+      const visible = gachaHistoryEntries.slice(0, gachaHistoryVisibleCount);
+      list.innerHTML = visible.map(({ prize, type, cost, time }) => `
+        <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px; background:${prize.bg}; border:1px solid ${prize.tierColor}33;">
+          <span style="font-size:20px;">${escapeHtml(prize.emoji || '🎁')}</span>
+          <div style="flex:1;">
+            <strong style="color:${prize.tierColor};">${escapeHtml(prize.tier || '')}</strong> · ${escapeHtml(prize.name || '')}
+            <div style="color:#7DB8C5; font-size:13px;">${type === 'lucky' ? '🎉 十連抽' : '🎯 抽一次'} · ${time} · -${cost} PTS</div>
+          </div>
+        </div>
+      `).join('');
+
+      if (moreBtn) {
+        moreBtn.style.display = gachaHistoryEntries.length > gachaHistoryVisibleCount ? 'block' : 'none';
+      }
+    }
+
+    window.showMoreGachaHistory = function() {
+      gachaHistoryVisibleCount += GACHA_HISTORY_PAGE_SIZE;
+      renderGachaHistoryList();
+    };
 
 
     async function broadcastReaction(emoji) {
