@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.69.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.70.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -1982,6 +1982,14 @@
                    （闊度、每格內距、圖示同字體都加大），用 position:fixed
                    （唔係 absolute）令佢可以喺唔受 #gacha-machine 呢張卡本身
                    闊度所限，喺手機直向都有夠位置置中顯示得夠大。 -->
+              <!-- 半透明背景遮罩：撳呢一嚿（彈出視窗以外嘅空白位置）就會
+                   自動關閉個結果視窗，唔使一定要揾實個「X」先關到。 -->
+              <div id="gacha-result-backdrop-batch" style="display:none; position:fixed; inset:0; z-index:1999; background:rgba(0,0,0,.4);" onclick="closeGachaBatchResult()"></div>
+              <!-- top/left 淨係做初始 fallback：真正嘅置中座標由 JS
+                   （centerGachaBatchBox，喺 doGachaBatch 顯示呢個視窗嗰陣
+                   呼叫）按 <main> 呢個內容區（唔連左邊側邊欄）嘅實際闊度
+                   計算，先至係「扭蛋頁面部分」視覺上嘅正中央，唔係成個
+                   瀏覽器視窗（連側邊欄）嘅正中央。 -->
               <div id="gacha-result-box-batch" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:2000; width:400px; max-width:94vw; padding:18px; border-radius:16px; background:rgba(240,246,248,.98); border:2px solid #B3D6DE; box-shadow:0 8px 32px rgba(0,0,0,.35); animation: gacha-pop-center .4s ease; text-align:center;">
                 <div style="font-size:17px; font-weight:bold; color:#1E4550; margin-bottom:12px;">🎉 連續抽十次結果</div>
                 <div id="gacha-result-batch-grid" style="display:grid; grid-template-columns:repeat(5, 1fr); gap:10px;"></div>
@@ -3532,10 +3540,8 @@
 
       // 隱藏上次結果
       const resultBox = document.getElementById('gacha-result-box');
-      const batchBoxHide = document.getElementById('gacha-result-box-batch');
       resultBox.style.display = 'none';
-      if (batchBoxHide) batchBoxHide.style.display = 'none';
-      clearTimeout(window._gachaResultAutoCloseTimer);
+      closeGachaBatchResult();
 
       // 扭蛋機震動動畫
       const machine = document.getElementById('gacha-machine');
@@ -3583,6 +3589,50 @@
       saveGachaHistoryToFirestore(prize, type);
     };
 
+    // 「連續抽十次」結果彈出視窗：置中／背景遮罩／自動關閉呢幾個共用邏輯
+    // 抽出嚟做獨立 function，等 doGachaBatch()、doGacha()（開新一輪之前
+    // 隱藏舊結果）、closeGachaPrizeLightbox 附近都可以共用返。
+    //
+    // 置中計算特登唔淨係靠 CSS 嘅 left:50%——嗰個 50% 係相對成個瀏覽器
+    // 視窗（連埋左邊側邊欄 <aside> 都計埋），會令個彈窗睇落偏咗去側邊欄
+    // 嗰邊，同「扭蛋機」呢版內容（<main>，唔連側邊欄）嘅視覺中心對唔返
+    // 位（見用家反映）。改用 JS 按 <main> 嘅實際位置同闊度計返真正置中
+    // 座標，側邊欄闊度點變（例如窄螢幕摺埋）都會自動跟得啱。
+    function centerGachaBatchBox() {
+      const box = document.getElementById('gacha-result-box-batch');
+      const mainEl = document.querySelector('main');
+      if (!box || !mainEl) return;
+      const mainRect = mainEl.getBoundingClientRect();
+      const centerX = mainRect.left + mainRect.width / 2;
+      box.style.left = centerX + 'px';
+      box.style.top = '50%';
+      box.style.transform = 'translate(-50%, -50%)';
+    }
+    function onGachaBatchBoxResize() { centerGachaBatchBox(); }
+
+    function showGachaBatchResult() {
+      const box = document.getElementById('gacha-result-box-batch');
+      const backdrop = document.getElementById('gacha-result-backdrop-batch');
+      if (backdrop) backdrop.style.display = 'block';
+      if (box) box.style.display = 'block';
+      centerGachaBatchBox();
+      window.addEventListener('resize', onGachaBatchBoxResize);
+      window.addEventListener('orientationchange', onGachaBatchBoxResize);
+    }
+
+    // 撳背景遮罩（彈出視窗以外嘅空白位置）、自動關閉計時器到期，都會
+    // call 呢個嚟收埋成組（視窗＋背景遮罩）
+    window.closeGachaBatchResult = function() {
+      const box = document.getElementById('gacha-result-box-batch');
+      const backdrop = document.getElementById('gacha-result-backdrop-batch');
+      if (box) box.style.display = 'none';
+      if (backdrop) backdrop.style.display = 'none';
+      clearTimeout(window._gachaResultAutoCloseTimer);
+      window.removeEventListener('resize', onGachaBatchBoxResize);
+      window.removeEventListener('orientationchange', onGachaBatchBoxResize);
+    };
+    function closeGachaBatchResult() { window.closeGachaBatchResult(); }
+
     // 「連續抽十次」：一次過用 lucky 獎池抽 10 次，扣一次總費用
     // （GACHA_COST.lucky，現在係 270 PTS），結果喺 #gacha-result-box-batch
     // 個 grid 度分兩行（每行 5 個）顯示，唔再用返單抽嗰個細細個結果框。
@@ -3610,10 +3660,8 @@
       }
 
       const resultBox = document.getElementById('gacha-result-box');
-      const batchBox = document.getElementById('gacha-result-box-batch');
       resultBox.style.display = 'none';
-      batchBox.style.display = 'none';
-      clearTimeout(window._gachaResultAutoCloseTimer);
+      closeGachaBatchResult();
 
       const machine = document.getElementById('gacha-machine');
       machine.classList.remove('gacha-shaking');
@@ -3639,11 +3687,11 @@
             <div style="font-size:14px; font-weight:bold; color:${prize.tierColor}; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(prize.tier || '')}</div>
           </div>`;
       }).join('');
-      batchBox.style.display = 'block';
+      showGachaBatchResult();
 
       // 十連抽結果比較多，自動關閉時間拉長到 8 秒，等使用者睇晒 10 個結果
       window._gachaResultAutoCloseTimer = setTimeout(() => {
-        batchBox.style.display = 'none';
+        closeGachaBatchResult();
       }, 8000);
 
       const legendaryCount = prizes.filter(p => p.tier === '傳說獎').length;
