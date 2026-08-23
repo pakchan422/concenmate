@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.70.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.71.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -1968,8 +1968,14 @@
 
             <!-- 扭蛋機動畫區 -->
             <div id="gacha-machine" style="position:relative; display:inline-block; user-select:none;">
-              <!-- 中獎結果彈出視窗（懸浮於扭蛋機上方）：單抽用呢個 -->
-              <div id="gacha-result-box" style="display:none; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:20; width:200px; max-width:80vw; padding:14px; border-radius:14px; background:rgba(240,246,248,.97); border:2px solid #B3D6DE; box-shadow:0 6px 24px rgba(0,0,0,.25); animation: gacha-pop-center .4s ease; text-align:center;">
+              <!-- 中獎結果彈出視窗（單抽用呢個）：同「連續抽十次」嗰個
+                   彈窗用返一樣嘅做法——半透明背景遮罩（撳空白位置自動
+                   關閉）＋ position:fixed，由 JS（centerGachaSingleBox，
+                   喺 showGachaSingleResult 入面 call）按 <main> 呢個內容
+                   區（唔連側邊欄）嘅實際位置置中，唔係淨係得成個瀏覽器
+                   視窗嘅正中央。 -->
+              <div id="gacha-result-backdrop" style="display:none; position:fixed; inset:0; z-index:1999; background:rgba(0,0,0,.4);" onclick="closeGachaSingleResult()"></div>
+              <div id="gacha-result-box" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:2000; width:240px; max-width:88vw; padding:18px; border-radius:16px; background:rgba(240,246,248,.98); border:2px solid #B3D6DE; box-shadow:0 8px 32px rgba(0,0,0,.35); animation: gacha-pop-center .4s ease; text-align:center;">
                 <div id="gacha-result-emoji" style="font-size:36px;"></div>
                 <div id="gacha-result-tier" style="font-size:13px; font-weight:bold; margin-top:4px;"></div>
                 <div id="gacha-result-name" style="font-size:15px; font-weight:bold; margin-top:2px;"></div>
@@ -2018,7 +2024,14 @@
               <button class="btn btn-amber" type="button" onclick="doGacha('normal')" style="padding:10px 20px; font-size:15px;">
                 抽一次 (<span id="gacha-cost-normal-btn">30</span> PTS)
               </button>
-              <button class="btn btn-primary" type="button" onclick="doGacha('lucky')" style="padding:10px 20px; font-size:15px; background:#D9C9B5; color:#1E4550; border-color:#D9C9B5;">
+              <!-- 之前呢粒掣用 class="btn btn-primary" 但另外用 inline style
+                   釘死背景／文字顏色，令佢睇落同「抽一次」個 btn-amber 撞色
+                   一樣，但 inline style 嘅優先度太高，導致滑鼠移上去嗰陣
+                   CSS 嘅 .btn-amber:hover 轉色規則完全冇效果（見用家反映
+                   「連續抽十次冇轉色效果」）。而家索性直接用返 btn-amber
+                   呢個 class（原本啲顏色本來就同 inline style 嗰組一樣），
+                   移除晒啲 inline 顏色，兩粒掣先會有一致嘅 hover 轉色。 -->
+              <button class="btn btn-amber" type="button" onclick="doGacha('lucky')" style="padding:10px 20px; font-size:15px;">
                 連續抽十次 (<span id="gacha-cost-lucky-btn">270</span> PTS)
               </button>
             </div>
@@ -3540,7 +3553,7 @@
 
       // 隱藏上次結果
       const resultBox = document.getElementById('gacha-result-box');
-      resultBox.style.display = 'none';
+      closeGachaSingleResult();
       closeGachaBatchResult();
 
       // 扭蛋機震動動畫
@@ -3558,7 +3571,6 @@
       // 顯示結果（唔再有膠囊彈出/旋轉動畫，震動完即刻顯示結果）
       resultBox.style.background = prize.bg;
       resultBox.style.borderColor = prize.tierColor;
-      resultBox.style.display = 'block';
       // 如果管理員有幫這個獎品上傳圖片，優先展示相片；沒有的話就繼續用返 emoji
       const resultEmojiEl = document.getElementById('gacha-result-emoji');
       if (prize.photo) {
@@ -3572,10 +3584,9 @@
       document.getElementById('gacha-result-name').innerText = prize.name;
       document.getElementById('gacha-result-desc').innerText = prize.desc;
 
-      // 5 秒後自動關閉結果彈出視窗
-      window._gachaResultAutoCloseTimer = setTimeout(() => {
-        resultBox.style.display = 'none';
-      }, 5000);
+      // 顯示彈出視窗：置中／背景遮罩／5 秒後自動關閉都喺 showGachaSingleResult
+      // 呢個共用 helper 入面處理（同「連續抽十次」嗰個彈窗行為完全一致）
+      showGachaSingleResult();
 
       // 傳說獎撒花
       if (prize.tier === '傳說獎') {
@@ -3589,49 +3600,68 @@
       saveGachaHistoryToFirestore(prize, type);
     };
 
-    // 「連續抽十次」結果彈出視窗：置中／背景遮罩／自動關閉呢幾個共用邏輯
-    // 抽出嚟做獨立 function，等 doGachaBatch()、doGacha()（開新一輪之前
-    // 隱藏舊結果）、closeGachaPrizeLightbox 附近都可以共用返。
+    // 扭蛋結果彈出視窗（單抽同「連續抽十次」兩個都用返呢一套）：置中／
+    // 背景遮罩／自動關閉呢幾個共用邏輯抽做一個通用 helper，兩個彈窗行為
+    // 保持一致，改一個位兩邊都會跟到（見用家反映「兩個彈窗方法應該一
+    // 樣」）。
     //
     // 置中計算特登唔淨係靠 CSS 嘅 left:50%——嗰個 50% 係相對成個瀏覽器
     // 視窗（連埋左邊側邊欄 <aside> 都計埋），會令個彈窗睇落偏咗去側邊欄
     // 嗰邊，同「扭蛋機」呢版內容（<main>，唔連側邊欄）嘅視覺中心對唔返
     // 位（見用家反映）。改用 JS 按 <main> 嘅實際位置同闊度計返真正置中
     // 座標，側邊欄闊度點變（例如窄螢幕摺埋）都會自動跟得啱。
-    function centerGachaBatchBox() {
-      const box = document.getElementById('gacha-result-box-batch');
-      const mainEl = document.querySelector('main');
-      if (!box || !mainEl) return;
-      const mainRect = mainEl.getBoundingClientRect();
-      const centerX = mainRect.left + mainRect.width / 2;
-      box.style.left = centerX + 'px';
-      box.style.top = '50%';
-      box.style.transform = 'translate(-50%, -50%)';
-    }
-    function onGachaBatchBoxResize() { centerGachaBatchBox(); }
+    function makeGachaResultPopup(boxId, backdropId, autoCloseMs) {
+      const box = () => document.getElementById(boxId);
+      const backdrop = () => document.getElementById(backdropId);
 
-    function showGachaBatchResult() {
-      const box = document.getElementById('gacha-result-box-batch');
-      const backdrop = document.getElementById('gacha-result-backdrop-batch');
-      if (backdrop) backdrop.style.display = 'block';
-      if (box) box.style.display = 'block';
-      centerGachaBatchBox();
-      window.addEventListener('resize', onGachaBatchBoxResize);
-      window.addEventListener('orientationchange', onGachaBatchBoxResize);
+      function center() {
+        const boxEl = box();
+        const mainEl = document.querySelector('main');
+        if (!boxEl || !mainEl) return;
+        const mainRect = mainEl.getBoundingClientRect();
+        const centerX = mainRect.left + mainRect.width / 2;
+        boxEl.style.left = centerX + 'px';
+        boxEl.style.top = '50%';
+        boxEl.style.transform = 'translate(-50%, -50%)';
+      }
+      function onResize() { center(); }
+
+      function show() {
+        const boxEl = box();
+        const backdropEl = backdrop();
+        if (backdropEl) backdropEl.style.display = 'block';
+        if (boxEl) boxEl.style.display = 'block';
+        center();
+        window.addEventListener('resize', onResize);
+        window.addEventListener('orientationchange', onResize);
+        if (autoCloseMs) {
+          window._gachaResultAutoCloseTimer = setTimeout(close, autoCloseMs);
+        }
+      }
+      function close() {
+        const boxEl = box();
+        const backdropEl = backdrop();
+        if (boxEl) boxEl.style.display = 'none';
+        if (backdropEl) backdropEl.style.display = 'none';
+        clearTimeout(window._gachaResultAutoCloseTimer);
+        window.removeEventListener('resize', onResize);
+        window.removeEventListener('orientationchange', onResize);
+      }
+      return { show, close };
     }
 
-    // 撳背景遮罩（彈出視窗以外嘅空白位置）、自動關閉計時器到期，都會
-    // call 呢個嚟收埋成組（視窗＋背景遮罩）
-    window.closeGachaBatchResult = function() {
-      const box = document.getElementById('gacha-result-box-batch');
-      const backdrop = document.getElementById('gacha-result-backdrop-batch');
-      if (box) box.style.display = 'none';
-      if (backdrop) backdrop.style.display = 'none';
-      clearTimeout(window._gachaResultAutoCloseTimer);
-      window.removeEventListener('resize', onGachaBatchBoxResize);
-      window.removeEventListener('orientationchange', onGachaBatchBoxResize);
-    };
-    function closeGachaBatchResult() { window.closeGachaBatchResult(); }
+    // 單抽（gacha-result-box）：5 秒後自動關閉
+    const gachaSingleResultPopup = makeGachaResultPopup('gacha-result-box', 'gacha-result-backdrop', 5000);
+    // 連續抽十次（gacha-result-box-batch）：結果比較多，8 秒後先自動關閉
+    const gachaBatchResultPopup = makeGachaResultPopup('gacha-result-box-batch', 'gacha-result-backdrop-batch', 8000);
+
+    function showGachaSingleResult() { gachaSingleResultPopup.show(); }
+    window.closeGachaSingleResult = function() { gachaSingleResultPopup.close(); };
+    function closeGachaSingleResult() { gachaSingleResultPopup.close(); }
+
+    function showGachaBatchResult() { gachaBatchResultPopup.show(); }
+    window.closeGachaBatchResult = function() { gachaBatchResultPopup.close(); };
+    function closeGachaBatchResult() { gachaBatchResultPopup.close(); }
 
     // 「連續抽十次」：一次過用 lucky 獎池抽 10 次，扣一次總費用
     // （GACHA_COST.lucky，現在係 270 PTS），結果喺 #gacha-result-box-batch
@@ -3659,8 +3689,7 @@
         });
       }
 
-      const resultBox = document.getElementById('gacha-result-box');
-      resultBox.style.display = 'none';
+      closeGachaSingleResult();
       closeGachaBatchResult();
 
       const machine = document.getElementById('gacha-machine');
@@ -3687,12 +3716,9 @@
             <div style="font-size:14px; font-weight:bold; color:${prize.tierColor}; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(prize.tier || '')}</div>
           </div>`;
       }).join('');
+      // 顯示彈出視窗：置中／背景遮罩／8 秒後自動關閉都喺 showGachaBatchResult
+      // 呢個共用 helper 入面處理（同單抽嗰個彈窗行為完全一致）
       showGachaBatchResult();
-
-      // 十連抽結果比較多，自動關閉時間拉長到 8 秒，等使用者睇晒 10 個結果
-      window._gachaResultAutoCloseTimer = setTimeout(() => {
-        closeGachaBatchResult();
-      }, 8000);
 
       const legendaryCount = prizes.filter(p => p.tier === '傳說獎').length;
       const rareCount = prizes.filter(p => p.tier === '稀有獎').length;
