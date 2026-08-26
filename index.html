@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.72.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.73.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -2038,27 +2038,18 @@
 
           </div>
 
-          <!-- 獎品列表 -->
-          <div class="card">
-            <h3 style="font-size:15px; font-weight:bold; margin-bottom:10px;">🎁 獎品一覽</h3>
-            <div style="display:flex; flex-direction:column; gap:6px; font-size:13px;">
-              <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; background:#D9EBEF; border-radius:8px;">
-                <span style="font-size:18px;">⭐</span>
-                <div><strong style="color:#2F6070;">普通獎 (55%)</strong><br>溫習貼士卡、Ottiee 表情貼 ×3</div>
+          <!-- 貼紙圖鑑入口：扭蛋抽到嘅而家全部都係 Ottiee 貼紙，儲齊一套
+               做目標，撳「開啟我的貼紙圖鑑」睇返自己收集咗幾多款。 -->
+          <div class="card" style="text-align:center;">
+            <h3 style="font-size:15px; font-weight:bold; margin-bottom:8px;">📖 Ottiee 貼紙圖鑑</h3>
+            <p style="font-size:13px; color:#666; margin-bottom:10px;">扭蛋抽到嘅都係 Ottiee 貼紙，儲齊一套做目標！</p>
+            <div style="margin-bottom:12px;">
+              <div style="background:#EEE; border-radius:99px; height:10px; overflow:hidden;">
+                <div id="sticker-progress-bar" style="background:linear-gradient(90deg,#7DB8C5,#2F6070); height:100%; width:0%; transition:width .3s;"></div>
               </div>
-              <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; background:#F0F6F8; border-radius:8px;">
-                <span style="font-size:18px;">🌟</span>
-                <div><strong style="color:#2F6070;">良好獎 (30%)</strong><br>文具禮券 $20、精美書簽套裝</div>
-              </div>
-              <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; background:#F5EDE3; border-radius:8px;">
-                <span style="font-size:18px;">💎</span>
-                <div><strong style="color:#2F6070;">稀有獎 (12%)</strong><br>DSE 參考書、課外補充練習冊</div>
-              </div>
-              <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; background:#F0F6F8; border-radius:8px;">
-                <span style="font-size:18px;">👑</span>
-                <div><strong style="color:#2F6070;">傳說獎 (3%)</strong><br>VIP 溫習月票、$100 書券</div>
-              </div>
+              <p style="font-size:13px; color:#2F6070; margin-top:6px; font-weight:bold;">已收集 <span id="sticker-progress-text">0/0</span></p>
             </div>
+            <button type="button" class="btn btn-outline" style="width:100%;" onclick="openStickerCollection()">📖 開啟我的貼紙圖鑑</button>
           </div>
 
           <!-- 抽獎歷史：只顯示頭 10 筆，撳「顯示更多」先再攞多 10 筆出嚟，
@@ -2070,6 +2061,20 @@
           </div>
 
         </section>
+
+        <!-- 我的貼紙圖鑑彈出視窗：50 格（格數會跟返管理員實際設定咗幾多
+             隻貼紙），已收集嘅顯示圖片／emoji＋名稱＋擁有數量，未收集嘅
+             顯示「❔ 未收集」剪影。撳背景（唔係卡片本身）或「✕」關閉。 -->
+        <div id="sticker-collection-modal" style="display:none; position:fixed; inset:0; z-index:2500; background:rgba(0,0,0,.55); align-items:center; justify-content:center; padding:16px;" onclick="if(event.target===this) closeStickerCollection();">
+          <div style="background:#fff; border-radius:16px; padding:18px; max-width:520px; width:100%; max-height:82vh; overflow-y:auto;" onclick="event.stopPropagation();">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+              <h3 style="font-size:16px; font-weight:bold; color:#1E4550;">📖 我的貼紙圖鑑</h3>
+              <button type="button" onclick="closeStickerCollection()" class="btn btn-outline" style="padding:2px 10px; font-size:13px;">✕</button>
+            </div>
+            <p style="font-size:13px; color:#2F6070; margin-bottom:10px; font-weight:bold;">已收集 <span id="sticker-modal-progress-text">0/0</span></p>
+            <div id="sticker-collection-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(64px, 1fr)); gap:8px;"></div>
+          </div>
+        </div>
 
         <!-- 扭蛋結果放大燈箱：撳「連續抽十次」grid 入面任何一格獎品圖片
              都會彈呢個出嚟，放大顯示嗰個獎品嘅圖片／emoji、等級、名稱、
@@ -2486,8 +2491,9 @@
       // 「疑難解答區」分頁一開就即刻載入提問（已有監聽器嘅話只會重畫，唔會再問 Firestore）
       if (tabId === 'qa' && window.db && window.fs && typeof loadQAPosts === 'function') loadQAPosts();
 
-      // 「時數扭蛋機」分頁一開就更新返積分顯示
+      // 「時數扭蛋機」分頁一開就更新返積分顯示同貼紙圖鑑收集進度
       if (tabId === 'store' && typeof syncGachaPtsDisplay === 'function') syncGachaPtsDisplay();
+      if (tabId === 'store' && typeof updateStickerProgressUI === 'function') updateStickerProgressUI();
 
       // 「個人資料」分頁一開就載入中獎記錄
       if (tabId === 'profile' && typeof window.loadMyGachaHistory === 'function') window.loadMyGachaHistory();
@@ -3485,40 +3491,119 @@
     // ===================== 扭蛋機系統 =====================
 
 
-    const GACHA_PRIZES = {
-      normal: [
-        { tier: '普通獎', tierColor: '#2F6070', bg: '#D9EBEF', emoji: '⭐', name: '溫習貼士卡', desc: '附有考試重點提示的精美卡片', weight: 55 },
-        { tier: '普通獎', tierColor: '#2F6070', bg: '#D9EBEF', emoji: '😊', name: 'Ottiee 表情貼 ×3', desc: '可愛水獺 Ottiee 貼紙套裝', weight: 40 },
-        { tier: '良好獎', tierColor: '#2F6070', bg: '#F0F6F8', emoji: '🌟', name: '文具禮券 $20', desc: 'CitySuper 文具區現金禮券', weight: 18 },
-        { tier: '良好獎', tierColor: '#2F6070', bg: '#F0F6F8', emoji: '🔖', name: '精美書簽套裝', desc: '三款主題書簽+便利貼套裝', weight: 16 },
-        { tier: '稀有獎', tierColor: '#2F6070', bg: '#F5EDE3', emoji: '💎', name: 'DSE 參考書', desc: '指定科目 DSE 精讀備試書一本', weight: 8 },
-        { tier: '稀有獎', tierColor: '#2F6070', bg: '#F5EDE3', emoji: '📖', name: '課外補充練習冊', desc: 'HKDSE 練習題精選合集', weight: 5 },
-        { tier: '傳說獎', tierColor: '#2F6070', bg: '#F0F6F8', emoji: '👑', name: 'VIP 溫習月票', desc: '免費升級 VIP 會員一個月', weight: 2 },
-        { tier: '傳說獎', tierColor: '#2F6070', bg: '#F0F6F8', emoji: '🎫', name: '$100 書券', desc: '三聯書店 $100 現金書券', weight: 1 }
-      ],
-      lucky: [
-        { tier: '普通獎', tierColor: '#2F6070', bg: '#D9EBEF', emoji: '⭐', name: '溫習貼士卡 ×2', desc: '雙份考試重點提示精美卡片', weight: 30 },
-        { tier: '良好獎', tierColor: '#2F6070', bg: '#F0F6F8', emoji: '🌟', name: '文具禮券 $20', desc: 'CitySuper 文具區現金禮券', weight: 28 },
-        { tier: '良好獎', tierColor: '#2F6070', bg: '#F0F6F8', emoji: '🔖', name: '精美書簽套裝 ×2', desc: '六款主題書簽+便利貼豪華套裝', weight: 20 },
-        { tier: '稀有獎', tierColor: '#2F6070', bg: '#F5EDE3', emoji: '💎', name: 'DSE 參考書', desc: '指定科目 DSE 精讀備試書一本', weight: 13 },
-        { tier: '稀有獎', tierColor: '#2F6070', bg: '#F5EDE3', emoji: '📖', name: '課外補充練習冊', desc: 'HKDSE 練習題精選合集', weight: 10 },
-        { tier: '傳說獎', tierColor: '#2F6070', bg: '#F0F6F8', emoji: '👑', name: 'VIP 溫習月票', desc: '免費升級 VIP 會員一個月', weight: 5 },
-        { tier: '傳說獎', tierColor: '#2F6070', bg: '#F0F6F8', emoji: '🎫', name: '$100 書券', desc: '三聯書店 $100 現金書券', weight: 3 }
-      ]
-    };
+    // 扭蛋獎品而家全部改成 Ottiee 收集貼紙（完全取代舊有嘅溫習貼士卡／
+    // 文具禮券／DSE 參考書等實物獎），目標係儲齊一套做圖鑑。預設 50 隻
+    // 貼紙全部用 🦦 emoji 做 placeholder（管理員未上傳真圖之前），管理員
+    // 可以喺後台「扭蛋機貼紙管理」逐隻改名／換 emoji／上傳圖片，亦都可以
+    // 自行新增／刪除貼紙格——收集圖鑑嘅「X/50」會自動跟返實際貼紙數量，
+    // 唔係寫死 50。
+    const GACHA_STICKERS = Array.from({ length: 50 }, (_, i) => {
+      const id = i + 1;
+      return {
+        id,
+        name: `Ottiee 貼紙 #${String(id).padStart(2, '0')}`,
+        emoji: '🦦',
+        photo: null,
+        weight: 1
+      };
+    });
 
     const GACHA_COST = { normal: 30, lucky: 270 }; // lucky 而家係「連續抽十次」嘅一次過總收費
 
-    function gachaRoll(type) {
-      const pool = GACHA_PRIZES[type];
-      const total = pool.reduce((s, p) => s + p.weight, 0);
+    function stickerRoll() {
+      const pool = GACHA_STICKERS;
+      const total = pool.reduce((s, p) => s + (parseFloat(p.weight) || 0), 0);
       let rand = Math.random() * total;
-      for (const prize of pool) {
-        rand -= prize.weight;
-        if (rand <= 0) return prize;
+      for (const st of pool) {
+        rand -= (parseFloat(st.weight) || 0);
+        if (rand <= 0) return st;
       }
       return pool[pool.length - 1];
     }
+
+    // ---------- 貼紙擁有狀態（儲喺 users/{uid} 文件嘅 ownedStickers 呢個
+    // map 度，key 係貼紙 id，value 係擁有數量）----------
+    function getOwnedStickerCount(id) {
+      const owned = (window.currentUser && window.currentUser.ownedStickers) || {};
+      return owned[id] || 0;
+    }
+
+    function getOwnedStickerTypeCount() {
+      const owned = (window.currentUser && window.currentUser.ownedStickers) || {};
+      return Object.keys(owned).filter(k => (owned[k] || 0) > 0).length;
+    }
+
+    // 一次過將幾隻貼紙（可以係同一隻抽中好多次，會 aggregate 埋一齊）
+    // 寫返落 window.currentUser（畫面即刻反映）同 Firestore（背景同步，
+    // 用 dotted-path + increment，唔存在嘅話會自動由 0 開始計）。
+    function awardStickers(list) {
+      if (!window.currentUser) window.currentUser = {};
+      if (!window.currentUser.ownedStickers) window.currentUser.ownedStickers = {};
+      const payload = {};
+      list.forEach(({ id, count }) => {
+        window.currentUser.ownedStickers[id] = (window.currentUser.ownedStickers[id] || 0) + count;
+        if (window.fs) payload['ownedStickers.' + id] = window.fs.increment(count);
+      });
+      if (window.currentUser.uid && window.db && window.fs && Object.keys(payload).length) {
+        window.fs.updateDoc(window.fs.doc(window.db, 'users', window.currentUser.uid), payload)
+          .catch((e) => console.warn('貼紙收藏未能同步去 Firestore：', e));
+      }
+    }
+
+    function updateStickerProgressUI() {
+      const total = GACHA_STICKERS.length;
+      const owned = getOwnedStickerTypeCount();
+      const pct = total > 0 ? Math.round(owned / total * 100) : 0;
+      const bar = document.getElementById('sticker-progress-bar');
+      if (bar) bar.style.width = pct + '%';
+      const txt = document.getElementById('sticker-progress-text');
+      if (txt) txt.innerText = `${owned}/${total}`;
+      const modalTxt = document.getElementById('sticker-modal-progress-text');
+      if (modalTxt) modalTxt.innerText = `${owned}/${total}`;
+    }
+    window.updateStickerProgressUI = updateStickerProgressUI;
+
+    function renderStickerCollectionGrid() {
+      const grid = document.getElementById('sticker-collection-grid');
+      if (!grid) return;
+      const owned = (window.currentUser && window.currentUser.ownedStickers) || {};
+      grid.innerHTML = GACHA_STICKERS.map(st => {
+        const count = owned[st.id] || 0;
+        if (count > 0) {
+          const thumb = st.photo
+            ? `<img src="${st.photo}" style="width:100%; aspect-ratio:1; object-fit:cover; border-radius:8px;">`
+            : `<div style="font-size:28px;">${escapeHtml(st.emoji || '🦦')}</div>`;
+          return `
+            <div style="text-align:center; background:#F0F6F8; border:2px solid #7DB8C5; border-radius:10px; padding:6px 4px;">
+              ${thumb}
+              <div style="font-size:12px; font-weight:bold; color:#2F6070; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(st.name || '')}</div>
+              <div style="font-size:11px; color:#7DB8C5;">×${count}</div>
+            </div>`;
+        }
+        return `
+          <div style="text-align:center; background:#EEE; border:2px dashed #CCC; border-radius:10px; padding:6px 4px;">
+            <div style="font-size:28px; color:#BBB;">❔</div>
+            <div style="font-size:12px; color:#AAA; margin-top:4px;">未收集</div>
+          </div>`;
+      }).join('');
+    }
+
+    function refreshCollectionBookIfOpen() {
+      updateStickerProgressUI();
+      const modal = document.getElementById('sticker-collection-modal');
+      if (modal && modal.style.display !== 'none') renderStickerCollectionGrid();
+    }
+
+    window.openStickerCollection = function() {
+      renderStickerCollectionGrid();
+      updateStickerProgressUI();
+      const modal = document.getElementById('sticker-collection-modal');
+      if (modal) modal.style.display = 'flex';
+    };
+    window.closeStickerCollection = function() {
+      const modal = document.getElementById('sticker-collection-modal');
+      if (modal) modal.style.display = 'none';
+    };
 
     function syncGachaPtsDisplay() {
       const pts = parseInt(document.getElementById('stat-points')?.innerText || '0');
@@ -3570,39 +3655,42 @@
       // 等震動動畫完成
       await new Promise(r => setTimeout(r, 500));
 
-      // 抽獎
-      const prize = gachaRoll(type);
+      // 抽獎：而家全部改成 Ottiee 貼紙，抽之前先記低呢隻之前擁有幾多張
+      // （0 即係「新貼紙」），抽完即刻寫返擁有狀態（畫面 + Firestore）。
+      const sticker = stickerRoll();
+      const wasOwnedCount = getOwnedStickerCount(sticker.id);
+      const isNew = wasOwnedCount === 0;
+      awardStickers([{ id: sticker.id, count: 1 }]);
 
       // 顯示結果（唔再有膠囊彈出/旋轉動畫，震動完即刻顯示結果）
-      resultBox.style.background = prize.bg;
-      resultBox.style.borderColor = prize.tierColor;
-      // 如果管理員有幫這個獎品上傳圖片，優先展示相片；沒有的話就繼續用返 emoji
+      resultBox.style.background = isNew ? '#FBEAE8' : '#F0F6F8';
+      resultBox.style.borderColor = isNew ? '#C0524A' : '#B3D6DE';
+      // 如果管理員有幫呢隻貼紙上傳圖片，優先展示相片；沒有的話就繼續用返 emoji
       const resultEmojiEl = document.getElementById('gacha-result-emoji');
-      if (prize.photo) {
-        resultEmojiEl.innerHTML = `<img src="${prize.photo}" alt="${escapeHtml(prize.name || '')}" style="width:88px; height:88px; object-fit:cover; border-radius:12px; border:2px solid ${prize.tierColor || '#2F6070'}; box-shadow:0 2px 8px rgba(0,0,0,.15);">`;
+      if (sticker.photo) {
+        resultEmojiEl.innerHTML = `<img src="${sticker.photo}" alt="${escapeHtml(sticker.name || '')}" style="width:88px; height:88px; object-fit:cover; border-radius:12px; border:2px solid #7DB8C5; box-shadow:0 2px 8px rgba(0,0,0,.15);">`;
       } else {
         resultEmojiEl.innerHTML = '';
-        resultEmojiEl.innerText = prize.emoji;
+        resultEmojiEl.innerText = sticker.emoji || '🦦';
       }
-      document.getElementById('gacha-result-tier').innerText = prize.tier;
-      document.getElementById('gacha-result-tier').style.color = prize.tierColor;
-      document.getElementById('gacha-result-name').innerText = prize.name;
-      document.getElementById('gacha-result-desc').innerText = prize.desc;
+      const tierEl = document.getElementById('gacha-result-tier');
+      tierEl.innerText = isNew ? '🆕 新貼紙！' : `已擁有 ×${wasOwnedCount + 1}`;
+      tierEl.style.color = isNew ? '#C0524A' : '#2F6070';
+      document.getElementById('gacha-result-name').innerText = sticker.name;
+      document.getElementById('gacha-result-desc').innerText = `貼紙圖鑑收集進度：${getOwnedStickerTypeCount()}/${GACHA_STICKERS.length}`;
 
       // 顯示彈出視窗：置中／背景遮罩／5 秒後自動關閉都喺 showGachaSingleResult
       // 呢個共用 helper 入面處理（同「連續抽十次」嗰個彈窗行為完全一致）
       showGachaSingleResult();
 
-      // 傳說獎撒花
-      if (prize.tier === '傳說獎') {
-        window.showToast(`🎊 恭喜！抽到傳說獎「${prize.name}」！！`, '👑');
-      } else if (prize.tier === '稀有獎') {
-        window.showToast(`✨ 稀有！抽到「${prize.name}」！`, '💎');
+      if (isNew) {
+        window.showToast(`🎉 恭喜！抽到新貼紙「${sticker.name}」！`, '🆕');
       }
 
       // 加入歷史記錄（本頁顯示 + 儲存去 Firestore 給個人資料頁查閱）
-      addGachaHistory(prize, type);
-      saveGachaHistoryToFirestore(prize, type);
+      addGachaHistory(sticker, type, undefined, isNew);
+      saveGachaHistoryToFirestore(sticker, type, undefined, isNew);
+      refreshCollectionBookIfOpen();
     };
 
     // 扭蛋結果彈出視窗（單抽同「連續抽十次」兩個都用返呢一套）：置中／
@@ -3704,64 +3792,83 @@
 
       await new Promise(r => setTimeout(r, 500));
 
-      // 連續抽 10 次（用返 lucky 池嘅機率），每次獨立 roll
-      const prizes = Array.from({ length: 10 }, () => gachaRoll('lucky'));
+      // 連續抽 10 次貼紙，每次獨立 roll。先喺本機複製一份目前擁有狀態
+      // （localOwned）嚟逐次模擬，先至知呢 10 抽入面邊幾張係「新貼紙」
+      // （例如同一隻連中兩次，第一次係新、第二次唔係），最後先將 10 抽
+      // 嘅結果 aggregate（同一隻貼紙攞幾多次加埋）做一次過嘅 Firestore
+      // 寫入，唔使開 10 次連線。
+      const localOwned = Object.assign({}, (window.currentUser && window.currentUser.ownedStickers) || {});
+      const rolls = [];
+      for (let i = 0; i < 10; i++) {
+        const sticker = stickerRoll();
+        const wasOwnedCount = localOwned[sticker.id] || 0;
+        const isNew = wasOwnedCount === 0;
+        localOwned[sticker.id] = wasOwnedCount + 1;
+        rolls.push({ sticker, isNew, ownedCountAfter: localOwned[sticker.id] });
+      }
       // 存低成組結果，等用戶撳任何一格圖片放大睇嗰陣（見
       // window.showGachaPrizeDetail）攞得返完整資料
-      window._lastGachaBatchPrizes = prizes;
+      window._lastGachaBatchPrizes = rolls;
+
+      const counts = {};
+      rolls.forEach(({ sticker }) => { counts[sticker.id] = (counts[sticker.id] || 0) + 1; });
+      awardStickers(Object.keys(counts).map(id => ({ id, count: counts[id] })));
 
       const gridEl = document.getElementById('gacha-result-batch-grid');
-      gridEl.innerHTML = prizes.map((prize, idx) => {
-        const thumb = prize.photo
-          ? `<img src="${prize.photo}" alt="${escapeHtml(prize.name || '')}" style="width:38px; height:38px; object-fit:cover; border-radius:8px;">`
-          : `<span style="font-size:30px;">${escapeHtml(prize.emoji || '🎁')}</span>`;
+      gridEl.innerHTML = rolls.map(({ sticker, isNew, ownedCountAfter }, idx) => {
+        const thumb = sticker.photo
+          ? `<img src="${sticker.photo}" alt="${escapeHtml(sticker.name || '')}" style="width:38px; height:38px; object-fit:cover; border-radius:8px;">`
+          : `<span style="font-size:30px;">${escapeHtml(sticker.emoji || '🦦')}</span>`;
+        const badgeColor = isNew ? '#C0524A' : '#2F6070';
+        const badgeText = isNew ? '🆕 新貼紙' : `×${ownedCountAfter}`;
         return `
-          <div onclick="showGachaPrizeDetail(${idx})" style="cursor:pointer; background:${prize.bg}; border:2px solid ${prize.tierColor}; border-radius:12px; padding:8px 4px; text-align:center;" title="撳落放大睇：${escapeHtml(prize.tier || '')}：${escapeHtml(prize.name || '')}">
+          <div onclick="showGachaPrizeDetail(${idx})" style="cursor:pointer; background:${isNew ? '#FBEAE8' : '#F0F6F8'}; border:2px solid ${badgeColor}; border-radius:12px; padding:8px 4px; text-align:center;" title="撳落放大睇：${escapeHtml(sticker.name || '')}">
             <div>${thumb}</div>
-            <div style="font-size:14px; font-weight:bold; color:${prize.tierColor}; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(prize.tier || '')}</div>
+            <div style="font-size:13px; font-weight:bold; color:${badgeColor}; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${badgeText}</div>
           </div>`;
       }).join('');
       // 顯示彈出視窗：置中／背景遮罩／8 秒後自動關閉都喺 showGachaBatchResult
       // 呢個共用 helper 入面處理（同單抽嗰個彈窗行為完全一致）
       showGachaBatchResult();
 
-      const legendaryCount = prizes.filter(p => p.tier === '傳說獎').length;
-      const rareCount = prizes.filter(p => p.tier === '稀有獎').length;
-      if (legendaryCount > 0) {
-        window.showToast(`🎊 恭喜！十連抽入面中咗 ${legendaryCount} 個傳說獎！！`, '👑');
-      } else if (rareCount > 0) {
-        window.showToast(`✨ 十連抽入面中咗 ${rareCount} 個稀有獎！`, '💎');
+      const newCount = rolls.filter(r => r.isNew).length;
+      if (newCount > 0) {
+        window.showToast(`🎉 十連抽入面攞到 ${newCount} 張新貼紙！`, '🆕');
+      } else {
+        window.showToast('十連抽完成，今次全部都係已擁有嘅貼紙～', '🔁');
       }
 
       // 10 條歷史記錄一齊寫入；總費用只記喺第一條（避免個人資料頁「總支出」
       // 睇落好似扣咗 10 次 270 咁多），其餘 9 條 cost 記做 0
-      prizes.forEach((prize, i) => {
-        addGachaHistory(prize, 'lucky', i === 0 ? cost : 0);
-        saveGachaHistoryToFirestore(prize, 'lucky', i === 0 ? cost : 0);
+      rolls.forEach(({ sticker, isNew }, i) => {
+        addGachaHistory(sticker, 'lucky', i === 0 ? cost : 0, isNew);
+        saveGachaHistoryToFirestore(sticker, 'lucky', i === 0 ? cost : 0, isNew);
       });
+      refreshCollectionBookIfOpen();
     }
 
-    // 撳十連抽 grid 入面任何一格獎品，放大顯示嗰個獎品嘅圖片／emoji、
-    // 等級、名稱、描述。撳背景或者「關閉」掣先返返去。
+    // 撳十連抽 grid 入面任何一格貼紙，放大顯示嗰隻貼紙嘅圖片／emoji、
+    // 新/舊狀態、名稱、收集進度。撳背景或者「關閉」掣先返返去。
     window.showGachaPrizeDetail = function(idx) {
-      const prize = (window._lastGachaBatchPrizes || [])[idx];
-      if (!prize) return;
+      const entry = (window._lastGachaBatchPrizes || [])[idx];
+      if (!entry) return;
+      const { sticker, isNew, ownedCountAfter } = entry;
       // 打開放大燈箱之後就取消個「8 秒自動關閉」計時器，等使用者慢慢睇，
       // 唔會睇到一半十連抽結果視窗自己收埋咗
       clearTimeout(window._gachaResultAutoCloseTimer);
 
       const emojiEl = document.getElementById('gacha-lightbox-emoji');
-      if (prize.photo) {
-        emojiEl.innerHTML = `<img src="${prize.photo}" alt="${escapeHtml(prize.name || '')}" style="width:120px; height:120px; object-fit:cover; border-radius:14px; border:2px solid ${prize.tierColor || '#2F6070'};">`;
+      if (sticker.photo) {
+        emojiEl.innerHTML = `<img src="${sticker.photo}" alt="${escapeHtml(sticker.name || '')}" style="width:120px; height:120px; object-fit:cover; border-radius:14px; border:2px solid #7DB8C5;">`;
       } else {
         emojiEl.innerHTML = '';
-        emojiEl.innerText = prize.emoji || '🎁';
+        emojiEl.innerText = sticker.emoji || '🦦';
       }
       const tierEl = document.getElementById('gacha-lightbox-tier');
-      tierEl.innerText = prize.tier || '';
-      tierEl.style.color = prize.tierColor || '#2F6070';
-      document.getElementById('gacha-lightbox-name').innerText = prize.name || '';
-      document.getElementById('gacha-lightbox-desc').innerText = prize.desc || '';
+      tierEl.innerText = isNew ? '🆕 新貼紙！' : `已擁有 ×${ownedCountAfter}`;
+      tierEl.style.color = isNew ? '#C0524A' : '#2F6070';
+      document.getElementById('gacha-lightbox-name').innerText = sticker.name || '';
+      document.getElementById('gacha-lightbox-desc').innerText = `貼紙圖鑑收集進度：${getOwnedStickerTypeCount()}/${GACHA_STICKERS.length}`;
       document.getElementById('gacha-prize-lightbox').style.display = 'flex';
     };
 
@@ -3772,18 +3879,19 @@
 
     // 將中獎記錄寫入 Firestore，給用家可以在「個人資料」頁隨時查返自己的中獎記錄。
     // costOverride：得「連續抽十次」會傳呢個參數（見 doGachaBatch），
-    // 唔傳嘅話就沿用返 GACHA_COST[type] 嘅單抽費用。
-    async function saveGachaHistoryToFirestore(prize, type, costOverride) {
+    // 唔傳嘅話就沿用返 GACHA_COST[type] 嘅單抽費用。isNew：呢次抽中嗰陣
+    // 係咪呢隻貼紙第一次擁有（用嚟喺個人資料頁分辨「新貼紙」定「重複」）。
+    async function saveGachaHistoryToFirestore(sticker, type, costOverride, isNew) {
       try {
         if (!window.currentUser || !window.currentUser.uid || !window.fs || !window.db) return;
         await window.fs.addDoc(
           window.fs.collection(window.db, 'users', window.currentUser.uid, 'gachaHistory'),
           {
-            tier: prize.tier || '',
-            name: prize.name || '',
-            desc: prize.desc || '',
-            emoji: prize.emoji || '🎁',
-            tierColor: prize.tierColor || '#2F6070',
+            stickerId: sticker.id,
+            name: sticker.name || '',
+            emoji: sticker.emoji || '🦦',
+            photo: sticker.photo || null,
+            isNew: !!isNew,
             type: type,
             cost: typeof costOverride === 'number' ? costOverride : (GACHA_COST[type] || 0),
             ts: Date.now()
@@ -3826,11 +3934,14 @@
         }
         listEl.innerHTML = entries.map(e => {
           const time = e.ts ? new Date(e.ts).toLocaleString('zh-HK', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+          const thumb = e.photo
+            ? `<img src="${e.photo}" style="width:20px; height:20px; object-fit:cover; border-radius:6px;">`
+            : `<span style="font-size:20px;">${escapeHtml(e.emoji || '🦦')}</span>`;
           return `
             <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px; background:#F0F6F8; border:1px solid #B3D6DE55;">
-              <span style="font-size:20px;">${escapeHtml(e.emoji || '🎁')}</span>
+              ${thumb}
               <div style="flex:1;">
-                <strong style="color:${escapeHtml(e.tierColor || '#2F6070')};">${escapeHtml(e.tier || '')}</strong> · ${escapeHtml(e.name || '')}
+                <strong style="color:${e.isNew ? '#C0524A' : '#2F6070'};">${e.isNew ? '🆕 新貼紙' : '重複'}</strong> · ${escapeHtml(e.name || '')}
                 <div style="color:#7DB8C5; font-size:13px;">${e.type === 'lucky' ? '🎉 十連抽' : '🎯 抽一次'} · ${time} · -${e.cost || 0} PTS</div>
               </div>
             </div>`;
@@ -3854,13 +3965,13 @@
     let gachaHistoryVisibleCount = 10;
     const GACHA_HISTORY_PAGE_SIZE = 10;
 
-    function addGachaHistory(prize, type, costOverride) {
+    function addGachaHistory(sticker, type, costOverride, isNew) {
       const card = document.getElementById('gacha-history-card');
       if (!card) return;
 
       const cost = typeof costOverride === 'number' ? costOverride : GACHA_COST[type];
       const time = new Date().toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit' });
-      gachaHistoryEntries.unshift({ prize, type, cost, time });
+      gachaHistoryEntries.unshift({ sticker, type, cost, time, isNew: !!isNew });
       renderGachaHistoryList();
     }
 
@@ -3877,15 +3988,20 @@
       card.style.display = 'block';
 
       const visible = gachaHistoryEntries.slice(0, gachaHistoryVisibleCount);
-      list.innerHTML = visible.map(({ prize, type, cost, time }) => `
-        <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px; background:${prize.bg}; border:1px solid ${prize.tierColor}33;">
-          <span style="font-size:20px;">${escapeHtml(prize.emoji || '🎁')}</span>
+      list.innerHTML = visible.map(({ sticker, type, cost, time, isNew }) => {
+        const thumb = sticker.photo
+          ? `<img src="${sticker.photo}" style="width:20px; height:20px; object-fit:cover; border-radius:6px;">`
+          : `<span style="font-size:20px;">${escapeHtml(sticker.emoji || '🦦')}</span>`;
+        const color = isNew ? '#C0524A' : '#2F6070';
+        return `
+        <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px; background:${isNew ? '#FBEAE8' : '#F0F6F8'}; border:1px solid ${color}33;">
+          ${thumb}
           <div style="flex:1;">
-            <strong style="color:${prize.tierColor};">${escapeHtml(prize.tier || '')}</strong> · ${escapeHtml(prize.name || '')}
+            <strong style="color:${color};">${isNew ? '🆕 新貼紙' : '重複'}</strong> · ${escapeHtml(sticker.name || '')}
             <div style="color:#7DB8C5; font-size:13px;">${type === 'lucky' ? '🎉 十連抽' : '🎯 抽一次'} · ${time} · -${cost} PTS</div>
           </div>
-        </div>
-      `).join('');
+        </div>`;
+      }).join('');
 
       if (moreBtn) {
         moreBtn.style.display = gachaHistoryEntries.length > gachaHistoryVisibleCount ? 'block' : 'none';
@@ -8829,14 +8945,18 @@
       else if (tab === 'reports') renderAdminReportsTab();
     };
 
-    // ---------- 扭蛋機獎品管理 ----------
-    // 扭蛋機獎品／收費而家改為由 Firestore（admin_config/gacha 文件）讀取，
+    // ---------- 扭蛋機貼紙管理 ----------
+    // 扭蛋機貼紙／收費而家改為由 Firestore（admin_config/gacha 文件）讀取，
     // 管理員喺呢度改完撳「儲存」，全站用戶即時生效，唔使再改碼、推 GitHub。
+    // 扭蛋獎品已由舊有嘅實物獎（普通/幸運兩個獎池）完全取代做單一嘅
+    // Ottiee 貼紙收集池——每格代表一隻貼紙（id 由 1 開始編號，唔可以喺
+    // 呢度改，靠佢嚟同用戶端嘅 ownedStickers 對應），可以自行新增／刪除
+    // 貼紙格去增減收集圖鑑嘅總數。
     let adminGachaDraft = null;
 
     // Firestore 個 onSnapshot 監聽係非同步嘅，一入嚟 #admin 嗰刻（尤其係
     // 重新整理成頁之後）好可能仲未攞到最新資料返嚟。如果呢個時候就即刻用
-    // 「當下嗰吓」嘅 GACHA_PRIZES/GACHA_COST 去起草稿，就會執到程式碼入面
+    // 「當下嗰吓」嘅 GACHA_STICKERS/GACHA_COST 去起草稿，就會執到程式碼入面
     // 寫死嘅預設值，唔係你之前儲存低嗰份——睇落好似「撳完儲存但冇儲到」，
     // 其實係讀返嗰下捉錯咗時機。用呢個 flag 確保一定要等 Firestore 真係
     // 讀完一次先起草稿。
@@ -8852,41 +8972,40 @@
           return; // Firestore 資料一到，loadGachaConfigFromFirestore() 會自動再 render 多次
         }
         adminGachaDraft = {
-          normal: JSON.parse(JSON.stringify(GACHA_PRIZES.normal)),
-          lucky: JSON.parse(JSON.stringify(GACHA_PRIZES.lucky)),
+          stickers: JSON.parse(JSON.stringify(GACHA_STICKERS)),
           costNormal: GACHA_COST.normal,
           costLucky: GACHA_COST.lucky
         };
       }
 
-      function renderPoolTable(poolKey, poolLabel) {
-        const totalWeight = adminGachaDraft[poolKey].reduce((s, p) => s + (parseFloat(p.weight) || 0), 0);
+      function renderStickerTable() {
+        const pool = adminGachaDraft.stickers;
+        const totalWeight = pool.reduce((s, p) => s + (parseFloat(p.weight) || 0), 0);
 
-        const rows = adminGachaDraft[poolKey].map((p, idx) => {
+        const rows = pool.map((p, idx) => {
           const pct = totalWeight > 0 ? ((parseFloat(p.weight) || 0) / totalWeight * 100).toFixed(1) : '0.0';
-          const thumbId = `admin-gacha-thumb-${poolKey}-${idx}`;
-          const inputId = `admin-gacha-photo-input-${poolKey}-${idx}`;
+          const thumbId = `admin-gacha-thumb-${idx}`;
+          const inputId = `admin-gacha-photo-input-${idx}`;
           const thumbInner = p.photo
             ? `<img src="${p.photo}" style="width:44px; height:44px; object-fit:cover; border-radius:8px;">`
-            : `<span style="font-size:20px;">${escapeHtml(p.emoji || '🎁')}</span>`;
+            : `<span style="font-size:20px;">${escapeHtml(p.emoji || '🦦')}</span>`;
           return `
           <tr>
+            <td style="text-align:center; color:#888; font-size:13px;">#${p.id}</td>
             <td>
               <div style="display:flex; flex-direction:column; align-items:center; gap:3px;">
                 <div id="${thumbId}" onclick="document.getElementById('${inputId}').click()" title="撳這裡上傳圖片" style="width:44px; height:44px; border-radius:8px; background:#F0F6F8; border:1px dashed #B3D6DE; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden;">${thumbInner}</div>
-                <input type="file" accept="image/*" id="${inputId}" style="display:none;" onchange="adminUploadGachaPhoto('${poolKey}',${idx},this)">
-                ${p.photo ? `<button type="button" class="btn btn-outline" style="font-size:13px; padding:1px 6px;" onclick="adminRemoveGachaPhoto('${poolKey}',${idx})">移除圖片</button>` : ''}
+                <input type="file" accept="image/*" id="${inputId}" style="display:none;" onchange="adminUploadGachaPhoto(${idx},this)">
+                ${p.photo ? `<button type="button" class="btn btn-outline" style="font-size:13px; padding:1px 6px;" onclick="adminRemoveGachaPhoto(${idx})">移除圖片</button>` : ''}
               </div>
             </td>
-            <td><input class="admin-input-sm" style="width:50px;" value="${escapeHtml(p.emoji || '')}" onchange="adminUpdateGachaField('${poolKey}',${idx},'emoji',this.value)"></td>
-            <td><input class="admin-input-sm" style="width:70px;" value="${escapeHtml(p.tier || '')}" onchange="adminUpdateGachaField('${poolKey}',${idx},'tier',this.value)"></td>
-            <td><input class="admin-input-sm" value="${escapeHtml(p.name || '')}" onchange="adminUpdateGachaField('${poolKey}',${idx},'name',this.value)"></td>
-            <td><input class="admin-input-sm" value="${escapeHtml(p.desc || '')}" onchange="adminUpdateGachaField('${poolKey}',${idx},'desc',this.value)"></td>
+            <td><input class="admin-input-sm" style="width:50px;" value="${escapeHtml(p.emoji || '')}" onchange="adminUpdateGachaField(${idx},'emoji',this.value)"></td>
+            <td><input class="admin-input-sm" value="${escapeHtml(p.name || '')}" onchange="adminUpdateGachaField(${idx},'name',this.value)"></td>
             <td>
-              <input class="admin-input-sm" type="number" min="0" style="width:70px;" value="${p.weight || 0}" oninput="adminUpdateGachaWeightLive('${poolKey}',${idx},this.value)">
-              <div id="admin-gacha-pct-${poolKey}-${idx}" style="font-size:13px; color:#888; margin-top:2px; white-space:nowrap;">≈ ${pct}%</div>
+              <input class="admin-input-sm" type="number" min="0" style="width:70px;" value="${p.weight || 0}" oninput="adminUpdateGachaWeightLive(${idx},this.value)">
+              <div id="admin-gacha-pct-${idx}" style="font-size:13px; color:#888; margin-top:2px; white-space:nowrap;">≈ ${pct}%</div>
             </td>
-            <td><button class="btn btn-red" style="padding:3px 8px; font-size:13px;" onclick="adminRemoveGachaPrize('${poolKey}',${idx})">🗑️</button></td>
+            <td><button class="btn btn-red" style="padding:3px 8px; font-size:13px;" onclick="adminRemoveGachaPrize(${idx})">🗑️</button></td>
           </tr>
         `;
         }).join('');
@@ -8894,19 +9013,20 @@
         return `
           <div class="admin-card">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
-              <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800);">${poolLabel}</h3>
+              <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800);">🦦 Ottiee 貼紙圖鑑（共 ${pool.length} 隻）</h3>
               <div style="display:flex; gap:6px;">
-                <button class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="adminNormalizeGachaWeights('${poolKey}')">⚖️ 調整做啱好 100</button>
-                <button class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="adminAddGachaPrize('${poolKey}')">➕ 新增獎品</button>
+                <button class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="adminNormalizeGachaWeights()">⚖️ 調整做啱好 100</button>
+                <button class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="adminAddGachaPrize()">➕ 新增貼紙</button>
               </div>
             </div>
+            <p style="font-size:13px; color:#888; margin-bottom:8px;">貼紙編號（#id）係固定嘅，對應用戶收集圖鑑嘅位置，唔可以改；「新增貼紙」會自動排喺最尾一個新編號。</p>
             <div style="overflow-x:auto;">
               <table class="admin-table">
-                <thead><tr><th>圖片</th><th>Emoji</th><th>等級</th><th>獎品名稱</th><th>描述</th><th>機率權重</th><th></th></tr></thead>
-                <tbody>${rows || '<tr><td colspan="7" style="text-align:center; color:#999; padding:16px;">未有獎品，撳「新增獎品」開始</td></tr>'}</tbody>
+                <thead><tr><th>#</th><th>圖片</th><th>Emoji</th><th>貼紙名稱</th><th>機率權重</th><th></th></tr></thead>
+                <tbody>${rows || '<tr><td colspan="6" style="text-align:center; color:#999; padding:16px;">未有貼紙，撳「新增貼紙」開始</td></tr>'}</tbody>
               </table>
             </div>
-            <p style="font-size:13px; color:#888; margin-top:8px;">總權重：<span id="admin-gacha-total-${poolKey}">${totalWeight}</span>（右邊「≈ %」欄會在你打緊數字嗰陣即時更新，撳「調整做啱好 100」會將所有權重等比例縮放到啱啱好加埋等於 100，之後那個 % 就會同權重數字一致）</p>
+            <p style="font-size:13px; color:#888; margin-top:8px;">總權重：<span id="admin-gacha-total">${totalWeight}</span>（右邊「≈ %」欄會在你打緊數字嗰陣即時更新，撳「調整做啱好 100」會將所有權重等比例縮放到啱啱好加埋等於 100，之後那個 % 就會同權重數字一致）</p>
           </div>
         `;
       }
@@ -8920,8 +9040,7 @@
           </div>
         </div>
 
-        ${renderPoolTable('normal', '🎰 普通扭蛋獎池')}
-        ${renderPoolTable('lucky', '✨ 幸運扭蛋獎池')}
+        ${renderStickerTable()}
 
         <div style="display:flex; gap:8px; justify-content:flex-end;">
           <button class="btn btn-outline" type="button" onclick="adminResetGachaDraft()">↩️ 還原未儲存的改動</button>
@@ -8931,31 +9050,31 @@
     }
     window.renderAdminGachaTab = renderAdminGachaTab;
 
-    window.adminUpdateGachaField = function(poolKey, idx, field, value) {
-      if (!adminGachaDraft || !adminGachaDraft[poolKey] || !adminGachaDraft[poolKey][idx]) return;
-      adminGachaDraft[poolKey][idx][field] = value;
+    window.adminUpdateGachaField = function(idx, field, value) {
+      if (!adminGachaDraft || !adminGachaDraft.stickers[idx]) return;
+      adminGachaDraft.stickers[idx][field] = value;
     };
 
     // 權重輸入格用 oninput（打緊字每一下都觸發，唔使等 blur 先算），
-    // 即時更新草稿數值，再直接用 DOM 改返個 pool 入面每一行嘅「≈ %」同
-    // 「總權重」文字——特登唔用重新 render 成個表格嘅方式，否則打緊字
-    // 嗰陣個輸入格會因為 innerHTML 被重寫而失去焦點／游標位置。
-    window.adminUpdateGachaWeightLive = function(poolKey, idx, rawValue) {
-      if (!adminGachaDraft || !adminGachaDraft[poolKey] || !adminGachaDraft[poolKey][idx]) return;
-      adminGachaDraft[poolKey][idx].weight = parseFloat(rawValue) || 0;
+    // 即時更新草稿數值，再直接用 DOM 改返每一行嘅「≈ %」同「總權重」
+    // 文字——特登唔用重新 render 成個表格嘅方式，否則打緊字嗰陣個輸入格
+    // 會因為 innerHTML 被重寫而失去焦點／游標位置。
+    window.adminUpdateGachaWeightLive = function(idx, rawValue) {
+      if (!adminGachaDraft || !adminGachaDraft.stickers[idx]) return;
+      adminGachaDraft.stickers[idx].weight = parseFloat(rawValue) || 0;
 
-      const pool = adminGachaDraft[poolKey];
+      const pool = adminGachaDraft.stickers;
       const total = pool.reduce((s, p) => s + (parseFloat(p.weight) || 0), 0);
 
       pool.forEach((p, i) => {
-        const pctEl = document.getElementById(`admin-gacha-pct-${poolKey}-${i}`);
+        const pctEl = document.getElementById(`admin-gacha-pct-${i}`);
         if (pctEl) {
           const pct = total > 0 ? ((parseFloat(p.weight) || 0) / total * 100).toFixed(1) : '0.0';
           pctEl.innerText = `≈ ${pct}%`;
         }
       });
 
-      const totalEl = document.getElementById(`admin-gacha-total-${poolKey}`);
+      const totalEl = document.getElementById('admin-gacha-total');
       if (totalEl) totalEl.innerText = total;
     };
 
@@ -8982,8 +9101,8 @@
       });
     }
 
-    window.adminUploadGachaPhoto = async function(poolKey, idx, inputEl) {
-      if (!adminGachaDraft || !adminGachaDraft[poolKey] || !adminGachaDraft[poolKey][idx]) return;
+    window.adminUploadGachaPhoto = async function(idx, inputEl) {
+      if (!adminGachaDraft || !adminGachaDraft.stickers[idx]) return;
       const file = inputEl.files && inputEl.files[0];
       if (!file) return;
       if (!file.type.startsWith('image/')) {
@@ -8992,25 +9111,25 @@
       }
       try {
         const dataUrl = await compressImageFileToDataURL(file, 300, 0.75);
-        adminGachaDraft[poolKey][idx].photo = dataUrl;
+        adminGachaDraft.stickers[idx].photo = dataUrl;
         renderAdminGachaTab();
       } catch (err) {
         window.showToast('圖片讀取失敗，請再試一次', '❌');
       }
     };
 
-    window.adminRemoveGachaPhoto = function(poolKey, idx) {
-      if (!adminGachaDraft || !adminGachaDraft[poolKey] || !adminGachaDraft[poolKey][idx]) return;
-      delete adminGachaDraft[poolKey][idx].photo;
+    window.adminRemoveGachaPhoto = function(idx) {
+      if (!adminGachaDraft || !adminGachaDraft.stickers[idx]) return;
+      delete adminGachaDraft.stickers[idx].photo;
       renderAdminGachaTab();
     };
 
-    // 將某個獎池嘅所有權重等比例縮放，令佢哋啱啱好加埋等於 100，
+    // 將所有貼紙嘅權重等比例縮放，令佢哋啱啱好加埋等於 100，
     // 令「權重」同「機率 %」睇落一致，滿足想用 percentage 睇嘅需要，
-    // 同時內部繼續用返權重運算，加/減獎品都唔使手動重新分配其他行。
-    window.adminNormalizeGachaWeights = function(poolKey) {
-      if (!adminGachaDraft || !adminGachaDraft[poolKey] || !adminGachaDraft[poolKey].length) return;
-      const pool = adminGachaDraft[poolKey];
+    // 同時內部繼續用返權重運算，加/減貼紙都唔使手動重新分配其他行。
+    window.adminNormalizeGachaWeights = function() {
+      if (!adminGachaDraft || !adminGachaDraft.stickers.length) return;
+      const pool = adminGachaDraft.stickers;
       const total = pool.reduce((s, p) => s + (parseFloat(p.weight) || 0), 0);
       if (total <= 0) {
         window.showToast('所有權重都是 0，沒辦法調整', '⚠️');
@@ -9032,16 +9151,18 @@
       window.showToast('已將權重調整做啱好加埋等於 100', '⚖️');
     };
 
-    window.adminAddGachaPrize = function(poolKey) {
+    window.adminAddGachaPrize = function() {
       if (!adminGachaDraft) return;
-      adminGachaDraft[poolKey].push({ tier: '普通獎', tierColor: '#2F6070', bg: '#D9EBEF', emoji: '🎁', name: '新獎品', desc: '', weight: 10 });
+      const pool = adminGachaDraft.stickers;
+      const nextId = pool.length ? Math.max(...pool.map(p => p.id || 0)) + 1 : 1;
+      pool.push({ id: nextId, emoji: '🦦', name: `Ottiee 貼紙 #${String(nextId).padStart(2, '0')}`, photo: null, weight: 1 });
       renderAdminGachaTab();
     };
 
-    window.adminRemoveGachaPrize = function(poolKey, idx) {
+    window.adminRemoveGachaPrize = function(idx) {
       if (!adminGachaDraft) return;
-      if (!confirm('確定刪除這個獎品？')) return;
-      adminGachaDraft[poolKey].splice(idx, 1);
+      if (!confirm('確定刪除這隻貼紙？已經有用戶擁有嘅話，佢哋收集紀錄入面呢隻貼紙會留返底但喺圖鑑度唔會再顯示。')) return;
+      adminGachaDraft.stickers.splice(idx, 1);
       renderAdminGachaTab();
     };
 
@@ -9053,13 +9174,12 @@
 
     window.adminSaveGachaConfig = async function() {
       if (!adminGachaDraft || !window.db || !window.fs) return;
-      if (adminGachaDraft.normal.length === 0 || adminGachaDraft.lucky.length === 0) {
-        window.showToast('兩個獎池都最少要有一個獎品先可以儲存', '⚠️');
+      if (adminGachaDraft.stickers.length === 0) {
+        window.showToast('最少要有一隻貼紙先可以儲存', '⚠️');
         return;
       }
       const payload = {
-        normal: adminGachaDraft.normal,
-        lucky: adminGachaDraft.lucky,
+        stickers: adminGachaDraft.stickers,
         costNormal: adminGachaDraft.costNormal,
         costLucky: adminGachaDraft.costLucky,
         updatedAt: Date.now(),
@@ -9067,13 +9187,15 @@
       };
 
       // Firestore 單一文件上限係 1MiB（呢個係 Firestore 硬性規定，冇得經設定
-      // 提高），而全部獎品（連圖片）而家都儲存喺同一份文件度。上傳圖片嗰陣
-      // 已經自動壓縮到好細，但如果一次過幫好多個獎品都上傳晒相片，加埋都
+      // 提高），而全部貼紙（連圖片）而家都儲存喺同一份文件度。上傳圖片嗰陣
+      // 已經自動壓縮到好細，但 50 隻貼紙如果幫大部分都上傳晒相片，加埋都
       // 可能踩線，所以呢度先計一計成份文件大約幾大，太大就即刻話俾你知，
-      // 好過真係俾 Firestore 拒絕先發現。
+      // 好過真係俾 Firestore 拒絕先發現。如果之後貼紙數量／相片再增加令
+      // 呢個文件經常踩線，建議改用「每隻貼紙一份 Firestore 文件」嘅設計
+      // （例如 stickers/{id} collection）嚟徹底解決呢個大小上限問題。
       const approxBytes = new Blob([JSON.stringify(payload)]).size;
       if (approxBytes > 900000) {
-        window.showToast(`資料太大（約 ${(approxBytes / 1024).toFixed(0)}KB，Firestore 單一文件上限是 1024KB），請幫少幾個獎品換相或者揀細些的相`, '⚠️');
+        window.showToast(`資料太大（約 ${(approxBytes / 1024).toFixed(0)}KB，Firestore 單一文件上限是 1024KB），請幫少幾隻貼紙換相或者揀細些的相`, '⚠️');
         return;
       }
 
@@ -9089,7 +9211,7 @@
       }
     };
 
-    // 讀取 Firestore 度嘅扭蛋機設定，覆蓋返 GACHA_PRIZES／GACHA_COST（如果未曾
+    // 讀取 Firestore 度嘅扭蛋機設定，覆蓋返 GACHA_STICKERS／GACHA_COST（如果未曾
     // 由管理員儲存過任何設定，就繼續用返程式碼入面寫死嘅預設值）。呢個要喺
     // 登入之後（有 window.db／window.fs）先可以叫，一開始 Firebase 未初始化
     // 之前無得讀。
@@ -9101,13 +9223,16 @@
       gachaConfigUnsubscribe = window.fs.onSnapshot(ref, (snap) => {
         if (snap.exists()) {
           const data = snap.data();
-          if (Array.isArray(data.normal) && data.normal.length) GACHA_PRIZES.normal = data.normal;
-          if (Array.isArray(data.lucky) && data.lucky.length) GACHA_PRIZES.lucky = data.lucky;
+          if (Array.isArray(data.stickers) && data.stickers.length) {
+            GACHA_STICKERS.length = 0;
+            GACHA_STICKERS.push(...data.stickers);
+          }
           if (typeof data.costNormal === 'number') GACHA_COST.normal = data.costNormal;
           if (typeof data.costLucky === 'number') GACHA_COST.lucky = data.costLucky;
         }
         gachaConfigLoaded = true;
         applyGachaCostToUI();
+        if (typeof updateStickerProgressUI === 'function') updateStickerProgressUI();
         // 如果管理員岩岩好打開緊「扭蛋機獎品」呢個分頁、又仲未開始編輯
         // （adminGachaDraft 仲係 null，即係岩岩好卡喺「載入緊...」嗰個畫面），
         // 而家攞到資料喇，即刻幫佢用返最新（剛儲存低嗰份）資料重新 render 一次，
