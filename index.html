@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.73.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.74.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -8999,7 +8999,6 @@
                 ${p.photo ? `<button type="button" class="btn btn-outline" style="font-size:13px; padding:1px 6px;" onclick="adminRemoveGachaPhoto(${idx})">移除圖片</button>` : ''}
               </div>
             </td>
-            <td><input class="admin-input-sm" style="width:50px;" value="${escapeHtml(p.emoji || '')}" onchange="adminUpdateGachaField(${idx},'emoji',this.value)"></td>
             <td><input class="admin-input-sm" value="${escapeHtml(p.name || '')}" onchange="adminUpdateGachaField(${idx},'name',this.value)"></td>
             <td>
               <input class="admin-input-sm" type="number" min="0" style="width:70px;" value="${p.weight || 0}" oninput="adminUpdateGachaWeightLive(${idx},this.value)">
@@ -9014,16 +9013,17 @@
           <div class="admin-card">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
               <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800);">🦦 Ottiee 貼紙圖鑑（共 ${pool.length} 隻）</h3>
-              <div style="display:flex; gap:6px;">
+              <div style="display:flex; gap:6px; flex-wrap:wrap;">
                 <button class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="adminNormalizeGachaWeights()">⚖️ 調整做啱好 100</button>
+                <button class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="adminRenumberGachaStickers()">🔢 重新排序編號</button>
                 <button class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="adminAddGachaPrize()">➕ 新增貼紙</button>
               </div>
             </div>
-            <p style="font-size:13px; color:#888; margin-bottom:8px;">貼紙編號（#id）係固定嘅，對應用戶收集圖鑑嘅位置，唔可以改；「新增貼紙」會自動排喺最尾一個新編號。</p>
+            <p style="font-size:13px; color:#888; margin-bottom:8px;">貼紙編號（#id）對應用戶收集圖鑑嘅位置，刪除貼紙之後編號會留返個缺口（例如刪走 #13~#17 之後就由 #12 跳去 #18），呢個唔影響扭蛋／收集功能，純粹畫面上唔靚。如果想執返靚佢，撳「🔢 重新排序編號」會將現存貼紙由上到下重新編做 1、2、3...連續號碼——但要留意：如果已經有真實學生扭過蛋、收藏緊某幾隻貼紙，重新編號會令佢哋原有嘅收藏對唔返新編號（貼紙會「變咗做另一隻」），所以呢個掣淨係啱喺未有學生正式用過、或者你肯接受洗牌返晒佢哋收藏記錄嗰陣先撳。</p>
             <div style="overflow-x:auto;">
               <table class="admin-table">
-                <thead><tr><th>#</th><th>圖片</th><th>Emoji</th><th>貼紙名稱</th><th>機率權重</th><th></th></tr></thead>
-                <tbody>${rows || '<tr><td colspan="6" style="text-align:center; color:#999; padding:16px;">未有貼紙，撳「新增貼紙」開始</td></tr>'}</tbody>
+                <thead><tr><th>#</th><th>圖片</th><th>貼紙名稱</th><th>機率權重</th><th></th></tr></thead>
+                <tbody>${rows || '<tr><td colspan="5" style="text-align:center; color:#999; padding:16px;">未有貼紙，撳「新增貼紙」開始</td></tr>'}</tbody>
               </table>
             </div>
             <p style="font-size:13px; color:#888; margin-top:8px;">總權重：<span id="admin-gacha-total">${totalWeight}</span>（右邊「≈ %」欄會在你打緊數字嗰陣即時更新，撳「調整做啱好 100」會將所有權重等比例縮放到啱啱好加埋等於 100，之後那個 % 就會同權重數字一致）</p>
@@ -9164,6 +9164,22 @@
       if (!confirm('確定刪除這隻貼紙？已經有用戶擁有嘅話，佢哋收集紀錄入面呢隻貼紙會留返底但喺圖鑑度唔會再顯示。')) return;
       adminGachaDraft.stickers.splice(idx, 1);
       renderAdminGachaTab();
+    };
+
+    // 將現存貼紙（跟返表格而家嘅先後次序）重新編做連續嘅 1、2、3...號碼，
+    // 執返因為刪除而留低嘅缺口（例如 #12 跳去 #18）。⚠️ 呢個操作會令
+    // 「舊編號」同「新編號」對唔返位——如果已經有真實用戶擁有緊某隻貼紙
+    // （即係佢哋 users/{uid}.ownedStickers 入面有嗰個舊 id 嘅紀錄），重新
+    // 編號之後嗰個 id 會變成對應緊另一隻貼紙，等於將佢哋原有嘅收藏「亂
+    // 掉」，唔係刪走但會變樣。所以特登喺按鈕嗰段文字、同呢度嘅 confirm
+    // 入面都講清楚呢個風險，等管理員自己衡量而家係咪安全時機（例如仲
+    // 未有學生正式扭過蛋）先撳。
+    window.adminRenumberGachaStickers = function() {
+      if (!adminGachaDraft || !adminGachaDraft.stickers.length) return;
+      if (!confirm('重新排序編號會將貼紙 id 由 1 開始重新連續編號。\n\n⚠️ 如果已經有真實學生用呢個扭蛋機扭過蛋、收藏緊某幾隻貼紙，佢哋原有嘅收藏會因為編號變咗而對唔返位（貼紙會「變咗做另一隻」）。如果仲未有學生正式用過，或者你肯接受洗牌返晒收藏記錄，先繼續。\n\n確定要重新編號？')) return;
+      adminGachaDraft.stickers.forEach((p, i) => { p.id = i + 1; });
+      renderAdminGachaTab();
+      window.showToast('已重新排序編號，記得撳「儲存全部改動」先會正式生效', '🔢');
     };
 
     window.adminResetGachaDraft = function() {
