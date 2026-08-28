@@ -1164,6 +1164,92 @@
       #chat-dock-panel { right: 12px; bottom: 150px; }
       .chat-window { width: calc(100vw - 24px); }
     }
+
+    /* ══════════ 未登入訪客 Landing Page（登入前主頁）══════════ */
+    .landing-btn { border: none; border-radius: 12px; padding: 15px 28px; font-size: 17px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: transform .15s ease, box-shadow .15s ease, background .15s ease; text-decoration: none; }
+    .landing-btn-primary { background: var(--brand-500); color: #fff; box-shadow: 0 4px 14px rgba(74,143,160,.32); }
+    .landing-btn-primary:hover { background: var(--brand-600); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(74,143,160,.4); }
+
+    .landing-container { max-width: 1160px; margin: 0 auto; padding: 0 40px; }
+
+    .landing-nav { position: sticky; top: 0; z-index: 10; background: rgba(255,255,255,.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--brand-200); }
+    .landing-nav-inner { max-width: 1160px; margin: 0 auto; padding: 14px 40px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .landing-nav-brand { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+    .landing-nav-logo { width: 46px; height: 46px; border-radius: 50%; border: 2px solid var(--brand-200); object-fit: cover; flex-shrink: 0; }
+    .landing-nav-title-group { display: flex; flex-direction: column; gap: 1px; }
+    .landing-nav-title { font-weight: 800; font-size: 20px; color: var(--brand-800); display: flex; align-items: center; gap: 8px; white-space: nowrap; line-height: 1.2; }
+    .landing-nav-badge { background: var(--brand-100); color: var(--brand-700); font-size: 13px; padding: 3px 9px; border-radius: 999px; font-weight: 700; white-space: nowrap; }
+    .landing-nav-tagline { font-size: 11px; font-weight: 600; letter-spacing: .03em; color: var(--brand-500); white-space: nowrap; }
+    .landing-nav-actions { display: flex; align-items: center; gap: 20px; flex-shrink: 0; }
+    .landing-nav-login { font-size: 16px; font-weight: 700; color: var(--brand-700); text-decoration: none; white-space: nowrap; cursor: pointer; background: none; border: none; padding: 0; font-family: inherit; }
+
+    .landing-hero { padding: 84px 0 104px; overflow: hidden; }
+    .landing-hero-inner { display: flex; align-items: center; gap: 56px; }
+    .landing-hero-text { flex: 1 1 480px; min-width: 0; }
+    .landing-eyebrow { display: inline-flex; align-items: center; gap: 8px; background: var(--brand-100); color: var(--brand-700); font-size: 15px; font-weight: 800; padding: 8px 16px; border-radius: 999px; margin-bottom: 24px; }
+    .landing-hero-h1 { font-size: 44px; line-height: 1.32; font-weight: 800; color: var(--brand-800); letter-spacing: -.01em; margin: 0 0 16px; }
+    .landing-hero-h1 span { display: block; white-space: nowrap; }
+    .landing-hero-slogan { font-size: 16px; font-weight: 800; letter-spacing: .04em; color: var(--brand-500); margin: 0 0 22px; }
+    .landing-hero-sub { font-size: 20px; line-height: 1.75; color: var(--brand-700); max-width: 520px; margin: 0 0 36px; }
+    .landing-hero-ctas { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+
+    .landing-hero-art { flex: 1 1 380px; min-width: 0; display: flex; flex-direction: column; align-items: center; }
+    .landing-hero-art-visual { position: relative; display: flex; align-items: center; justify-content: center; width: 440px; height: 440px; max-width: 100%; margin: 0 auto; }
+    .landing-hero-art-blob { position: absolute; width: 420px; height: 420px; border-radius: 50%; background: radial-gradient(circle at 34% 30%, var(--brand-100), var(--brand-50) 70%); z-index: 0; }
+    .landing-hero-art img { position: relative; z-index: 1; width: 320px; max-width: 76%; filter: drop-shadow(0 18px 30px rgba(30,69,80,.16)); }
+    .landing-hero-subjects { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+    .landing-hero-subject-tile { position: absolute; width: 64px; height: 64px; border-radius: 16px; background: #fff; border: 1px solid var(--brand-200); box-shadow: 0 8px 20px rgba(30,69,80,.12); display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; color: var(--brand-800); }
+    .landing-hero-subject-tile:nth-child(1) { top: 16%; left: 4%; transform: rotate(-10deg); }
+    .landing-hero-subject-tile:nth-child(2) { top: 48%; right: 4%; transform: rotate(8deg); }
+    .landing-hero-subject-tile:nth-child(3) { bottom: -4%; left: 30%; transform: rotate(-6deg); }
+
+    .landing-steps { background: var(--brand-50); padding: 96px 0; }
+    .landing-steps-head { text-align: center; max-width: 600px; margin: 0 auto 56px; }
+    .landing-steps-eyebrow { font-size: 15px; font-weight: 800; color: var(--brand-500); letter-spacing: .04em; margin: 0 0 12px; }
+    .landing-steps-h2 { font-size: 38px; font-weight: 800; color: var(--brand-800); margin: 0 0 14px; }
+    .landing-steps-sub { font-size: 18px; color: var(--brand-700); line-height: 1.65; margin: 0; }
+    .landing-steps-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 26px; }
+    .landing-step-card { position: relative; background: #fff; border: 1px solid var(--brand-200); border-radius: 20px; padding: 34px 28px; box-shadow: 0 4px 16px rgba(30,69,80,.05); display: flex; flex-direction: column; gap: 16px; }
+    .landing-step-num { position: absolute; top: -15px; left: 28px; width: 32px; height: 32px; border-radius: 50%; background: var(--brand-800); color: #fff; font-size: 15px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+    .landing-step-icon { width: 62px; height: 62px; border-radius: 16px; background: linear-gradient(135deg, var(--brand-500), var(--brand-700)); display: flex; align-items: center; justify-content: center; font-size: 30px; margin-top: 6px; }
+    .landing-step-title { font-size: 21px; font-weight: 800; color: var(--brand-800); margin: 0; }
+    .landing-step-desc { font-size: 16px; line-height: 1.7; color: var(--brand-700); margin: 0; }
+
+    .landing-cta-band { padding: 100px 0 108px; text-align: center; }
+    .landing-cta-h2 { font-size: 36px; font-weight: 800; color: var(--brand-800); margin: 0 0 16px; }
+    .landing-cta-sub { font-size: 18px; color: var(--brand-700); margin: 0 0 34px; }
+
+    @media (max-width: 860px) {
+      .landing-container, .landing-nav-inner { padding-left: 22px; padding-right: 22px; }
+      .landing-hero { padding: 48px 0 60px; }
+      .landing-hero-inner { flex-direction: column-reverse; gap: 44px; text-align: center; }
+      .landing-hero-text { max-width: 100%; }
+      .landing-hero-sub { margin-left: auto; margin-right: auto; font-size: 18px; }
+      .landing-hero-ctas { justify-content: center; }
+      .landing-hero-h1 { font-size: 32px; }
+      .landing-hero-h1 span { white-space: normal; }
+      .landing-hero-art-visual { width: 280px; height: 280px; }
+      .landing-hero-art-blob { width: 260px; height: 260px; }
+      .landing-hero-art img { width: 250px; }
+      .landing-hero-subject-tile { width: 52px; height: 52px; font-size: 13px; }
+      .landing-hero-subject-tile:nth-child(1) { top: 12%; left: 2%; }
+      .landing-hero-subject-tile:nth-child(2) { top: 46%; right: 2%; }
+      .landing-hero-subject-tile:nth-child(3) { bottom: -6%; left: 28%; }
+      .landing-steps { padding: 60px 0; }
+      .landing-steps-h2 { font-size: 29px; }
+      .landing-steps-sub { font-size: 16px; }
+      .landing-steps-grid { grid-template-columns: 1fr; gap: 20px; }
+      .landing-cta-band { padding: 60px 0 68px; }
+      .landing-cta-h2 { font-size: 27px; }
+    }
+    @media (max-width: 430px) {
+      .landing-nav-inner { padding-left: 16px; padding-right: 16px; gap: 8px; }
+      .landing-nav-badge { display: none; }
+      .landing-nav-tagline { display: none; }
+      .landing-nav-actions { gap: 10px; }
+      .landing-nav-login-header { display: none; }
+      .landing-nav-actions .landing-btn { padding: 10px 16px; font-size: 14px; }
+    }
   </style>
 </head>
 <body>
@@ -1204,6 +1290,91 @@
   </div>
   <div id="chat-windows-bar"></div>
 
+  <!-- ══════════ 未登入訪客 Landing Page（登入前主頁）══════════
+       只有未登入嘅訪客先會見到呢個區塊；登入／註冊成功之後由
+       updateUserAuthUI() 隱藏返呢個 div，改用返下面 #app-shell -->
+  <div id="landing-page" style="display:none;">
+    <nav class="landing-nav">
+      <div class="landing-nav-inner">
+        <div class="landing-nav-brand">
+          <img class="landing-nav-logo" src="logo.png" alt="ConcenMate">
+          <div class="landing-nav-title-group">
+            <div class="landing-nav-title">ConcenMate <span class="landing-nav-badge">書伴</span></div>
+            <div class="landing-nav-tagline">Always By Your Side</div>
+          </div>
+        </div>
+        <div class="landing-nav-actions">
+          <button type="button" class="landing-nav-login landing-nav-login-header" onclick="openModal('modal-login')">登入</button>
+          <button type="button" class="landing-btn landing-btn-primary" style="padding:11px 22px; font-size:15px;" onclick="openModal('modal-register')">免費開始使用</button>
+        </div>
+      </div>
+    </nav>
+
+    <section class="landing-hero">
+      <div class="landing-container landing-hero-inner">
+        <div class="landing-hero-text">
+          <div class="landing-eyebrow">認識 ConcenMate 書伴</div>
+          <h1 class="landing-hero-h1"><span>相遇你的書伴，陪你走過</span><span>每一段溫習時光</span></h1>
+          <p class="landing-hero-slogan">Always By Your Side</p>
+          <p class="landing-hero-sub">ConcenMate 書伴是專為學生設計的線上溫習室，讓你尋找志同道合的夥伴，結合專注力計時、溫習社群與成長獎勵機制，陪伴你建立持續而穩定的學習習慣。</p>
+          <div class="landing-hero-ctas">
+            <button type="button" class="landing-btn landing-btn-primary" onclick="openModal('modal-register')">免費開始使用</button>
+          </div>
+        </div>
+        <div class="landing-hero-art">
+          <div class="landing-hero-art-visual">
+            <div class="landing-hero-art-blob"></div>
+            <img src="logo.png" alt="ConcenMate 書伴 Logo">
+            <div class="landing-hero-subjects">
+              <div class="landing-hero-subject-tile">中文</div>
+              <div class="landing-hero-subject-tile">英文</div>
+              <div class="landing-hero-subject-tile">數學</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="landing-steps">
+      <div class="landing-container">
+        <div class="landing-steps-head">
+          <p class="landing-steps-eyebrow">書伴的溫習方式</p>
+          <h2 class="landing-steps-h2">三個核心，陪你溫習</h2>
+          <p class="landing-steps-sub">註冊帳戶即可開始使用。</p>
+        </div>
+        <div class="landing-steps-grid">
+          <div class="landing-step-card">
+            <div class="landing-step-num">1</div>
+            <div class="landing-step-icon">📝</div>
+            <h3 class="landing-step-title">建立帳戶</h3>
+            <p class="landing-step-desc">只需一分鐘完成註冊，即可解鎖專注溫習室、貼紙圖鑑及全部功能。</p>
+          </div>
+          <div class="landing-step-card">
+            <div class="landing-step-num">2</div>
+            <div class="landing-step-icon">🍅</div>
+            <h3 class="landing-step-title">專注溫習室</h3>
+            <p class="landing-step-desc">以番茄鐘節奏進行溫習，與其他學生一同在鏡頭前互相督促專注，同時累積積分與經驗值。</p>
+          </div>
+          <div class="landing-step-card">
+            <div class="landing-step-num">3</div>
+            <div class="landing-step-icon">🦦</div>
+            <h3 class="landing-step-title">成長與獎勵</h3>
+            <p class="landing-step-desc">累積的溫習時數與積分可兌換 Ottiee 貼紙，並提升等級，見證自己一步步累積的溫習成果。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="landing-cta-band">
+      <div class="landing-container">
+        <h2 class="landing-cta-h2">由今天開始，讓書伴陪你溫習</h2>
+        <p class="landing-cta-sub">免費註冊帳戶，開始你的專注溫習旅程。</p>
+        <button type="button" class="landing-btn landing-btn-primary" style="padding:16px 36px; font-size:18px;" onclick="openModal('modal-register')">免費開始使用</button>
+      </div>
+    </section>
+  </div>
+
+  <div id="app-shell">
   <div id="app-top-sticky">
   <header>
     <div class="logo-box" onclick="switchTab('home')">
@@ -2174,6 +2345,8 @@
 
     </main>
   </div>
+  </div>
+  <!-- /#app-shell -->
 
   <div class="modal-backdrop" id="modal-login" style="display:none;">
     <div class="modal-box">
@@ -3079,6 +3252,8 @@
       const verifyScreen = document.getElementById('verify-email-screen');
       const headerAuthBtn = document.getElementById('header-auth-btn');
       const headerStats = document.getElementById('header-user-stats');
+      const landingPage = document.getElementById('landing-page');
+      const appShell = document.getElementById('app-shell');
       if (verifyScreen) verifyScreen.style.display = 'none';
 
       // 電郵驗證未完成，就完全鎖死，除咗「重新發送」「重新整理」「登出」
@@ -3098,6 +3273,9 @@
       if (window.currentUser && needsEmailVerification) {
         closeModal('modal-login');
         closeModal('modal-register');
+
+        if (landingPage) landingPage.style.display = 'none';
+        if (appShell) appShell.style.display = '';
 
         unauthScreen.style.display = 'none';
         authContent.style.display = 'none';
@@ -3123,6 +3301,9 @@
       if (window.currentUser) {
         closeModal('modal-login');
         closeModal('modal-register');
+
+        if (landingPage) landingPage.style.display = 'none';
+        if (appShell) appShell.style.display = '';
 
         unauthScreen.style.display = 'none';
         authContent.style.display = 'block';
@@ -3196,6 +3377,9 @@
 
         switchTab('home');
       } else {
+        if (appShell) appShell.style.display = 'none';
+        if (landingPage) landingPage.style.display = 'block';
+
         unauthScreen.style.display = 'block';
         authContent.style.display = 'none';
         headerStats.style.display = 'none';
