@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.78.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.79.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -1320,7 +1320,7 @@
               <div class="home-stat-pill">
                 <span class="home-stat-icon">⏱️</span>
                 <div>
-                  <div class="home-stat-val"><span id="home-stat-hours">0.0</span>h</div>
+                  <div class="home-stat-val"><span id="home-stat-hours">0分鐘</span></div>
                   <div class="home-stat-label">本日時數</div>
                 </div>
               </div>
@@ -1405,7 +1405,7 @@
                 <div style="font-size:10px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">等級</div>
               </div>
               <div style="min-width:0;">
-                <div id="otter-stat-exp-remaining" style="font-size:clamp(11px,3vw,14px); font-weight:bold; color:#1E4550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">仍欠 20</div>
+                <div id="otter-stat-exp-remaining" style="font-size:clamp(11px,3vw,14px); font-weight:bold; color:#1E4550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">0/20</div>
                 <div style="font-size:10px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">升級所需 EXP</div>
               </div>
               <div style="min-width:0;">
@@ -2060,17 +2060,13 @@
             <!-- 扭蛋按鈕（費用已經直接顯示喺掣度，上面嗰個獨立嘅「費用說明」
                  卡已經刪走，唔使同一個資訊喺畫面度出現兩次） -->
             <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
-              <button class="btn btn-amber" type="button" onclick="doGacha('normal')" style="padding:10px 20px; font-size:15px;">
+              <button class="btn btn-primary" type="button" onclick="doGacha('normal')" style="padding:10px 20px; font-size:15px;">
                 抽一次 (<span id="gacha-cost-normal-btn">30</span> PTS)
               </button>
-              <!-- 之前呢粒掣用 class="btn btn-primary" 但另外用 inline style
-                   釘死背景／文字顏色，令佢睇落同「抽一次」個 btn-amber 撞色
-                   一樣，但 inline style 嘅優先度太高，導致滑鼠移上去嗰陣
-                   CSS 嘅 .btn-amber:hover 轉色規則完全冇效果（見用家反映
-                   「連續抽十次冇轉色效果」）。而家索性直接用返 btn-amber
-                   呢個 class（原本啲顏色本來就同 inline style 嗰組一樣），
-                   移除晒啲 inline 顏色，兩粒掣先會有一致嘅 hover 轉色。 -->
-              <button class="btn btn-amber" type="button" onclick="doGacha('lucky')" style="padding:10px 20px; font-size:15px;">
+              <!-- 呢兩粒扭蛋掣統一用返 btn-primary（跟 Brand Theme 主色
+                   var(--brand-500)），唔再用啡色系嘅 btn-amber，等成個
+                   畫面色調一致，hover 轉色亦都跟 .btn-primary:hover。 -->
+              <button class="btn btn-primary" type="button" onclick="doGacha('lucky')" style="padding:10px 20px; font-size:15px;">
                 連續抽十次 (<span id="gacha-cost-lucky-btn">270</span> PTS)
               </button>
             </div>
@@ -2088,7 +2084,7 @@
               </div>
               <p style="font-size:13px; color:#2F6070; margin-top:6px; font-weight:bold;">已收集 <span id="sticker-progress-text">0/0</span></p>
             </div>
-            <button type="button" class="btn btn-outline" style="width:100%;" onclick="openStickerCollection()">📖 開啟我的貼紙圖鑑</button>
+            <button type="button" class="btn btn-outline" style="display:inline-block; padding:8px 24px;" onclick="openStickerCollection()">📖 開啟我的貼紙圖鑑</button>
           </div>
 
           <!-- 抽獎歷史：只顯示頭 10 筆，撳「顯示更多」先再攞多 10 筆出嚟，
@@ -2578,6 +2574,16 @@
     }
     window.calcLevelInfo = calcLevelInfo;
 
+    // 將小數形式嘅時數（例如 5.3）轉做「X小時Y分鐘」文字形式顯示
+    function formatHoursMinutes(hours) {
+      const totalMin = Math.max(0, Math.round((parseFloat(hours) || 0) * 60));
+      const hh = Math.floor(totalMin / 60);
+      const mm = totalMin % 60;
+      if (hh <= 0) return `${mm}分鐘`;
+      return `${hh}小時${mm}分鐘`;
+    }
+    window.formatHoursMinutes = formatHoursMinutes;
+
     function getRankTitle(level) {
       const ranks = (LEVEL_CONFIG && Array.isArray(LEVEL_CONFIG.ranks) && LEVEL_CONFIG.ranks.length)
         ? LEVEL_CONFIG.ranks : DEFAULT_LEVEL_CONFIG.ranks;
@@ -2602,7 +2608,7 @@
       }
 
       const globalLevelBadge = document.getElementById('global-level-badge');
-      if (globalLevelBadge) globalLevelBadge.innerText = `${rank.emoji} Lv.${info.level} ${rank.title} · 仍欠 ${info.expRemaining} EXP 升級`;
+      if (globalLevelBadge) globalLevelBadge.innerText = `${rank.emoji} Lv.${info.level} ${rank.title} · ${info.expIntoLevel}/${info.expNeededForNext} EXP`;
       const globalExpBar = document.getElementById('global-exp-bar');
       if (globalExpBar) globalExpBar.style.width = info.pctToNext + '%';
 
@@ -2709,7 +2715,7 @@
       const setText = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
 
       setText('otter-stat-level', `${rank.emoji || '🌱'} Lv.${info.level}`);
-      setText('otter-stat-exp-remaining', `仍欠 ${info.expRemaining}`);
+      setText('otter-stat-exp-remaining', `${info.expIntoLevel}/${info.expNeededForNext}`);
       setText('otter-stat-hours', `${(parseFloat(window.currentUser.hours) || 0).toFixed(1)}h`);
 
       const streakEl = document.getElementById('home-stat-streak');
@@ -3073,7 +3079,7 @@
         const homeHours = document.getElementById('home-stat-hours');
         const homePts = document.getElementById('home-stat-pts');
         if (homeUser) homeUser.innerText = displayName;
-        if (homeHours) homeHours.innerText = (parseFloat(window.currentUser.hours) || 0).toFixed(1);
+        if (homeHours) homeHours.innerText = formatHoursMinutes(window.currentUser.hours);
         if (homePts) homePts.innerText = window.currentUser.points ?? 0;
 
         // 溫習日曆／連續溫習日數：淨係靠「有冇入過視訊溫習室」呢個記錄
@@ -7373,7 +7379,7 @@
             const statHoursEl = document.getElementById('stat-hours');
             if (statHoursEl) statHoursEl.innerText = hoursDisplay;
             const homeHoursEl = document.getElementById('home-stat-hours');
-            if (homeHoursEl) homeHoursEl.innerText = hoursDisplay;
+            if (homeHoursEl) homeHoursEl.innerText = formatHoursMinutes(newHours);
 
             if (isNewDay) {
               window.currentUser.todayMinutes = 1;
