@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.77.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.78.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -3705,7 +3705,7 @@
 
       const emojiEl = document.getElementById('gacha-lightbox-emoji');
       if (st.photo) {
-        emojiEl.innerHTML = `<img src="${st.photo}" alt="${escapeHtml(st.name || '')}" style="width:100%; max-width:340px; aspect-ratio:1/1; object-fit:cover; border-radius:16px; border:2px solid #7DB8C5;">`;
+        emojiEl.innerHTML = `<img src="${st.photo}" alt="${escapeHtml(st.name || '')}" style="width:100%; max-width:340px; aspect-ratio:1/1; object-fit:contain; background:#F0F6F8; border-radius:16px; border:2px solid #7DB8C5;">`;
       } else {
         emojiEl.innerHTML = '';
         emojiEl.innerText = st.emoji || '🦦';
@@ -3781,7 +3781,7 @@
       // 如果管理員有幫呢隻貼紙上傳圖片，優先展示相片；沒有的話就繼續用返 emoji
       const resultEmojiEl = document.getElementById('gacha-result-emoji');
       if (sticker.photo) {
-        resultEmojiEl.innerHTML = `<img src="${sticker.photo}" alt="${escapeHtml(sticker.name || '')}" style="width:88px; height:88px; object-fit:cover; border-radius:12px; border:2px solid #7DB8C5; box-shadow:0 2px 8px rgba(0,0,0,.15);">`;
+        resultEmojiEl.innerHTML = `<img src="${sticker.photo}" alt="${escapeHtml(sticker.name || '')}" style="width:88px; height:88px; object-fit:contain; background:#F0F6F8; border-radius:12px; border:2px solid #7DB8C5; box-shadow:0 2px 8px rgba(0,0,0,.15);">`;
       } else {
         resultEmojiEl.innerHTML = '';
         resultEmojiEl.innerText = sticker.emoji || '🦦';
@@ -3972,7 +3972,7 @@
 
       const emojiEl = document.getElementById('gacha-lightbox-emoji');
       if (sticker.photo) {
-        emojiEl.innerHTML = `<img src="${sticker.photo}" alt="${escapeHtml(sticker.name || '')}" style="width:100%; max-width:340px; aspect-ratio:1/1; object-fit:cover; border-radius:16px; border:2px solid #7DB8C5;">`;
+        emojiEl.innerHTML = `<img src="${sticker.photo}" alt="${escapeHtml(sticker.name || '')}" style="width:100%; max-width:340px; aspect-ratio:1/1; object-fit:contain; background:#F0F6F8; border-radius:16px; border:2px solid #7DB8C5;">`;
       } else {
         emojiEl.innerHTML = '';
         emojiEl.innerText = sticker.emoji || '🦦';
