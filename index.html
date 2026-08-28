@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.79.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.80.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -1342,10 +1342,10 @@
           </div>
 
           <!-- ── 我的水獺 Ottiee（寵物系統）── -->
-          <div class="card" id="otter-pet-card" style="text-align:center;">
+          <div class="card" id="otter-pet-card" style="text-align:center; position:relative;">
+            <button type="button" onclick="openOtterRenameModal()" title="自訂我的水獺" style="position:absolute; top:8px; right:8px; background:none; border:none; cursor:pointer; font-size:16px; padding:4px; color:#7DB8C5; line-height:1;">✏️</button>
             <h3 style="font-size:15px; font-weight:bold; margin-bottom:6px; color:var(--brand-800); display:flex; align-items:center; justify-content:center; gap:6px;">
-              🦦 我的水獺 <span id="otter-name-display">Ottiee</span>
-              <button type="button" onclick="openOtterRenameModal()" title="幫水獺改名" style="background:none; border:none; cursor:pointer; font-size:14px; padding:2px 4px; color:#7DB8C5; line-height:1;">✏️</button>
+              🦦 <span id="otter-name-display">Ottiee</span>
             </h3>
             <div id="otter-pet-wrap" class="otter-mood-happy" style="display:inline-block; margin:4px 0;">
               <!-- 管理員如果有上傳自訂水獺相片，會優先顯示呢張相，取代下面嘅插畫 -->
@@ -1399,39 +1399,48 @@
                  有關嘅實用數據：等級、升級所需 EXP、累積時數、連續溫習
                  天數、貼紙圖鑑完成度。呢幾個欄位由 updateOtterStatsCard()
                  統一更新（見下面 JS）。 -->
-            <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:4px; margin-top:10px; max-width:460px; margin-left:auto; margin-right:auto;">
+            <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:4px; margin-top:10px; max-width:520px; margin-left:auto; margin-right:auto;">
               <div style="min-width:0;">
-                <div id="otter-stat-level" style="font-size:clamp(11px,3vw,14px); font-weight:bold; color:#1E4550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">🌱 Lv.1</div>
-                <div style="font-size:10px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">等級</div>
+                <div id="otter-stat-level" style="font-size:clamp(13px,3.8vw,17px); font-weight:bold; color:#1E4550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">🌱 Lv.1</div>
+                <div style="font-size:11px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">等級</div>
               </div>
               <div style="min-width:0;">
-                <div id="otter-stat-exp-remaining" style="font-size:clamp(11px,3vw,14px); font-weight:bold; color:#1E4550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">0/20</div>
-                <div style="font-size:10px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">升級所需 EXP</div>
+                <div id="otter-stat-exp-remaining" style="font-size:clamp(13px,3.8vw,17px); font-weight:bold; color:#1E4550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">0/20</div>
+                <div style="font-size:11px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">升級所需 EXP</div>
               </div>
               <div style="min-width:0;">
-                <div id="otter-stat-hours" style="font-size:clamp(11px,3vw,14px); font-weight:bold; color:#1E4550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">0.0h</div>
-                <div style="font-size:10px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">已累計時數</div>
+                <div id="otter-stat-hours" style="font-size:clamp(13px,3.8vw,17px); font-weight:bold; color:#1E4550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">0.0h</div>
+                <div style="font-size:11px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">已累計時數</div>
               </div>
               <div style="min-width:0;">
-                <div id="otter-stat-streak" style="font-size:clamp(11px,3vw,14px); font-weight:bold; color:#1E4550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">0</div>
-                <div style="font-size:10px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">連續天數</div>
+                <div id="otter-stat-streak" style="font-size:clamp(13px,3.8vw,17px); font-weight:bold; color:#1E4550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">0</div>
+                <div style="font-size:11px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">連續天數</div>
               </div>
               <div style="min-width:0;">
-                <div id="otter-stat-stickers" style="font-size:clamp(11px,3vw,14px); font-weight:bold; color:#1E4550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">0/0</div>
-                <div style="font-size:10px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">圖鑑完成度</div>
+                <div id="otter-stat-stickers" style="font-size:clamp(13px,3.8vw,17px); font-weight:bold; color:#1E4550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">0/0</div>
+                <div style="font-size:11px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">圖鑑完成度</div>
               </div>
             </div>
           </div>
 
-          <!-- 幫水獺改名嘅彈出視窗：撳主頁「🦦 我的水獺」旁邊嗰粒 ✏️ 就會開。
-               新名要通過長度限制同基本粗口關鍵字名單檢查先儲得到（見 JS
-               嘅 containsBadWord），唔通過會喺呢個視窗入面顯示錯誤原因，
-               唔會直接寫入 Firestore。 -->
+          <!-- 自訂我的水獺彈出視窗：撳主頁「🦦 我的水獺」卡右上角嗰粒 ✏️
+               就會開，入面可以（1）改名——新名要通過長度限制同基本粗口
+               關鍵字名單檢查先儲得到（見 JS 嘅 containsBadWord），唔通
+               過會喺呢個視窗入面顯示錯誤原因，唔會直接寫入 Firestore；
+               （2）由已收集嘅貼紙入面揀一隻換做水獺卡嗰張顯示相（或者
+               揀返「預設水獺」），選擇由 renderOtterAvatarPicker() 畫
+               出嚟，撳「儲存」先會一齊連改名寫落 Firestore。 -->
           <div class="modal-backdrop" id="modal-otter-rename" style="display:none;">
             <div class="modal-box" style="text-align:center;">
-              <h3 style="font-size:17px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;">✏️ 幫水獺改名</h3>
+              <h3 style="font-size:17px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;">✏️ 自訂我的水獺</h3>
               <input type="text" id="otter-rename-input" class="input-field" maxlength="12" placeholder="輸入新名稱（最多 12 個字）" style="width:100%; text-align:center;">
               <p id="otter-rename-error" style="display:none; color:#C0524A; font-size:13px; margin-top:8px;"></p>
+
+              <div style="margin-top:16px; text-align:left;">
+                <p style="font-size:13px; font-weight:bold; color:var(--brand-800); margin-bottom:8px;">🖼️ 頭像（可以揀返已收集嘅貼紙）</p>
+                <div id="otter-avatar-picker-grid" style="display:grid; grid-template-columns:repeat(5, 1fr); gap:6px; max-height:200px; overflow-y:auto; padding:2px;"></div>
+              </div>
+
               <div style="display:flex; gap:8px; margin-top:16px;">
                 <button class="btn btn-outline" type="button" style="flex:1; justify-content:center;" onclick="closeModal('modal-otter-rename')">取消</button>
                 <button class="btn btn-primary" type="button" style="flex:1; justify-content:center;" onclick="saveOtterRename()">💾 儲存</button>
@@ -2691,6 +2700,32 @@
       const photoImg = document.getElementById('otter-photo-img');
       const svgEl = document.getElementById('otter-pet-svg');
       const blankEl = document.getElementById('otter-blank-placeholder');
+
+      // 用家如果由已收集嘅貼紙揀咗一隻做頭像，優先顯示嗰隻貼紙（要
+      // 揀嗰隻依然喺收藏入面先算數，避免管理員刪走某隻貼紙之後仲顯
+      // 示緊已經唔存在嘅嘢）；冇揀就跟返原本「段位自訂相／預設插畫」
+      // 嘅邏輯。
+      const avatarId = window.currentUser.otterAvatarStickerId;
+      let avatarSticker = null;
+      if (avatarId && typeof GACHA_STICKERS !== 'undefined') {
+        const owned = window.currentUser.ownedStickers || {};
+        if ((owned[avatarId] || 0) > 0) {
+          avatarSticker = GACHA_STICKERS.find(s => s.id === avatarId) || null;
+        }
+      }
+
+      if (avatarSticker) {
+        if (avatarSticker.photo) {
+          if (photoImg) { photoImg.src = avatarSticker.photo; photoImg.style.display = 'block'; }
+          if (blankEl) blankEl.style.display = 'none';
+        } else {
+          if (photoImg) photoImg.style.display = 'none';
+          if (blankEl) { blankEl.innerText = avatarSticker.emoji || '🦦'; blankEl.style.display = 'flex'; }
+        }
+        if (svgEl) svgEl.style.display = 'none';
+        return;
+      }
+
       const customPhoto = rankTier && rankTier.photo;
       if (customPhoto) {
         if (photoImg) { photoImg.src = customPhoto; photoImg.style.display = 'block'; }
@@ -2699,7 +2734,7 @@
       } else {
         if (photoImg) photoImg.style.display = 'none';
         if (svgEl) svgEl.style.display = 'none';
-        if (blankEl) blankEl.style.display = 'flex';
+        if (blankEl) { blankEl.innerText = '🦦'; blankEl.style.display = 'flex'; }
       }
     }
     window.updateOtterDisplay = updateOtterDisplay;
@@ -2778,7 +2813,52 @@
       if (input) input.value = window.currentUser.otterName || 'Ottiee';
       const err = document.getElementById('otter-rename-error');
       if (err) err.style.display = 'none';
+      _otterAvatarPick = window.currentUser.otterAvatarStickerId || 0;
+      renderOtterAvatarPicker();
       openModal('modal-otter-rename');
+    };
+
+    // 「自訂我的水獺」視窗入面嘅頭像揀選格：得已經收集咗（擁有數量 >0）
+    // 嘅貼紙先會出現，加多一格「🦦 預設水獺」可以揀返原本嘅插畫／段位
+    // 自訂相。淨係喺呢個視窗入面暫存揀咗邊隻（window._otterAvatarPick），
+    // 撳「儲存」先會連同改名一齊寫落 Firestore，撳「取消」就唔會生效。
+    let _otterAvatarPick = 0;
+
+    function renderOtterAvatarPicker() {
+      const grid = document.getElementById('otter-avatar-picker-grid');
+      if (!grid || !window.currentUser) return;
+
+      const owned = window.currentUser.ownedStickers || {};
+      const ownedIds = Object.keys(owned)
+        .map(k => parseInt(k))
+        .filter(id => (owned[id] || 0) > 0)
+        .sort((a, b) => a - b);
+
+      const tileHtml = (id, thumb, label, selected) => `
+        <div onclick="selectOtterAvatar(${id})" title="${escapeHtml(label)}" style="cursor:pointer; text-align:center; border-radius:8px; padding:4px; border:2px solid ${selected ? 'var(--brand-500)' : 'transparent'}; background:${selected ? 'var(--brand-50)' : '#F5F5F5'};">
+          ${thumb}
+        </div>`;
+
+      let html = tileHtml(0, `<div style="font-size:22px;">🦦</div>`, '預設水獺', _otterAvatarPick === 0);
+
+      if (typeof GACHA_STICKERS !== 'undefined') {
+        ownedIds.forEach(id => {
+          const st = GACHA_STICKERS.find(s => s.id === id);
+          if (!st) return;
+          const thumb = st.photo
+            ? `<img src="${st.photo}" style="width:100%; aspect-ratio:1; object-fit:cover; border-radius:6px;">`
+            : `<div style="font-size:22px;">${escapeHtml(st.emoji || '🦦')}</div>`;
+          html += tileHtml(id, thumb, st.name || '', _otterAvatarPick === id);
+        });
+      }
+
+      grid.innerHTML = html;
+    }
+    window.renderOtterAvatarPicker = renderOtterAvatarPicker;
+
+    window.selectOtterAvatar = function(id) {
+      _otterAvatarPick = id;
+      renderOtterAvatarPicker();
     };
 
     window.saveOtterRename = async function() {
@@ -2802,11 +2882,16 @@
       }
       if (!window.currentUser || !window.db || !window.fs) return;
       try {
-        await window.fs.updateDoc(window.fs.doc(window.db, 'users', window.currentUser.uid), { otterName: raw });
+        await window.fs.updateDoc(window.fs.doc(window.db, 'users', window.currentUser.uid), {
+          otterName: raw,
+          otterAvatarStickerId: _otterAvatarPick || 0
+        });
         window.currentUser.otterName = raw;
+        window.currentUser.otterAvatarStickerId = _otterAvatarPick || 0;
         updateOtterNameDisplay();
+        updateOtterDisplay();
         closeModal('modal-otter-rename');
-        window.showToast('改名成功！', '🦦');
+        window.showToast('儲存成功！', '🦦');
       } catch (e) {
         if (errEl) { errEl.innerText = '儲存失敗，請再試：' + (e.message || e); errEl.style.display = 'block'; }
       }
@@ -9360,6 +9445,9 @@
         gachaConfigLoaded = true;
         applyGachaCostToUI();
         if (typeof updateStickerProgressUI === 'function') updateStickerProgressUI();
+        // 貼紙資料（相片）依家先攞齊，如果用家揀咗貼紙做水獺頭像，要
+        // 喺呢度補叫多一次先會顯示到啱嘅相（登入嗰陣呢份資料仲未到）
+        if (typeof updateOtterDisplay === 'function') updateOtterDisplay();
         // 如果管理員岩岩好打開緊「扭蛋機獎品」呢個分頁、又仲未開始編輯
         // （adminGachaDraft 仲係 null，即係岩岩好卡喺「載入緊...」嗰個畫面），
         // 而家攞到資料喇，即刻幫佢用返最新（剛儲存低嗰份）資料重新 render 一次，
