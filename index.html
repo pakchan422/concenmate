@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.75.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.76.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -1399,26 +1399,26 @@
                  有關嘅實用數據：等級、升級所需 EXP、累積時數、連續溫習
                  天數、貼紙圖鑑完成度。呢幾個欄位由 updateOtterStatsCard()
                  統一更新（見下面 JS）。 -->
-            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(96px, 1fr)); gap:10px; margin-top:10px; max-width:420px; margin-left:auto; margin-right:auto;">
-              <div>
-                <div id="otter-stat-level" style="font-size:14px; font-weight:bold; color:#1E4550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">🌱 Lv.1</div>
-                <div style="font-size:12px; color:#999;">等級</div>
+            <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:4px; margin-top:10px; max-width:460px; margin-left:auto; margin-right:auto;">
+              <div style="min-width:0;">
+                <div id="otter-stat-level" style="font-size:clamp(11px,3vw,14px); font-weight:bold; color:#1E4550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">🌱 Lv.1</div>
+                <div style="font-size:10px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">等級</div>
               </div>
-              <div>
-                <div id="otter-stat-exp-remaining" style="font-size:14px; font-weight:bold; color:#1E4550;">仍欠 20</div>
-                <div style="font-size:12px; color:#999;">升級所需 EXP</div>
+              <div style="min-width:0;">
+                <div id="otter-stat-exp-remaining" style="font-size:clamp(11px,3vw,14px); font-weight:bold; color:#1E4550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">仍欠 20</div>
+                <div style="font-size:10px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">升級所需 EXP</div>
               </div>
-              <div>
-                <div id="otter-stat-hours" style="font-size:14px; font-weight:bold; color:#1E4550;">0.0h</div>
-                <div style="font-size:12px; color:#999;">已累計溫習時數</div>
+              <div style="min-width:0;">
+                <div id="otter-stat-hours" style="font-size:clamp(11px,3vw,14px); font-weight:bold; color:#1E4550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">0.0h</div>
+                <div style="font-size:10px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">已累計時數</div>
               </div>
-              <div>
-                <div id="otter-stat-streak" style="font-size:14px; font-weight:bold; color:#1E4550;">0</div>
-                <div style="font-size:12px; color:#999;">溫習連續天數</div>
+              <div style="min-width:0;">
+                <div id="otter-stat-streak" style="font-size:clamp(11px,3vw,14px); font-weight:bold; color:#1E4550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">0</div>
+                <div style="font-size:10px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">連續天數</div>
               </div>
-              <div>
-                <div id="otter-stat-stickers" style="font-size:14px; font-weight:bold; color:#1E4550;">0/0</div>
-                <div style="font-size:12px; color:#999;">圖鑑完成度</div>
+              <div style="min-width:0;">
+                <div id="otter-stat-stickers" style="font-size:clamp(11px,3vw,14px); font-weight:bold; color:#1E4550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">0/0</div>
+                <div style="font-size:10px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">圖鑑完成度</div>
               </div>
             </div>
           </div>
@@ -3658,7 +3658,7 @@
             ? `<img src="${st.photo}" style="width:100%; aspect-ratio:1; object-fit:cover; border-radius:8px;">`
             : `<div style="font-size:28px;">${escapeHtml(st.emoji || '🦦')}</div>`;
           return `
-            <div style="text-align:center; background:#F0F6F8; border:2px solid #7DB8C5; border-radius:10px; padding:6px 4px;">
+            <div onclick="showStickerCollectionDetail(${st.id})" title="撳落放大睇：${escapeHtml(st.name || '')}" style="cursor:pointer; text-align:center; background:#F0F6F8; border:2px solid #7DB8C5; border-radius:10px; padding:6px 4px;">
               ${thumb}
               <div style="font-size:12px; font-weight:bold; color:#2F6070; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(st.name || '')}</div>
               <div style="font-size:11px; color:#7DB8C5;">×${count}</div>
@@ -3689,6 +3689,33 @@
     window.closeStickerCollection = function() {
       const modal = document.getElementById('sticker-collection-modal');
       if (modal) modal.style.display = 'none';
+    };
+
+    // 撳圖鑑入面任何一格「已收集」嘅貼紙，放大顯示嗰隻貼紙嘅圖片／emoji、
+    // 名稱、擁有數量——同十連抽結果嗰個放大燈箱（#gacha-prize-lightbox）
+    // 共用返同一套元素，行為一致，唔使再起多一個彈窗。未收集嗰格（灰色
+    // 剪影）冇綁呢個 onclick，撳落去冇反應。
+    window.showStickerCollectionDetail = function(id) {
+      const st = GACHA_STICKERS.find(s => s.id === id);
+      if (!st) return;
+      const owned = (window.currentUser && window.currentUser.ownedStickers) || {};
+      const count = owned[id] || 0;
+      if (count <= 0) return;
+      clearTimeout(window._gachaResultAutoCloseTimer);
+
+      const emojiEl = document.getElementById('gacha-lightbox-emoji');
+      if (st.photo) {
+        emojiEl.innerHTML = `<img src="${st.photo}" alt="${escapeHtml(st.name || '')}" style="width:120px; height:120px; object-fit:cover; border-radius:14px; border:2px solid #7DB8C5;">`;
+      } else {
+        emojiEl.innerHTML = '';
+        emojiEl.innerText = st.emoji || '🦦';
+      }
+      const tierEl = document.getElementById('gacha-lightbox-tier');
+      tierEl.innerText = `已收集 ×${count}`;
+      tierEl.style.color = '#2F6070';
+      document.getElementById('gacha-lightbox-name').innerText = st.name || '';
+      document.getElementById('gacha-lightbox-desc').innerText = `貼紙圖鑑收集進度：${getOwnedStickerTypeCount()}/${GACHA_STICKERS.length}`;
+      document.getElementById('gacha-prize-lightbox').style.display = 'flex';
     };
 
     function syncGachaPtsDisplay() {
