@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.74.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.75.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -1343,7 +1343,10 @@
 
           <!-- ── 我的水獺 Ottiee（寵物系統）── -->
           <div class="card" id="otter-pet-card" style="text-align:center;">
-            <h3 style="font-size:15px; font-weight:bold; margin-bottom:6px; color:var(--brand-800);">🦦 我的水獺 Ottiee</h3>
+            <h3 style="font-size:15px; font-weight:bold; margin-bottom:6px; color:var(--brand-800); display:flex; align-items:center; justify-content:center; gap:6px;">
+              🦦 我的水獺 <span id="otter-name-display">Ottiee</span>
+              <button type="button" onclick="openOtterRenameModal()" title="幫水獺改名" style="background:none; border:none; cursor:pointer; font-size:14px; padding:2px 4px; color:#7DB8C5; line-height:1;">✏️</button>
+            </h3>
             <div id="otter-pet-wrap" class="otter-mood-happy" style="display:inline-block; margin:4px 0;">
               <!-- 管理員如果有上傳自訂水獺相片，會優先顯示呢張相，取代下面嘅插畫 -->
               <img id="otter-photo-img" style="display:none; max-width:150px; max-height:150px; width:auto; height:auto; object-fit:contain;" alt="我的水獺">
@@ -1392,12 +1395,48 @@
                 </g>
               </svg>
             </div>
-            <div id="otter-mood-label" style="font-size:13px; font-weight:bold; color:#4A8FA0;">😊 好開心</div>
-            <div style="background:#E5EEF0; border-radius:8px; height:10px; margin:10px auto 0; max-width:260px; overflow:hidden;">
-              <div id="otter-hunger-bar" style="background:linear-gradient(90deg,#6FA96F,#A9D18E); height:100%; width:100%; transition:width .4s ease;"></div>
+            <!-- 寵物「肚餓/餵食」機制已經移除，改成顯示呢幾個同「溫習成就」
+                 有關嘅實用數據：等級、升級所需 EXP、累積時數、連續溫習
+                 天數、貼紙圖鑑完成度。呢幾個欄位由 updateOtterStatsCard()
+                 統一更新（見下面 JS）。 -->
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(96px, 1fr)); gap:10px; margin-top:10px; max-width:420px; margin-left:auto; margin-right:auto;">
+              <div>
+                <div id="otter-stat-level" style="font-size:14px; font-weight:bold; color:#1E4550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">🌱 Lv.1</div>
+                <div style="font-size:12px; color:#999;">等級</div>
+              </div>
+              <div>
+                <div id="otter-stat-exp-remaining" style="font-size:14px; font-weight:bold; color:#1E4550;">仍欠 20</div>
+                <div style="font-size:12px; color:#999;">升級所需 EXP</div>
+              </div>
+              <div>
+                <div id="otter-stat-hours" style="font-size:14px; font-weight:bold; color:#1E4550;">0.0h</div>
+                <div style="font-size:12px; color:#999;">已累計溫習時數</div>
+              </div>
+              <div>
+                <div id="otter-stat-streak" style="font-size:14px; font-weight:bold; color:#1E4550;">0</div>
+                <div style="font-size:12px; color:#999;">溫習連續天數</div>
+              </div>
+              <div>
+                <div id="otter-stat-stickers" style="font-size:14px; font-weight:bold; color:#1E4550;">0/0</div>
+                <div style="font-size:12px; color:#999;">圖鑑完成度</div>
+              </div>
             </div>
-            <div id="otter-hunger-text" style="font-size:13px; color:#999; margin-top:4px;">飽足度 100%</div>
-            <button class="btn btn-primary" type="button" style="margin-top:12px;" onclick="feedOtter()">🐟 餵食（<span id="otter-feed-cost-label">10</span> PTS）</button>
+          </div>
+
+          <!-- 幫水獺改名嘅彈出視窗：撳主頁「🦦 我的水獺」旁邊嗰粒 ✏️ 就會開。
+               新名要通過長度限制同基本粗口關鍵字名單檢查先儲得到（見 JS
+               嘅 containsBadWord），唔通過會喺呢個視窗入面顯示錯誤原因，
+               唔會直接寫入 Firestore。 -->
+          <div class="modal-backdrop" id="modal-otter-rename" style="display:none;">
+            <div class="modal-box" style="text-align:center;">
+              <h3 style="font-size:17px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;">✏️ 幫水獺改名</h3>
+              <input type="text" id="otter-rename-input" class="input-field" maxlength="12" placeholder="輸入新名稱（最多 12 個字）" style="width:100%; text-align:center;">
+              <p id="otter-rename-error" style="display:none; color:#C0524A; font-size:13px; margin-top:8px;"></p>
+              <div style="display:flex; gap:8px; margin-top:16px;">
+                <button class="btn btn-outline" type="button" style="flex:1; justify-content:center;" onclick="closeModal('modal-otter-rename')">取消</button>
+                <button class="btn btn-primary" type="button" style="flex:1; justify-content:center;" onclick="saveOtterRename()">💾 儲存</button>
+              </div>
+            </div>
           </div>
 
           <!-- ── 主體兩欄 ── -->
@@ -2578,6 +2617,11 @@
       }
       if (profExpText) profExpText.innerText = `${info.expIntoLevel} / ${info.expNeededForNext} EXP · 仍欠 ${info.expRemaining} EXP 就升到 Lv.${info.level + 1}（總計 ${info.exp} EXP）`;
       if (profExpBar) profExpBar.style.width = info.pctToNext + '%';
+
+      // 主頁「我的水獺」卡嘅等級／升級所需 EXP 都係跟呢份 info 嚟，
+      // updateLevelDisplay() 呼叫嘅地方（登入、溫習畀分等）一併刷新埋佢，
+      // 唔使逐個 call site 加多一句。
+      if (typeof updateOtterStatsCard === 'function') updateOtterStatsCard();
     }
     window.updateLevelDisplay = updateLevelDisplay;
 
@@ -2623,44 +2667,21 @@
     }
     window.openLevelInfoModal = openLevelInfoModal;
 
-    // ===================== 水獺寵物系統（Tamagotchi 式飼養）=====================
-    // 而家係 MVP：靜態水獺（純CSS浮動/擺動，未有行走同進化造型）+ 飽足度 + 餵食。
-    // 冇餵水獺會隨時間肚餓（由呢度嘅 OTTER_HUNGER_DECAY_HOURS 控制跌幾快），
-    // 餵一次會用返家用嘅 PTS 積分、飽足度即刻回滿。想改費用/跌速直接改呢兩個常數就得。
-    const OTTER_FEED_COST = 10;            // 餵一次水獺使幾多 PTS
-    const OTTER_HUNGER_DECAY_HOURS = 24;   // 由 100% 飽足跌到 0% 要幾耐（小時）
+    // ===================== 水獺寵物系統 =====================
+    // 「肚餓／餵食」個 Tamagotchi 機制已經應用戶要求整個移除（唔再有
+    // 飽足度、唔再有餵食按鈕），主頁「我的水獺」呢張卡而家淨係顯示靜態
+    // 造型 + 一組同「溫習成就」有關嘅實用數據（等級／升級所需 EXP／
+    // 累積時數／連續溫習天數／貼紙圖鑑完成度），由 updateOtterStatsCard()
+    // 統一更新。
 
     // 水獺造型（進化）：跟返「等級系統」嗰邊嘅段位設定，每個段位可以喺
-    // Admin後台「🎮 等級系統」分頁上傳專屬相片，用家等級去到邊個段位就顯示邊張相；
-    // 冇上傳就用返預設插畫（會有開心/普通/肚餓表情變化）。
-
-    function calcOtterHunger(lastFedMs) {
-      if (!lastFedMs) return 100;
-      const hoursSince = (Date.now() - lastFedMs) / (1000 * 60 * 60);
-      const hunger = 100 - (hoursSince / OTTER_HUNGER_DECAY_HOURS) * 100;
-      return Math.max(0, Math.min(100, Math.round(hunger)));
-    }
-    window.calcOtterHunger = calcOtterHunger;
-
-    function getOtterMood(hunger) {
-      if (hunger >= 60) return { key: 'happy', label: '😊 好開心', barColor: 'linear-gradient(90deg,#6FA96F,#A9D18E)' };
-      if (hunger >= 30) return { key: 'neutral', label: '😐 普普通通', barColor: 'linear-gradient(90deg,#D9A441,#E8C97A)' };
-      return { key: 'hungry', label: '😢 肚好餓', barColor: 'linear-gradient(90deg,#C0574A,#E08A7D)' };
-    }
-    window.getOtterMood = getOtterMood;
-
+    // Admin後台「🎮 等級系統」分頁上傳專屬相片，用家等級去到邊個段位就
+    // 顯示邊張相；冇上傳就顯示簡單嘅 🦦 佔位圖示。
     function updateOtterDisplay() {
       if (!window.currentUser) return;
-      const hunger = calcOtterHunger(window.currentUser.otterLastFed);
-      const mood = getOtterMood(hunger);
       const levelInfo = calcLevelInfo(window.currentUser.exp || 0);
       const rankTier = getRankTitle(levelInfo.level);
 
-      const wrap = document.getElementById('otter-pet-wrap');
-      if (wrap) wrap.className = 'otter-mood-' + mood.key;
-
-      // 而家段位（跟等級）如果有管理員上傳嘅專屬相片，就用返嗰張相；
-      // 冇嘅話顯示簡單佔位圖示（唔會再用返手繪預設插畫）
       const photoImg = document.getElementById('otter-photo-img');
       const svgEl = document.getElementById('otter-pet-svg');
       const blankEl = document.getElementById('otter-blank-placeholder');
@@ -2674,64 +2695,122 @@
         if (svgEl) svgEl.style.display = 'none';
         if (blankEl) blankEl.style.display = 'flex';
       }
-
-      ['happy', 'neutral', 'hungry'].forEach(k => {
-        const g = document.getElementById('otter-face-' + k);
-        if (g) g.style.display = (k === mood.key) ? '' : 'none';
-      });
-
-      const moodLabel = document.getElementById('otter-mood-label');
-      if (moodLabel) moodLabel.innerText = mood.label;
-
-      const hungerBar = document.getElementById('otter-hunger-bar');
-      if (hungerBar) { hungerBar.style.width = hunger + '%'; hungerBar.style.background = mood.barColor; }
-
-      const hungerText = document.getElementById('otter-hunger-text');
-      if (hungerText) hungerText.innerText = `飽足度 ${hunger}%`;
-
-      const feedCostLabel = document.getElementById('otter-feed-cost-label');
-      if (feedCostLabel) feedCostLabel.innerText = OTTER_FEED_COST;
     }
     window.updateOtterDisplay = updateOtterDisplay;
 
-    window.feedOtter = async function() {
-      if (!window.currentUser) { window.showToast('請先登入先可以餵水獺', '🔒'); return; }
-      const hunger = calcOtterHunger(window.currentUser.otterLastFed);
-      if (hunger >= 95) {
-        window.showToast('水獺仲好飽，不用現在餵他喇🦦', '😋');
+    // 主頁「我的水獺」卡下面嗰組數據：等級／升級所需 EXP／累積溫習時數／
+    // 連續溫習天數／貼紙圖鑑完成度。溫習連續天數直接讀返 Hero 列已經計
+    // 好嘅 #home-stat-streak（同一個數字，唔使計多次）；貼紙圖鑑完成度
+    // 讀返扭蛋機嗰邊嘅 GACHA_STICKERS／getOwnedStickerTypeCount()。
+    function updateOtterStatsCard() {
+      if (!window.currentUser) return;
+      const info = calcLevelInfo(window.currentUser.exp || 0);
+      const rank = getRankTitle(info.level);
+      const setText = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
+
+      setText('otter-stat-level', `${rank.emoji || '🌱'} Lv.${info.level}`);
+      setText('otter-stat-exp-remaining', `仍欠 ${info.expRemaining}`);
+      setText('otter-stat-hours', `${(parseFloat(window.currentUser.hours) || 0).toFixed(1)}h`);
+
+      const streakEl = document.getElementById('home-stat-streak');
+      setText('otter-stat-streak', streakEl ? streakEl.innerText : '0');
+
+      if (typeof GACHA_STICKERS !== 'undefined' && typeof getOwnedStickerTypeCount === 'function') {
+        setText('otter-stat-stickers', `${getOwnedStickerTypeCount()}/${GACHA_STICKERS.length}`);
+      }
+    }
+    window.updateOtterStatsCard = updateOtterStatsCard;
+
+    // ===================== 改名粗口過濾（廣東話／繁體／簡體中文／英文）=====================
+    // ⚠️ 呢個名單淨係做「盡力以赴」嘅基本把關，唔係、亦都做唔到 100%
+    // 完美嘅粗口過濾——中文粗口有好多同音字／諧音／拆字寫法（例如用
+    // 「9」代「柒」、加空格拆開兩個字），英文亦都有大把 leetspeak
+    // 變體，單靠前端一個關鍵字名單天生就攔唔晒。想加強嘅話：(1) 呢度
+    // 加多啲關鍵字；(2) 長遠可以將改名都改成經 Cloud Function 先落庫，
+    // 用返伺服器端更完整嘅過濾服務／API 把關（同之前傾過嘅「畀分要用
+    // Cloud Function 驗證」係同一個方向）。而家呢個做法對一般學生用戶
+    // 已經夠用——擋到最常見、隨手打嘅粗口，唔係要防範蓄意繞過嘅人。
+    const OTTER_NAME_BLOCKLIST = [
+      // 廣東話粗口／侮辱字眼
+      '屌你', '屌您', '你老母', '你老味', '戇鳩', '戇居', '柒頭', '柒皇', '死柒', 'on9', 'on 9',
+      '冚家鏟', '冚家剷', '冚家富貴', '死全家', '賤人', '婊子', '仆街', '扑街', '契弟', '咸濕', '鹹濕',
+      '死人妖', '弱智', '智障', '低能', '雜種', '死開', '仆你個街',
+      // 繁體中文（同廣東話部分重疊）
+      '幹你娘', '幹您娘', '靠北', '靠杯', '三小', '白癡', '廢物', '去死',
+      // 簡體中文
+      '操你妈', '草泥马', '傻逼', '煞笔', '傻屄', '你妈的', '妈的', '尼玛', '滚蛋', '混蛋',
+      '王八蛋', '婊子', '贱人', '死妈', '脑残', '你妹',
+      // 英文（同常見 leetspeak 變體，見下面 normalizeForBadWordCheck 會先做字元代換）
+      'fuck', 'fuk', 'fck', 'shit', 'bitch', 'asshole', 'dick', 'cock', 'pussy', 'cunt',
+      'whore', 'slut', 'bastard', 'nigger', 'nigga', 'retard', 'faggot', 'motherfucker'
+    ];
+
+    // 將字串標準化，等關鍵字比對可以捉到常見嘅「加空格/符號拆字」同
+    // 英文 leetspeak（用數字扮字母）呢兩種最常見嘅簡單繞過手法。
+    function normalizeForBadWordCheck(str) {
+      return String(str || '')
+        .toLowerCase()
+        .replace(/[\s.\-_*!@#$%^&()+=~`'"，。！？、\[\]{}|\\/<>～]/g, '')
+        .replace(/0/g, 'o').replace(/1/g, 'i').replace(/3/g, 'e')
+        .replace(/4/g, 'a').replace(/5/g, 's').replace(/7/g, 't');
+    }
+
+    function containsBadWord(name) {
+      const normalized = normalizeForBadWordCheck(name);
+      if (!normalized) return false;
+      return OTTER_NAME_BLOCKLIST.some(w => normalized.includes(normalizeForBadWordCheck(w)));
+    }
+    window.containsBadWord = containsBadWord;
+
+    // 幫水獺改名：長度上限 + 基本粗口關鍵字名單雙重把關（廣東話／繁體／
+    // 簡體中文／英文），唔通過就唔會寫落 Firestore。
+    const OTTER_NAME_MAX_LEN = 12;
+
+    window.openOtterRenameModal = function() {
+      if (!window.currentUser) { window.showToast('請先登入', '🔒'); return; }
+      const input = document.getElementById('otter-rename-input');
+      if (input) input.value = window.currentUser.otterName || 'Ottiee';
+      const err = document.getElementById('otter-rename-error');
+      if (err) err.style.display = 'none';
+      openModal('modal-otter-rename');
+    };
+
+    window.saveOtterRename = async function() {
+      const input = document.getElementById('otter-rename-input');
+      const errEl = document.getElementById('otter-rename-error');
+      if (!input) return;
+      const raw = input.value.trim();
+      if (errEl) errEl.style.display = 'none';
+
+      if (!raw) {
+        if (errEl) { errEl.innerText = '名稱唔可以係空白'; errEl.style.display = 'block'; }
         return;
       }
-      const pts = window.currentUser.points || 0;
-      if (pts < OTTER_FEED_COST) {
-        window.showToast(`積分不足！餵食需要 ${OTTER_FEED_COST} PTS`, '❌');
+      if (raw.length > OTTER_NAME_MAX_LEN) {
+        if (errEl) { errEl.innerText = `名稱最多 ${OTTER_NAME_MAX_LEN} 個字`; errEl.style.display = 'block'; }
         return;
       }
-      if (!window.db || !window.fs) return;
+      if (containsBadWord(raw)) {
+        if (errEl) { errEl.innerText = '呢個名可能包含不當字眼，換過第個名試下啦～'; errEl.style.display = 'block'; }
+        return;
+      }
+      if (!window.currentUser || !window.db || !window.fs) return;
       try {
-        const now = Date.now();
-        const userRef = window.fs.doc(window.db, 'users', window.currentUser.uid);
-        await window.fs.updateDoc(userRef, {
-          points: window.fs.increment(-OTTER_FEED_COST),
-          otterLastFed: now
-        });
-        window.currentUser.points = pts - OTTER_FEED_COST;
-        window.currentUser.otterLastFed = now;
-
-        const ptsEl = document.getElementById('stat-points');
-        if (ptsEl) ptsEl.innerText = window.currentUser.points;
-        const homePts = document.getElementById('home-stat-pts');
-        if (homePts) homePts.innerText = window.currentUser.points;
-        syncGachaPtsDisplay();
-
-        updateOtterDisplay();
-        window.showToast('🐟 水獺食得好開心！', '🦦');
+        await window.fs.updateDoc(window.fs.doc(window.db, 'users', window.currentUser.uid), { otterName: raw });
+        window.currentUser.otterName = raw;
+        updateOtterNameDisplay();
+        closeModal('modal-otter-rename');
+        window.showToast('改名成功！', '🦦');
       } catch (e) {
-        window.showToast('餵食失敗，請再試：' + (e.message || e), '❌');
+        if (errEl) { errEl.innerText = '儲存失敗，請再試：' + (e.message || e); errEl.style.display = 'block'; }
       }
     };
 
-    // 每 5 分鐘悄悄刷新一次飽足度顯示，唔使用家一定要重新整理成頁先見到轉變
-    setInterval(() => { if (window.currentUser) updateOtterDisplay(); }, 5 * 60 * 1000);
+    function updateOtterNameDisplay() {
+      const el = document.getElementById('otter-name-display');
+      if (el) el.innerText = (window.currentUser && window.currentUser.otterName) || 'Ottiee';
+    }
+    window.updateOtterNameDisplay = updateOtterNameDisplay;
 
     // 同一個節奏順便檢查「今日目標」跨咗午夜冇：就算個分頁開住成晚冇賺任何
     // 分（例如冇入房），一到第二日都會自動歸零，唔使等用家做嘢先觸發
@@ -2986,6 +3065,7 @@
         syncGachaPtsDisplay();
         updateLevelDisplay();
         updateOtterDisplay();
+        updateOtterNameDisplay();
 
         // 主頁歡迎卡片
         const displayName = window.currentUser.username || window.currentUser.email?.split('@')[0] || '同學';
@@ -3000,6 +3080,10 @@
         // 計，同「本日時數」（分鐘數）完全獨立
         if (typeof window.renderStudyCalendar === 'function') window.renderStudyCalendar();
         if (typeof window.updateStreakBadge === 'function') window.updateStreakBadge();
+        // updateOtterStatsCard() 之前跟住 updateLevelDisplay() 已經 call 過一次，
+        // 但嗰陣「連續天數」仲未計好（下面呢句 updateStreakBadge() 先計），
+        // 所以呢度要再刷新多一次，等「我的水獺」卡嗰個連續天數啱返
+        if (typeof updateOtterStatsCard === 'function') updateOtterStatsCard();
 
         // 動態徽章：積分夠扭蛋就提示
         const pts = window.currentUser.points ?? 0;
@@ -3592,6 +3676,8 @@
       updateStickerProgressUI();
       const modal = document.getElementById('sticker-collection-modal');
       if (modal && modal.style.display !== 'none') renderStickerCollectionGrid();
+      // 主頁「我的水獺」卡嘅「圖鑑完成度」都係讀返呢份資料，扭蛋完一齊刷新
+      if (typeof updateOtterStatsCard === 'function') updateOtterStatsCard();
     }
 
     window.openStickerCollection = function() {
@@ -5554,12 +5640,6 @@
           const userDoc = await getDoc(userDocRef);
           if (userDoc.exists()) {
             window.currentUser = userDoc.data();
-            // 舊用戶冇 otterLastFed 呢個新欄位嘅話，畀佢由「啱啱餵飽」開始，
-            // 避免一上線隻水獺就即刻肚餓，順便補寫落 Firestore 咁下次都一致
-            if (!window.currentUser.otterLastFed) {
-              window.currentUser.otterLastFed = Date.now();
-              updateDoc(userDocRef, { otterLastFed: window.currentUser.otterLastFed }).catch(() => {});
-            }
           } else {
             window.currentUser = {
               uid: user.uid,
@@ -5569,8 +5649,7 @@
               grade: '中六 (S6 DSE)',
               hours: '0.0',
               points: 0,
-              exp: 0,
-              otterLastFed: Date.now()
+              exp: 0
             };
           }
         } catch (e) {
@@ -5842,7 +5921,6 @@
           hours: "0.0",
           points: 0,
           exp: 0,
-          otterLastFed: Date.now(),
           createdAt: new Date().toISOString()
         };
 
