@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.80.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.81.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -6456,6 +6456,8 @@
       presenceConfirmed: true, // 呢一輪確認彈窗，用家係咪已經撳咗確認
       awardingPaused: false, // 被判定為閒置期間，暫停 PTS/EXP 獎勵（防止掛機刷分）
       micOpenTimer: null, // 開咪 3 分鐘上限嘅計時器，時間一到自動關咪 + 進入冷卻
+      micOpenUiTimer: null, // 開咪期間每秒刷新按鈕文字（顯示仲剩幾耐先到 3 分鐘上限）用嘅 interval
+      micOpenUntil: null, // 呢次開咪會喺幾時（ms 時間戳）撞到 3 分鐘上限，畀 UI 計倒數用
       micCooldownTimer: null, // 冷卻 5 分鐘完結嘅計時器，完咗先解鎖返咪掣
       micCooldownUiTimer: null, // 冷卻期間每秒刷新按鈕文字（顯示倒數）用嘅 interval
       micCooldownUntil: null // 冷卻結束嘅時間戳（ms），畀 UI 計倒數用
@@ -8243,6 +8245,8 @@
 
       // 離開房間就清埋開咪上限／冷卻嘅計時器，唔好帶落去下一次入房
       if (state.micOpenTimer) { clearTimeout(state.micOpenTimer); state.micOpenTimer = null; }
+      if (state.micOpenUiTimer) { clearInterval(state.micOpenUiTimer); state.micOpenUiTimer = null; }
+      state.micOpenUntil = null;
       if (state.micCooldownTimer) { clearTimeout(state.micCooldownTimer); state.micCooldownTimer = null; }
       if (state.micCooldownUiTimer) { clearInterval(state.micCooldownUiTimer); state.micCooldownUiTimer = null; }
       state.micCooldownUntil = null;
@@ -8504,24 +8508,32 @@
       }
     }
 
+    // 將秒數格式化做 M:SS 嘅倒數顯示（例如 185 秒 → "3:05"）
+    function formatMicCountdown(totalSeconds) {
+      const s = Math.max(0, Math.floor(totalSeconds));
+      const m = Math.floor(s / 60);
+      const sec = s % 60;
+      return `${m}:${String(sec).padStart(2, '0')}`;
+    }
+
     function updateMicButtonUI() {
       const micBtn = document.getElementById('btn-mic');
       const micTag = document.getElementById('mic-status-tag');
       if (!micBtn) return;
 
-      // 冷卻中：咪掣鎖住，顯示仲需幾多分鐘先可以再開咪
+      // 冷卻中：咪掣鎖住，用實時倒數顯示仲需幾耐先可以再開咪
       // （用 micCooldownUntil 呢個時間戳嚟判斷，唔靠 micCooldownTimer 個 id，
       // 因為 startMicCooldown() 入面設 micCooldownUntil 同攞到個新 timer id
       // 有先後之分，如果淨係睇 timer id，中間嗰一刻 updateMicButtonUI() 會判斷錯）
       if (state.micCooldownUntil && Date.now() < state.micCooldownUntil) {
-        const remainSec = Math.max(0, Math.ceil((state.micCooldownUntil - Date.now()) / 1000));
-        const mins = Math.ceil(remainSec / 60);
+        const remainSec = Math.ceil((state.micCooldownUntil - Date.now()) / 1000);
+        const countdown = formatMicCountdown(remainSec);
         micBtn.disabled = true;
-        micBtn.innerText = `🧊 冷卻中 (${mins}分)`;
+        micBtn.innerText = `🧊 冷卻中 (${countdown})`;
         micBtn.className = 'btn btn-outline';
         if (micTag) {
           micTag.style.display = state.isCameraOn ? 'flex' : 'none';
-          micTag.innerText = '🧊 咪冷卻中';
+          micTag.innerText = `🧊 咪冷卻中 (${countdown})`;
           micTag.style.background = 'rgba(125,184,197,0.7)';
         }
         return;
@@ -8529,11 +8541,14 @@
       micBtn.disabled = false;
 
       if (state.isMicOn) {
-        micBtn.innerText = '🎤 咪已開';
+        // 顯示仲有幾耐先撞到 3 分鐘開咪上限（實時倒數）
+        const remainSec = state.micOpenUntil ? Math.ceil((state.micOpenUntil - Date.now()) / 1000) : null;
+        const countdown = remainSec !== null ? ` (${formatMicCountdown(remainSec)})` : '';
+        micBtn.innerText = `🎤 已開咪${countdown}`;
         micBtn.className = 'btn btn-outline';
         if (micTag) {
           micTag.style.display = state.isCameraOn ? 'flex' : 'none';
-          micTag.innerText = '🎤 已開啟麥克風';
+          micTag.innerText = `🎤 已開啟麥克風${countdown}`;
           micTag.style.background = 'rgba(134,239,172,0.9)';
         }
       } else {
@@ -8765,21 +8780,32 @@
 
       state.isMicOn = !state.isMicOn;
       state.mediaStream.getAudioTracks().forEach(track => track.enabled = state.isMicOn);
-      updateMicButtonUI();
 
-      // 3 分鐘開咪上限：每次開返咪就重新計時；自己主動關咪就取消計時（唔會觸發冷卻）
+      // 3 分鐘開咪上限：每次開返咪就重新計時 + 開始每秒刷新倒數；
+      // 自己主動關咪就取消晒計時（唔會觸發冷卻）
       if (state.micOpenTimer) { clearTimeout(state.micOpenTimer); state.micOpenTimer = null; }
+      if (state.micOpenUiTimer) { clearInterval(state.micOpenUiTimer); state.micOpenUiTimer = null; }
+      state.micOpenUntil = null;
+
       if (state.isMicOn) {
+        state.micOpenUntil = Date.now() + MIC_OPEN_LIMIT_SECONDS * 1000;
+        state.micOpenUiTimer = setInterval(updateMicButtonUI, 1000);
         state.micOpenTimer = setTimeout(() => {
           state.micOpenTimer = null;
+          if (state.micOpenUiTimer) { clearInterval(state.micOpenUiTimer); state.micOpenUiTimer = null; }
+          state.micOpenUntil = null;
           if (state.isMicOn && state.mediaStream) {
             state.isMicOn = false;
             state.mediaStream.getAudioTracks().forEach(track => track.enabled = false);
             window.showToast('開咪已滿 3 分鐘，已幫你自動收埋，專心返去溫習啦！咪掣進入 5 分鐘冷卻 🧊', '⏳');
             startMicCooldown();
+          } else {
+            updateMicButtonUI();
           }
         }, MIC_OPEN_LIMIT_SECONDS * 1000);
       }
+
+      updateMicButtonUI();
     };
 
     // 開始 5 分鐘咪冷卻：鎖住咪掣、每秒刷新倒數顯示，時間到自動解鎖
