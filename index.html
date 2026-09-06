@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.81.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.81.2"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -8529,11 +8529,11 @@
         const remainSec = Math.ceil((state.micCooldownUntil - Date.now()) / 1000);
         const countdown = formatMicCountdown(remainSec);
         micBtn.disabled = true;
-        micBtn.innerText = `🧊 冷卻中 (${countdown})`;
+        micBtn.innerText = `🧊 冷卻中 ${countdown}`;
         micBtn.className = 'btn btn-outline';
         if (micTag) {
           micTag.style.display = state.isCameraOn ? 'flex' : 'none';
-          micTag.innerText = `🧊 咪冷卻中 (${countdown})`;
+          micTag.innerText = `🧊 咪冷卻中 ${countdown}`;
           micTag.style.background = 'rgba(125,184,197,0.7)';
         }
         return;
@@ -8541,9 +8541,10 @@
       micBtn.disabled = false;
 
       if (state.isMicOn) {
-        // 顯示仲有幾耐先撞到 3 分鐘開咪上限（實時倒數）
+        // 顯示仲有幾耐先撞到 3 分鐘開咪上限（實時倒數）；統一同其他計時器（例如
+        // 房間嘅番茄鐘）一樣淨係用空格分隔，唔加括號
         const remainSec = state.micOpenUntil ? Math.ceil((state.micOpenUntil - Date.now()) / 1000) : null;
-        const countdown = remainSec !== null ? ` (${formatMicCountdown(remainSec)})` : '';
+        const countdown = remainSec !== null ? ` ${formatMicCountdown(remainSec)}` : '';
         micBtn.innerText = `🎤 已開咪${countdown}`;
         micBtn.className = 'btn btn-outline';
         if (micTag) {
@@ -10412,15 +10413,28 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
           container.innerHTML = '<div class="admin-card" style="text-align:center; color:#999;">目前沒有任何用戶</div>';
           return;
         }
-        const rows = snapshot.docs.map(docSnap => {
+        // 按建立時間由舊到新排（唔靠 Firestore 讀出嚟嗰個順序，實測唔一定係
+        // 建立順序）；createdAt 舊帳號可能冇呢個欄位，冇嘅當做「最舊」排最前，
+        // 唔會搞亂晒個排序
+        const sortedDocs = [...snapshot.docs].sort((a, b) => {
+          const ta = new Date(a.data().createdAt || 0).getTime() || 0;
+          const tb = new Date(b.data().createdAt || 0).getTime() || 0;
+          return ta - tb;
+        });
+        const rows = sortedDocs.map(docSnap => {
           const u = docSnap.data();
           const uid = docSnap.id;
           const suspended = !!u.suspended;
+          // Email 欄顯示用戶註冊時真正填嘅聯絡電郵（contactEmail）；呢個先係
+          // 佢哋自己打嗰個地址。u.email 其實係內部合成嘅登入用電郵
+          // （{帳號ID}@concenmate.local，唔係真實可送達嘅地址），舊帳號冇
+          // contactEmail 先 fallback 用返佢
+          const displayEmail = u.contactEmail || u.email || '—';
           return `
             <tr style="${suspended ? 'opacity:.55;' : ''}">
               <td>${escapeHtml(u.username || '—')}${suspended ? ' <span style="color:#c0392b; font-size:13px;">(已停權)</span>' : ''}</td>
               <td>${u.loginId ? '🆔 ' + escapeHtml(u.loginId) : '<span style="color:#c99; font-size:13px;">未設定</span>'}</td>
-              <td>${escapeHtml(u.email || '—')}</td>
+              <td>${escapeHtml(displayEmail)}</td>
               <td>${escapeHtml(u.school || '—')}</td>
               <td><input class="admin-input-sm" type="number" style="width:70px;" value="${u.points || 0}" id="admin-user-points-${uid}"></td>
               <td><input class="admin-input-sm" style="width:60px;" value="${(parseFloat(u.hours) || 0).toFixed(1)}" id="admin-user-hours-${uid}"></td>
