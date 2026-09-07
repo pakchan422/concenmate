@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.86.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.87.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -1389,7 +1389,35 @@
     </section>
   </div>
 
-  <div id="app-shell">
+  <!-- 初始載入畫面：喺 JS 未判斷到用戶登入狀態之前顯示，避免一打開網站
+       就閃一下「已登入版首頁」畫面、然後先跳去 landing page（或者反過
+       嚟）。#app-shell 同 #landing-page 而家一開始都係 display:none，
+       淨係呢個 splash 預設顯示；updateUserAuthUI() 一判斷完狀態，就會
+       將呢個收埋、換做啱嘅嗰個顯示出嚟。 -->
+  <div id="initial-loading-screen" style="position:fixed; inset:0; z-index:99999; background:var(--brand-50); display:flex; align-items:center; justify-content:center;">
+    <img src="logo.png" alt="ConcenMate" width="56" height="56" style="border-radius:50%; opacity:.9;">
+  </div>
+  <script>
+    // 保險網：正常情況 Firebase 嘅 onAuthStateChanged 好快（通常一秒
+    // 之內）就會判斷完登入狀態、call updateUserAuthUI() 收埋呢個 splash。
+    // 但萬一之後嘅 script 因為咩原因（例如網絡問題令 Firebase SDK 都
+    // 攞唔到）而冧咗、永遠冇機會 call 到，就唔可以任由個 splash 卡死
+    // 喺度——8 秒後如果仲未收埋，就強制當佢未登入，直接顯示 landing
+    // page，好過畫面永遠卡喺一個載入中嘅畫面。呢個 <script> 特登擺喺
+    // 好前面、獨立於下面成個 app 嘅大 script block，就算嗰邊出錯呢度
+    // 都唔會受影響。
+    setTimeout(function() {
+      var splash = document.getElementById('initial-loading-screen');
+      if (splash && splash.style.display !== 'none') {
+        splash.style.display = 'none';
+        var landing = document.getElementById('landing-page');
+        if (landing) landing.style.display = 'block';
+        console.warn('登入狀態判斷逾時，已強制顯示 landing page');
+      }
+    }, 8000);
+  </script>
+
+  <div id="app-shell" style="display:none;">
   <div id="app-top-sticky">
   <header>
     <div class="logo-box" onclick="switchTab('home')">
@@ -1828,7 +1856,7 @@
                 <div id="pomodoro-widget" style="background:#fff; color:var(--brand-800); padding:6px 10px 8px; border-radius:10px; font-size:13px; display:flex; align-items:center; gap:8px; position:relative; overflow:hidden; border:1px solid var(--brand-200);">
                   <span id="room-timer-phase" style="font-weight:bold; white-space:nowrap;">🍅 專注中</span>
                   <span id="pomodoro-round-label" title="這個房入面現在踏入第幾輪專注（只是這次入房計，離開房間會重新計過）" style="font-size:13px; font-weight:700; white-space:nowrap; background:var(--brand-50); color:var(--brand-700); padding:1px 7px; border-radius:10px;">第 1 輪</span>
-                  <span id="room-timer" style="font-family:monospace; font-size:14px; white-space:nowrap;" title="呢一輪（專注／小休）已經計咗幾耐——順時計">00:00</span>
+                  <span id="room-timer" style="font-family:monospace; font-size:14px; font-weight:700; white-space:nowrap;" title="呢一輪（專注／小休）已經計咗幾耐——順時計">00:00</span>
                   <!-- 專注時段拆做 4 個「小目標」段落顯示（唔係一條望唔到盡頭嘅長 bar），
                        每一格啱啱好等如成輪專注時間嘅 25%，等學生覺得每格都係一個好快
                        捱到嘅小終點，更加容易達成。未填色嘅底色用灰色，同個白色 widget
@@ -1843,8 +1871,8 @@
                 <!-- 呢一次入房到而家嘅「總溫習時間」：順時計，唔理番茄鐘行到專注定
                      小休都計，只在被判定為閒置、暫停計分嗰陣先會跟住暫停累積 -->
                 <div id="room-total-time-widget" style="background:#fff; color:var(--brand-800); padding:6px 10px; border-radius:10px; font-size:13px; display:flex; align-items:center; gap:6px; border:1px solid var(--brand-200);" title="這次入房到而家嘅總溫習時間（順時計，閒置暫停計分時會暫停累積）">
-                  <span>⏱️ 本房總時間</span>
-                  <span id="room-total-time" style="font-family:monospace; font-size:14px; white-space:nowrap;">00:00</span>
+                  <span>⏱️ 已溫習</span>
+                  <span id="room-total-time" style="font-family:monospace; font-size:14px; font-weight:700; white-space:nowrap;">00:00</span>
                 </div>
 
                 <div class="fs-hide-in-fullscreen bg-noise-inline-row" style="background:#111; color:white; padding:4px 8px; border-radius:8px; font-size:13px; display:flex; align-items:center; gap:6px;" title="專注背景音，建議戴耳機使用">
@@ -3262,6 +3290,12 @@
     }
 
     function updateUserAuthUI() {
+      // 一判斷完登入狀態，即刻收埋初始載入畫面，換做啱嘅版面（landing
+      // page／app-shell）顯示出嚟——唔理落邊個分支都要收，所以擺喺
+      // 呢個function最開頭，一 call 到就即刻做
+      const initialLoadingScreen = document.getElementById('initial-loading-screen');
+      if (initialLoadingScreen) initialLoadingScreen.style.display = 'none';
+
       const unauthScreen = document.getElementById('unauth-screen');
       const authContent = document.getElementById('authenticated-app-content');
       const verifyScreen = document.getElementById('verify-email-screen');
