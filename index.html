@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.84.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.85.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -157,6 +157,21 @@
       .rooms-grid { grid-template-columns: 1fr; }
       /* 按鈕在手機上放大觸控區 */
       .btn { padding: 9px 14px; font-size: 14px; min-height: 38px; }
+
+      /* 手機直向嗰陣，視訊房控制列（開鏡頭／靜音／番茄鐘／本房總時間／
+         背景音／全螢幕／退出房間）逐樣逐樣排落去會分成好多行，好亂。
+         做兩件事收窄返：(1) 背景音由「落拉選單＋滑桿＋暫停掣」3 件嘢，
+         收埋做同全螢幕模式一樣嘅單一粒「🔊 背景音」掣（撳先彈個細面板
+         揀），跟全螢幕嗰個 .fs-bg-noise-only 用返同一套 UI，唔使兩份；
+         (2) 番茄鐘同本房總時間兩個 widget 縮小 padding／字體，等佢哋
+         儘量企埋一行，減少成體換行嘅次數。用 !important 係因為
+         .fs-bg-noise-only 平時（唔係全螢幕）本身有 inline
+         style="display:none"，一定要蓋得過先顯示到。 */
+      #room-active:not(.video-fullscreen-mode) .bg-noise-inline-row { display: none !important; }
+      #room-active:not(.video-fullscreen-mode) .fs-bg-noise-only { display: flex !important; }
+      #pomodoro-widget, #room-total-time-widget { padding: 5px 8px 6px; font-size: 12px; gap: 5px; }
+      #pomodoro-widget #room-timer, #room-total-time-widget #room-total-time { font-size: 13px; }
+      #pomodoro-round-label { padding: 1px 6px; font-size: 12px; }
     }
 
     /* ── 超小（≤360px，例如舊 Android）── */
@@ -1832,7 +1847,7 @@
                   <span id="room-total-time" style="font-family:monospace; font-size:14px; white-space:nowrap;">00:00</span>
                 </div>
 
-                <div class="fs-hide-in-fullscreen" style="background:#111; color:white; padding:4px 8px; border-radius:8px; font-size:13px; display:flex; align-items:center; gap:6px;" title="專注背景音，建議戴耳機使用">
+                <div class="fs-hide-in-fullscreen bg-noise-inline-row" style="background:#111; color:white; padding:4px 8px; border-radius:8px; font-size:13px; display:flex; align-items:center; gap:6px;" title="專注背景音，建議戴耳機使用">
                   <span>🔊</span>
                   <select id="bg-noise-select" style="background:#222; color:#fff; border:1px solid #444; border-radius:6px; font-size:13px; padding:2px 4px;" onchange="setBgNoiseType(this.value)">
                     <option value="off">背景音：關閉</option>
@@ -1846,10 +1861,6 @@
                   </select>
                   <input type="range" id="bg-noise-volume" min="0" max="1" step="0.05" value="0.39" style="width:60px;" oninput="setBgNoiseVolume(this.value)">
                   <button type="button" id="bg-noise-pause-btn" onclick="toggleBgNoisePause()" disabled title="暫停／繼續背景音" style="background:#333; color:#fff; border:1px solid #555; border-radius:6px; font-size:13px; padding:2px 6px; cursor:pointer; opacity:.4; line-height:1.4;">⏸️</button>
-                </div>
-
-                <div class="room-capacity-tag fs-hide-in-fullscreen" id="room-capacity-tag">
-                  👥 <span id="room-participant-count">1</span>/4
                 </div>
 
                 <button class="btn btn-outline" type="button" id="video-fullscreen-btn" style="border-color:#DDCABB; color:#1E4550;" onclick="toggleVideoFullscreenMode()" title="四格鏡頭放到全螢幕，一次過看清楚晒所有人">⛶ 全螢幕</button>
