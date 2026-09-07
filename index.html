@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.82.1"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.84.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -6442,6 +6442,8 @@
       lastProcessedOfferTs: {},
       lastProcessedAnswerTs: {},
       peerConnections: {},
+      peerNames: {}, // { uid: name } 記住每位遠端用家個名，畀連線斷咗要自動重連嗰陣用（createOfferTo 要有個名先叫得到用戶）
+      peerReconnectTimers: {}, // { uid: timeoutId } 連線變 disconnected 之後嘅寬限計時器，睇下會唔會自己好返
       signalingUnsubscribe: null,
       candidatesUnsubscribe: null,
       pendingCandidates: {}, // { uid: [candidateInit, ...] } 尚未能加入的 ICE candidate 佇列
@@ -6462,6 +6464,8 @@
       micOpenTimer: null, // 開咪 3 分鐘上限嘅計時器，時間一到自動關咪 + 進入冷卻
       micOpenUiTimer: null, // 開咪期間每秒刷新按鈕文字（顯示仲剩幾耐先到 3 分鐘上限）用嘅 interval
       micOpenUntil: null, // 呢次開咪會喺幾時（ms 時間戳）撞到 3 分鐘上限，畀 UI 計倒數用
+      micUsedSeconds: 0, // 由上一次冷卻完結到而家，已經累積開咗幾多秒咪——手動關咪／再開咪唔會令佢歸零，先真正做到「連續 3 分鐘上限」
+      micSegmentStart: null, // 而家呢一段「開緊咪」係幾時開始嘅時間戳，用嚟喺手動關咪嗰刻計返呢段用咗幾多秒加落 micUsedSeconds
       micCooldownTimer: null, // 冷卻 5 分鐘完結嘅計時器，完咗先解鎖返咪掣
       micCooldownUiTimer: null, // 冷卻期間每秒刷新按鈕文字（顯示倒數）用嘅 interval
       micCooldownUntil: null // 冷卻結束嘅時間戳（ms），畀 UI 計倒數用
@@ -6687,6 +6691,9 @@
 
     // 把某位遠端用家安排到一個空格，並回傳該格內的 <video> 元素供 WebRTC 串流使用
     function getOrCreateRemoteSlot(uid, name) {
+      // 記住呢位遠端用家個名，畀之後連線斷咗要自動重連（createOfferTo 需要
+      // 一個名嚟顯示）嗰陣用，唔使當時先至去問
+      if (name) state.peerNames[uid] = name;
       let slotNum = state.slotAssignments[uid];
 
       if (!slotNum) {
@@ -7626,20 +7633,55 @@
         setTimeout(() => { ptsEl.style.color = ''; }, 800);
       }
 
-      // 寫入 Firestore（atomic increment，就算多頁面同時開都唔會出問題）
       if (!window.currentUser || !window.db || !window.fs) return;
+
+      const expPerPoint = (LEVEL_CONFIG && typeof LEVEL_CONFIG.expPerMinute === 'number') ? LEVEL_CONFIG.expPerMinute : 1;
+      const expGain = expPerPoint * pointsAmount;
+      // 「今日目標」同一次處理埋：如果 todayDate 仲係今日就當「今日累積」加多
+      // 1 分鐘，如果隔咗一日（或者未設過）就當呢分鐘係新一日嘅第一分鐘。
+      const isNewDay = hoursIncrement > 0 && window.currentUser.todayDate !== getTodayDateStr();
+
+      // 先喺本機即刻更新（唔等 Firestore 寫入成功先至反映畫面）——同 PTS 顯示
+      // 用返一致嘅「樂觀更新」做法。之前呢部份寫喺 await 寫入成功之後先做，
+      // 一旦嗰次寫入因為網絡問題（例如視訊房用緊頻寬）而失敗，「今日目標」
+      // 同「累積時數」就會靜靜雞停咗，睇落好似溫咗好耐都冇進度，但實際上
+      // 個問題係個更新本身冧咗、唔係冇儲夠鐘。而家改為本機狀態即時更新，
+      // Firestore 淨係負責喺背景盡量同步返（失敗都唔會擋住畫面）。
+      window.currentUser.points = (window.currentUser.points || 0) + pointsAmount;
+      const prevLevel = calcLevelInfo(window.currentUser.exp || 0).level;
+      window.currentUser.exp = (window.currentUser.exp || 0) + expGain;
+      updateLevelDisplay();
+      const newLevel = calcLevelInfo(window.currentUser.exp).level;
+      if (newLevel > prevLevel) {
+        const rank = getRankTitle(newLevel);
+        window.showToast(`🎉 升級喇！現在是 Lv.${newLevel} ${rank.emoji} ${rank.title}！`, '⬆️');
+      }
+      if (hoursIncrement > 0) {
+        const newHours = (parseFloat(window.currentUser.hours) || 0) + hoursIncrement;
+        window.currentUser.hours = newHours;
+        const hoursDisplay = newHours.toFixed(1);
+        const statHoursEl = document.getElementById('stat-hours');
+        if (statHoursEl) statHoursEl.innerText = hoursDisplay;
+        const homeHoursEl = document.getElementById('home-stat-hours');
+        if (homeHoursEl) homeHoursEl.innerText = formatHoursMinutes(newHours);
+
+        if (isNewDay) {
+          window.currentUser.todayMinutes = 1;
+          window.currentUser.todayDate = getTodayDateStr();
+        } else {
+          window.currentUser.todayMinutes = (window.currentUser.todayMinutes || 0) + 1;
+        }
+        updateGoalBarDisplay();
+      }
+
+      // 寫入 Firestore（atomic increment，就算多頁面同時開都唔會出問題）——
+      // 呢度純粹係背景持久化，就算失敗都唔會影響用家而家見到嘅畫面
       try {
-        const expPerPoint = (LEVEL_CONFIG && typeof LEVEL_CONFIG.expPerMinute === 'number') ? LEVEL_CONFIG.expPerMinute : 1;
-        const expGain = expPerPoint * pointsAmount;
         const userRef = window.fs.doc(window.db, "users", window.currentUser.uid);
         const updatePayload = {
           points: window.fs.increment(pointsAmount),
           exp: window.fs.increment(expGain)
         };
-        // 「今日目標」同一次寫入處理埋：如果 todayDate 仲係今日就直接 increment
-        // 1 分鐘，如果隔咗一日（或者未設過）就當呢分鐘係新一日嘅第一分鐘，
-        // 直接寫死做 1 唔用 increment，等佢自動歸零，唔使額外多一次寫入。
-        const isNewDay = hoursIncrement > 0 && window.currentUser.todayDate !== getTodayDateStr();
         if (hoursIncrement > 0) {
           updatePayload.hours = window.fs.increment(hoursIncrement);
           if (isNewDay) {
@@ -7650,36 +7692,8 @@
           }
         }
         await window.fs.updateDoc(userRef, updatePayload);
-        if (window.currentUser) {
-          window.currentUser.points = (window.currentUser.points || 0) + pointsAmount;
-          const prevLevel = calcLevelInfo(window.currentUser.exp || 0).level;
-          window.currentUser.exp = (window.currentUser.exp || 0) + expGain;
-          updateLevelDisplay();
-          const newLevel = calcLevelInfo(window.currentUser.exp).level;
-          if (newLevel > prevLevel) {
-            const rank = getRankTitle(newLevel);
-            window.showToast(`🎉 升級喇！現在是 Lv.${newLevel} ${rank.emoji} ${rank.title}！`, '⬆️');
-          }
-          if (hoursIncrement > 0) {
-            const newHours = (parseFloat(window.currentUser.hours) || 0) + hoursIncrement;
-            window.currentUser.hours = newHours;
-            const hoursDisplay = newHours.toFixed(1);
-            const statHoursEl = document.getElementById('stat-hours');
-            if (statHoursEl) statHoursEl.innerText = hoursDisplay;
-            const homeHoursEl = document.getElementById('home-stat-hours');
-            if (homeHoursEl) homeHoursEl.innerText = formatHoursMinutes(newHours);
-
-            if (isNewDay) {
-              window.currentUser.todayMinutes = 1;
-              window.currentUser.todayDate = getTodayDateStr();
-            } else {
-              window.currentUser.todayMinutes = (window.currentUser.todayMinutes || 0) + 1;
-            }
-            updateGoalBarDisplay();
-          }
-        }
       } catch (e) {
-        console.warn("積分更新失敗（唔影響使用）:", e);
+        console.warn("積分同步到 Firestore 失敗（畫面已經即時更新，唔影響使用；下次成功寫入時會追返）:", e);
       }
     }
 
@@ -8090,7 +8104,9 @@
     // ===================== 防「開房掛機刷分」：定時確認用家是否真係喺度 =====================
     // 每 10 分鐘彈窗問一次「仲喺度嗎？」，2 分鐘內冇撳確認就暫停計分（PTS/EXP 唔再累積），
     // 唔會因為閒置就自動踢佢出房——單純暫停累積時間／分數，等佢返嚟撳一下確認就
-    // 即刻恢復，房間本身唔會被迫離開。
+    // 即刻恢復，房間本身唔會被迫離開。如果開緊鏡頭就完全跳過呢個檢查（見
+    // triggerPresenceCheck），因為開住鏡頭已經係好強嘅在場證據，唔應該仲彈窗
+    // 甚至誤判做「閒置」停止計時。
     const ROOM_PRESENCE_CHECK_INTERVAL_MS = 10 * 60 * 1000; // 每 10 分鐘check 一次
     const ROOM_PRESENCE_RESPONSE_MS = 2 * 60 * 1000;        // 彈窗後 2 分鐘內要確認
 
@@ -8112,6 +8128,14 @@
 
     function triggerPresenceCheck() {
       if (!state.currentRoomId) return;
+      // 開緊鏡頭本身已經係好強嘅「用家真係喺度」證據，唔使再彈窗煩佢，
+      // 亦都唔應該純粹因為時間到就話人閒置、停止計分——所以有開鏡頭
+      // 就跳過呢一輪確認，直接當佢真係喺度學緊嘢
+      if (state.isCameraOn) {
+        state.presenceConfirmed = true;
+        state.awardingPaused = false;
+        return;
+      }
       state.presenceConfirmed = false;
       openModal('modal-presence-check');
       if (state.presenceTimeoutTimer) clearTimeout(state.presenceTimeoutTimer);
@@ -8132,12 +8156,18 @@
       window.showToast('偵測到你可能唔在，已暫停計分。撳「是，我仍在學習」即可恢復', '⏸️');
     }
 
-    window.confirmStillHere = function() {
+    // 淨係解除暫停狀態、閂返彈窗，唔會有額外 +2 PTS 獎勵——畀開返鏡頭
+    // 自動觸發嗰種情況用（見 toggleCamera），因為嗰種唔算用家主動撳確認
+    function resumePresenceSilently() {
       state.presenceConfirmed = true;
       state.awardingPaused = false;
       if (state.presenceTimeoutTimer) { clearTimeout(state.presenceTimeoutTimer); state.presenceTimeoutTimer = null; }
       closeModal('modal-presence-check');
       updateTimerDisplay();
+    }
+
+    window.confirmStillHere = function() {
+      resumePresenceSilently();
       // 主動確認「仲喺度」都算係一種投入專注嘅表現，順手獎多 2 分鼓勵一下
       awardStudyPoint(2);
       window.showToast('讚！繼續加油溫習，額外送你 +2 PTS 🎁', '💪');
@@ -8266,6 +8296,8 @@
       if (state.micOpenTimer) { clearTimeout(state.micOpenTimer); state.micOpenTimer = null; }
       if (state.micOpenUiTimer) { clearInterval(state.micOpenUiTimer); state.micOpenUiTimer = null; }
       state.micOpenUntil = null;
+      state.micUsedSeconds = 0;
+      state.micSegmentStart = null;
       if (state.micCooldownTimer) { clearTimeout(state.micCooldownTimer); state.micCooldownTimer = null; }
       if (state.micCooldownUiTimer) { clearInterval(state.micCooldownUiTimer); state.micCooldownUiTimer = null; }
       state.micCooldownUntil = null;
@@ -8713,6 +8745,13 @@
 
           state.isCameraOn = true;
 
+          // 開返鏡頭已經係好強嘅在場證據：如果啱啱好因為之前嘅閒置檢查
+          // 暫停緊計分／彈住確認窗，一開返鏡頭就即刻幫佢解除，唔使佢
+          // 仲要額外撳多次「是，我仍在學習」
+          if (state.awardingPaused || (document.getElementById('modal-presence-check') && document.getElementById('modal-presence-check').style.display !== 'none')) {
+            if (typeof resumePresenceSilently === 'function') resumePresenceSilently();
+          }
+
           videoEl.muted = true;
           videoEl.volume = 0;
           videoEl.setAttribute('playsinline', 'true');
@@ -8801,19 +8840,38 @@
       state.isMicOn = !state.isMicOn;
       state.mediaStream.getAudioTracks().forEach(track => track.enabled = state.isMicOn);
 
-      // 3 分鐘開咪上限：每次開返咪就重新計時 + 開始每秒刷新倒數；
-      // 自己主動關咪就取消晒計時（唔會觸發冷卻）
+      // 3 分鐘開咪上限：用 micUsedSeconds 累積「呢個冷卻循環入面總共開咗幾耐咪」，
+      // 手動關咪只係停止計時，唔會令個累積數歸零——所以熄咗再開返，剩返嘅
+      // 時間會接住計落去，唔會變相攞到無限開咪時間。累積夠 3 分鐘先會真正
+      // 觸發自動收咪 + 冷卻；累積數要等冷卻完成先歸零，開始新一個循環。
       if (state.micOpenTimer) { clearTimeout(state.micOpenTimer); state.micOpenTimer = null; }
       if (state.micOpenUiTimer) { clearInterval(state.micOpenUiTimer); state.micOpenUiTimer = null; }
       state.micOpenUntil = null;
 
       if (state.isMicOn) {
-        state.micOpenUntil = Date.now() + MIC_OPEN_LIMIT_SECONDS * 1000;
+        // 開返咪：將呢段開始嘅時間戳記低，計返仲有幾多預算未用完
+        state.micSegmentStart = Date.now();
+        const remainingSeconds = Math.max(0, MIC_OPEN_LIMIT_SECONDS - (state.micUsedSeconds || 0));
+
+        if (remainingSeconds <= 0) {
+          // 理論上唔應該發生（冇用盡預算前應該已經俾冷卻擋咗），保險起見
+          // 直接當即刻用晒，收返咪、入冷卻
+          state.isMicOn = false;
+          state.mediaStream.getAudioTracks().forEach(track => track.enabled = false);
+          state.micSegmentStart = null;
+          startMicCooldown();
+          updateMicButtonUI();
+          return;
+        }
+
+        state.micOpenUntil = Date.now() + remainingSeconds * 1000;
         state.micOpenUiTimer = setInterval(updateMicButtonUI, 1000);
         state.micOpenTimer = setTimeout(() => {
           state.micOpenTimer = null;
           if (state.micOpenUiTimer) { clearInterval(state.micOpenUiTimer); state.micOpenUiTimer = null; }
           state.micOpenUntil = null;
+          state.micSegmentStart = null;
+          state.micUsedSeconds = MIC_OPEN_LIMIT_SECONDS;
           if (state.isMicOn && state.mediaStream) {
             state.isMicOn = false;
             state.mediaStream.getAudioTracks().forEach(track => track.enabled = false);
@@ -8822,13 +8880,21 @@
           } else {
             updateMicButtonUI();
           }
-        }, MIC_OPEN_LIMIT_SECONDS * 1000);
+        }, remainingSeconds * 1000);
+      } else {
+        // 主動關咪：將呢段用咗幾耐計落 micUsedSeconds，落次再開咪會接住計
+        if (state.micSegmentStart) {
+          const elapsedSeconds = (Date.now() - state.micSegmentStart) / 1000;
+          state.micUsedSeconds = Math.min(MIC_OPEN_LIMIT_SECONDS, (state.micUsedSeconds || 0) + elapsedSeconds);
+        }
+        state.micSegmentStart = null;
       }
 
       updateMicButtonUI();
     };
 
-    // 開始 5 分鐘咪冷卻：鎖住咪掣、每秒刷新倒數顯示，時間到自動解鎖
+    // 開始 5 分鐘咪冷卻：鎖住咪掣、每秒刷新倒數顯示，時間到自動解鎖，
+    // 並且將 micUsedSeconds 歸零，開始新一個 3 分鐘預算循環
     function startMicCooldown() {
       if (state.micCooldownTimer) { clearTimeout(state.micCooldownTimer); state.micCooldownTimer = null; }
       if (state.micCooldownUiTimer) { clearInterval(state.micCooldownUiTimer); state.micCooldownUiTimer = null; }
@@ -8839,6 +8905,7 @@
       state.micCooldownTimer = setTimeout(() => {
         state.micCooldownTimer = null;
         state.micCooldownUntil = null;
+        state.micUsedSeconds = 0;
         if (state.micCooldownUiTimer) { clearInterval(state.micCooldownUiTimer); state.micCooldownUiTimer = null; }
         updateMicButtonUI();
         window.showToast('咪冷卻完成，可以再開咪啦 🎤', '✅');
@@ -9191,18 +9258,73 @@
         if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) {
           console.warn(`與 ${remoteUid} 的連線狀態變為 ${pc.connectionState}`);
         }
+
+        if (pc.connectionState === 'connected') {
+          // 連線好返（或者本身就一路穩定），取消任何仲排緊隊嘅自動重連
+          if (state.peerReconnectTimers[remoteUid]) {
+            clearTimeout(state.peerReconnectTimers[remoteUid]);
+            delete state.peerReconnectTimers[remoteUid];
+          }
+          return;
+        }
+
+        // 'disconnected' 好多時淨係短暫網絡波動，過幾秒會自動變返 'connected'，
+        // 未必需要成個連線推倒重來。所以先畀 6 秒寬限，時間到仲未自己好返
+        // 先真係當佢係「呢個 viewer 單方面斷咗」（例如 NAT／路由問題只影響
+        // 緊一邊嘅視角，其他人明明都仲見到晒），主動幫佢重新連過，
+        // 唔好就咁畀個黑畫面一直卡喺度冇人理。
+        if (pc.connectionState === 'disconnected') {
+          if (state.peerReconnectTimers[remoteUid]) clearTimeout(state.peerReconnectTimers[remoteUid]);
+          state.peerReconnectTimers[remoteUid] = setTimeout(() => {
+            delete state.peerReconnectTimers[remoteUid];
+            if (state.peerConnections[remoteUid] === pc &&
+                pc.connectionState !== 'connected' && pc.connectionState !== 'completed') {
+              wrtcLog(`與 ${remoteUid} 的連線持續 disconnected 超過寬限期，主動重新連線`);
+              attemptPeerReconnect(remoteUid, pc);
+            }
+          }, 6000);
+          return;
+        }
+
         // 關鍵修正：連線徹底死咗（failed／closed）之後，一定要將佢由
         // state.peerConnections 度移除。之前冇做呢步，導致對方離開房間後，
         // 呢個已經失效嘅連線物件會一直卡喺 state.peerConnections 度，
         // 令 "!state.peerConnections[remoteUid]" 呢個檢查永遠都係 false，
         // 對方之後重新入房都再冇機會收到一個全新嘅 Offer——
         // 佢哋只可以撿到一份舊時已經冇人理會嘅過時 Offer 文件，白費工夫。
-        if (['failed', 'closed'].includes(pc.connectionState)) {
+        if (state.peerReconnectTimers[remoteUid]) {
+          clearTimeout(state.peerReconnectTimers[remoteUid]);
+          delete state.peerReconnectTimers[remoteUid];
+        }
+        if (pc.connectionState === 'failed') {
+          // 已經確定死咗，唔使再等，直接試下自動重新連線，好過就咁擺爛
+          // 一直畀對方個黑畫面
+          attemptPeerReconnect(remoteUid, pc);
+        } else if (pc.connectionState === 'closed') {
           cleanupDeadPeerConnection(remoteUid, pc);
         }
       };
 
       return pc;
+    }
+
+    // 連線卡死（failed，或者 disconnected 寬限期過咗都未自己好返）之後嘅
+    // 自動補救：清走呢條舊連線，然後好似對方啱啱先上線咁，重新發一次
+    // Offer 幫佢建立返一條全新連線——唔理原本邊個負責發起，因為呢度純粹
+    // 係「我依家見到嘅畫面壞咗，我要自己搶返」嘅補救，唔係初次配對，
+    // 就算兩邊啱啱好同時咁做都唔會有問題（createOfferTo 本身已經會捨棄
+    // 重建任何舊連線）。
+    async function attemptPeerReconnect(remoteUid, pc) {
+      if (state.peerConnections[remoteUid] !== pc) return; // 已經俾第二條新連線取代咗，唔使處理
+      if (!state.currentRoomId || !window.currentUser) return;
+      await cleanupDeadPeerConnection(remoteUid, pc);
+      const remoteName = state.peerNames[remoteUid] || '同學';
+      getOrCreateRemoteSlot(remoteUid, remoteName);
+      try {
+        await createOfferTo(state.currentRoomId, remoteUid, remoteName);
+      } catch (e) {
+        console.warn(`自動重連 ${remoteUid} 失敗:`, e);
+      }
     }
 
     // 連線徹底失效後嘅清理：釋放格仔、由連線清單中移除，
