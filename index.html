@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.81.3"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.82.1"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -1813,7 +1813,7 @@
                 <div id="pomodoro-widget" style="background:#fff; color:var(--brand-800); padding:6px 10px 8px; border-radius:10px; font-size:13px; display:flex; align-items:center; gap:8px; position:relative; overflow:hidden; border:1px solid var(--brand-200);">
                   <span id="room-timer-phase" style="font-weight:bold; white-space:nowrap;">🍅 專注中</span>
                   <span id="pomodoro-round-label" title="這個房入面現在踏入第幾輪專注（只是這次入房計，離開房間會重新計過）" style="font-size:13px; font-weight:700; white-space:nowrap; background:var(--brand-50); color:var(--brand-700); padding:1px 7px; border-radius:10px;">第 1 輪</span>
-                  <span id="room-timer" style="font-family:monospace; font-size:14px; white-space:nowrap;">30:00</span>
+                  <span id="room-timer" style="font-family:monospace; font-size:14px; white-space:nowrap;" title="呢一輪（專注／小休）已經計咗幾耐——順時計">00:00</span>
                   <!-- 專注時段拆做 4 個「小目標」段落顯示（唔係一條望唔到盡頭嘅長 bar），
                        每一格啱啱好等如成輪專注時間嘅 25%，等學生覺得每格都係一個好快
                        捱到嘅小終點，更加容易達成。未填色嘅底色用灰色，同個白色 widget
@@ -1825,7 +1825,12 @@
                     <div class="pomodoro-quarter-seg" style="flex:1; background:#D9D9D9; border-radius:2px;"></div>
                   </div>
                 </div>
-                <button class="btn btn-red" type="button" id="btn-presence-back" onclick="confirmStillHere()" style="display:none; font-size:13px; padding:5px 8px;">⏸️ 已暫停計分，撳返來</button>
+                <!-- 呢一次入房到而家嘅「總溫習時間」：順時計，唔理番茄鐘行到專注定
+                     小休都計，只在被判定為閒置、暫停計分嗰陣先會跟住暫停累積 -->
+                <div id="room-total-time-widget" style="background:#fff; color:var(--brand-800); padding:6px 10px; border-radius:10px; font-size:13px; display:flex; align-items:center; gap:6px; border:1px solid var(--brand-200);" title="這次入房到而家嘅總溫習時間（順時計，閒置暫停計分時會暫停累積）">
+                  <span>⏱️ 本房總時間</span>
+                  <span id="room-total-time" style="font-family:monospace; font-size:14px; white-space:nowrap;">00:00</span>
+                </div>
 
                 <div class="fs-hide-in-fullscreen" style="background:#111; color:white; padding:4px 8px; border-radius:8px; font-size:13px; display:flex; align-items:center; gap:6px;" title="專注背景音，建議戴耳機使用">
                   <span>🔊</span>
@@ -6427,6 +6432,7 @@
       mediaStream: null,
       countdownTimer: null,
       remainingSeconds: 1800,
+      roomTotalSeconds: 0, // 呢次入房到而家嘅「總溫習時間」（順時計），閒置暫停計分期間唔會累積
       renderFrameId: null,
       currentRoomId: null,
       isHost: false,
@@ -6451,7 +6457,6 @@
       heartbeatTimer: null, // 房間心跳計時器（見 startRoomHeartbeat），畀大廳嘅幽靈房自動清理機制用
       presenceCheckTimer: null, // 定時彈窗確認「仲喺度嗎？」嘅計時器
       presenceTimeoutTimer: null, // 彈窗後 2 分鐘未確認就暫停計分嘅計時器
-      presenceAutoLeaveTimer: null, // 暫停計分後再耐都冇反應，自動退房嘅計時器
       presenceConfirmed: true, // 呢一輪確認彈窗，用家係咪已經撳咗確認
       awardingPaused: false, // 被判定為閒置期間，暫停 PTS/EXP 獎勵（防止掛機刷分）
       micOpenTimer: null, // 開咪 3 分鐘上限嘅計時器，時間一到自動關咪 + 進入冷卻
@@ -7318,6 +7323,7 @@
       state.pomodoroPhase = 'focus';
       state.focusDurationSeconds = totalSeconds;
       state.pomodoroCyclesCompleted = 0; // 每次新入房，「已完成番茄鐘」由 0 開始儲
+      state.roomTotalSeconds = 0; // 每次新入房，「呢間房總溫習時間」由 0 開始順時計
       updateTimerDisplay();
 
       resetVideoSlots();
@@ -7550,6 +7556,12 @@
       let lastQuarterMilestoneShown = 0;
 
       state.countdownTimer = setInterval(async () => {
+        // 「呢間房總溫習時間」順時累加：淨係喺無被判定為閒置（awardingPaused）
+        // 嘅時候先計，同積分／時數嘅暫停邏輯保持一致
+        if (!state.awardingPaused) {
+          state.roomTotalSeconds = (state.roomTotalSeconds || 0) + 1;
+        }
+
         if (state.remainingSeconds > 0) {
           state.remainingSeconds--;
           secondsElapsedInPhase++;
@@ -8008,12 +8020,32 @@
       loadFlashcards();
     };
 
+    // 將秒數格式化做「順時」顯示：唔夠 1 小時就 MM:SS，夠鐘就變 H:MM:SS，
+    // 等總溫習時間就算計耐咗都睇得清楚（唔會淨係得兩位數字爆晒格）。
+    function formatElapsedClock(totalSeconds) {
+      const s = Math.max(0, Math.floor(totalSeconds || 0));
+      const hrs = Math.floor(s / 3600);
+      const mins = Math.floor((s % 3600) / 60);
+      const secs = s % 60;
+      if (hrs > 0) {
+        return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      }
+      return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+
     function updateTimerDisplay() {
-      const mins = Math.floor(state.remainingSeconds / 60);
-      const secs = state.remainingSeconds % 60;
+      // 番茄鐘改為順時顯示：畫面上顯示嘅係「呢一輪（專注／小休）已經計咗幾耐」，
+      // 唔再係倒數剩返幾耐——實際循環邏輯（幾時完、幾時轉階段）仍然係靠
+      // state.remainingSeconds 喺背後倒數控制，淨係顯示方式改咗。
+      const phaseTotalSecondsForDisplay = state.pomodoroPhase === 'break' ? ROOM_POMODORO_BREAK_SECONDS : (state.focusDurationSeconds || 1);
+      const elapsedForDisplay = Math.max(0, phaseTotalSecondsForDisplay - state.remainingSeconds);
       const timerEl = document.getElementById('room-timer');
       if (timerEl) {
-        timerEl.innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        timerEl.innerText = formatElapsedClock(elapsedForDisplay);
+      }
+      const totalTimeEl = document.getElementById('room-total-time');
+      if (totalTimeEl) {
+        totalTimeEl.innerText = formatElapsedClock(state.roomTotalSeconds || 0);
       }
       const phaseEl = document.getElementById('room-timer-phase');
       if (phaseEl) {
@@ -8053,19 +8085,14 @@
         roundLabelEl.title = `已完成 ${completed} 個完整番茄鐘（這個計數只是計這次入房，離開房間會重新開始計）`;
       }
 
-      // 被判定為閒置期間，喺計時器旁邊顯示一個顯眼嘅「撳返嚟」掣，
-      // 等用家一返嚟就可以即刻恢復計分，唔使等下一次彈窗
-      const backBtn = document.getElementById('btn-presence-back');
-      if (backBtn) backBtn.style.display = state.awardingPaused ? 'inline-flex' : 'none';
     }
 
     // ===================== 防「開房掛機刷分」：定時確認用家是否真係喺度 =====================
     // 每 10 分鐘彈窗問一次「仲喺度嗎？」，2 分鐘內冇撳確認就暫停計分（PTS/EXP 唔再累積），
-    // 如果連續耐都完全冇反應（連彈窗都冇理），就當佢真係走咗，系統自動幫佢退出房間，
-    // 咁個房都可以及時釋放返俾其他人，唔會俾人長期霸住個位卻只係掛機唔學嘢。
+    // 唔會因為閒置就自動踢佢出房——單純暫停累積時間／分數，等佢返嚟撳一下確認就
+    // 即刻恢復，房間本身唔會被迫離開。
     const ROOM_PRESENCE_CHECK_INTERVAL_MS = 10 * 60 * 1000; // 每 10 分鐘check 一次
     const ROOM_PRESENCE_RESPONSE_MS = 2 * 60 * 1000;        // 彈窗後 2 分鐘內要確認
-    const ROOM_PRESENCE_AUTO_LEAVE_MS = 8 * 60 * 1000;      // 逾時未確認後，再俾 8 分鐘寬限，之後自動退房
 
     function startPresenceCheckLoop() {
       if (state.presenceCheckTimer) clearInterval(state.presenceCheckTimer);
@@ -8079,7 +8106,6 @@
     function stopPresenceCheckLoop() {
       if (state.presenceCheckTimer) { clearInterval(state.presenceCheckTimer); state.presenceCheckTimer = null; }
       if (state.presenceTimeoutTimer) { clearTimeout(state.presenceTimeoutTimer); state.presenceTimeoutTimer = null; }
-      if (state.presenceAutoLeaveTimer) { clearTimeout(state.presenceAutoLeaveTimer); state.presenceAutoLeaveTimer = null; }
       closeModal('modal-presence-check');
       state.awardingPaused = false;
     }
@@ -8089,33 +8115,27 @@
       state.presenceConfirmed = false;
       openModal('modal-presence-check');
       if (state.presenceTimeoutTimer) clearTimeout(state.presenceTimeoutTimer);
+      // 逾時唔會自動閂返個彈窗——個彈窗會一直留喺度，等用家自己撳
+      // 「是，我仍在學習」先閂，先算真正確認咗返嚟
       state.presenceTimeoutTimer = setTimeout(() => {
         if (!state.presenceConfirmed) {
-          closeModal('modal-presence-check');
           handlePresenceTimeout();
         }
       }, ROOM_PRESENCE_RESPONSE_MS);
     }
 
     function handlePresenceTimeout() {
+      // 淨係暫停計分，唔會自動幫佢退房、都唔會自動閂彈窗——房間同彈窗都會
+      // 一直等到用家自己撳「是，我仍在學習」為止先恢復
       state.awardingPaused = true;
       updateTimerDisplay();
-      window.showToast('偵測到你可能唔在，已暫停計分。返來後撳「已暫停計分，撳返來」即可恢復', '⏸️');
-
-      if (state.presenceAutoLeaveTimer) clearTimeout(state.presenceAutoLeaveTimer);
-      state.presenceAutoLeaveTimer = setTimeout(() => {
-        if (!state.presenceConfirmed && state.currentRoomId) {
-          window.showToast('你已經閒置太耐，系統已自動幫你退出溫習房', '🚪');
-          doLeaveRoom(false);
-        }
-      }, ROOM_PRESENCE_AUTO_LEAVE_MS);
+      window.showToast('偵測到你可能唔在，已暫停計分。撳「是，我仍在學習」即可恢復', '⏸️');
     }
 
     window.confirmStillHere = function() {
       state.presenceConfirmed = true;
       state.awardingPaused = false;
       if (state.presenceTimeoutTimer) { clearTimeout(state.presenceTimeoutTimer); state.presenceTimeoutTimer = null; }
-      if (state.presenceAutoLeaveTimer) { clearTimeout(state.presenceAutoLeaveTimer); state.presenceAutoLeaveTimer = null; }
       closeModal('modal-presence-check');
       updateTimerDisplay();
       // 主動確認「仲喺度」都算係一種投入專注嘅表現，順手獎多 2 分鼓勵一下
@@ -9225,10 +9245,10 @@
   <div class="modal-backdrop" id="modal-presence-check" style="display:none;">
     <div class="modal-box" style="text-align:center;">
       <div style="font-size:32px; margin-bottom:8px;">🦦</div>
-      <h3 style="font-size:16px; font-weight:bold; margin-bottom:6px;">仲在學緊東西嗎？</h3>
-      <p style="font-size:13px; color:#666; margin-bottom:20px;">為了確保積分／經驗值只是給真是在專注緊的同學，請在 2 分鐘內撳一下確認。逾時未確認會暫停計分，長時間無回應仲會自動幫你退出房間。</p>
+      <h3 style="font-size:16px; font-weight:bold; margin-bottom:6px;">你仍在學習嗎？</h3>
+      <p style="font-size:13px; color:#666; margin-bottom:20px;">為咗確保積分／經驗值只會畀真正專注緊嘅同學，請喺 2 分鐘內按一下確認。逾時未確認會暫停計分，直至你返嚟為止。</p>
       <button class="btn btn-primary" type="button" onclick="confirmStillHere()" style="width:100%; padding:12px;">
-        ✅ 是，我仲在溫緊書
+        ✅ 是，我仍在學習
       </button>
     </div>
   </div>
