@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.85.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.86.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -8113,13 +8113,17 @@
     }
 
     // ===================== 防「開房掛機刷分」：定時確認用家是否真係喺度 =====================
-    // 每 10 分鐘彈窗問一次「仲喺度嗎？」，2 分鐘內冇撳確認就暫停計分（PTS/EXP 唔再累積），
-    // 唔會因為閒置就自動踢佢出房——單純暫停累積時間／分數，等佢返嚟撳一下確認就
-    // 即刻恢復，房間本身唔會被迫離開。如果開緊鏡頭就完全跳過呢個檢查（見
-    // triggerPresenceCheck），因為開住鏡頭已經係好強嘅在場證據，唔應該仲彈窗
-    // 甚至誤判做「閒置」停止計時。
-    const ROOM_PRESENCE_CHECK_INTERVAL_MS = 10 * 60 * 1000; // 每 10 分鐘check 一次
-    const ROOM_PRESENCE_RESPONSE_MS = 2 * 60 * 1000;        // 彈窗後 2 分鐘內要確認
+    // 每 15 分鐘彈窗問一次「仲喺度嗎？」，5 分鐘內冇撳確認就暫停計分（PTS/EXP／
+    // 本房總時間都唔再累積），彈窗本身唔會自動閂——會一直留喺度，直至用家
+    // 自己撳「是，我仍在學習」先恢復累積、先真正閂返個彈窗。
+    //
+    // 特登唔會因為「開緊鏡頭」就跳過呢個檢查：單純開住鏡頭唔代表個人真係
+    // 坐喺鏡頭前專心溫緊書（例如鏡頭可以擺住影住空凳、或者對住鏡頭做第二
+    // 樣嘢），如果淨係憑鏡頭開住就當佢在場、跳過確認，會令人可以一開鏡頭
+    // 就掛住唔理攞盡計分，變相冇咗呢個防刷分機制原本嘅意義。所以唔理有冇
+    // 開鏡頭，都要定期主動撳一下確認先算數。
+    const ROOM_PRESENCE_CHECK_INTERVAL_MS = 15 * 60 * 1000; // 每 15 分鐘check 一次
+    const ROOM_PRESENCE_RESPONSE_MS = 5 * 60 * 1000;        // 彈窗後 5 分鐘內要確認
 
     function startPresenceCheckLoop() {
       if (state.presenceCheckTimer) clearInterval(state.presenceCheckTimer);
@@ -8139,14 +8143,6 @@
 
     function triggerPresenceCheck() {
       if (!state.currentRoomId) return;
-      // 開緊鏡頭本身已經係好強嘅「用家真係喺度」證據，唔使再彈窗煩佢，
-      // 亦都唔應該純粹因為時間到就話人閒置、停止計分——所以有開鏡頭
-      // 就跳過呢一輪確認，直接當佢真係喺度學緊嘢
-      if (state.isCameraOn) {
-        state.presenceConfirmed = true;
-        state.awardingPaused = false;
-        return;
-      }
       state.presenceConfirmed = false;
       openModal('modal-presence-check');
       if (state.presenceTimeoutTimer) clearTimeout(state.presenceTimeoutTimer);
@@ -8755,13 +8751,6 @@
           }
 
           state.isCameraOn = true;
-
-          // 開返鏡頭已經係好強嘅在場證據：如果啱啱好因為之前嘅閒置檢查
-          // 暫停緊計分／彈住確認窗，一開返鏡頭就即刻幫佢解除，唔使佢
-          // 仲要額外撳多次「是，我仍在學習」
-          if (state.awardingPaused || (document.getElementById('modal-presence-check') && document.getElementById('modal-presence-check').style.display !== 'none')) {
-            if (typeof resumePresenceSilently === 'function') resumePresenceSilently();
-          }
 
           videoEl.muted = true;
           videoEl.volume = 0;
@@ -9379,7 +9368,7 @@
     <div class="modal-box" style="text-align:center;">
       <div style="font-size:32px; margin-bottom:8px;">🦦</div>
       <h3 style="font-size:16px; font-weight:bold; margin-bottom:6px;">你仍在學習嗎？</h3>
-      <p style="font-size:13px; color:#666; margin-bottom:20px;">為咗確保積分／經驗值只會畀真正專注緊嘅同學，請喺 2 分鐘內按一下確認。逾時未確認會暫停計分，直至你返嚟為止。</p>
+      <p style="font-size:13px; color:#666; margin-bottom:20px;">為咗確保積分／經驗值只會畀真正專注緊嘅同學，請喺 5 分鐘內按一下確認。逾時未確認會暫停計分，直至你返嚟為止。</p>
       <button class="btn btn-primary" type="button" onclick="confirmStillHere()" style="width:100%; padding:12px;">
         ✅ 是，我仍在學習
       </button>
