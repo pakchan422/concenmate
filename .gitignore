@@ -1,0 +1,15 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Local env / secrets (none should ever be committed here)
+.env
+.env.local
+
+# Future build output (once the project modularizes per the foundation roadmap)
+node_modules/
+dist/

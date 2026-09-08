@@ -1,0 +1,264 @@
+rules_version = '2';
+// ⚠️ 呢份係根據 index.html 成個程式碼入面實際用到嘅所有 Firestore collection
+// 重新砌返出嚟嘅「完整」規則檔，唔係直接由 Firebase Console 讀出嚟嘅原檔
+// （呢個 session 冇辦法直接連去你個 Firebase 專案）。如果你喺 Console 度仲有
+// 手動加過其他呢個 app 冇用到嘅 collection／規則，記得抄埋落嚟，唔好淨係
+// 覆蓋晒。如果你由開台到而家冇特登加過其他嘢，咁呢份應該已經涵蓋晒全部功能。
+//
+// 管理員名單同 index.html 入面嘅 ADMIN_LOGIN_IDS 要保持一致（見 index.html
+// 搜尋 "const ADMIN_LOGIN_IDS"）：而家係 admin_main / admin_02 / admin_03。
+// 呢度特登用「帳號 ID」而唔係「登入電郵」嚟判斷邊個係管理員，因為帳號 ID
+// 先係用戶自己揀、自己睇到嘅嘢，唔使理個帳號實際登入用嗰個（可能係合成、
+// 亦可能係好耐之前註冊嗰個舊）電郵地址係咩。日後加新管理員，喺呢度同
+// index.html 嘅 ADMIN_LOGIN_IDS 兩個地方都要加返個帳號 ID。
+//
+// 用 get() 讀返請求者自己嘅 users/{uid} 文件嚟攞佢個 loginId：呢個係
+// rules 入面內部嘅讀取，唔使受返 users collection 個 allow read 規則
+// 限制，亦唔會拎第二方嘅資料，淨係睇緊自己嗰份。
+function isAdmin(database) {
+  return request.auth != null &&
+    get(/databases/$(database)/documents/users/$(request.auth.uid)).data.loginId
+      in ['admin_main', 'admin_02', 'admin_03'];
+}
+
+// ⚠️ 用戶自己更新自己個 users/{uid} 文件嗰陣（例如溫習房計分、扭蛋扣分／
+// 加貼紙）嘅止血檢查——唔係徹底嘅防作弊（徹底防作弊要將畀分邏輯搬去
+// Cloud Functions 伺服器驗證，呢度做唔到），但可以擋走「開 devtools
+// 一句 code 就將自己個分數／經驗值／身份改成任何數值」呢種最簡單粗暴
+// 嘅攻擊，令人哋起碼要慢慢刷先有得逞，唔可以一鑊過。
+//
+// 1) loginId 一經帳號建立就完全鎖死，自己唔可以再改——呢個係最關鍵嗰句，
+//    否則任何人一句 updateDoc({loginId:'admin_main'}) 就可以即刻扮晒
+//    管理員，完全繞過埋個 isAdmin() 檢查（因為 isAdmin() 本身就係睇呢個
+//    欄位）。
+// 2) exp／hours 依 app 設計本身「只可以升唔可以跌」，所以順帶連加埋
+//    「呢次改動一定要 >= 舊值」，同「單次最多加幾多」封頂（正常每次
+//    call awardStudyPoint 都係加 1~2 分＋幾分之一小時，呢度畀返好多
+//    緩衝，容許你之後喺後台調高 expPerMinute），令人哋唔可以一句
+//    code 就跳到幾百幾千經驗值。
+// 3) points 可升可跌（扭蛋消費會扣分，最多一次扣 270），所以淨係封單次
+//    改動嘅上下限幅度，唔規定方向。
+//
+// 未受呢個函數保護嘅欄位（例如 ownedStickers、todayMinutes、todayDate）
+// 依然係用戶想點寫都得，冇被封頂——如果想連呢幾樣都收緊，或者想徹底
+// 杜絕（唔淨係提高門檻）呢類自己呃自己嘅作弊，就要將畀分／畀貼紙嘅
+// 邏輯搬去 Cloud Functions，前端淨係負責觸發，Rules 直接完全禁止用戶
+// 端寫呢啲數值型欄位。
+function selfUserUpdateOk() {
+  let before = resource.data;
+  let after = request.resource.data;
+  let changed = after.diff(before).affectedKeys();
+  return
+    !changed.hasAny(['loginId']) &&
+    (!changed.hasAny(['exp']) ||
+      (after.exp >= before.exp && after.exp <= before.exp + 100)) &&
+    (!changed.hasAny(['hours']) ||
+      (after.hours >= before.hours && after.hours <= before.hours + 1)) &&
+    (!changed.hasAny(['points']) ||
+      (after.points >= before.points - 1000 && after.points <= before.points + 100));
+}
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===================== 用戶資料 =====================
+    // ⚠️ get 同 list 要分開：get（用已知 uid 讀單一份用戶資料，例如撳
+    // 入某位同學嘅資料卡、監聽某個好友嘅上線狀態）對任何已登入用戶
+    // 開放冇問題——但 list（唔篩選、成個 collection 咁查）就唔可以，
+    // 因為 users 入面存住 email、就讀學校、年級呢類個人資料，一旦
+    // 開放 list，任何一個已登入嘅（甚至惡意）用戶都可以完全跳過個
+    // 網站介面，直接用 Firebase SDK 對成個 collection 落一條冇篩選嘅
+    // 查詢，一次過將全部用戶資料掃晒出嚟——呢個 app 服務緊嘅係中學生，
+    // 呢類批量洩漏未成年人資料嘅風險一定要擋死。所以 list 淨係開放
+    // 俾管理員（管理後台「用戶管理」分頁要用到），一般用戶淨係可以
+    // 逐個已知 uid 咁讀（get），唔可以成個 collection 咁掃。
+    match /users/{uid} {
+      allow get: if request.auth != null;
+      allow list: if isAdmin(database);
+      allow create: if request.auth != null && request.auth.uid == uid;
+      // update 分開兩種情況：(1) 帳號主人自己——要通過上面
+      // selfUserUpdateOk() 嗰幾條止血檢查（唔可以自己改 loginId，
+      // exp／hours／points 嘅改動方向同幅度都要合理）；(2) 管理員——
+      // 冇呢啲限制（例如「用戶管理」分頁要幫學生手動補發／更正分數，
+      // 或者改返打錯咗嘅 loginId）。
+      allow update: if request.auth != null && (
+        (request.auth.uid == uid && selfUserUpdateOk()) || isAdmin(database)
+      );
+      allow delete: if false;
+      // 抽認卡（學科溫習卡）複習進度：淨係自己睇到/改到自己嘅進度
+      match /flashcardProgress/{cardId} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+      // 好友名單：淨係自己睇到自己嘅好友名單；新增嗰陣，一係寫入自己個名單
+      // （uid==自己），一係將自己加落第二方個名單（friendUid==自己）——
+      // 兩種情況先會喺「互加好友」嗰下同時出現，缺一唔可但又唔可以撞第三方。
+      match /friends/{friendUid} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow create: if request.auth != null && (request.auth.uid == uid || request.auth.uid == friendUid);
+        allow delete: if request.auth != null && (request.auth.uid == uid || request.auth.uid == friendUid);
+      }
+      // 扭蛋／抽獎中獎記錄：淨係自己睇到/寫到自己嘅記錄
+      match /gachaHistory/{recordId} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+    }
+    // ===================== 帳號 ID 對應表（登入用） =====================
+    // 淨係支援用完整 ID 做單一文件查詢（get），唔可以成個 collection 咁 list
+    // 出嚟（避免俾人一次過爬晒成堆帳號 email）。設定咗就唔可以再改／刪。
+    match /usernames/{loginId} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if false;
+    }
+    // ===================== 好友邀請 =====================
+    // 查「我同呢個人之間有冇邀請記錄」嗰陣，個 document 好多時仲未存在
+    // （即係兩個人之間第一次睇資料卡，仲未加過好友）。呢種情況要顯明加
+    // 「resource == null」畀過，唔係讀緊未存在嘅文件會直接俾規則擋（因為
+    // resource.data 喺 resource 係 null 嗰陣讀唔到），前端就會見到「讀取
+    // 好友狀態失敗」。
+    match /friendRequests/{reqId} {
+      allow read: if request.auth != null &&
+        (resource == null ||
+         resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
+      allow create: if request.auth != null &&
+        request.resource.data.fromUid == request.auth.uid &&
+        request.resource.data.status == 'pending';
+      allow update: if request.auth != null &&
+        (resource.data.toUid == request.auth.uid || resource.data.fromUid == request.auth.uid);
+      allow delete: if false;
+    }
+    // ===================== 視訊溫習房 =====================
+    // ⚠️ update 之前係 request.auth != null 就得，即係任何已登入用戶都
+    // 可以改任何一間房（包括唔係自己嘅房）——例如將 hostUid 改成自己
+    // 嚟強行奪走房主身份、將 bannedUids 加人嚟踢走第二方、亂改房間
+    // 名稱／人數等等，完全繞得過「淨係房主先可以踢人／轉移房主」呢個
+    // 前端限制，因為嗰個限制淨係喺 UI 層做，冇喺資料庫層再核實一次。
+    // 而家改成分兩種情況：(1) 淨係改緊 participantCount／lastActiveAt
+    // 呢兩個「任何參加者都要更新」嘅共用欄位（入房/離房計人數、房間
+    // 心跳）——呢種唔限房主先得，任何已登入用戶都可以；(2) 改緊其他
+    // 欄位（踢人、轉移房主、改設定等）——一定要係現任房主（用改動前
+    // 嘅 resource.data.hostUid 核實）先得。
+    match /rooms/{roomId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.hostUid == request.auth.uid;
+      allow update: if request.auth != null && (
+        resource.data.hostUid == request.auth.uid ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['participantCount', 'lastActiveAt'])
+      );
+      allow delete: if request.auth != null && (
+        resource.data.hostUid == request.auth.uid ||
+        (resource.data.lastActiveAt is number &&
+         request.time.toMillis() - resource.data.lastActiveAt > 5 * 60 * 1000)
+      );
+      match /participants/{uid} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null && request.auth.uid == uid;
+      }
+      match /signals/{signalId} {
+        allow read, write: if request.auth != null;
+      }
+      match /candidates/{candidateId} {
+        allow read, write: if request.auth != null;
+      }
+      match /reactions/{reactionId} {
+        allow read, write: if request.auth != null;
+      }
+    }
+    // ===================== 房間邀請（邀請朋友入視訊溫習房） =====================
+    // inviteId 由 addDoc 隨機產生，唔似 friendRequests 咁會撞正「查詢一份
+    // 仲未存在嘅文件」，所以唔使加 resource == null 嗰個特殊判斷。
+    match /roomInvites/{inviteId} {
+      allow read: if request.auth != null &&
+        (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
+      allow create: if request.auth != null &&
+        request.resource.data.fromUid == request.auth.uid &&
+        request.resource.data.status == 'pending';
+      allow update: if request.auth != null &&
+        (resource.data.toUid == request.auth.uid || resource.data.fromUid == request.auth.uid);
+      allow delete: if false;
+    }
+    // ===================== 即時對話（好友之間一對一私訊） =====================
+    // chatId 本身就係兩個 uid 由細到大排序、用 "_" 連埋一齊（例如
+    // "abc123_xyz789"）。
+    //
+    // ⚠️ 呢度 read 一定要拆開 get 同 list 兩條規則，唔可以再淨係用一條
+    // 「allow read」！原因：
+    //   - get（攞單一份已知 chatId 嘅文件，例如開緊嗰個對話視窗）：淨係
+    //     憑 documentId 就知道邊兩個人有權限，用 chatId.split('_') 冇問題。
+    //   - list（前端用 `where('participants','array-contains',myUid)`
+    //     查「我有份嘅所有對話」，畀「即時對話」dock panel 用）：Firestore
+    //     對 query 類嘅規則有個好重要嘅限制——規則入面如果淨係睇
+    //     documentId（同個 query 實際過濾緊嘅 participants 呢個資料欄位
+    //     完全冇關係），Firestore 冇辦法單靠條 query 本身嘅定義去證明
+    //     「呢條 query 實際上唔可能撈到冇權限嘅文件」，於是會直接連成條
+    //     query 都拒絕（Missing or insufficient permissions），唔係淨係
+    //     隱藏冇權限嗰幾份、其他照樣顯示。
+    //     呢個正正就係之前「傳送嗰位睇到、收到嗰位個『即時對話』清單
+    //     完全空白，連 refresh 都冇用」嘅真正成因——傳送方睇到係因為前端
+    //     有做「本機樂觀更新」，並唔代表個查詢真係成功；收件方冇送過任何
+    //     嘢，冇呢重樂觀更新遮蓋住，先會現形出嚟。
+    //     解決方法：list 規則要直接睇 resource.data.participants——同個
+    //     query 用嚟過濾嘅係同一個欄位，Firestore 先有辦法證明呢條
+    //     query 安全，先會放行。
+    match /directChats/{chatId} {
+      allow get: if request.auth != null && request.auth.uid in chatId.split('_');
+      allow list: if request.auth != null && request.auth.uid in resource.data.participants;
+      allow write: if request.auth != null && request.auth.uid in chatId.split('_');
+      // 訊息內容一經送出就唔可以再改，但雙方之中任何一個都可以刪除
+      // （撳「🗑️ 刪除對話記錄」會成批刪晒），保持對話私隱可以自己清理
+      match /messages/{messageId} {
+        allow read: if request.auth != null && request.auth.uid in chatId.split('_');
+        allow create: if request.auth != null && request.auth.uid in chatId.split('_') &&
+          request.resource.data.fromUid == request.auth.uid;
+        allow update: if false;
+        allow delete: if request.auth != null && request.auth.uid in chatId.split('_');
+      }
+    }
+    // ===================== 學科溫習卡（抽認卡） =====================
+    // 內容由管理員後台統一管理，學生淨係讀，唔可以自己新增/改/刪
+    match /flashcards/{cardId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin(database);
+    }
+    // ===================== 疑難解答區 =====================
+    match /qa_posts/{postId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
+      // ⚠️ update 之前係 request.auth != null 就得，即係任何已登入用戶
+      // 都可以改任何一篇貼文嘅內容（唔淨止 commentCount），變成任何人
+      // 都可以塗改／破壞第二方發表嘅貼文。而家分開兩種情況：(1) 版主
+      // 本人或者管理員——乜嘢欄位都可以改（包括刪文前嘅編輯）；(2) 其他
+      // 已登入用戶——淨係俾佢哋改 commentCount 呢個共用欄位（留言嗰陣
+      // 要更新緊個計數器），改唔到內容本身。
+      allow update: if request.auth != null && (
+        resource.data.uid == request.auth.uid || isAdmin(database) ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['commentCount'])
+      );
+      allow delete: if request.auth != null && (resource.data.uid == request.auth.uid || isAdmin(database));
+      match /comments/{commentId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
+        allow update, delete: if request.auth != null && (resource.data.uid == request.auth.uid || isAdmin(database));
+      }
+    }
+    // ===================== 後台設定（扭蛋機／等級系統） =====================
+    // 所有已登入用戶都要讀到先計到自己嘅獎勵/等級，但淨係管理員先可以改
+    match /admin_config/{configId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin(database);
+    }
+    // ===================== 舉報（視訊溫習房不當行為舉報） =====================
+    // 舉報內容（連埋截圖）屬於高敏感資料，淨係管理員先睇到全部；舉報人
+    // 只可以新增（create），唔可以讀返自己交過嘅舉報、亦唔可以改，避免
+    // 有人事後篡改舉報內容。刪除都淨係管理員先可以做（畀佢哋處理完之後
+    // 清理返啲舊紀錄，前端亦都刻意淨係喺「已處理／已駁回」先出刪除掣，
+    // 唔會俾人手快唔覺意刪走仲未跟進嘅 pending 舉報）。
+    match /reports/{reportId} {
+      allow create: if request.auth != null &&
+        request.resource.data.reporterUid == request.auth.uid &&
+        request.resource.data.reportedUid is string &&
+        request.resource.data.status == 'pending';
+      allow read, update, delete: if isAdmin(database);
+    }
+  }
+}
