@@ -9,7 +9,26 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.88.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.89.0"; // 每次推送 GitHub 前，喺呢度改版號
+  </script>
+
+  <!-- ========================================
+       🧪 環境判斷（正式站 vs 開發／測試站）
+       ========================================
+       只有 concenmate.com（連 www）先當係「正式站」，連去真實學生資料嘅
+       Firebase 專案。除此之外任何網址（staging 網址、本機測試、直接開
+       檔案等等）一律當係「開發／測試環境」，連去獨立、唔會掂到任何真實
+       學生資料嘅 concenmate-dev 專案。呢個判斷寫喺 index.html 頭度，
+       畀成個檔案入面所有其他 script 區塊都可以讀到 window.IS_PROD_SITE。
+       ======================================== -->
+  <script>
+    (function() {
+      var PROD_HOSTNAMES = ['concenmate.com', 'www.concenmate.com'];
+      window.IS_PROD_SITE = PROD_HOSTNAMES.indexOf(location.hostname) !== -1;
+      if (!window.IS_PROD_SITE) {
+        console.warn('⚠️ 呢個係開發／測試環境（連緊 concenmate-dev），唔會影響任何真實學生資料。目前網址:', location.hostname);
+      }
+    })();
   </script>
 
   <!-- ========================================
@@ -1268,6 +1287,22 @@
   </style>
 </head>
 <body>
+
+  <!-- 🧪 開發／測試環境提示橫額 —— 只有喺唔係 concenmate.com 正式站
+       嗰陣先會出現，等任何人一睇就知而家用緊 concenmate-dev，唔會
+       同真正上線嘅網站撈亂。 -->
+  <script>
+    if (!window.IS_PROD_SITE) {
+      document.write(
+        '<div style="position:fixed;top:0;left:0;right:0;z-index:999999;' +
+        'background:#f59e0b;color:#1a1a1a;font-weight:700;font-size:13px;' +
+        'text-align:center;padding:4px 8px;font-family:sans-serif;' +
+        'box-shadow:0 1px 4px rgba(0,0,0,.2);">' +
+        '🧪 開發／測試環境（concenmate-dev） —— 呢度嘅任何操作都唔會影響真實學生資料' +
+        '</div>'
+      );
+    }
+  </script>
 
   <!-- 開發測試用：版本時間戳記 (部署完成後可手動刪除此區塊) -->
   <div id="dev-build-badge">
@@ -5820,7 +5855,8 @@
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, deleteUser } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
     import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs, increment, query, where, orderBy, limit, arrayUnion, arrayRemove, documentId, startAfter } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    const firebaseConfig = {
+    // 正式站（concenmate.com）用嘅真正 Firebase 專案 —— 有真實學生資料。
+    const firebaseConfigProd = {
       apiKey: "AIzaSyDcxw01cH4Xdsp8xK4Xq69lnt3kCsEZTkQ",
       authDomain: "concenmate-app.firebaseapp.com",
       projectId: "concenmate-app",
@@ -5829,6 +5865,21 @@
       appId: "1:215862346156:web:1cc2037abde0e5a24cba09",
       measurementId: "G-MJSTJ0KRN6"
     };
+
+    // 開發／測試站用嘅獨立 Firebase 專案（concenmate-dev）—— 完全獨立
+    // 嘅資料庫，任何測試都唔會掂到真實學生資料。
+    const firebaseConfigDev = {
+      apiKey: "AIzaSyCFHVPX_vbOM2sIKstPC-9r9B7wMyuzsFY",
+      authDomain: "concenmate-dev.firebaseapp.com",
+      projectId: "concenmate-dev",
+      storageBucket: "concenmate-dev.firebasestorage.app",
+      messagingSenderId: "85883990627",
+      appId: "1:85883990627:web:eb9194378888c3f3dfbe56"
+    };
+
+    // window.IS_PROD_SITE 喺檔案最頭已經根據網址判斷咗（見 <head> 入面
+    // 「環境判斷」嗰段），呢度淨係揀返啱嘅設定用。
+    const firebaseConfig = window.IS_PROD_SITE ? firebaseConfigProd : firebaseConfigDev;
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
