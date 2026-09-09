@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.89.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.90.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -6109,6 +6109,9 @@
         if (typeof window.loadLevelConfigFromFirestore === 'function') {
           window.loadLevelConfigFromFirestore();
         }
+        if (typeof window.loadAdminIdsFromFirestore === 'function') {
+          window.loadAdminIdsFromFirestore();
+        }
       } else {
         window.currentUser = null;
         if (suspensionListenerUnsubscribe) { suspensionListenerUnsubscribe(); suspensionListenerUnsubscribe = null; }
@@ -9523,19 +9526,39 @@
   <script>
     // ===================== 管理後台（Admin Panel）=====================
 
-    // 邊個帳號 ID 先算係管理員：想加多個管理員嘅話，喺呢個陣列加多一個
-    // 帳號 ID 就得，唔使改任何其他地方，亦唔使理個帳號真正嘅登入電郵係咩。
-    // 呢個名單淨係控制「前端顯唔顯示管理後台呢個介面」；真正防止未授權
-    // 用戶讀寫資料嘅係 Firestore 安全規則，要記得喺 Firebase Console 度
-    // 將呢個帳號 ID 名單同步埋落去 firestore.rules 嘅 isAdmin() 先真正安全。
-    const ADMIN_LOGIN_IDS = [
-      'admin_main',
-      'admin_02',
-      'admin_03'
-    ];
+    // 邊個帳號 ID 先算係管理員：呢個名單而家由 Firestore 嘅
+    // admin_config/adminIds 文件（欄位 ids，一個字串陣列）話事，唔再係
+    // 寫死喺呢個檔案入面——想加/減管理員，淨係去 Firebase Console 度
+    // 改嗰份文件就得，唔使再逐次改 index.html + firestore.rules 兩邊
+    // （見下面 loadAdminIdsFromFirestore()；firestore.rules 嘅
+    // isAdmin() 亦已經改成讀返同一份文件）。
+    //
+    // ADMIN_LOGIN_IDS_FALLBACK 純粹係「岩岩開網站、Firestore 仲未讀
+    // 完」嗰一兩秒嘅保險網，唔會影響真正權限判斷（真正判斷永遠以
+    // Firestore 安全規則嗰邊為準，前端呢個陣列淨係控制「顯唔顯示管理
+    // 後台入口」）。
+    const ADMIN_LOGIN_IDS_FALLBACK = ['admin_main', 'admin_02', 'admin_03'];
+    window.ADMIN_LOGIN_IDS = ADMIN_LOGIN_IDS_FALLBACK.slice();
+
+    async function loadAdminIdsFromFirestore() {
+      try {
+        const snap = await window.fs.getDoc(window.fs.doc(window.db, 'admin_config', 'adminIds'));
+        if (snap.exists() && Array.isArray(snap.data().ids) && snap.data().ids.length > 0) {
+          window.ADMIN_LOGIN_IDS = snap.data().ids;
+        }
+      } catch (e) {
+        console.warn('讀取管理員名單（admin_config/adminIds）失敗，暫時使用內建預設名單:', e);
+      }
+      // 名單啱啱先攞到／有更新，要重新評估一次而家個用戶算唔算管理員
+      // （例如岩岩登入嗰陣名單仲未攞到，管理後台入口掣冇顯示，攞到之後
+      // 要補顯示返）。
+      if (typeof window.updateAdminEntryButton === 'function') window.updateAdminEntryButton();
+      if (typeof window.checkAdminHashRoute === 'function') window.checkAdminHashRoute();
+    }
+    window.loadAdminIdsFromFirestore = loadAdminIdsFromFirestore;
 
     function isCurrentUserAdmin() {
-      return !!(window.currentUser && window.currentUser.loginId && ADMIN_LOGIN_IDS.includes(window.currentUser.loginId));
+      return !!(window.currentUser && window.currentUser.loginId && window.ADMIN_LOGIN_IDS.includes(window.currentUser.loginId));
     }
     window.isCurrentUserAdmin = isCurrentUserAdmin;
 
