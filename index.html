@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.91.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.92.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -5855,6 +5855,7 @@
     import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app-check.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, deleteUser } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
     import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs, increment, query, where, orderBy, limit, arrayUnion, arrayRemove, documentId, startAfter } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
     // 正式站（concenmate.com）用嘅真正 Firebase 專案 —— 有真實學生資料。
     const firebaseConfigProd = {
@@ -5903,9 +5904,12 @@
 
     const auth = getAuth(app);
     const db = getFirestore(app);
+    const storage = getStorage(app);
 
     window.db = db;
     window.fs = { doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs, increment, query, where, orderBy, limit, arrayUnion, arrayRemove, documentId, startAfter };
+    window.storage = storage;
+    window.storageApi = { ref: storageRef, uploadBytes, getDownloadURL, deleteObject };
 
     // 幽靈房自動清理：房間冇人心跳（見 updateRoomHeartbeat）超過呢個時間，
     // 就當佢係冇人打理嘅幽靈房（例如房主手機突然關機、瀏覽器崩潰，嚟唔切
@@ -9817,11 +9821,15 @@
       if (totalEl) totalEl.innerText = total;
     };
 
-    // 讀取圖片檔案 → 縮圖 → 壓縮做 base64（同疑難解答區上傳相片用緊嘅
-    // 手法一致），避免原圖太大令 Firestore 文件超出大小限制。
+    // 讀取圖片檔案 → 縮圖 → 壓縮做一個 Blob（用嚟上傳去 Firebase Storage）。
     // PNG／GIF／WebP 呢啲支援透明背景嘅格式會保留做 PNG 輸出（保住透明），
     // 其他（例如相機影嘅 JPEG）先會壓縮做 JPEG 減檔案大小。
-    function compressImageFileToDataURL(file, maxWidth, quality) {
+    // Phase 4：呢張圖而家上傳去 Storage（見 storage.rules 嘅 gacha_stickers/
+    // 路徑），Firestore 度嘅 admin_config/gacha 文件淨係存返個下載連結
+    // （字串），唔再直接塞成張圖嘅 base64 落 Firestore——一嚟避免撞 Firestore
+    // 單一文件 1MiB 上限，二嚟每個用戶登入嗰陣經 onSnapshot 攞呢份設定時，
+    // 唔使個個都下載晒全部貼紙嘅完整圖片資料，流量同讀取速度都會好啲。
+    function compressImageFileToBlob(file, maxWidth, quality) {
       return new Promise((resolve, reject) => {
         const img = new Image();
         const url = URL.createObjectURL(file);
@@ -9833,11 +9841,30 @@
           canvas.height = Math.round(img.height * scale);
           canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
           URL.revokeObjectURL(url);
-          resolve(keepTransparency ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', quality));
+          const mimeType = keepTransparency ? 'image/png' : 'image/jpeg';
+          canvas.toBlob((blob) => {
+            if (blob) resolve({ blob, mimeType });
+            else reject(new Error('圖片轉換失敗'));
+          }, mimeType, quality);
         };
         img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
         img.src = url;
       });
+    }
+
+    // 如果舊相片係一個 Storage 下載連結（即係 Phase 4 之後上傳嘅新相），
+    // 就順手刪走 Storage 度嘅舊檔案，避免留低用唔到嘅殘留檔案浪費空間。
+    // 用 best-effort（失敗都唔阻住主流程）——舊資料如果仲係 base64 格式
+    // （Phase 4 之前上傳嘅），呢度會自動跳過，唔會嘗試刪。
+    async function tryDeleteOldGachaStoragePhoto(oldPhotoUrl) {
+      if (!oldPhotoUrl || typeof oldPhotoUrl !== 'string') return;
+      if (!oldPhotoUrl.includes('firebasestorage')) return; // 唔係 Storage 連結（例如舊 base64），跳過
+      if (!window.storage || !window.storageApi) return;
+      try {
+        await window.storageApi.deleteObject(window.storageApi.ref(window.storage, oldPhotoUrl));
+      } catch (e) {
+        console.warn('刪除舊貼紙相片失敗（唔影響新相片上傳）:', e);
+      }
     }
 
     window.adminUploadGachaPhoto = async function(idx, inputEl) {
@@ -9848,17 +9875,33 @@
         window.showToast('請選擇圖片檔案', '⚠️');
         return;
       }
+      if (!window.storage || !window.storageApi) {
+        window.showToast('Storage 未初始化，請重新整理頁面再試', '⚠️');
+        return;
+      }
+      const sticker = adminGachaDraft.stickers[idx];
+      const oldPhoto = sticker.photo;
+      window.showToast('⏳ 上傳緊相片…', '📤');
       try {
-        const dataUrl = await compressImageFileToDataURL(file, 300, 0.75);
-        adminGachaDraft.stickers[idx].photo = dataUrl;
+        const { blob, mimeType } = await compressImageFileToBlob(file, 300, 0.75);
+        const ext = mimeType === 'image/png' ? 'png' : 'jpg';
+        const path = `gacha_stickers/sticker_${sticker.id}_${Date.now()}.${ext}`;
+        const fileRef = window.storageApi.ref(window.storage, path);
+        await window.storageApi.uploadBytes(fileRef, blob, { contentType: mimeType });
+        const downloadUrl = await window.storageApi.getDownloadURL(fileRef);
+        adminGachaDraft.stickers[idx].photo = downloadUrl;
         renderAdminGachaTab();
+        window.showToast('✅ 相片上傳成功，記得撳「儲存全部改動」先會正式生效', '🎉');
+        tryDeleteOldGachaStoragePhoto(oldPhoto); // best-effort，唔使等佢完成
       } catch (err) {
-        window.showToast('圖片讀取失敗，請再試一次', '❌');
+        window.showToast('圖片上傳失敗：' + (err.message || err), '❌');
       }
     };
 
     window.adminRemoveGachaPhoto = function(idx) {
       if (!adminGachaDraft || !adminGachaDraft.stickers[idx]) return;
+      const oldPhoto = adminGachaDraft.stickers[idx].photo;
+      tryDeleteOldGachaStoragePhoto(oldPhoto); // best-effort
       delete adminGachaDraft.stickers[idx].photo;
       renderAdminGachaTab();
     };
