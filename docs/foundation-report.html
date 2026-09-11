@@ -227,9 +227,9 @@
     <p class="dek">現況架構、安全性同維運方式嘅完整盤點，配一份分階段嘅地基建設路線圖——目標係令呢個 project 由「一個人單打獨鬥都跑得動」，過渡去「換咗人接手都清清楚楚」。</p>
     <div class="doc-control">
       <dl><dt>文件編號</dt><dd>CM-FOUND-01</dd></dl>
-      <dl><dt>版本</dt><dd>v1.1（Phase 0–3 更新）</dd></dl>
-      <dl><dt>對應產品版本</dt><dd>APP v1.90.0</dd></dl>
-      <dl><dt>狀態</dt><dd>Phase 0–3 已完成</dd></dl>
+      <dl><dt>版本</dt><dd>v1.2（Phase 0–4 更新）</dd></dl>
+      <dl><dt>對應產品版本</dt><dd>APP v1.93.0</dd></dl>
+      <dl><dt>狀態</dt><dd>Phase 0–4 已完成</dd></dl>
     </div>
   </div>
 
@@ -255,8 +255,8 @@
       </div>
       <div class="score-tile">
         <div class="name">資料／資產管理</div>
-        <span class="score-pill warn">● 有風險</span>
-        <p class="note">相片以 base64 塞入 Firestore 文件，逼近 1MB 上限，未用 Storage（Phase 4 未開始）。</p>
+        <span class="score-pill ok">● 已搬去 Storage</span>
+        <p class="note">相片全部改存 Firebase Storage，Firestore 淨存短 URL；連同已有相片都已由 base64 重新上傳，做到格式完全統一（Phase 4 已完成）。</p>
       </div>
       <div class="score-tile">
         <div class="name">部署與環境</div>
@@ -316,18 +316,19 @@
       </div>
     </div>
 
-    <div class="finding warn">
+    <div class="finding ok">
       <div class="stripe"></div>
       <div class="body">
         <div class="finding-head">
           <h3>F4 — Firestore 單一文件逼近 1MB 上限</h3>
-          <span class="finding-tag">應盡快處理</span>
+          <span class="finding-tag">已解決（Phase 4）</span>
         </div>
         <p class="finding-id">位置：<code>admin_config/gacha</code> 文件，<code>stickers[].photo</code> 欄位</p>
         <p>扭蛋機貼紙嘅相片全部以 base64 文字塞入呢一份 Firestore 文件嘅 <code>stickers</code> 陣列度。Firestore 每份文件有 1,048,576 bytes（1MB）嘅硬上限，base64 編碼仲會令原始檔案大約脹大 33%。貼紙越加越多，遲早會撞到呢個上限，到時新增貼紙會直接寫入失敗。</p>
         <div class="evidence">console.firebase.google.com → admin_config → gacha → stickers[0].photo
 = "data:image/jpeg;base64,/9j/4AAQSkZJRgA..."（單一欄位）</div>
         <p class="fix"><b>建議方向：</b>將相片改存去 Firebase Storage，Firestore 淨係存一條短 URL——呢個已經喺前一輪對話入面詳細討論過，見下面路線圖 Phase 4。</p>
+        <p><b>Phase 4 完成更新（2026-09）：</b>扭蛋機貼紙相片上傳已經全面改用 Firebase Storage（<code>gacha_stickers/</code> 路徑），Firestore 淨係存返 download URL 字串。仲有全部 10 張已存在嘅貼紙相片都由 base64 手動重新上傳咗一次，令資料庫入面唔再存在任何 base64 長文字——<code>admin_config/gacha</code> 文件大細已經遠低於 1MB 上限，呢一項風險已解除。</p>
       </div>
     </div>
 
@@ -344,16 +345,17 @@
       </div>
     </div>
 
-    <div class="finding warn">
+    <div class="finding ok">
       <div class="stripe"></div>
       <div class="body">
         <div class="finding-head">
           <h3>F6 — Firebase Storage 未有正式安全規則</h3>
-          <span class="finding-tag">應盡快處理</span>
+          <span class="finding-tag">已解決（Phase 4）</span>
         </div>
         <p class="finding-id">位置：Firebase 專案 <code>concenmate-app</code> 的 Storage bucket</p>
         <p>專案設定入面已經有 <code>storageBucket</code>，但本機／專案資料夾入面搵唔到對應嘅 <code>storage.rules</code>。一旦按 F4 嘅建議開始用 Storage 擺相片，一定要喺開始用之前就寫好規則（邊個可以上傳、檔案大小上限、檔案類型限制），唔可以叫佢用 Firebase 預設值（預設好可能係「完全鎖死」或者「完全開放」其中一種極端）。</p>
         <p><b>Phase 3 覆核更新（2026-09）：</b>已經確認 <code>index.html</code> 而家完全冇用到 Firebase Storage SDK（<code>getStorage</code>／<code>uploadBytes</code> 等），Storage 喺 Console 度亦顯示未升級／未啟用——即係話呢一項暫時冇實際風險，唔需要而家就升級去 Blaze 收費方案去寫規則。呢一項正式挪去 <b>Phase 4</b>（資產／資料庫瘦身），到時決定將圖片搬去 Storage 嗰刻先一併處理。</p>
+        <p><b>Phase 4 完成更新（2026-09）：</b><code>concenmate-dev</code> 同 <code>concenmate-app</code> 兩個專案已經雙雙升級去 Blaze 方案（配合預算提醒：dev HK$25／prod HK$50），並已部署正式 <code>storage.rules</code>——白名單制，淨係 admin（集中讀 <code>admin_config/adminIds</code>）先可以寫入／刪除，讀取要求已登入，檔案大小同類型都有限制。同時加設咗 App Check（reCAPTCHA Enterprise）加多一層防護。呢一項風險已解除。</p>
       </div>
     </div>
 
@@ -473,16 +475,18 @@
       </div>
 
       <div class="phase">
-        <div class="phase-rail"><div class="phase-num">4</div><div class="phase-line"></div></div>
+        <div class="phase-rail"><div class="phase-num done">4</div><div class="phase-line"></div></div>
         <div class="phase-card">
-          <h3>資產／資料庫瘦身</h3>
+          <h3>資產／資料庫瘦身 <span class="phase-done-tag">✓ 已完成</span></h3>
           <div class="phase-when">第 4–5 週</div>
           <ul>
-            <li>開通 Firebase Storage（需要升級去 Blaze 隨用隨付方案——冇最低月費，用幾多計幾多，細規模應用通常近乎零成本），並喺開始用之前就寫好正式 <code class="mono">storage.rules</code>（對應 F4、F6）</li>
-            <li>將扭蛋機外殼、Ottiee 貼紙全部相片搬去 Firebase Storage，Firestore 淨係存返短 URL</li>
-            <li>寫低一份「日後新增貼紙／圖片標準流程」，等第日換人維護都跟得到步驟</li>
+            <li>✅ 兩個 Firebase 專案（<code class="mono">concenmate-dev</code>、<code class="mono">concenmate-app</code>）已升級去 Blaze 隨用隨付方案，並設定咗帳單預算提醒（dev HK$25／prod HK$50）做「軟性」保護（對應 F4、F6）</li>
+            <li>✅ 已寫好正式 <code class="mono">storage.rules</code>（白名單制、admin-only 寫入、限檔案大細同類型）並部署去兩個專案</li>
+            <li>✅ 加設咗 App Check（reCAPTCHA Enterprise），兩個專案都完成註冊並接入 <code class="mono">index.html</code>，加多一層防護</li>
+            <li>✅ 扭蛋機貼紙相片上傳全面改用 Firebase Storage，Firestore 淨係存短 URL；全部 10 張已存在嘅貼紙相片都由 base64 手動重新上傳，達致格式完全統一（唔再有 base64）</li>
+            <li>✅ 額外新增功能：管理後台「🎰 扭蛋機獎品」分頁加咗「扭蛋機外觀圖片」上傳／還原功能，沿用同一套 Storage 規則</li>
           </ul>
-          <div class="phase-exit"><b>完成標準：</b><code class="mono">admin_config/gacha</code> 文件大小回落到遠低於 1MB；新增貼紙唔使再擔心撞上限。</div>
+          <div class="phase-exit"><b>完成標準：</b><code class="mono">admin_config/gacha</code> 文件大小已回落到遠低於 1MB（淨係存 URL 字串）；新增貼紙唔使再擔心撞上限——已達成，並喺正式站驗證（v1.91.0 → v1.93.0）。</div>
         </div>
       </div>
 
@@ -527,7 +531,7 @@
           <tr><td>Firebase 專案</td><td class="mono">concenmate-app</td></tr>
           <tr><td>主要程式檔案</td><td class="mono">index.html（10,839 行，594KB）</td></tr>
           <tr><td>安全規則檔案</td><td class="mono">firestore.rules（16.8KB，位於專案資料夾但未納入 GitHub repo）</td></tr>
-          <tr><td>Storage 規則</td><td>未建立</td></tr>
+          <tr><td>Storage 規則</td><td class="mono">storage.rules（已寫好並部署去 concenmate-dev 同 concenmate-app 兩個專案）</td></tr>
           <tr><td>管理員判斷邏輯</td><td class="mono">index.html 第 9480 行 ADMIN_LOGIN_IDS ＋ firestore.rules 的 isAdmin()</td></tr>
           <tr><td>電郵驗證服務</td><td class="mono">EmailJS（公開金鑰寫喺 index.html 屬正常做法，但域名白名單／速率限制要喺 EmailJS 後台自行確認）</td></tr>
           <tr><td>版本控制</td><td>未建立（本次評估附帶建議由 Phase 0 開始）</td></tr>
@@ -550,6 +554,6 @@
     </div>
   </section>
 
-  <footer>CONCENMATE · CM-FOUND-01 · 由 Claude 協助整理，內容基於 index.html v1.90.0 同 firestore.rules 實際檢視結果 · Phase 0–3 已完成並喺正式站驗證</footer>
+  <footer>CONCENMATE · CM-FOUND-01 · 由 Claude 協助整理，內容基於 index.html v1.93.0、firestore.rules 同 storage.rules 實際檢視結果 · Phase 0–4 已完成並喺正式站驗證</footer>
 
 </div>
