@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.90.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.91.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -5852,6 +5852,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app-check.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, deleteUser } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
     import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs, increment, query, where, orderBy, limit, arrayUnion, arrayRemove, documentId, startAfter } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
@@ -5882,6 +5883,24 @@
     const firebaseConfig = window.IS_PROD_SITE ? firebaseConfigProd : firebaseConfigDev;
 
     const app = initializeApp(firebaseConfig);
+
+    // ── App Check（Phase 4 安全硬化）──────────────────────────
+    // 兩個環境分別用返自己獨立嘅 reCAPTCHA Enterprise 金鑰（喺
+    // Google Cloud Console → Fraud Defense 度建立），令 Storage／
+    // Firestore 淨係接受「真係嚟自呢個 app」嘅請求，擋走人哋直接
+    // 打 API 嘅嘗試。呢個過程對用戶完全透明，唔會見到任何驗證方塊。
+    const APP_CHECK_SITE_KEY_PROD = "6Lcv77QtAAAAAJZug6sVl1c9kGfo5WysiYdj8XL0"; // concenmate-app-web
+    const APP_CHECK_SITE_KEY_DEV  = "6LdvC7UtAAAAALix2ouHlGXFLZ17zQpsqQX7kNXc"; // concenmate-dev-web
+    const appCheckSiteKey = window.IS_PROD_SITE ? APP_CHECK_SITE_KEY_PROD : APP_CHECK_SITE_KEY_DEV;
+    try {
+      initializeAppCheck(app, {
+        provider: new ReCaptchaEnterpriseProvider(appCheckSiteKey),
+        isTokenAutoRefreshEnabled: true
+      });
+    } catch (e) {
+      console.warn('App Check 初始化失敗（唔會影響其他功能，但保護力會減弱）:', e);
+    }
+
     const auth = getAuth(app);
     const db = getFirestore(app);
 
