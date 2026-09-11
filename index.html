@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.92.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.93.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -2298,7 +2298,7 @@
                 <div id="gacha-result-batch-grid" style="display:grid; grid-template-columns:repeat(5, 1fr); gap:10px;"></div>
               </div>
               <!-- 扭蛋機外殼 SVG -->
-              <img src="gacha-machine.png" width="190" alt="扭蛋機" style="display:block; filter:drop-shadow(0 4px 12px rgba(0,0,0,.15));">
+              <img id="gacha-machine-img" src="gacha-machine.png" width="190" alt="扭蛋機" style="display:block; filter:drop-shadow(0 4px 12px rgba(0,0,0,.15));">
 
               <!-- 蛋的動畫疊層 -->
               <div id="gacha-capsule-anim" style="
@@ -9717,8 +9717,30 @@
         adminGachaDraft = {
           stickers: JSON.parse(JSON.stringify(GACHA_STICKERS)),
           costNormal: GACHA_COST.normal,
-          costLucky: GACHA_COST.lucky
+          costLucky: GACHA_COST.lucky,
+          machineImageUrl: window.GACHA_MACHINE_IMAGE_URL || null
         };
+      }
+
+      function renderMachineImageCard() {
+        const url = adminGachaDraft.machineImageUrl;
+        const previewInner = url
+          ? `<img src="${url}" style="width:100%; height:100%; object-fit:contain;">`
+          : `<img src="gacha-machine.png" style="width:100%; height:100%; object-fit:contain;">`;
+        return `
+          <div class="admin-card">
+            <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;">🎰 扭蛋機外觀圖片</h3>
+            <p style="font-size:13px; color:#888; margin-bottom:10px;">呢張係扭蛋機本身嘅外殼圖（唔係貼紙），顯示喺學生撳扭蛋果版度。上傳新圖會即時取代埋畫面上見到嘅圖案，唔上傳就繼續用返程式碼入面嘅預設圖。</p>
+            <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+              <div id="admin-gacha-machine-thumb" onclick="document.getElementById('admin-gacha-machine-input').click()" title="撳這裡上傳圖片" style="width:80px; height:80px; border-radius:10px; background:#F0F6F8; border:1px dashed #B3D6DE; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden;">${previewInner}</div>
+              <input type="file" accept="image/*" id="admin-gacha-machine-input" style="display:none;" onchange="adminUploadGachaMachineImage(this)">
+              <div style="display:flex; flex-direction:column; gap:6px;">
+                <button type="button" class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="document.getElementById('admin-gacha-machine-input').click()">📤 上傳新圖片</button>
+                ${url ? `<button type="button" class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="adminRemoveGachaMachineImage()">↩️ 還原做預設圖</button>` : ''}
+              </div>
+            </div>
+          </div>
+        `;
       }
 
       function renderStickerTable() {
@@ -9782,6 +9804,8 @@
             <label style="font-size:13px; color:#555; display:flex; align-items:center; gap:6px;">連續抽十次 (PTS，一次過 10 抽嘅總費用)：<input class="admin-input-sm" type="number" min="0" style="width:80px;" value="${adminGachaDraft.costLucky}" onchange="adminGachaDraft.costLucky = parseInt(this.value)||0"></label>
           </div>
         </div>
+
+        ${renderMachineImageCard()}
 
         ${renderStickerTable()}
 
@@ -9906,6 +9930,47 @@
       renderAdminGachaTab();
     };
 
+    // 扭蛋機外殼圖片（唔係貼紙，係機身本身嗰張圖）——用返同貼紙相片
+    // 一樣嘅 gacha_stickers/ Storage 路徑（storage.rules 已經俾呢個路徑
+    // 底下任何檔名都通過，唔使再加多條規則），淨係換個檔名前綴分開嚟。
+    window.adminUploadGachaMachineImage = async function(inputEl) {
+      if (!adminGachaDraft) return;
+      const file = inputEl.files && inputEl.files[0];
+      if (!file) return;
+      if (!file.type.startsWith('image/')) {
+        window.showToast('請選擇圖片檔案', '⚠️');
+        return;
+      }
+      if (!window.storage || !window.storageApi) {
+        window.showToast('Storage 未初始化，請重新整理頁面再試', '⚠️');
+        return;
+      }
+      const oldUrl = adminGachaDraft.machineImageUrl;
+      window.showToast('⏳ 上傳緊圖片…', '📤');
+      try {
+        const { blob, mimeType } = await compressImageFileToBlob(file, 400, 0.85);
+        const ext = mimeType === 'image/png' ? 'png' : 'jpg';
+        const path = `gacha_stickers/machine_image_${Date.now()}.${ext}`;
+        const fileRef = window.storageApi.ref(window.storage, path);
+        await window.storageApi.uploadBytes(fileRef, blob, { contentType: mimeType });
+        const downloadUrl = await window.storageApi.getDownloadURL(fileRef);
+        adminGachaDraft.machineImageUrl = downloadUrl;
+        renderAdminGachaTab();
+        window.showToast('✅ 圖片上傳成功，記得撳「儲存全部改動」先會正式生效', '🎉');
+        tryDeleteOldGachaStoragePhoto(oldUrl); // best-effort，唔使等佢完成
+      } catch (err) {
+        window.showToast('圖片上傳失敗：' + (err.message || err), '❌');
+      }
+    };
+
+    window.adminRemoveGachaMachineImage = function() {
+      if (!adminGachaDraft) return;
+      const oldUrl = adminGachaDraft.machineImageUrl;
+      tryDeleteOldGachaStoragePhoto(oldUrl); // best-effort
+      adminGachaDraft.machineImageUrl = null;
+      renderAdminGachaTab();
+    };
+
     // 將所有貼紙嘅權重等比例縮放，令佢哋啱啱好加埋等於 100，
     // 令「權重」同「機率 %」睇落一致，滿足想用 percentage 睇嘅需要，
     // 同時內部繼續用返權重運算，加/減貼紙都唔使手動重新分配其他行。
@@ -9980,6 +10045,7 @@
         stickers: adminGachaDraft.stickers,
         costNormal: adminGachaDraft.costNormal,
         costLucky: adminGachaDraft.costLucky,
+        machineImageUrl: adminGachaDraft.machineImageUrl || null,
         updatedAt: Date.now(),
         updatedBy: window.currentUser ? window.currentUser.email : null
       };
@@ -10027,6 +10093,12 @@
           }
           if (typeof data.costNormal === 'number') GACHA_COST.normal = data.costNormal;
           if (typeof data.costLucky === 'number') GACHA_COST.lucky = data.costLucky;
+          // 扭蛋機外殼圖片：如果管理員上傳咗自訂圖，用返嗰張；冇嘅話
+          // window.GACHA_MACHINE_IMAGE_URL 保持 null，畫面繼續用返
+          // <img> tag 原本寫死嘅 gacha-machine.png 預設圖。
+          window.GACHA_MACHINE_IMAGE_URL = (typeof data.machineImageUrl === 'string' && data.machineImageUrl) ? data.machineImageUrl : null;
+          const machineImgEl = document.getElementById('gacha-machine-img');
+          if (machineImgEl) machineImgEl.src = window.GACHA_MACHINE_IMAGE_URL || 'gacha-machine.png';
         }
         gachaConfigLoaded = true;
         applyGachaCostToUI();
