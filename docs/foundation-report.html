@@ -227,9 +227,9 @@
     <p class="dek">現況架構、安全性同維運方式嘅完整盤點，配一份分階段嘅地基建設路線圖——目標係令呢個 project 由「一個人單打獨鬥都跑得動」，過渡去「換咗人接手都清清楚楚」。</p>
     <div class="doc-control">
       <dl><dt>文件編號</dt><dd>CM-FOUND-01</dd></dl>
-      <dl><dt>版本</dt><dd>v1.3（Phase 0–5 更新）</dd></dl>
+      <dl><dt>版本</dt><dd>v1.4（Phase 0–6 更新）</dd></dl>
       <dl><dt>對應產品版本</dt><dd>APP v1.97.0</dd></dl>
-      <dl><dt>狀態</dt><dd>Phase 0–5 已完成</dd></dl>
+      <dl><dt>狀態</dt><dd>Phase 0–6 已完成</dd></dl>
     </div>
   </div>
 
@@ -265,8 +265,8 @@
       </div>
       <div class="score-tile">
         <div class="name">文件化</div>
-        <span class="score-pill warn">● 局部</span>
-        <p class="note">程式碼內註解出乎意料咁詳細，但冇一份系統性嘅架構／交接文件（Phase 6 未開始）。</p>
+        <span class="score-pill ok">● README + 架構文件已備</span>
+        <p class="note">新增 ARCHITECTURE.md（系統組成、資料庫結構、部署流程）並改寫 README.md；交接就緒清單見下面第 05 節（Phase 6 已完成）。</p>
       </div>
     </div>
   </section>
@@ -510,15 +510,16 @@
       </div>
 
       <div class="phase">
-        <div class="phase-rail"><div class="phase-num">6</div></div>
+        <div class="phase-rail"><div class="phase-num done">6</div></div>
         <div class="phase-card">
-          <h3>文件化與交接包</h3>
+          <h3>文件化與交接包 <span class="phase-done-tag">✓ 已完成</span></h3>
           <div class="phase-when">同上面各階段並行進行</div>
           <ul>
-            <li>寫一份 <code class="mono">README.md</code>／<code class="mono">ARCHITECTURE.md</code>：系統組成、Firestore collection 結構、部署步驟</li>
-            <li>整理下面「交接就緒清單」入面列出嘅所有帳號／權限，確保隨時可以完整轉交</li>
+            <li>✅ 新增 <code class="mono">ARCHITECTURE.md</code>：系統一覽圖、兩個 Firebase 專案分工、Phase 5 拆檔後嘅檔案結構、Firestore collection 結構、Storage 結構、管理員權限模型、安全防護層、部署流程圖、已知限制</li>
+            <li>✅ 重寫 <code class="mono">README.md</code>：反映 Phase 5 拆檔後嘅目錄結構、開發流程、環境分隔，並連結去 <code class="mono">docs/foundation-report.html</code> 同 <code class="mono">ARCHITECTURE.md</code></li>
+            <li>⏭️ 下面「交接就緒清單」入面嘅實際帳號／密碼／權限本身（Firebase、GitHub、Cloudflare、EmailJS）需要你親自核實同整理好，呢一步屬於你要做嘅動作，唔係文件可以代勞——清單已經幫你列好要準備啲乜</li>
           </ul>
-          <div class="phase-exit"><b>完成標準：</b>一個完全未接觸過呢個 project 嘅 IT 人員，睇完文件加上攞到權限，一日內可以獨立完成一次小改動並部署。</div>
+          <div class="phase-exit"><b>完成標準：</b>一個完全未接觸過呢個 project 嘅 IT 人員，睇完文件加上攞到權限，一日內可以獨立完成一次小改動並部署——文件部分已達成；實際權限交接視乎你幾時需要用到（例如搵到接手人嗰刻）先進行。</div>
         </div>
       </div>
 
@@ -556,10 +557,10 @@
       <div class="check-item"><div class="check-box"></div><div><div class="t">Cloudflare 帳戶存取權限</div><div class="d">concenmate.com 嘅 DNS 記錄同域名續期</div></div></div>
       <div class="check-item"><div class="check-box"></div><div><div class="t">EmailJS 帳戶存取權限</div><div class="d">驗證電郵服務嘅設定同用量監察</div></div></div>
       <div class="check-item"><div class="check-box"></div><div><div class="t">本份地基評估報告</div><div class="d">作為新手上手嘅第一份參考文件</div></div></div>
-      <div class="check-item"><div class="check-box"></div><div><div class="t">架構文件（Phase 6 完成後）</div><div class="d">README／ARCHITECTURE.md</div></div></div>
+      <div class="check-item"><div class="check-box"></div><div><div class="t">架構文件</div><div class="d">README.md／ARCHITECTURE.md（Phase 6 已完成，隨 repo 提供）</div></div></div>
     </div>
   </section>
 
-  <footer>CONCENMATE · CM-FOUND-01 · 由 Claude 協助整理，內容基於 index.html v1.97.0（連同拆走嘅四個模組檔案）、firestore.rules 同 storage.rules 實際檢視結果 · Phase 0–5 已完成並喺正式站驗證</footer>
+  <footer>CONCENMATE · CM-FOUND-01 · 由 Claude 協助整理，內容基於 index.html v1.97.0（連同拆走嘅四個模組檔案）、firestore.rules、storage.rules、README.md 同 ARCHITECTURE.md 實際檢視結果 · Phase 0–6 已完成，地基建設路線圖全部完結（F7 自動化測試留待日後獨立處理）</footer>
 
 </div>
