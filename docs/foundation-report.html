@@ -227,9 +227,9 @@
     <p class="dek">現況架構、安全性同維運方式嘅完整盤點，配一份分階段嘅地基建設路線圖——目標係令呢個 project 由「一個人單打獨鬥都跑得動」，過渡去「換咗人接手都清清楚楚」。</p>
     <div class="doc-control">
       <dl><dt>文件編號</dt><dd>CM-FOUND-01</dd></dl>
-      <dl><dt>版本</dt><dd>v1.2（Phase 0–4 更新）</dd></dl>
-      <dl><dt>對應產品版本</dt><dd>APP v1.93.0</dd></dl>
-      <dl><dt>狀態</dt><dd>Phase 0–4 已完成</dd></dl>
+      <dl><dt>版本</dt><dd>v1.3（Phase 0–5 更新）</dd></dl>
+      <dl><dt>對應產品版本</dt><dd>APP v1.97.0</dd></dl>
+      <dl><dt>狀態</dt><dd>Phase 0–5 已完成</dd></dl>
     </div>
   </div>
 
@@ -250,8 +250,8 @@
       </div>
       <div class="score-tile">
         <div class="name">程式碼架構</div>
-        <span class="score-pill crit">● 單一巨檔</span>
-        <p class="note">10,839 行、594KB 全部塞喺一個 index.html，冇模組化、冇建置流程（Phase 5 未開始）。</p>
+        <span class="score-pill ok">● 已拆做 4 個模組</span>
+        <p class="note">index.html 由 11,047 行減到 2,802 行（瘦咗 74.6%），拆走 app-core.js／app-features.js／room-video.js／admin-panel.js 四個獨立檔案（Phase 5 已完成）。</p>
       </div>
       <div class="score-tile">
         <div class="name">資料／資產管理</div>
@@ -290,16 +290,17 @@
       </div>
     </div>
 
-    <div class="finding crit">
+    <div class="finding ok">
       <div class="stripe"></div>
       <div class="body">
         <div class="finding-head">
           <h3>F2 — 單一巨型檔案，冇模組化</h3>
-          <span class="finding-tag">地基缺口</span>
+          <span class="finding-tag">已解決（Phase 5）</span>
         </div>
         <p class="finding-id">位置：<code>index.html</code>（10,839 行／594KB／320+ 個函式）</p>
         <p>HTML、CSS、超過 300 個 JavaScript 函式全部寫喺同一個檔案入面，冇拆檔、冇建置工具（build tool）。呢個做法喺 project 細嗰陣（幾百行）完全冇問題，但已經去到萬行規模，會出現：新人要打開一個幾十萬字元嘅檔案先搵到自己要改嗰段；兩個人揀中同一段附近改，幾乎肯定撞版本控制嘅 merge conflict。</p>
         <p class="fix"><b>建議方向：</b>唔使一步到位重寫，可以喺確立咗版本控制之後，逐步將功能拆做獨立檔案（例如 <code class="mono">auth.js</code>／<code class="mono">room.js</code>／<code class="mono">admin.js</code>），用輕量建置工具（例如 Vite）砌返做一個靜態網站部署。</p>
+        <p><b>Phase 5 完成更新（2026-09）：</b>揀咗風險最低嘅「輕量拆檔」做法——唔引入 Vite 呢類建置工具（避免改變你熟悉嘅部署流程），改用瀏覽器原生支援嘅 <code>&lt;script src="..."&gt;</code>／ES module，分四步將 <code>index.html</code> 拆成 <code>app-core.js</code>（Firebase／登入／房間監聽）、<code>app-features.js</code>（聊天、扭蛋機、貼紙、QA、好友、日曆）、<code>room-video.js</code>（視訊溫習室、WebRTC、詞卡）、<code>admin-panel.js</code>（成個管理後台）。每一步都經過 staging 驗證先推正式站，主檔由 11,047 行減到 2,802 行（瘦咗 74.6%），行為完全冇變。</p>
       </div>
     </div>
 
@@ -491,15 +492,20 @@
       </div>
 
       <div class="phase">
-        <div class="phase-rail"><div class="phase-num">5</div><div class="phase-line"></div></div>
+        <div class="phase-rail"><div class="phase-num done">5</div><div class="phase-line"></div></div>
         <div class="phase-card">
-          <h3>程式碼結構化</h3>
-          <div class="phase-when">視乎人手，分階段進行</div>
+          <h3>程式碼結構化 <span class="phase-done-tag">✓ 已完成</span></h3>
+          <div class="phase-when">第 5–6 週</div>
           <ul>
-            <li>將 <code class="mono">index.html</code> 按功能拆做獨立模組檔案（登入／視訊房／管理後台／扭蛋機……），用輕量建置工具（例如 Vite）組裝返做靜態網站</li>
-            <li>對最核心、最易私自壞嘅邏輯（計分、番茄鐘循環、權限判斷）補寫可重複執行嘅自動化測試（對應 F2、F7）</li>
+            <li>✅ 將 <code class="mono">index.html</code> 按功能拆做四個獨立檔案，用瀏覽器原生 <code class="mono">&lt;script src="..."&gt;</code>／ES module 載入，冇引入 Vite 呢類建置工具，部署流程完全唔變（對應 F2）：</li>
+            <li>　　· <code class="mono">app-core.js</code> — Firebase 初始化、App Check、登入狀態、房間監聽</li>
+            <li>　　· <code class="mono">app-features.js</code> — 聊天視窗、扭蛋機、貼紙圖鑑、QA、好友、溫習日曆</li>
+            <li>　　· <code class="mono">room-video.js</code> — 視訊溫習室、WebRTC、心跳偵測、詞卡溫習</li>
+            <li>　　· <code class="mono">admin-panel.js</code> — 成個管理後台（扭蛋機、等級、詞卡、QA、舉報、房間、用戶管理）</li>
+            <li>✅ 每一步都跟返 staging → 正式站嘅驗證流程先推上線（v1.94.0 → v1.97.0）</li>
+            <li>⏭️ 自動化測試（F7）：呢次冇一併做，留返獨立處理，唔想同大規模拆檔一齊做增加風險</li>
           </ul>
-          <div class="phase-exit"><b>完成標準：</b>新同事可以喺一個檔案入面搵到自己要改嘅功能，唔使喺萬行文件度捲來捲去。</div>
+          <div class="phase-exit"><b>完成標準：</b>新同事可以喺一個檔案入面搵到自己要改嘅功能，唔使喺萬行文件度捲來捲去——已達成，<code class="mono">index.html</code> 由 11,047 行減到 2,802 行（瘦咗 74.6%）。自動化測試（F7）留待日後獨立處理。</div>
         </div>
       </div>
 
@@ -529,7 +535,7 @@
           <tr><td>正式網域</td><td class="mono">concenmate.com（GitHub Pages + Cloudflare DNS）</td></tr>
           <tr><td>GitHub repo</td><td class="mono">pakchan422/concenmate</td></tr>
           <tr><td>Firebase 專案</td><td class="mono">concenmate-app</td></tr>
-          <tr><td>主要程式檔案</td><td class="mono">index.html（10,839 行，594KB）</td></tr>
+          <tr><td>主要程式檔案</td><td class="mono">index.html（2,802 行）＋ app-core.js／app-features.js／room-video.js／admin-panel.js 四個模組（Phase 5 拆檔後）</td></tr>
           <tr><td>安全規則檔案</td><td class="mono">firestore.rules（16.8KB，位於專案資料夾但未納入 GitHub repo）</td></tr>
           <tr><td>Storage 規則</td><td class="mono">storage.rules（已寫好並部署去 concenmate-dev 同 concenmate-app 兩個專案）</td></tr>
           <tr><td>管理員判斷邏輯</td><td class="mono">index.html 第 9480 行 ADMIN_LOGIN_IDS ＋ firestore.rules 的 isAdmin()</td></tr>
@@ -554,6 +560,6 @@
     </div>
   </section>
 
-  <footer>CONCENMATE · CM-FOUND-01 · 由 Claude 協助整理，內容基於 index.html v1.93.0、firestore.rules 同 storage.rules 實際檢視結果 · Phase 0–4 已完成並喺正式站驗證</footer>
+  <footer>CONCENMATE · CM-FOUND-01 · 由 Claude 協助整理，內容基於 index.html v1.97.0（連同拆走嘅四個模組檔案）、firestore.rules 同 storage.rules 實際檢視結果 · Phase 0–5 已完成並喺正式站驗證</footer>
 
 </div>
