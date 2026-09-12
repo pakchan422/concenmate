@@ -55,7 +55,9 @@
       micSegmentStart: null, // 而家呢一段「開緊咪」係幾時開始嘅時間戳，用嚟喺手動關咪嗰刻計返呢段用咗幾多秒加落 micUsedSeconds
       micCooldownTimer: null, // 冷卻 5 分鐘完結嘅計時器，完咗先解鎖返咪掣
       micCooldownUiTimer: null, // 冷卻期間每秒刷新按鈕文字（顯示倒數）用嘅 interval
-      micCooldownUntil: null // 冷卻結束嘅時間戳（ms），畀 UI 計倒數用
+      micCooldownUntil: null, // 冷卻結束嘅時間戳（ms），畀 UI 計倒數用
+      knownParticipantUids: new Set(), // 目前已知喺房入面嘅人（唔包括自己），用嚟同下一次快照比較邊個係「新加入」
+      isFirstParticipantsSnapshot: true // 岩啱入房嗰個最初快照唔算「新加入」（本身已經喺度嘅人），淨係之後先出現先算
     };
 
     const ROOM_POMODORO_BREAK_SECONDS = 5 * 60; // 房入面每輪專注完之後嘅小休長度，暫時定死 5 分鐘
@@ -268,6 +270,10 @@
     function resetVideoSlots() {
       [2, 3, 4].forEach(setSlotPlaceholder);
       state.slotAssignments = {};
+      // 「邊個新加入咗」嘅追蹤都要一齊重置，唔係就上一次入嗰間房仲留低嘅
+      // 名單會累到落呢一次房，令啱啱入房嗰刻就即刻彈晒堆「XXX 進來了」
+      state.knownParticipantUids = new Set();
+      state.isFirstParticipantsSnapshot = true;
     }
 
     // 把某位遠端用家安排到一個空格，並回傳該格內的 <video> 元素供 WebRTC 串流使用
@@ -664,6 +670,70 @@
       }
     }
 
+    // 用短促「叮」一聲提示有人加入房間，純用 Web Audio 即場合成音效，
+    // 唔使額外音效檔案（唔會遇到 staging 站漏咗上傳 sound 檔嘅問題）
+    function playJoinNotificationSound() {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const now = ctx.currentTime;
+        // 兩個音高（先高後更高），短促唔刺耳，聽落似「叮咚」
+        [[880, 0], [1175, 0.12]].forEach(([freq, delay]) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0.001, now + delay);
+          gain.gain.exponentialRampToValueAtTime(0.18, now + delay + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.28);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + delay);
+          osc.stop(now + delay + 0.3);
+        });
+        // 播完之後將個 AudioContext 收埋，唔好一直留喺度佔資源
+        setTimeout(() => { ctx.close && ctx.close(); }, 600);
+      } catch (e) {
+        console.warn('播放加入房間提示音失敗:', e);
+      }
+    }
+
+    // 有人加入房間時，彈一個半透明嘅小提示（「XXX 進來了」），5 秒後自動消失。
+    // 特登唔用返 window.showToast（嗰個淨係得一個「位」，如果連續有多個人
+    // 幾乎同時加入會互相蓋晒），而係獨立疊加顯示，睇晒晒邊個入咗嚟。
+    function showJoinNotification(name) {
+      const roomActiveEl = document.getElementById('room-active');
+      if (!roomActiveEl) return;
+      let container = document.getElementById('join-notification-container');
+      // 掛喺 #room-active 入面（唔係成個 document.body），並且用 position:absolute
+      // 置中喺呢個房間畫面正中間——同 #room-active 本身係咪全螢幕狀態無關，
+      // 兩種情況（普通版面 / 全螢幕）都一樣會出現喺視訊房嘅正中央，唔會走去
+      // 成個瀏覽器視窗嘅頂部（見 index.html 入面 #room-active { position:relative }）。
+      if (!container) {
+        container = document.createElement('div');
+        container.id = 'join-notification-container';
+        container.style.cssText = 'position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); z-index:500; display:flex; flex-direction:column; align-items:center; gap:8px; pointer-events:none;';
+        roomActiveEl.appendChild(container);
+      } else if (container.parentElement !== roomActiveEl) {
+        roomActiveEl.appendChild(container);
+      }
+      const note = document.createElement('div');
+      note.textContent = `👋 ${name || '同學'} 進來了`;
+      note.style.cssText = 'background:rgba(20,20,20,0.72); color:#fff; padding:10px 20px; border-radius:999px; font-size:14px; font-weight:bold; box-shadow:0 4px 14px rgba(0,0,0,0.25); backdrop-filter:blur(4px); opacity:0; transform:translateY(-8px); transition:opacity .25s ease, transform .25s ease;';
+      container.appendChild(note);
+      requestAnimationFrame(() => {
+        note.style.opacity = '1';
+        note.style.transform = 'translateY(0)';
+      });
+      // 5 秒後自動消失（先淡出，再真正移除元素）
+      setTimeout(() => {
+        note.style.opacity = '0';
+        note.style.transform = 'translateY(-8px)';
+        setTimeout(() => note.remove(), 300);
+      }, 5000);
+    }
+
     // 監聽房間目前的用家名單，動態分配 / 釋放格子，並更新人數顯示
     function listenToParticipants(roomId) {
       if (state.participantsUnsubscribe) state.participantsUnsubscribe();
@@ -677,6 +747,20 @@
           .sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0));
 
         const currentUids = others.map(p => p.uid);
+
+        // 有朋友加入房間嘅提示音／彈窗：淨係比較「呢次快照」同「上次已知名單」，
+        // 揾出新出現嘅 uid。特登跳過入房嗰一刻嘅第一個快照——唔係嘅話一入
+        // 房見到啲本身已經喺度嘅人，都會被當成「啱啱先加入」，彈一輪冇意義嘅提示。
+        if (!state.isFirstParticipantsSnapshot) {
+          others.forEach(p => {
+            if (!state.knownParticipantUids.has(p.uid)) {
+              playJoinNotificationSound();
+              showJoinNotification(p.name);
+            }
+          });
+        }
+        state.isFirstParticipantsSnapshot = false;
+        state.knownParticipantUids = new Set(currentUids);
 
         // 釋放已離開的用家所佔用的格子
         Object.keys(state.slotAssignments).forEach(uid => {
@@ -921,6 +1005,17 @@
       // 喺第二個分頁（例如撳咗朋友邀請彈窗）先接受入房，一定要連埋分頁都
       // 一齊切返去，唔係個房間狀態變咗但畫面仲留喺原本嗰頁，睇落好似冇反應
       if (typeof window.switchTab === 'function') window.switchTab('room');
+      // 一入房就自動全螢幕（好似 Google Meet 咁），唔使學生自己再撳「⛶ 全螢幕」
+      // 先識用。淨係 UI 層面嘅「放大版面」全螢幕（見 toggleVideoFullscreenMode），
+      // 唔係瀏覽器嗰種真．全螢幕（唔想無端端搶走瀏覽器控制項／要求額外權限）。
+      // 等返一個 tick 等個畫面真正切換咗去 room-active 之後先觸發，唔係就
+      // 量唔到啱嘅可用空間（同 toggleVideoFullscreenMode 入面個做法一致）。
+      requestAnimationFrame(() => {
+        const roomActiveEl = document.getElementById('room-active');
+        if (roomActiveEl && !roomActiveEl.classList.contains('video-fullscreen-mode')) {
+          window.toggleVideoFullscreenMode();
+        }
+      });
 
       startTimer();
       listenToRoomSignaling(roomId);
@@ -1692,7 +1787,7 @@
     // 樣嘢），如果淨係憑鏡頭開住就當佢在場、跳過確認，會令人可以一開鏡頭
     // 就掛住唔理攞盡計分，變相冇咗呢個防刷分機制原本嘅意義。所以唔理有冇
     // 開鏡頭，都要定期主動撳一下確認先算數。
-    const ROOM_PRESENCE_CHECK_INTERVAL_MS = 15 * 60 * 1000; // 每 15 分鐘check 一次
+    const ROOM_PRESENCE_CHECK_INTERVAL_MS = 30 * 60 * 1000; // 每 30 分鐘check 一次
     const ROOM_PRESENCE_RESPONSE_MS = 5 * 60 * 1000;        // 彈窗後 5 分鐘內要確認
 
     function startPresenceCheckLoop() {

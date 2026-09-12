@@ -2976,6 +2976,56 @@
       if (panel) panel.style.display = 'none';
     };
 
+    // ===================== 🔗 分享連結邀請（WhatsApp／Instagram 等） =====================
+    // 同下面「邀請朋友入房」唔同：呢個唔限於已經加咗做 ConcenMate 好友嘅
+    // 人，隨時可以將連結貼去任何社交媒體傳畀任何人，對方撳一下連結、
+    // 登入（或註冊）之後就會自動加入返呢間房——見 window.checkJoinRoomHashRoute
+    // （app-core.js），呢度淨係負責「整條連結出嚟、分享／複製」呢部分。
+    // 兩個掣（分享／複製）共用嘅底層資料：房間連結、連同連結一齊送出嘅文案
+    function buildRoomInviteShareData() {
+      const roomTitleEl = document.getElementById('active-room-title');
+      const roomName = (roomTitleEl && roomTitleEl.innerText) || '溫習室';
+      const link = `${window.location.origin}${window.location.pathname}#join-room=${state.currentRoomId}`;
+      const text = `誠邀閣下加入 ConcenMate 一同溫習，請按以下連結加入溫習室「${roomName}」：`;
+      return { link, text };
+    }
+
+    // 「📤 分享連結」：優先叫出裝置本身嘅分享選單（手機上會見到 WhatsApp、
+    // Instagram 等已安裝嘅社交 App），冇支援先跌落去自動複製。
+    window.shareRoomInviteLink = async function() {
+      if (!state.currentRoomId) { window.showToast('請先進入溫習室，方可分享連結', '⚠️'); return; }
+      const { link, text } = buildRoomInviteShareData();
+
+      // 手機瀏覽器（同部分電腦瀏覽器）支援 navigator.share，會彈出裝置本身
+      // 嘅分享選單，入面就會有 WhatsApp、Instagram 等已安裝嘅社交 App 可以揀。
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: 'ConcenMate 書伴 · 溫習室邀請', text, url: link });
+          return; // 用家喺分享選單度揀咗（或者取消咗）都算完成，唔使再做複製那一步
+        } catch (e) {
+          // 用家自己撳「取消」都會拋呢個 error，唔算真正失敗，跌落去用複製方式頂住
+        }
+      }
+      await copyLinkToClipboard(link, text);
+    };
+
+    // 「📋 複製連結」：唔理裝置支唔支援分享選單，一律直接複製到剪貼簿，
+    // 保證撳一下就實實在在複製咗，畀用家自己貼去邊個 App 都得。
+    window.copyRoomInviteLink = async function() {
+      if (!state.currentRoomId) { window.showToast('請先進入溫習室，方可複製連結', '⚠️'); return; }
+      const { link, text } = buildRoomInviteShareData();
+      await copyLinkToClipboard(link, text);
+    };
+
+    async function copyLinkToClipboard(link, text) {
+      try {
+        await navigator.clipboard.writeText(`${text}\n${link}`);
+        window.showToast('連結已複製，請貼上 WhatsApp、Instagram 等傳送予朋友', '📋');
+      } catch (e) {
+        window.showToast('複製失敗，連結：' + link, '⚠️');
+      }
+    }
+
     // ===================== 邀請朋友入房 =====================
     // 邀請有效期：5 分鐘，過咗期就算撳「加入」都會提示過期，唔會直接放行
     const ROOM_INVITE_VALID_MS = 5 * 60 * 1000;
@@ -2988,7 +3038,7 @@
       const listEl = document.getElementById('invite-friend-list');
       if (!listEl) return;
       if (inviteFriendListCache.length === 0) {
-        listEl.innerHTML = '<p style="font-size:13px; color:#999; text-align:center; padding:10px 0;">沒有好友可以邀請喇（可能全部都已經在房入面，或者你仲未加任何好友）</p>';
+        listEl.innerHTML = '<p style="font-size:13px; color:#999; text-align:center; padding:10px 0;">目前並無可邀請之朋友（可能對方已在房內，或閣下尚未加入任何朋友）</p>';
         return;
       }
       const presenceMap = window.friendPresenceMap || {};

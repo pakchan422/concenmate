@@ -317,6 +317,9 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       if (typeof window.checkEmailVerifyHashRoute === 'function') {
         window.checkEmailVerifyHashRoute();
       }
+      if (typeof window.checkJoinRoomHashRoute === 'function') {
+        window.checkJoinRoomHashRoute();
+      }
     });
 
     // ===================== 📧 電郵驗證 =====================
@@ -393,6 +396,48 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       window.location.hash = '';
     };
     window.addEventListener('hashchange', () => { window.checkEmailVerifyHashRoute(); });
+
+    // ===================== 🔗 分享連結邀請入房 =====================
+    // 撳完（WhatsApp／Instagram 等社交媒體傳過嚟嘅）連結 #join-room=<roomId>
+    // 開返網站之後嘅處理——同電郵驗證嗰個 #verify-email= 用返一樣嘅「hash
+    // route」做法：登入狀態一有變、或者 hash 一改變都check 一次，未登入
+    // 就叫佢先登入（hash 冇被清走，登入完成之後 onAuthStateChanged 會自動
+    // 再 check 多一次，唔使朋友自己記得再撳多次連結）。
+    window.checkJoinRoomHashRoute = async function() {
+      const match = (window.location.hash || '').match(/^#join-room=([A-Za-z0-9_-]+)$/);
+      if (!match) return;
+      const roomId = match[1];
+      if (!window.currentUser) {
+        window.showToast('請先登入或註冊帳戶，先可以加入呢間溫習室', '⚠️');
+        return; // 特登唔清走個 hash，等登入完成之後可以自動重試
+      }
+      try {
+        const roomSnap = await getDoc(doc(db, 'rooms', roomId));
+        if (!roomSnap.exists()) {
+          window.showToast('呢個溫習室已經唔存在（可能已經解散或者連結已經失效）', '🚫');
+          window.location.hash = '';
+          return;
+        }
+        const room = roomSnap.data();
+        let createdAtMs = 0;
+        if (typeof room.createdAt === 'number') {
+          createdAtMs = room.createdAt;
+        } else if (room.createdAt) {
+          const parsed = new Date(room.createdAt).getTime();
+          createdAtMs = isNaN(parsed) ? 0 : parsed;
+        }
+        const isMyRoom = !!(window.currentUser && room.hostUid === window.currentUser.uid);
+        window.location.hash = ''; // 先清走 hash，避免加入失敗／人數已滿之後撳其他連結又再彈返一次
+        if (typeof window.joinPublicRoom === 'function') {
+          await window.joinPublicRoom(roomId, room.name, room.subject, room.duration, room.hostName, isMyRoom, createdAtMs, room.hostUid || '');
+        }
+      } catch (e) {
+        console.error('經分享連結加入房間失敗:', e);
+        window.showToast('加入房間失敗，請再試一次', '❌');
+        window.location.hash = '';
+      }
+    };
+    window.addEventListener('hashchange', () => { window.checkJoinRoomHashRoute(); });
 
     // 「編輯個人資料」度嘅「重新發送驗證電郵」掣：改咗電郵、或者第一封
     // 冇收到，都可以隨時重新整多個新 token 再寄一次
