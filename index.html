@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.97.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.98.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -30,6 +30,28 @@
       }
     })();
   </script>
+
+  <!-- ========================================
+       🚨 錯誤監察（Sentry）— Phase 7 市場化前置：F(錯誤監察)
+       ========================================
+       用 Sentry 免費方案自動收集瀏覽器出現嘅未處理錯誤，唔使等學生主動
+       反映先知道邊度壞咗。用 environment 標籤分開「正式站」同「開發／
+       測試站」嘅錯誤，唔會混埋一齊；release 標籤帶埋 APP_VERSION，方便
+       對照邊個版本出事。呢個純粹「回報錯誤」用，Sentry 自己斷咗都唔會
+       影響網站本身嘅其他功能（唔阻住任何其他 script 執行）。
+       ======================================== -->
+  <script>
+    window.sentryOnLoad = function () {
+      Sentry.init({
+        environment: window.IS_PROD_SITE ? "production" : "staging",
+        release: "concenmate@" + window.APP_VERSION
+      });
+    };
+  </script>
+  <script
+    src="https://js.sentry-cdn.com/e8090dad66b95efd4dd99b863a016f9e.min.js"
+    crossorigin="anonymous"
+  ></script>
 
   <!-- ========================================
        📧 電郵驗證設定（EmailJS）
