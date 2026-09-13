@@ -161,6 +161,7 @@
       else if (tab === 'level') renderAdminLevelTab();
       else if (tab === 'flashcards') renderAdminFlashcardsTab();
       else if (tab === 'reports') renderAdminReportsTab();
+      else if (tab === 'icons') renderAdminNavIconsTab();
     };
 
     // ---------- 扭蛋機貼紙管理 ----------
@@ -1514,6 +1515,177 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
         window.showToast('刪除失敗：' + (err.message || err), '❌');
       }
     };
+
+    // ---------- 側邊功能表圖示管理 ----------
+    // 側邊欄「主頁／視訊溫習室／學科溫習卡」等 8 粒分頁掣，原本淨係
+    // 寫死一個 emoji 做圖示。而家改為由 Firestore（admin_config/navIcons
+    // 文件）讀取，管理員可以喺呢個分頁上傳自訂圖片取代個 emoji，冇上傳
+    // 過（或者撳咗「還原做預設圖示」）嘅掣就繼續顯示返原本嘅 emoji。
+    // 做法完全仿照上面「扭蛋機外觀圖片」嗰個 pattern：圖片本身上傳去
+    // Firebase Storage（nav_icons/ 路徑），Firestore 淨係存返個下載連結。
+    const NAV_ICON_ITEMS = [
+      { key: 'home', label: '主頁', emoji: '🏠' },
+      { key: 'room', label: '視訊溫習室', emoji: '📹' },
+      { key: 'study', label: '學科溫習卡', emoji: '🗂' },
+      { key: 'qa', label: '疑難解答區', emoji: '❓' },
+      { key: 'vip', label: '溫習資源', emoji: '👑' },
+      { key: 'store', label: '時數扭蛋機', emoji: '🎁' },
+      { key: 'social', label: '夥伴與讀書會', emoji: '👥' },
+      { key: 'verification', label: '學生身份驗證', emoji: '🎓' }
+    ];
+
+    // 全站共用嘅「目前生效緊嘅圖示連結」——冇自訂圖嘅 key 就唔會出現喺
+    // 呢個物件入面，UI 判斷「有冇自訂圖」淨係睇呢度有冇嗰個 key。
+    window.NAV_ICON_URLS = window.NAV_ICON_URLS || {};
+
+    // 將 window.NAV_ICON_URLS 目前嘅內容，實際反映去側邊欄嘅 8 個
+    // <span class="nav-icon" id="nav-icon-{key}"> 度——有自訂圖就換做
+    // <img>，冇就還原返做原本嘅 emoji 文字。
+    function applyNavIconsToSidebar() {
+      NAV_ICON_ITEMS.forEach(item => {
+        const el = document.getElementById('nav-icon-' + item.key);
+        if (!el) return; // 未登入（側邊欄未 render）嗰陣搵唔到係正常
+        const url = window.NAV_ICON_URLS[item.key];
+        el.innerHTML = url
+          ? `<img src="${url}" alt="${escapeHtml(item.label)}">`
+          : escapeHtml(item.emoji);
+      });
+    }
+    window.applyNavIconsToSidebar = applyNavIconsToSidebar;
+
+    let adminNavIconsDraft = null;
+    let navIconsConfigLoaded = false;
+
+    function renderAdminNavIconsTab() {
+      const container = document.getElementById('admin-tab-icons');
+      if (!container) return;
+
+      if (!adminNavIconsDraft) {
+        if (!navIconsConfigLoaded) {
+          container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入緊圖示設定...</p>';
+          return; // Firestore 資料一到，loadNavIconsFromFirestore() 會自動再 render 多次
+        }
+        adminNavIconsDraft = Object.assign({}, window.NAV_ICON_URLS);
+      }
+
+      const rows = NAV_ICON_ITEMS.map(item => {
+        const url = adminNavIconsDraft[item.key];
+        const thumbId = `admin-navicon-thumb-${item.key}`;
+        const inputId = `admin-navicon-input-${item.key}`;
+        const thumbInner = url
+          ? `<img src="${url}" style="width:100%; height:100%; object-fit:contain;">`
+          : `<span style="font-size:22px;">${escapeHtml(item.emoji)}</span>`;
+        return `
+          <div style="display:flex; align-items:center; gap:14px; padding:10px 0; border-bottom:1px solid #F0F0F0;">
+            <div id="${thumbId}" onclick="document.getElementById('${inputId}').click()" title="撳這裡上傳圖片" style="width:52px; height:52px; border-radius:10px; background:#F0F6F8; border:1px dashed #B3D6DE; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden; flex-shrink:0;">${thumbInner}</div>
+            <input type="file" accept="image/*" id="${inputId}" style="display:none;" onchange="adminUploadNavIcon('${item.key}',this)">
+            <div style="flex:1; font-size:14px; font-weight:600; color:#333;">${escapeHtml(item.label)}</div>
+            <div style="display:flex; gap:6px;">
+              <button type="button" class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="document.getElementById('${inputId}').click()">📤 上傳圖片</button>
+              ${url ? `<button type="button" class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="adminRemoveNavIcon('${item.key}')">↩️ 還原做預設圖示</button>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      container.innerHTML = `
+        <div class="admin-card">
+          <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:6px;">🖼 側邊欄功能圖示</h3>
+          <p style="font-size:13px; color:#888; margin-bottom:6px;">將側邊欄「主頁、視訊溫習室」等 8 個分頁掣原本嘅 emoji 圖示，換做自訂上傳嘅圖片。上傳新圖會即時取代畫面上見到嘅圖示，冇上傳過嘅項目就繼續用返預設 emoji。</p>
+          ${rows}
+          <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:14px;">
+            <button class="btn btn-outline" type="button" onclick="adminResetNavIconsDraft()">↩️ 還原未儲存的改動</button>
+            <button class="btn btn-primary" type="button" onclick="adminSaveNavIconsConfig()">💾 儲存全部改動</button>
+          </div>
+        </div>
+      `;
+    }
+    window.renderAdminNavIconsTab = renderAdminNavIconsTab;
+
+    window.adminUploadNavIcon = async function(key, inputEl) {
+      if (!adminNavIconsDraft) return;
+      const file = inputEl.files && inputEl.files[0];
+      if (!file) return;
+      if (!file.type.startsWith('image/')) {
+        window.showToast('請選擇圖片檔案', '⚠️');
+        return;
+      }
+      if (!window.storage || !window.storageApi) {
+        window.showToast('Storage 未初始化，請重新整理頁面再試', '⚠️');
+        return;
+      }
+      const oldUrl = adminNavIconsDraft[key];
+      window.showToast('⏳ 上傳緊圖片…', '📤');
+      try {
+        const { blob, mimeType } = await compressImageFileToBlob(file, 128, 0.85);
+        const ext = mimeType === 'image/png' ? 'png' : 'jpg';
+        const path = `nav_icons/${key}_${Date.now()}.${ext}`;
+        const fileRef = window.storageApi.ref(window.storage, path);
+        await window.storageApi.uploadBytes(fileRef, blob, { contentType: mimeType });
+        const downloadUrl = await window.storageApi.getDownloadURL(fileRef);
+        adminNavIconsDraft[key] = downloadUrl;
+        renderAdminNavIconsTab();
+        window.showToast('✅ 圖片上傳成功，記得撳「儲存全部改動」先會正式生效', '🎉');
+        tryDeleteOldGachaStoragePhoto(oldUrl); // best-effort，唔使等佢完成（呢個函式其實通用，唔止扭蛋貼紙先用得）
+      } catch (err) {
+        window.showToast('圖片上傳失敗：' + (err.message || err), '❌');
+      }
+    };
+
+    window.adminRemoveNavIcon = function(key) {
+      if (!adminNavIconsDraft) return;
+      const oldUrl = adminNavIconsDraft[key];
+      tryDeleteOldGachaStoragePhoto(oldUrl); // best-effort
+      delete adminNavIconsDraft[key];
+      renderAdminNavIconsTab();
+    };
+
+    window.adminResetNavIconsDraft = function() {
+      adminNavIconsDraft = null;
+      renderAdminNavIconsTab();
+    };
+
+    window.adminSaveNavIconsConfig = async function() {
+      if (!adminNavIconsDraft) return;
+      try {
+        await window.fs.setDoc(window.fs.doc(window.db, 'admin_config', 'navIcons'), adminNavIconsDraft);
+        window.showToast('✅ 圖示設定已儲存，全站即時生效', '🎉');
+      } catch (err) {
+        window.showToast('儲存失敗：' + (err.message || err), '❌');
+      }
+    };
+
+    let navIconsUnsubscribe = null;
+    function loadNavIconsFromFirestore() {
+      if (!window.db || !window.fs) return;
+      if (navIconsUnsubscribe) navIconsUnsubscribe();
+      const ref = window.fs.doc(window.db, 'admin_config', 'navIcons');
+      navIconsUnsubscribe = window.fs.onSnapshot(ref, (snap) => {
+        window.NAV_ICON_URLS = {};
+        if (snap.exists()) {
+          const data = snap.data();
+          NAV_ICON_ITEMS.forEach(item => {
+            if (typeof data[item.key] === 'string' && data[item.key]) {
+              window.NAV_ICON_URLS[item.key] = data[item.key];
+            }
+          });
+        }
+        navIconsConfigLoaded = true;
+        applyNavIconsToSidebar();
+        // 如果管理員岩岩好打開緊「功能圖示」呢個分頁、又仲未開始編輯，
+        // 而家攞到資料喇，即刻幫佢重新 render 一次，唔使自己撳一撳個分頁
+        if (currentAdminTab === 'icons' && !adminNavIconsDraft) {
+          const adminPanelEl = document.getElementById('admin-panel-container');
+          if (adminPanelEl && adminPanelEl.style.display !== 'none') {
+            renderAdminNavIconsTab();
+          }
+        }
+      }, (err) => {
+        console.error('讀取側邊欄圖示設定失敗:', err);
+        navIconsConfigLoaded = true; // 唔好卡死喺「載入緊...」畫面
+      });
+    }
+    window.loadNavIconsFromFirestore = loadNavIconsFromFirestore;
 
     // 頁面一載入就檢查一次（處理直接開 #admin 網址嘅情況）
     checkAdminHashRoute();

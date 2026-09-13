@@ -56,6 +56,7 @@
       micCooldownTimer: null, // 冷卻 5 分鐘完結嘅計時器，完咗先解鎖返咪掣
       micCooldownUiTimer: null, // 冷卻期間每秒刷新按鈕文字（顯示倒數）用嘅 interval
       micCooldownUntil: null, // 冷卻結束嘅時間戳（ms），畀 UI 計倒數用
+      micIdleResetTimer: null, // 學生主動關咪、未撞到 3 分鐘上限之情況下，背後計緊嘅「閒置 5 分鐘就回復返成套 3 分鐘預算」計時器
       knownParticipantUids: new Set(), // 目前已知喺房入面嘅人（唔包括自己），用嚟同下一次快照比較邊個係「新加入」
       isFirstParticipantsSnapshot: true // 岩啱入房嗰個最初快照唔算「新加入」（本身已經喺度嘅人），淨係之後先出現先算
     };
@@ -63,6 +64,7 @@
     const ROOM_POMODORO_BREAK_SECONDS = 5 * 60; // 房入面每輪專注完之後嘅小休長度，暫時定死 5 分鐘
     const MIC_OPEN_LIMIT_SECONDS = 3 * 60; // 每次開咪最多連續 3 分鐘，避免學生掛住傾偈唔記得溫習
     const MIC_COOLDOWN_SECONDS = 5 * 60; // 開咪上限一到，要等 5 分鐘冷卻先可以再開
+    const MIC_IDLE_RESET_SECONDS = 5 * 60; // 學生未撞到 3 分鐘上限、主動關咪之後，如果連續 5 分鐘都冇再開咪，就當佢已經完全休息返，回復返成套 3 分鐘預算（唔使一定撞晒 3 分鐘先可以歸零）
 
     const ROOM_CAPACITY = 4; // 同一房間最多同時容納的用家人數（包括自己）
     window.ROOM_CAPACITY = ROOM_CAPACITY; // 開放俾其他 <script> 區塊（例如大廳房間卡片）讀取
@@ -1973,6 +1975,7 @@
       if (state.micCooldownTimer) { clearTimeout(state.micCooldownTimer); state.micCooldownTimer = null; }
       if (state.micCooldownUiTimer) { clearInterval(state.micCooldownUiTimer); state.micCooldownUiTimer = null; }
       state.micCooldownUntil = null;
+      if (state.micIdleResetTimer) { clearTimeout(state.micIdleResetTimer); state.micIdleResetTimer = null; }
 
       const videoEl = document.getElementById('behind-video-engine');
       const canvasEl = document.getElementById('canvas-stream-display');
@@ -2514,6 +2517,10 @@
       state.micOpenUntil = null;
 
       if (state.isMicOn) {
+        // 學生喺閒置期間未夠 5 分鐘就再開返咪：即係未回復到預算，
+        // 取消返個「閒置回復」計時器（唔使真係等到佢完），跟住正常接住計落去。
+        if (state.micIdleResetTimer) { clearTimeout(state.micIdleResetTimer); state.micIdleResetTimer = null; }
+
         // 開返咪：將呢段開始嘅時間戳記低，計返仲有幾多預算未用完
         state.micSegmentStart = Date.now();
         const remainingSeconds = Math.max(0, MIC_OPEN_LIMIT_SECONDS - (state.micUsedSeconds || 0));
@@ -2541,6 +2548,9 @@
             state.isMicOn = false;
             state.mediaStream.getAudioTracks().forEach(track => track.enabled = false);
             window.showToast('開咪已滿 3 分鐘，已幫你自動收埋，專心返去溫習啦！咪掣進入 5 分鐘冷卻 🧊', '⏳');
+            // 額外彈出一個唔會自動關閉嘅提示視窗（書面語），確保學生真正留意到，
+            // 唔止係一閃即逝嘅 toast——要學生主動按掣確認先關得閉。
+            openModal('modal-mic-limit-reminder');
             startMicCooldown();
           } else {
             updateMicButtonUI();
@@ -2553,6 +2563,23 @@
           state.micUsedSeconds = Math.min(MIC_OPEN_LIMIT_SECONDS, (state.micUsedSeconds || 0) + elapsedSeconds);
         }
         state.micSegmentStart = null;
+
+        // 「閒置回復」機制：呢度嘅主動關咪，係喺未撞到 3 分鐘上限之前發生
+        // （撞到上限嗰個情況由上面 setTimeout 個分支處理，唔會行到呢度）。
+        // 如果學生手動關咪之後，連續 5 分鐘都冇再開返咪，就當佢已經完全
+        // 休息返，將 micUsedSeconds 回復做 0，等佢下次開咪可以攞返成套
+        // 3 分鐘，唔使因為之前用剩嘅零碎時間而畀「累積咗幾多」拖累。
+        if (state.micIdleResetTimer) { clearTimeout(state.micIdleResetTimer); state.micIdleResetTimer = null; }
+        if ((state.micUsedSeconds || 0) > 0 && (state.micUsedSeconds || 0) < MIC_OPEN_LIMIT_SECONDS) {
+          state.micIdleResetTimer = setTimeout(() => {
+            state.micIdleResetTimer = null;
+            // 保險檢查：如果呢段時間內因為其他途徑（例如撞咗上限入咗冷卻）已經
+            // 歸零或者已進入冷卻，就唔使畫蛇添足再處理一次
+            if (!state.isMicOn && !state.micCooldownUntil) {
+              state.micUsedSeconds = 0;
+            }
+          }, MIC_IDLE_RESET_SECONDS * 1000);
+        }
       }
 
       updateMicButtonUI();
@@ -2563,6 +2590,9 @@
     function startMicCooldown() {
       if (state.micCooldownTimer) { clearTimeout(state.micCooldownTimer); state.micCooldownTimer = null; }
       if (state.micCooldownUiTimer) { clearInterval(state.micCooldownUiTimer); state.micCooldownUiTimer = null; }
+      // 一旦真正撞上限入咗冷卻，「閒置回復」計時器就冇意義（冷卻本身完咗
+      // 就會歸零），取消佢，唔使兩個計時器同時running。
+      if (state.micIdleResetTimer) { clearTimeout(state.micIdleResetTimer); state.micIdleResetTimer = null; }
 
       state.micCooldownUntil = Date.now() + MIC_COOLDOWN_SECONDS * 1000;
       updateMicButtonUI();

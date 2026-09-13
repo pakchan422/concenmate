@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.102.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.106.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -225,6 +225,11 @@
 
     .nav-btn { width: 100%; text-align: left; padding: 10px; border-radius: 10px; border: none; background: transparent; color: #555; font-size: 15px; font-weight: 600; cursor: pointer; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; justify-content: flex-start; transition: 0.15s; }
     .nav-btn.active, .nav-btn:hover { background: var(--brand-500); color: white; }
+    /* 側邊功能表圖示：預設純粹顯示 emoji 文字；管理員喺後台上傳咗自訂
+       圖片之後，JS 會將呢個 span 嘅內容換做一張 <img>，用呢個固定
+       20x20 嘅盒仔確保換咗圖之後排位唔會走樣。 */
+    .nav-icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; flex-shrink: 0; }
+    .nav-icon img { width: 100%; height: 100%; object-fit: contain; border-radius: 4px; }
 
     .auth-wall-container {
       max-width: 480px;
@@ -1309,9 +1314,13 @@
       .landing-nav-inner { padding-left: 16px; padding-right: 16px; gap: 8px; }
       .landing-nav-badge { display: none; }
       .landing-nav-tagline { display: none; }
-      .landing-nav-actions { gap: 10px; }
-      .landing-nav-login-header { display: none; }
-      .landing-nav-actions .landing-btn { padding: 10px 16px; font-size: 14px; }
+      .landing-nav-actions { gap: 8px; }
+      /* 手機窄畫面下都要保留「登入」按鈕，之前設定咗 display:none 會令
+         登入前主頁完全冇入口去登入畫面，只剩返「免費開始使用」（註冊），
+         而家改為縮細字體＋去除白位，保留於畫面上，確保登入同註冊兩個
+         按鈕喺窄畫面都能夠並排顯示晒。 */
+      .landing-nav-login-header { font-size: 13px; }
+      .landing-nav-actions .landing-btn { padding: 10px 14px; font-size: 13px; }
     }
   </style>
 </head>
@@ -1384,7 +1393,7 @@
         </div>
         <div class="landing-nav-actions">
           <button type="button" class="landing-nav-login landing-nav-login-header" onclick="openModal('modal-login')">登入</button>
-          <button type="button" class="landing-btn landing-btn-primary" style="padding:11px 22px; font-size:15px;" onclick="openModal('modal-register')">免費開始使用</button>
+          <button type="button" class="landing-btn landing-btn-primary" style="padding:11px 22px; font-size:15px;" onclick="openModal('modal-register')">註冊帳號</button>
         </div>
       </div>
     </nav>
@@ -1397,7 +1406,7 @@
           <p class="landing-hero-slogan">Always By Your Side</p>
           <p class="landing-hero-sub">ConcenMate 書伴是專為學生設計的線上溫習室，讓你尋找志同道合的夥伴，結合專注力計時、溫習社群與成長獎勵機制，陪伴你建立持續而穩定的學習習慣。</p>
           <div class="landing-hero-ctas">
-            <button type="button" class="landing-btn landing-btn-primary" onclick="openModal('modal-register')">免費開始使用</button>
+            <button type="button" class="landing-btn landing-btn-primary" onclick="openModal('modal-register')">註冊帳號</button>
           </div>
         </div>
         <div class="landing-hero-art">
@@ -1448,7 +1457,7 @@
       <div class="landing-container">
         <h2 class="landing-cta-h2">由今天開始，讓書伴陪你溫習</h2>
         <p class="landing-cta-sub">免費註冊帳戶，開始你的專注溫習旅程。</p>
-        <button type="button" class="landing-btn landing-btn-primary" style="padding:16px 36px; font-size:18px;" onclick="openModal('modal-register')">免費開始使用</button>
+        <button type="button" class="landing-btn landing-btn-primary" style="padding:16px 36px; font-size:18px;" onclick="openModal('modal-register')">註冊帳號</button>
       </div>
     </section>
   </div>
@@ -1537,14 +1546,14 @@
 
     <aside>
       <div>
-        <button class="nav-btn active" id="nav-btn-home" type="button" onclick="switchTab('home', this)">🏠 <span class="nav-text">主頁</span></button>
-        <button class="nav-btn" id="nav-btn-room" type="button" onclick="switchTab('room', this)">📹 <span class="nav-text">視訊溫習室</span></button>
-        <button class="nav-btn" id="nav-btn-study" type="button" onclick="switchTab('study', this)">🗂 <span class="nav-text">學科溫習卡</span></button>
-        <button class="nav-btn" id="nav-btn-qa" type="button" onclick="switchTab('qa', this)">❓ <span class="nav-text">疑難解答區</span></button>
-        <button class="nav-btn" id="nav-btn-vip" type="button" onclick="switchTab('vip', this)">👑 <span class="nav-text">溫習資源</span></button>
-        <button class="nav-btn" id="nav-btn-store" type="button" onclick="switchTab('store', this)">🎁 <span class="nav-text">時數扭蛋機</span></button>
-        <button class="nav-btn" id="nav-btn-social" type="button" onclick="switchTab('social', this)">👥 <span class="nav-text">夥伴與讀書會</span> <span class="home-sec-badge" id="nav-social-badge" style="display:none; margin-left:auto;"></span></button>
-        <button class="nav-btn" id="nav-btn-verification" type="button" onclick="switchTab('verification', this)">🎓 <span class="nav-text">學生身份驗證</span></button>
+        <button class="nav-btn active" id="nav-btn-home" type="button" onclick="switchTab('home', this)"><span class="nav-icon" id="nav-icon-home">🏠</span> <span class="nav-text">主頁</span></button>
+        <button class="nav-btn" id="nav-btn-room" type="button" onclick="switchTab('room', this)"><span class="nav-icon" id="nav-icon-room">📹</span> <span class="nav-text">視訊溫習室</span></button>
+        <button class="nav-btn" id="nav-btn-study" type="button" onclick="switchTab('study', this)"><span class="nav-icon" id="nav-icon-study">🗂</span> <span class="nav-text">學科溫習卡</span></button>
+        <button class="nav-btn" id="nav-btn-qa" type="button" onclick="switchTab('qa', this)"><span class="nav-icon" id="nav-icon-qa">❓</span> <span class="nav-text">疑難解答區</span></button>
+        <button class="nav-btn" id="nav-btn-vip" type="button" onclick="switchTab('vip', this)"><span class="nav-icon" id="nav-icon-vip">👑</span> <span class="nav-text">溫習資源</span></button>
+        <button class="nav-btn" id="nav-btn-store" type="button" onclick="switchTab('store', this)"><span class="nav-icon" id="nav-icon-store">🎁</span> <span class="nav-text">時數扭蛋機</span></button>
+        <button class="nav-btn" id="nav-btn-social" type="button" onclick="switchTab('social', this)"><span class="nav-icon" id="nav-icon-social">👥</span> <span class="nav-text">夥伴與讀書會</span> <span class="home-sec-badge" id="nav-social-badge" style="display:none; margin-left:auto;"></span></button>
+        <button class="nav-btn" id="nav-btn-verification" type="button" onclick="switchTab('verification', this)"><span class="nav-icon" id="nav-icon-verification">🎓</span> <span class="nav-text">學生身份驗證</span></button>
       </div>
     </aside>
 
@@ -2774,6 +2783,20 @@
     </div>
   </div>
 
+  <!-- 開咪 3 分鐘上限提示：麥克風被系統自動關閉後彈出，用書面語提醒學生
+       停止交談、專注溫習；此視窗不設自動關閉，需學生主動按掣確認，
+       確保提示真正被留意到。 -->
+  <div class="modal-backdrop" id="modal-mic-limit-reminder" style="display:none;">
+    <div class="modal-box" style="text-align:center;">
+      <div style="font-size:32px; margin-bottom:8px;">🔇</div>
+      <h3 style="font-size:16px; font-weight:bold; margin-bottom:6px;">麥克風已自動關閉</h3>
+      <p style="font-size:13px; color:#666; margin-bottom:20px; line-height:1.7;">閣下開咪之時間已達上限，系統已為閣下自動關閉麥克風。請勿再繼續交談，宜盡快回到溫習狀態，繼續努力，加油！</p>
+      <button class="btn btn-primary" type="button" onclick="closeModal('modal-mic-limit-reminder')" style="width:100%; padding:12px;">
+        ✅ 知道了，繼續溫習
+      </button>
+    </div>
+  </div>
+
   <!-- 圖片放大燈箱 -->
   <div id="qa-lightbox" onclick="document.getElementById('qa-lightbox').style.display='none'"
     style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.85); z-index:9999;
@@ -2818,6 +2841,7 @@
         <button class="btn btn-outline admin-tab-btn" data-tab="level" onclick="switchAdminTab('level')">🎮 等級系統</button>
         <button class="btn btn-outline admin-tab-btn" data-tab="flashcards" onclick="switchAdminTab('flashcards')">🗂 溫習卡管理</button>
         <button class="btn btn-outline admin-tab-btn" data-tab="reports" onclick="switchAdminTab('reports')">🚩 舉報處理 <span id="admin-reports-badge" style="display:none; background:#C0524A; color:#fff; border-radius:99px; font-size:13px; padding:1px 6px; margin-left:3px;">0</span></button>
+        <button class="btn btn-outline admin-tab-btn" data-tab="icons" onclick="switchAdminTab('icons')">🖼 功能圖示</button>
       </div>
 
       <div id="admin-tab-gacha" class="admin-tab-panel"></div>
@@ -2827,6 +2851,7 @@
       <div id="admin-tab-level" class="admin-tab-panel" style="display:none;"></div>
       <div id="admin-tab-flashcards" class="admin-tab-panel" style="display:none;"></div>
       <div id="admin-tab-reports" class="admin-tab-panel" style="display:none;"></div>
+      <div id="admin-tab-icons" class="admin-tab-panel" style="display:none;"></div>
 
     </div>
   </div>

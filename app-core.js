@@ -295,6 +295,9 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
         if (typeof window.loadGachaConfigFromFirestore === 'function') {
           window.loadGachaConfigFromFirestore();
         }
+        if (typeof window.loadNavIconsFromFirestore === 'function') {
+          window.loadNavIconsFromFirestore();
+        }
         if (typeof window.loadLevelConfigFromFirestore === 'function') {
           window.loadLevelConfigFromFirestore();
         }
