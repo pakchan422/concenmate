@@ -22,7 +22,11 @@
       roomTotalSeconds: 0, // 呢次入房到而家嘅「總溫習時間」（順時計），閒置暫停計分期間唔會累積
       renderFrameId: null,
       currentRoomId: null,
-      currentRoomPassword: null, // 呢間房嘅密碼鎖（冇設就係 null），畀房內🔒「查看密碼」掣用
+      // 呢間房係咪有設密碼鎖（true/false）——真正密碼值而家已經唔再存喺前端
+      // 攞得到嘅地方（見 rooms/{roomId}/private/secret 同 firestore.rules），
+      // 呢度淨係記低「有冇」，畀房內🔒「查看密碼」掣決定顯唔顯示；撳掣嗰刻
+      // 先會即時呼叫 getRoomPassword 呢個 Cloud Function 攞返真正嘅密碼。
+      currentRoomHasPassword: false,
       isHost: false,
       isMicOn: false,
       cameraToggleInProgress: false,
@@ -305,7 +309,7 @@
             <p style="font-size:13px; color:#ccc; margin-top:6px;">對方鏡頭已關閉</p>
           </div>
           <div class="video-header">
-            <span class="video-tag" style="cursor:pointer;" onclick="viewUserProfile('${uid}')" title="撳一下看資料／加好友">📹 ${name || '其他用家'}</span>
+            <span class="video-tag" style="cursor:pointer;" onclick="viewUserProfile('${uid}')" title="點擊查看資料／加好友">📹 ${name || '其他用家'}</span>
             <span class="video-tag" id="remote-host-badge-${slotNum}" style="background:#D9EBEF; color:#1E4550; display:none;">👑 房主</span>
             <span class="video-tag" id="stream-status-${uid}" style="background:#3E7A8A; color:#fff;">🔗 連線中...</span>
             <div class="video-more-menu-wrap">
@@ -372,12 +376,12 @@
     // 同一間房都會俾 enterRoomSetup 擋返出去，直到呢間房執咗為止。
     window.kickParticipant = async function(targetUid, targetName) {
       if (!state.isHost || !state.currentRoomId || !window.db || !window.fs) return;
-      if (!confirm(`確定要將「${targetName}」移出這個溫習房？他之後都唔可以再加入返呢間房。`)) return;
+      if (!confirm(`確定要將「${targetName}」移出這個溫習房？他之後都不可以再加入這間房。`)) return;
       try {
         await window.fs.updateDoc(window.fs.doc(window.db, 'rooms', state.currentRoomId), {
           bannedUids: window.fs.arrayUnion(targetUid)
         });
-        window.showToast(`已將「${targetName}」移出房間，他唔可以再加入呢間房`, '🚫');
+        window.showToast(`已將「${targetName}」移出房間，他不可以再加入這間房`, '🚫');
       } catch (e) {
         window.showToast('踢走失敗：' + (e.message || e), '❌');
       }
@@ -392,7 +396,7 @@
     // 選項，唔使額外寫多一套同步邏輯。
     window.transferHostTo = async function(targetUid, targetName) {
       if (!state.isHost || !state.currentRoomId || !window.db || !window.fs) return;
-      if (!confirm(`確定要將房主身份轉移給「${targetName}」？轉移之後你會變返做普通成員，唔會再有踢人／轉移房主的權限。`)) return;
+      if (!confirm(`確定要將房主身份轉移給「${targetName}」？轉移之後你會變回普通成員，不會再有踢人／轉移房主的權限。`)) return;
       try {
         await window.fs.updateDoc(window.fs.doc(window.db, 'rooms', state.currentRoomId), {
           hostUid: targetUid,
@@ -462,7 +466,7 @@
     // 出嚟畀用家揀舉報原因、加補充說明
     window.openReportModal = function(targetUid, targetName) {
       if (!window.currentUser) { window.showToast('請先登入', '⚠️'); return; }
-      if (targetUid === window.currentUser.uid) { window.showToast('唔可以舉報返自己', '⚠️'); return; }
+      if (targetUid === window.currentUser.uid) { window.showToast('不可以舉報自己', '⚠️'); return; }
       pendingReportTarget = { uid: targetUid, name: targetName || '呢位同學' };
       pendingReportScreenshot = captureRemoteVideoFrame(targetUid);
 
@@ -505,7 +509,7 @@
       const reason = (reasonEl && reasonEl.value) || '其他';
       const notes = (notesEl && notesEl.value || '').trim();
 
-      if (btn) { btn.disabled = true; btn.innerText = '⏳ 送緊出...'; }
+      if (btn) { btn.disabled = true; btn.innerText = '⏳ 傳送中...'; }
       try {
         // 順便攞埋被舉報用家嘅帳號 ID／Email，等管理員唔使再自己查一次
         // 就知道實際要停權邊個帳戶
@@ -797,7 +801,7 @@
           cleanupRoomConnections();
           document.getElementById('room-active').style.display = 'none';
           document.getElementById('room-lobby').style.display = 'block';
-          window.showToast('房主已關閉房間，你已被移返大廳', '🚪');
+          window.showToast('房主已關閉房間，你已被移至大廳', '🚪');
         } else {
           // 房主轉移：更新邊個係房主，「👑 房主」牌會由 updateHostBadge()
           // 自動掛去返正確嗰一格（自己個格或者相應嘅遠端格）
@@ -813,7 +817,7 @@
           // 俾 enterRoomSetup 嗰個檢查擋返出去，唔可以再入返嚟。
           const myUid = window.currentUser ? window.currentUser.uid : null;
           if (myUid && data && Array.isArray(data.bannedUids) && data.bannedUids.includes(myUid)) {
-            doLeaveRoom(false, '你已被房主移出這個溫習房，之後都唔可以再加入 🚫');
+            doLeaveRoom(false, '你已被房主移出這個溫習房，之後都不可以再加入 🚫');
           }
         }
       });
@@ -914,19 +918,36 @@
     };
 
     // 房間工具列嗰粒🔒掣：撳一下就喺視訊溫習室正中間彈一個提示視窗，顯示返
-    // 呢間房嘅密碼，3 秒後自動消失（房主同已經輸入啱密碼先入到房嘅參加者，
-    // 都算「已經知道密碼」，純粹方便隨時查返、或者複製俾其他想入嚟嘅朋友，
-    // 唔使再問房主一次）。
+    // 呢間房嘅密碼，3 秒後自動消失（房主同已經入到房嘅參加者，都算「已經
+    // 知道密碼」，純粹方便隨時查返、或者複製俾其他想入嚟嘅朋友，唔使再問
+    // 房主一次）。
+    // ⚠️ 呢度而家改成 async：真正嘅密碼值前端已經完全攞唔到（見
+    // rooms/{roomId}/private/secret 個 Firestore 規則），撳掣嗰刻先即時
+    // 呼叫 getRoomPassword 呢個 Cloud Function（伺服器端會核實你係房主
+    // 或者已經喺 participants 名單度，先會俾你睇），攞返嚟先顯示。
     // 特登唔用 window.showToast（嗰個掛喺成個瀏覽器視窗右下角／頂部，全螢幕
     // 模式入面未必留意到），改用同 showJoinNotification 一樣嘅做法：掛喺
     // #room-active 入面、用 position:absolute 置中喺呢個房間畫面正中間——
     // 同 #room-active 本身係咪全螢幕狀態無關，兩種情況都一樣會出現喺視訊房
     // 嘅正中央（見 index.html 入面 #room-active { position:relative }）。
-    window.showRoomPasswordPopup = function() {
-      if (!state.currentRoomPassword) return; // 冇密碼嘅房，粒掣本身都會隱藏，呢度係保險檢查
+    window.showRoomPasswordPopup = async function() {
+      if (!state.currentRoomHasPassword || !state.currentRoomId) return; // 冇密碼嘅房，粒掣本身都會隱藏，呢度係保險檢查
 
       const roomActiveEl = document.getElementById('room-active');
       if (!roomActiveEl) return;
+
+      let password;
+      try {
+        const result = await window.callCloudFunction('getRoomPassword', { roomId: state.currentRoomId });
+        password = result && result.password;
+      } catch (e) {
+        window.showToast('讀取密碼失敗：' + (e.message || e), '❌');
+        return;
+      }
+      if (!password) {
+        window.showToast('讀取密碼失敗，請再試一次', '❌');
+        return;
+      }
 
       // 每次撳都清走上一個未消失嘅提示，避免連撳幾下疊埋一齊顯示
       const existing = document.getElementById('room-password-popup-overlay');
@@ -939,7 +960,7 @@
         <div style="background:rgba(20,20,20,0.85); color:#fff; padding:22px 32px; border-radius:16px; text-align:center; box-shadow:0 6px 24px rgba(0,0,0,0.35); backdrop-filter:blur(4px);">
           <div style="font-size:30px; margin-bottom:8px;">🔒</div>
           <div style="font-size:14px; opacity:0.85; margin-bottom:6px;">此溫習室的密碼為</div>
-          <div style="font-size:32px; font-weight:bold; letter-spacing:10px;">${window.escapeHtml(state.currentRoomPassword)}</div>
+          <div style="font-size:32px; font-weight:bold; letter-spacing:10px;">${window.escapeHtml(password)}</div>
         </div>
       `;
       roomActiveEl.appendChild(overlay);
@@ -978,7 +999,7 @@
       const originalBtnText = submitBtn ? submitBtn.innerText : '';
       if (submitBtn) {
         submitBtn.disabled = true;
-        submitBtn.innerText = '⏳ 建立緊…';
+        submitBtn.innerText = '⏳ 建立中…';
       }
 
       try {
@@ -1007,9 +1028,21 @@
           createdAt: createdAt,
           lastActiveAt: createdAt // 心跳時間戳，畀幽靈房自動清理機制用（見 gcStaleRooms）
         };
-        if (roomPasswordRaw) { roomData.roomPassword = roomPasswordRaw; } // 冇設密碼就唔加呢個欄位，等 UI／join 判斷邏輯簡單啲（得checking存唔存在）
+        // ⚠️ 真正嘅密碼值而家唔再存落主文件（rooms/{roomId}）度——嗰份
+        // 文件人人讀得到，放密碼落去等於冇鎖。主文件淨係記低 hasPassword
+        // 呢個布林值（畀大廳列表、房內🔒掣決定顯唔顯示用），真正密碼另外
+        // 寫落 rooms/{roomId}/private/secret，個 Firestore 規則寫死前端
+        // 完全讀唔返（見 firestore.rules），之後入房驗證／房主查看，都要
+        // 經 Cloud Functions（verifyRoomPassword／getRoomPassword）先做到。
+        if (roomPasswordRaw) { roomData.hasPassword = true; }
 
         await window.fs.setDoc(window.fs.doc(window.db, "rooms", roomId), roomData);
+        if (roomPasswordRaw) {
+          await window.fs.setDoc(window.fs.doc(window.db, "rooms", roomId, "private", "secret"), {
+            password: roomPasswordRaw,
+            hostUid: window.currentUser.uid
+          });
+        }
         closeModal('modal-create-room');
 
         await enterRoomSetup(roomId, roomName, subject, durationMins, window.currentUser.username || '匿名同學', true, createdAt, window.currentUser.uid);
@@ -1048,21 +1081,32 @@
         const roomCheckSnap = await window.fs.getDoc(window.fs.doc(window.db, 'rooms', roomId));
         roomCheckData = roomCheckSnap.exists() ? roomCheckSnap.data() : null;
         if (roomCheckData && Array.isArray(roomCheckData.bannedUids) && roomCheckData.bannedUids.includes(window.currentUser.uid)) {
-          window.showToast('你已經給房主移出過呢間房，唔可以再加入', '🚫');
+          window.showToast('你已經被房主移出過這間房，不可以再加入', '🚫');
           return false;
         }
 
         // 密碼鎖檢查：房主本人（isMyRoom）唔使輸入自己岩岩設定嘅密碼；
         // 其他人（包括透過分享連結或者大廳撳「加入房間」）如果房間有
-        // roomPassword，就要彈窗輸入啱先真正入到房。取消／輸入錯誤都
+        // hasPassword，就要彈窗輸入啱先真正入到房。取消／輸入錯誤都
         // 直接擋住，唔會扣住房間座位（joinRoomParticipants 仲未叫）。
-        if (roomCheckData && roomCheckData.roomPassword && !isMyRoom) {
+        // ⚠️ 真正嘅密碼核對而家搬咗去 Cloud Function（verifyRoomPassword）
+        // 度做，呢度嘅 roomCheckData 已經冇 roomPassword 呢個欄位（見
+        // firestore.rules，主文件唔會再存真正密碼），前端淨係傳個
+        // roomId + 輸入值畀伺服器核對，攞返 { ok: true/false }。
+        if (roomCheckData && roomCheckData.hasPassword && !isMyRoom) {
           const entered = await promptRoomPassword();
           if (entered === null) {
             return false; // 用戶自己撳咗「取消」，唔使額外提示錯誤
           }
-          if (entered !== roomCheckData.roomPassword) {
-            window.showToast('密碼錯誤，未能加入呢個溫習室', '🚫');
+          let verifyResult;
+          try {
+            verifyResult = await window.callCloudFunction('verifyRoomPassword', { roomId, password: entered });
+          } catch (verifyErr) {
+            window.showToast('驗證密碼失敗，請檢查網絡連線後再試', '❌');
+            return false;
+          }
+          if (!verifyResult || !verifyResult.ok) {
+            window.showToast('密碼錯誤，未能加入這個溫習室', '🚫');
             return false;
           }
         }
@@ -1070,12 +1114,12 @@
         console.error('檢查房間封鎖名單／密碼鎖失敗:', e);
       }
 
-      // 記低呢間房嘅密碼（冇設密碼就係 null），畀房內嗰粒🔒「查看密碼」
-      // 掣用；房主同已經輸入啱密碼先入到房嘅參加者，都算「已經知道
-      // 密碼」，所以呢度唔再額外收埋，方便大家隨時查返。
-      state.currentRoomPassword = (roomCheckData && roomCheckData.roomPassword) || null;
+      // 記低呢間房係咪有密碼鎖（畀房內嗰粒🔒「查看密碼」掣決定顯唔顯示
+      // 用）——真正密碼值而家唔再存喺呢度，撳掣嗰刻先即時呼叫
+      // getRoomPassword 呢個 Cloud Function 現攞現用（見 showRoomPasswordPopup）。
+      state.currentRoomHasPassword = !!(roomCheckData && roomCheckData.hasPassword);
       const lockBtn = document.getElementById('room-password-lock-btn');
-      if (lockBtn) lockBtn.style.display = state.currentRoomPassword ? 'inline-flex' : 'none';
+      if (lockBtn) lockBtn.style.display = state.currentRoomHasPassword ? 'inline-flex' : 'none';
 
       // 房間人數上限檢查：最多 4 人同時使用同一個房間
       const canJoin = await joinRoomParticipants(roomId);
@@ -1466,24 +1510,19 @@
         updateGoalBarDisplay();
       }
 
-      // 寫入 Firestore（atomic increment，就算多頁面同時開都唔會出問題）——
-      // 呢度純粹係背景持久化，就算失敗都唔會影響用家而家見到嘅畫面
+      // 寫入伺服器：而家改用 Cloud Function（awardStudyPoints）做，用
+      // Admin SDK + Firestore transaction 原子咁加分，同時將「呢次可以
+      // 攞幾多分」鎖死喺伺服器嘅白名單入面，唔再單靠前端話寫幾多就幾
+      // 多——同扭蛋扣分（spendGachaPoints）一樣嘅硬化模式。呢度純粹係
+      // 背景持久化，就算失敗都唔會影響用家而家見到嘅畫面（本機已經即
+      // 時更新咗）。
       try {
-        const userRef = window.fs.doc(window.db, "users", window.currentUser.uid);
-        const updatePayload = {
-          points: window.fs.increment(pointsAmount),
-          exp: window.fs.increment(expGain)
-        };
-        if (hoursIncrement > 0) {
-          updatePayload.hours = window.fs.increment(hoursIncrement);
-          if (isNewDay) {
-            updatePayload.todayMinutes = 1;
-            updatePayload.todayDate = getTodayDateStr();
-          } else {
-            updatePayload.todayMinutes = window.fs.increment(1);
-          }
-        }
-        await window.fs.updateDoc(userRef, updatePayload);
+        await window.callCloudFunction('awardStudyPoints', {
+          points: pointsAmount,
+          hoursIncrement,
+          isNewDay,
+          todayDateStr: hoursIncrement > 0 ? getTodayDateStr() : undefined
+        });
       } catch (e) {
         console.warn("積分同步到 Firestore 失敗（畫面已經即時更新，唔影響使用；下次成功寫入時會追返）:", e);
       }
@@ -1558,7 +1597,7 @@
       if (!window.currentUser || !window.currentUser.uid || !window.fs || !window.db) return;
       const listEl = document.getElementById('flashcards-list-container');
       if (!flashcardsHasLoadedOnce && listEl) {
-        listEl.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:20px;">🔄 載入緊溫習卡...</p>';
+        listEl.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:20px;">🔄 載入中溫習卡...</p>';
       }
       try {
         const [cardsSnap, progressSnap] = await Promise.all([
@@ -1717,11 +1756,11 @@
 
       if (!listEl) return;
       if (flashcardsCache.length === 0) {
-        listEl.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:20px;">現在仲未有溫習卡，等下老師／管理員新增啦！</p>';
+        listEl.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:20px;">現在尚未有溫習卡，請稍候老師／管理員新增！</p>';
         return;
       }
       if (visible.length === 0) {
-        listEl.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:20px;">這個篩選範圍暫時未有溫習卡，試吓揀返「全部」看看！</p>';
+        listEl.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:20px;">這個篩選範圍暫時未有溫習卡，試試選擇「全部」看看！</p>';
         return;
       }
 
@@ -1748,7 +1787,7 @@
       const now = Date.now();
       flashcardReviewQueue = getVisibleFlashcards().filter(c => (c.nextReviewAt || 0) <= now);
       if (flashcardReviewQueue.length === 0) {
-        window.showToast('現在沒有待複習的卡片，遲些再返來啦！', 'ℹ️');
+        window.showToast('現在沒有待複習的卡片，請稍後再回來！', 'ℹ️');
         return;
       }
       flashcardReviewIndex = 0;
@@ -1941,7 +1980,7 @@
       // 一直等到用家自己撳「是，我仍在學習」為止先恢復
       state.awardingPaused = true;
       updateTimerDisplay();
-      window.showToast('偵測到你可能唔在，已暫停計分。撳「是，我仍在學習」即可恢復', '⏸️');
+      window.showToast('偵測到你可能不在，已暫停計分。按「是，我仍在學習」即可恢復', '⏸️');
     }
 
     // 淨係解除暫停狀態、閂返彈窗，唔會有額外 +2 PTS 獎勵——畀開返鏡頭
@@ -2143,7 +2182,7 @@
       state.currentRoomId = null;
       state.isHost = false;
       state.currentRoomHostUid = null;
-      state.currentRoomPassword = null;
+      state.currentRoomHasPassword = false;
       const lockBtnOnLeave = document.getElementById('room-password-lock-btn');
       if (lockBtnOnLeave) lockBtnOnLeave.style.display = 'none';
     }
@@ -2587,7 +2626,7 @@
       if (!state.isMicOn && state.micCooldownUntil && Date.now() < state.micCooldownUntil) {
         const remainSec = Math.max(0, Math.ceil((state.micCooldownUntil - Date.now()) / 1000));
         const mins = Math.ceil(remainSec / 60);
-        window.showToast(`咪仲喺冷卻緊，大約 ${mins} 分鐘後先可以再開咪 🧊`, '⏳');
+        window.showToast(`麥克風仍在冷卻中，大約 ${mins} 分鐘後才可以再開啟 🧊`, '⏳');
         return;
       }
 
@@ -2664,7 +2703,7 @@
           if (state.isMicOn && state.mediaStream) {
             state.isMicOn = false;
             state.mediaStream.getAudioTracks().forEach(track => track.enabled = false);
-            window.showToast('開咪已滿 3 分鐘，已幫你自動收埋，專心返去溫習啦！咪掣進入 5 分鐘冷卻 🧊', '⏳');
+            window.showToast('開啟麥克風已滿 3 分鐘，已為你自動關閉，請專心繼續溫習！麥克風按鈕進入 5 分鐘冷卻 🧊', '⏳');
             // 額外彈出一個唔會自動關閉嘅提示視窗（書面語），確保學生真正留意到，
             // 唔止係一閃即逝嘅 toast——要學生主動按掣確認先關得閉。
             openModal('modal-mic-limit-reminder');
