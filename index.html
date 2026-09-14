@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.111.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.112.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -2272,6 +2272,30 @@
 
               <button class="btn btn-primary" type="submit" style="padding:10px; font-size:15px; margin-top:8px; justify-content:center;">
                 💾 儲存修改資料
+              </button>
+            </form>
+          </div>
+
+          <!-- 更改登入密碼：獨立一個 form（唔跟主個人資料 form 一齊送出），
+               需要先打啱「目前密碼」做 reauthenticate，先可以改做新密碼
+               （見 app-core.js 嘅 window.changeUserPassword）。 -->
+          <div class="card" style="margin-top:16px;">
+            <h3 style="font-size:15px; font-weight:bold; margin-bottom:10px;">🔑 更改登入密碼</h3>
+            <form id="change-password-form" onsubmit="changeUserPassword(event)" style="display:flex; flex-direction:column; gap:12px;">
+              <div>
+                <label style="font-size:13px; font-weight:bold; color:#555; display:block;">目前密碼</label>
+                <input type="password" id="chpwd-current" class="input-field" autocomplete="current-password" placeholder="輸入目前登入密碼" required>
+              </div>
+              <div>
+                <label style="font-size:13px; font-weight:bold; color:#555; display:block;">新密碼（最少 6 個字元）</label>
+                <input type="password" id="chpwd-new" class="input-field" autocomplete="new-password" minlength="6" placeholder="輸入新密碼" required>
+              </div>
+              <div>
+                <label style="font-size:13px; font-weight:bold; color:#555; display:block;">確認新密碼</label>
+                <input type="password" id="chpwd-confirm" class="input-field" autocomplete="new-password" minlength="6" placeholder="再打一次新密碼" required>
+              </div>
+              <button class="btn btn-primary" type="submit" id="change-password-submit-btn" style="padding:10px; font-size:15px; justify-content:center;">
+                🔑 更改密碼
               </button>
             </form>
           </div>

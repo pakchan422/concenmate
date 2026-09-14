@@ -19,7 +19,7 @@
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app-check.js";
-    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, deleteUser } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, deleteUser, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
     import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs, increment, query, where, orderBy, limit, arrayUnion, arrayRemove, documentId, startAfter } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
     import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
@@ -510,6 +510,68 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
         badge.style.background = '#FDECEA';
         badge.style.color = '#C0392B';
         resendBtn.style.display = 'inline-block';
+      }
+    };
+
+    // ===================== 🔑 更改登入密碼 =====================
+    // 「編輯個人資料」度嘅「更改密碼」表格：用戶要先打啱「目前密碼」
+    // （reauthenticateWithCredential 重新驗證一次身份，Firebase Auth 對
+    // 呢類敏感操作嘅安全要求），先至可以用 updatePassword 改做新密碼。
+    // 呢個純粹係前端 Firebase Auth SDK 就做得到，唔使 Cloud Functions
+    // （因為用戶本身就係登入緊嘅帳戶自己改自己嘅密碼）。
+    // ⚠️ 帳號登入用嘅係合成 email（`{id}@concenmate.local`，見上面
+    // registerWithFirebase 嘅註解），唔係用戶個「聯絡電郵」，reauthenticate
+    // 要用返 window.currentUser.email（即係嗰個合成 authEmail）先啱。
+    window.changeUserPassword = async function(e) {
+      e.preventDefault();
+      if (!window.currentUser || !auth.currentUser) {
+        window.showToast('請先登入', '⚠️');
+        return;
+      }
+
+      const currentPwd = document.getElementById('chpwd-current').value;
+      const newPwd = document.getElementById('chpwd-new').value;
+      const confirmPwd = document.getElementById('chpwd-confirm').value;
+
+      if (!currentPwd || !newPwd || !confirmPwd) {
+        window.showToast('請填妥所有欄位', '⚠️');
+        return;
+      }
+      if (newPwd.length < 6) {
+        window.showToast('新密碼最少要 6 個字元', '⚠️');
+        return;
+      }
+      if (newPwd !== confirmPwd) {
+        window.showToast('兩次輸入嘅新密碼不一致，請重新檢查', '⚠️');
+        return;
+      }
+      if (newPwd === currentPwd) {
+        window.showToast('新密碼不可以與目前密碼相同', '⚠️');
+        return;
+      }
+
+      const btn = document.getElementById('change-password-submit-btn');
+      if (btn) { btn.disabled = true; btn.innerText = '⏳ 更改緊...'; }
+
+      try {
+        const credential = EmailAuthProvider.credential(window.currentUser.email, currentPwd);
+        await reauthenticateWithCredential(auth.currentUser, credential);
+        await updatePassword(auth.currentUser, newPwd);
+        const form = document.getElementById('change-password-form');
+        if (form) form.reset();
+        window.showToast('🎉 密碼已成功更改！下次登入記得用返新密碼', '✅');
+      } catch (error) {
+        if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+          window.showToast('目前密碼輸入錯誤，請再試一次', '❌');
+        } else if (error.code === 'auth/weak-password') {
+          window.showToast('新密碼強度不足，請試下混合英文字母同數字', '❌');
+        } else if (error.code === 'auth/too-many-requests') {
+          window.showToast('嘗試次數太多，請稍後再試', '⚠️');
+        } else {
+          window.showToast('更改密碼失敗：' + (error.message || error), '❌');
+        }
+      } finally {
+        if (btn) { btn.disabled = false; btn.innerText = '🔑 更改密碼'; }
       }
     };
 
