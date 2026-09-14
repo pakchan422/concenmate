@@ -22,6 +22,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, deleteUser, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
     import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs, increment, query, where, orderBy, limit, arrayUnion, arrayRemove, documentId, startAfter } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
     import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
+    import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-functions.js";
 
     // 正式站（concenmate.com）用嘅真正 Firebase 專案 —— 有真實學生資料。
     const firebaseConfigProd = {
@@ -71,11 +72,23 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
     const auth = getAuth(app);
     const db = getFirestore(app);
     const storage = getStorage(app);
+    // ⚠️ region 一定要同 functions/index.js 嘅 setGlobalOptions({ region })
+    // 一致（而家係 asia-east1），唔係嘅話前端會揾唔到個 function（404）。
+    const cloudFunctions = getFunctions(app, "asia-east1");
 
     window.db = db;
     window.fs = { doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs, increment, query, where, orderBy, limit, arrayUnion, arrayRemove, documentId, startAfter };
     window.storage = storage;
     window.storageApi = { ref: storageRef, uploadBytes, getDownloadURL, deleteObject };
+
+    // 呼叫 Cloud Functions 嘅共用 helper：window.callCloudFunction('functionName', {...data})
+    // 回傳 Promise，resolve 做嗰個 function return 咗嘅 data；function 嗰邊用
+    // HttpsError 拋出嘅錯誤，呢度會變成一個帶住 .code／.message 嘅 Error。
+    window.callCloudFunction = async function(name, data) {
+      const fn = httpsCallable(cloudFunctions, name);
+      const result = await fn(data || {});
+      return result.data;
+    };
 
     // 幽靈房自動清理：房間冇人心跳（見 updateRoomHeartbeat）超過呢個時間，
     // 就當佢係冇人打理嘅幽靈房（例如房主手機突然關機、瀏覽器崩潰，嚟唔切
@@ -156,7 +169,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
               <span class="tag" style="background:#F0F6F8; color:#1E4550;">${window.escapeHtml(room.subject || '數學')}</span>
               <span style="font-size:13px; color:#3E7A8A; font-weight:bold;">🟢 直播中</span>
             </div>
-            <h4 style="font-size:14px; font-weight:bold; color:var(--brand-800); margin-bottom:4px;">${room.roomPassword ? '🔒 ' : ''}${window.escapeHtml(room.name)}</h4>
+            <h4 style="font-size:14px; font-weight:bold; color:var(--brand-800); margin-bottom:4px;">${room.hasPassword ? '🔒 ' : ''}${window.escapeHtml(room.name)}</h4>
             <p style="font-size:13px; color:#666;">房主：<strong>${window.escapeHtml(room.hostName || '匿名同學')}</strong></p>
             <p style="font-size:13px; color:#888; margin-top:2px;">👥 ${room.participantCount || 0}/${window.ROOM_CAPACITY || 4} 人 · 🍅 每輪專注：${room.duration || 30} 分鐘</p>
           </div>
@@ -323,6 +336,12 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       if (typeof window.checkJoinRoomHashRoute === 'function') {
         window.checkJoinRoomHashRoute();
       }
+      // 忘記密碼嗰個 reset-password hash route 特登唔理登入定登出都要行——
+      // 用戶就係因為唔記得密碼、登入唔到先撳連結入嚟，唔可以好似其他
+      // hash route 咁要求「先登入先處理」
+      if (typeof window.checkPasswordResetHashRoute === 'function') {
+        window.checkPasswordResetHashRoute();
+      }
     });
 
     // ===================== 📧 電郵驗證 =====================
@@ -362,41 +381,65 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       }
     };
 
-    // 撳完驗證連結、開返網站之後嘅處理：一登入（或者本身已經登入緊）
-    // 就會 call 一次，睇下網址個 hash 有冇帶住驗證資訊
+    // 沿用返上面嗰個 EmailJS 樣式（同一個 template），淨係將連結換做
+    // 「#reset-password=token」——呢個樣式原本嘅文字係寫緊「驗證電郵」，
+    // 用嚟寄重設密碼連結措辭上未必100%啱，如果想要更貼切嘅文字，可以
+    // 喺 EmailJS 度另開一個新樣式，再改返呢度用嗰個 TEMPLATE_ID。
+    window.sendPasswordResetEmail = async function(toEmail, username, token) {
+      if (!toEmail) return;
+      if (!window.EMAILJS_CONFIGURED || typeof emailjs === 'undefined') {
+        console.warn('EmailJS 未設定，沒有寄到重設密碼電郵給', toEmail, '（見 index.html 頭段「電郵驗證設定」）');
+        return;
+      }
+      const resetLink = `${window.location.origin}${window.location.pathname}#reset-password=${token}`;
+      try {
+        await emailjs.send(window.EMAILJS_SERVICE_ID, window.EMAILJS_TEMPLATE_ID, {
+          to_email: toEmail,
+          to_name: username || '同學',
+          verify_link: resetLink
+        });
+      } catch (e) {
+        console.error('寄重設密碼電郵失敗:', e);
+      }
+    };
+
+    // 撳完驗證連結、開返網站之後嘅處理——特登唔要求撳連結嗰部裝置一定要
+    // 登入緊嗰個帳戶先做得到（以前嘅做法係前端直接 updateDoc 自己個
+    // users/{uid} 文件，Firestore 規則淨係俾用戶自己改自己，所以一定要
+    // 喺嗰部裝置登入緊先掂得到；而家改用 verifyEmailToken 呢個 Cloud
+    // Function，用 Admin SDK 核對 uid+token 岩唔岩、寫 emailVerified，
+    // 完全唔理呢部裝置有冇登入、登入緊邊個帳戶——喺手機開封信、喺電腦
+    // 撳連結，或者根本未登入過都做得到，先真正解決咗「電郵驗證一定要
+    // 撳連結嗰部裝置登入返嗰個帳戶」嘅限制）。
     window.checkEmailVerifyHashRoute = async function() {
       const match = (window.location.hash || '').match(/^#verify-email=([^:]+):([0-9a-f]+)$/);
       if (!match) return;
       const [, linkUid, token] = match;
-      if (!window.currentUser) {
-        window.showToast('請先用返那個帳戶登入，先可以完成電郵驗證', '⚠️');
-        return;
-      }
-      if (window.currentUser.uid !== linkUid) {
-        window.showToast('這個驗證連結屬於另一個帳戶，請登出並改用那個帳戶登入', '⚠️');
-        return;
-      }
-      if (window.currentUser.emailVerified) {
-        window.location.hash = '';
-        return;
-      }
-      if (window.currentUser.emailVerifyToken !== token) {
-        window.showToast('這個驗證連結已經失效，可以在「編輯個人資料」度重新發送', '⚠️');
-        window.location.hash = '';
-        return;
-      }
-      try {
-        await updateDoc(doc(db, 'users', linkUid), { emailVerified: true, emailVerifyToken: null });
-        window.currentUser.emailVerified = true;
-        window.currentUser.emailVerifyToken = null;
-        window.showToast('🎉 電郵驗證成功！', '✅');
-        if (typeof window.updateProfileEmailVerifyUI === 'function') window.updateProfileEmailVerifyUI();
-        // 驗證完成即刻解鎖返個 app，唔使用戶自己再撳多次「重新整理」
-        if (typeof window.updateUserAuthUI === 'function') window.updateUserAuthUI();
-      } catch (e) {
-        window.showToast('驗證失敗：' + (e.message || e), '❌');
-      }
       window.location.hash = '';
+      try {
+        const result = await window.callCloudFunction('verifyEmailToken', { uid: linkUid, token });
+        if (result && result.alreadyVerified) {
+          window.showToast('這個電郵地址已經驗證過了', 'ℹ️');
+        } else {
+          window.showToast('🎉 電郵驗證成功！', '✅');
+        }
+        // 如果撳連結嗰部裝置岩岩好登入緊就係嗰個帳戶本人，即刻更新返
+        // 本機狀態，唔使用戶自己再撳多次「重新整理」先解鎖到個 app
+        if (window.currentUser && window.currentUser.uid === linkUid) {
+          window.currentUser.emailVerified = true;
+          window.currentUser.emailVerifyToken = null;
+          if (typeof window.updateProfileEmailVerifyUI === 'function') window.updateProfileEmailVerifyUI();
+          if (typeof window.updateUserAuthUI === 'function') window.updateUserAuthUI();
+        }
+      } catch (e) {
+        if (e.code === 'functions/failed-precondition' || e.code === 'failed-precondition') {
+          window.showToast('這個驗證連結已經失效，可以在「編輯個人資料」中重新發送', '⚠️');
+        } else if (e.code === 'functions/not-found' || e.code === 'not-found') {
+          window.showToast('找不到這個帳戶，可能已經被刪除', '❌');
+        } else {
+          window.showToast('驗證失敗：' + (e.message || e), '❌');
+        }
+      }
     };
     window.addEventListener('hashchange', () => { window.checkEmailVerifyHashRoute(); });
 
@@ -442,21 +485,130 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
     };
     window.addEventListener('hashchange', () => { window.checkJoinRoomHashRoute(); });
 
+    // ===================== 🔑 忘記密碼（電郵重設） =====================
+    // 帳號 ID 登入制度入面，Firebase Auth 真正嘅 email 係合成嘅
+    // `{id}@concenmate.local`（唔係用戶會睇到嘅嘢），所以完全冇辦法用
+    // Firebase 內建嘅 sendPasswordResetEmail()——嗰個一定會寄去嗰個合成、
+    // 唔存在嘅地址。要做到「用戶忘記密碼、自己憑登記電郵重設」，一定要
+    // 自己砌一套：
+    //   1) requestPasswordReset（Cloud Function）：畀個帳號 ID，用 Admin
+    //      SDK 查返 uid、登記電郵，生成一個一次性 token，存落
+    //      passwordResets/{token}（Firestore 規則寫死前端完全讀寫唔到，
+    //      淨係 Cloud Functions 嘅 Admin SDK 先掂得到）。因為呢一步用戶
+    //      仲未登入（冇 auth.uid），Firestore 規則做唔到「淨係自己改自己
+    //      個人資料」嗰種限制，一定要搬去 Cloud Function 用 Admin SDK 做。
+    //   2) 前端攞返 Cloud Function 傳返嚟嘅 token + 登記電郵，沿用返
+    //      window.sendVerificationEmail() 嗰個 EmailJS 樣式寄一封帶住
+    //      「#reset-password=token」連結嘅電郵（呢個樣式原本文字係講緊
+    //      「驗證電郵」，唔係度身訂造嘅「重設密碼」措辭，但暫時沿用一樣
+    //      嘅寄信方式，日後想要更貼切嘅文字可以喺 EmailJS 開多一個新樣式）。
+    //   3) 用戶撳個連結開返網站，唔使登入（都登入唔到，佢就係唔記得咗
+    //      密碼）就見到「設定新密碼」嘅彈窗，輸入新密碼提交後 call
+    //      confirmPasswordReset（Cloud Function），用 Admin SDK 嘅
+    //      admin.auth().updateUser() 強制幫佢個帳戶設定新密碼（呢一步都
+    //      一定要 Admin SDK，因為前端 SDK 淨係可以幫「而家已經登入緊」
+    //      嘅用戶改自己密碼，改唔到第二個未登入用戶嘅密碼）。
+    //   token 30 分鐘後失效、用完即棄，防止連結流出去俾第二個人執到都
+    //   仲用得。
+    // ⚠️ v1 限制：同 verifyRoomPassword 一樣未有速率限制，理論上可以
+    // 短時間內連環噉打 requestPasswordReset 嚟濫發電郵，日後想加固可以
+    // 喺 Cloud Function 度加返「同一帳號 ID／同一 IP 幾多分鐘內只可以
+    // 攞幾次」嘅計數器。
+    window.handleForgotPasswordSubmit = async function(e) {
+      e.preventDefault();
+      const loginId = (document.getElementById('forgot-account-id').value || '').trim();
+      if (!loginId) return;
+
+      const btn = document.getElementById('forgot-password-submit-btn');
+      if (btn) { btn.disabled = true; btn.innerText = '⏳ 處理中...'; }
+
+      try {
+        const result = await window.callCloudFunction('requestPasswordReset', { loginId });
+        if (result && result.contactEmail && result.token) {
+          await window.sendPasswordResetEmail(result.contactEmail, result.username, result.token);
+        }
+        // 唔理呢個帳號 ID 實際存唔存在、有冇登記電郵，都顯示返一樣嘅
+        // 提示——避免俾人攞嚟逐個帳號 ID 咁試，反過嚟推斷邊個 ID 已經
+        // 有人用咗（呢個 app 嘅 usernames collection 本身雖然已經可以
+        // get 得到，但都冇必要喺呢度畀多一重確認）。
+        window.showToast('如果此帳號 ID 存在並已登記電郵，重設密碼連結已經寄至該電郵信箱，請查看垃圾郵件夾', '📧');
+        window.closeModal('modal-forgot-password');
+      } catch (error) {
+        window.showToast('處理失敗：' + (error.message || error), '❌');
+      } finally {
+        if (btn) { btn.disabled = false; btn.innerText = '📧 寄出重設密碼連結'; }
+      }
+    };
+
+    // 撳完重設密碼連結、開返網站之後嘅處理——特登唔理會使用者而家有冇
+    // 登入（都好可能未登入，佢就係唔記得密碼先入嚟呢度），直接彈個
+    // 「設定新密碼」嘅視窗畀佢輸入
+    window.checkPasswordResetHashRoute = function() {
+      const match = (window.location.hash || '').match(/^#reset-password=([0-9a-f]+)$/);
+      if (!match) return;
+      window.pendingPasswordResetToken = match[1];
+      window.location.hash = '';
+      window.openModal('modal-reset-password');
+    };
+    window.addEventListener('hashchange', () => { window.checkPasswordResetHashRoute(); });
+
+    window.handleResetPasswordSubmit = async function(e) {
+      e.preventDefault();
+      const token = window.pendingPasswordResetToken;
+      if (!token) {
+        window.showToast('重設密碼連結已經失效，請重新申請', '⚠️');
+        return;
+      }
+      const newPwd = document.getElementById('reset-new-password').value;
+      const confirmPwd = document.getElementById('reset-confirm-password').value;
+      if (!newPwd || newPwd.length < 6) {
+        window.showToast('新密碼最少需要 6 位', '⚠️');
+        return;
+      }
+      if (newPwd !== confirmPwd) {
+        window.showToast('兩次輸入的新密碼不一致', '⚠️');
+        return;
+      }
+
+      const btn = document.getElementById('reset-password-submit-btn');
+      if (btn) { btn.disabled = true; btn.innerText = '⏳ 更改中...'; }
+
+      try {
+        await window.callCloudFunction('confirmPasswordReset', { token, newPassword: newPwd });
+        window.pendingPasswordResetToken = null;
+        const form = document.getElementById('reset-password-form');
+        if (form) form.reset();
+        window.closeModal('modal-reset-password');
+        window.showToast('🎉 密碼已成功重設！現在可以使用新密碼登入', '✅');
+        window.openModal('modal-login');
+      } catch (error) {
+        if (error.code === 'functions/not-found' || error.code === 'not-found') {
+          window.showToast('連結已經失效或者已經用過，請重新申請一次', '⚠️');
+        } else if (error.code === 'functions/deadline-exceeded' || error.message === '連結已過期') {
+          window.showToast('連結已經過期（30 分鐘內有效），請重新申請一次', '⚠️');
+        } else {
+          window.showToast('重設密碼失敗：' + (error.message || error), '❌');
+        }
+      } finally {
+        if (btn) { btn.disabled = false; btn.innerText = '🔑 確認重設密碼'; }
+      }
+    };
+
     // 「編輯個人資料」度嘅「重新發送驗證電郵」掣：改咗電郵、或者第一封
     // 冇收到，都可以隨時重新整多個新 token 再寄一次
     window.resendVerificationEmail = async function() {
       if (!window.currentUser || !auth.currentUser) return;
       const toEmail = window.currentUser.contactEmail;
-      if (!toEmail) { window.showToast('請先在上面填返個電郵地址，再撳「儲存修改資料」', '⚠️'); return; }
+      if (!toEmail) { window.showToast('請先在上面填寫電郵地址，再按「儲存修改資料」', '⚠️'); return; }
       const btn = document.getElementById('resend-verify-email-btn');
-      if (btn) { btn.disabled = true; btn.innerText = '⏳ 發送緊...'; }
+      if (btn) { btn.disabled = true; btn.innerText = '⏳ 發送中...'; }
       try {
         const token = generateVerifyToken();
         await updateDoc(doc(db, 'users', auth.currentUser.uid), { emailVerifyToken: token, emailVerified: false });
         window.currentUser.emailVerifyToken = token;
         window.currentUser.emailVerified = false;
         await window.sendVerificationEmail(toEmail, window.currentUser.username, auth.currentUser.uid, token);
-        window.showToast('已重新發送驗證電郵，記得check下你個信箱（連埋垃圾郵件夾）', '📧');
+        window.showToast('已重新發送驗證電郵，請查看你的信箱（包括垃圾郵件夾）', '📧');
         if (typeof window.updateProfileEmailVerifyUI === 'function') window.updateProfileEmailVerifyUI();
       } catch (e) {
         window.showToast('發送失敗：' + (e.message || e), '❌');
@@ -513,6 +665,25 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       }
     };
 
+    // ===================== 👤 個人資料頁 Tab 切換 =====================
+    // 「編輯個人資料」入面分咗「個人資料」同「更改登入密碼」兩個 Tab，
+    // 純粹前端切換顯示／隱藏，唔涉及任何資料存取。
+    window.switchProfileSubtab = function(tab) {
+      const infoPanel = document.getElementById('profile-subtab-info');
+      const pwdPanel = document.getElementById('profile-subtab-password');
+      const infoBtn = document.getElementById('profile-subtab-btn-info');
+      const pwdBtn = document.getElementById('profile-subtab-btn-password');
+      if (!infoPanel || !pwdPanel || !infoBtn || !pwdBtn) return;
+
+      const isInfo = tab === 'info';
+      infoPanel.style.display = isInfo ? '' : 'none';
+      pwdPanel.style.display = isInfo ? 'none' : '';
+      infoBtn.style.background = isInfo ? 'var(--brand-100)' : 'transparent';
+      infoBtn.style.color = isInfo ? 'var(--brand-800)' : '#999';
+      pwdBtn.style.background = isInfo ? 'transparent' : 'var(--brand-100)';
+      pwdBtn.style.color = isInfo ? '#999' : 'var(--brand-800)';
+    };
+
     // ===================== 🔑 更改登入密碼 =====================
     // 「編輯個人資料」度嘅「更改密碼」表格：用戶要先打啱「目前密碼」
     // （reauthenticateWithCredential 重新驗證一次身份，Firebase Auth 對
@@ -551,7 +722,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       }
 
       const btn = document.getElementById('change-password-submit-btn');
-      if (btn) { btn.disabled = true; btn.innerText = '⏳ 更改緊...'; }
+      if (btn) { btn.disabled = true; btn.innerText = '⏳ 更改中...'; }
 
       try {
         const credential = EmailAuthProvider.credential(window.currentUser.email, currentPwd);
@@ -761,7 +932,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       const submitBtn = document.getElementById('login-submit-btn');
       const cancelBtn = document.getElementById('login-cancel-btn');
       const originalText = submitBtn ? submitBtn.innerText : '登入';
-      if (submitBtn) { submitBtn.disabled = true; submitBtn.innerText = '⏳ 登入緊...'; }
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.innerText = '⏳ 登入中...'; }
       if (cancelBtn) cancelBtn.disabled = true;
       try {
         await window.loginWithFirebase(email, password);

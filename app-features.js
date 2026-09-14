@@ -1414,28 +1414,31 @@
       if (type === 'lucky') { await doGachaBatch(); return; }
 
       const cost = GACHA_COST[type];
-      const ptsEl = document.getElementById('stat-points');
-      const pts = parseInt(ptsEl?.innerText || '0');
 
-      if (pts < cost) {
-        window.showToast(`積分不足！需要 ${cost} PTS，你只有 ${pts} PTS`, '❌');
+      // 扣分：而家改用 Cloud Function（spendGachaPoints）做，喺伺服器端
+      // 用 Firestore transaction 原子咁「確認夠分先扣」，唔再淨係信任前端
+      // 畫面顯示緊嘅數字。之前嗰種做法（前端自己讀畫面數字判斷夠唔夠分、
+      // 再直接 increment(-cost)）喺多分頁／手快連撳兩下掣嘅情況下，「檢查」
+      // 同「扣分」之間唔夠原子性，會導致分數扣到負數（見用家報告）。
+      let newPoints;
+      try {
+        const result = await window.callCloudFunction('spendGachaPoints', { type });
+        newPoints = result.points;
+      } catch (error) {
+        if (error.code === 'functions/failed-precondition' || error.code === 'failed-precondition') {
+          window.showToast(error.message, '❌');
+        } else {
+          window.showToast('扣分失敗：' + (error.message || error), '❌');
+        }
         return;
       }
 
-      // 扣分：畫面即刻扣，同時寫入 Firestore（背景執行、唔阻住動畫），
-      // 之前這裡只是改了畫面文字、沒有真正寫入資料庫，導致用家只是reload個網就會「回血」，現在修正了。
-      if (ptsEl) ptsEl.innerText = pts - cost;
+      const ptsEl = document.getElementById('stat-points');
+      if (ptsEl) ptsEl.innerText = newPoints;
       syncGachaPtsDisplay();
       const gachaHomePtsEl = document.getElementById('home-stat-pts');
-      if (gachaHomePtsEl) gachaHomePtsEl.innerText = pts - cost;
-      if (window.currentUser) window.currentUser.points = pts - cost;
-      if (window.currentUser && window.db && window.fs) {
-        window.fs.updateDoc(window.fs.doc(window.db, 'users', window.currentUser.uid), {
-          points: window.fs.increment(-cost)
-        }).catch((e) => {
-          console.warn('扭蛋扣分未能同步去 Firestore：', e);
-        });
-      }
+      if (gachaHomePtsEl) gachaHomePtsEl.innerText = newPoints;
+      if (window.currentUser) window.currentUser.points = newPoints;
 
       // 隱藏上次結果
       const resultBox = document.getElementById('gacha-result-box');
@@ -1557,26 +1560,28 @@
     // 個 grid 度分兩行（每行 5 個）顯示，唔再用返單抽嗰個細細個結果框。
     async function doGachaBatch() {
       const cost = GACHA_COST.lucky;
-      const ptsEl = document.getElementById('stat-points');
-      const pts = parseInt(ptsEl?.innerText || '0');
 
-      if (pts < cost) {
-        window.showToast(`積分不足！需要 ${cost} PTS，你只有 ${pts} PTS`, '❌');
+      // 扣分邏輯同 doGacha 一樣，改用 Cloud Function 做原子性驗證，
+      // 詳細原因見 doGacha 入面嘅註解。
+      let newPoints;
+      try {
+        const result = await window.callCloudFunction('spendGachaPoints', { type: 'lucky' });
+        newPoints = result.points;
+      } catch (error) {
+        if (error.code === 'functions/failed-precondition' || error.code === 'failed-precondition') {
+          window.showToast(error.message, '❌');
+        } else {
+          window.showToast('扣分失敗：' + (error.message || error), '❌');
+        }
         return;
       }
 
-      if (ptsEl) ptsEl.innerText = pts - cost;
+      const ptsEl = document.getElementById('stat-points');
+      if (ptsEl) ptsEl.innerText = newPoints;
       syncGachaPtsDisplay();
       const gachaHomePtsEl = document.getElementById('home-stat-pts');
-      if (gachaHomePtsEl) gachaHomePtsEl.innerText = pts - cost;
-      if (window.currentUser) window.currentUser.points = pts - cost;
-      if (window.currentUser && window.db && window.fs) {
-        window.fs.updateDoc(window.fs.doc(window.db, 'users', window.currentUser.uid), {
-          points: window.fs.increment(-cost)
-        }).catch((e) => {
-          console.warn('扭蛋扣分未能同步去 Firestore：', e);
-        });
-      }
+      if (gachaHomePtsEl) gachaHomePtsEl.innerText = newPoints;
+      if (window.currentUser) window.currentUser.points = newPoints;
 
       closeGachaSingleResult();
       closeGachaBatchResult();

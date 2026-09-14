@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.112.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.117.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -2217,87 +2217,97 @@
         <section id="tab-profile" class="tab-content">
           <div class="profile-edit-card">
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:14px;">
-              <h2 style="font-size:18px; font-weight:bold; color:var(--brand-800);">👤 編輯會員個人資料</h2>
+              <h2 style="font-size:18px; font-weight:bold; color:var(--brand-800);">👤 會員個人資料</h2>
               <button class="btn btn-red" type="button" onclick="logoutWithFirebase()">🚪 登出帳號</button>
             </div>
 
-            <form id="profile-form" onsubmit="saveUserProfile(event)" style="display:flex; flex-direction:column; gap:12px;">
-              <div>
-                <label style="font-size:13px; font-weight:bold; color:#555; display:block;">會員帳號名稱 (Username)</label>
-                <input type="text" id="prof-username" class="input-field" placeholder="例如：Alex Wong">
-              </div>
+            <!-- 個人資料 / 更改登入密碼：分成兩個 Tab，等用戶更容易發現
+                 「原來呢度都改得到密碼」（之前係擺埋喺個人資料表格下面，
+                 好多用戶都無留意到）。兩個 Tab 內容都擺喺同一個
+                 .profile-edit-card 入面，闊度自然一致。 -->
+            <div style="display:flex; gap:6px; border-bottom:1px solid #eee; margin-bottom:16px;">
+              <button type="button" id="profile-subtab-btn-info" class="btn" onclick="switchProfileSubtab('info')" style="flex:1; justify-content:center; border-radius:10px 10px 0 0; background:var(--brand-100); color:var(--brand-800); font-weight:bold;">👤 個人資料</button>
+              <button type="button" id="profile-subtab-btn-password" class="btn" onclick="switchProfileSubtab('password')" style="flex:1; justify-content:center; border-radius:10px 10px 0 0; background:transparent; color:#999; font-weight:bold;">🔑 更改登入密碼</button>
+            </div>
 
-              <div>
-                <label style="font-size:13px; font-weight:bold; color:#555; display:block;">電子郵件 (Email)</label>
-                <input type="email" id="prof-email" class="input-field" disabled style="background:#B3D6DE; cursor:not-allowed;">
-              </div>
-
-              <div>
-                <label style="font-size:13px; font-weight:bold; color:#555; display:block;">聯絡電郵 (用於驗證身份 / 日後接收通知)</label>
-                <input type="email" id="prof-contact-email" class="input-field" placeholder="例如：abc@gmail.com">
-                <div style="margin-top:6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                  <span id="prof-email-verify-badge" style="font-size:13px; font-weight:bold; padding:3px 8px; border-radius:12px;"></span>
-                  <button type="button" id="resend-verify-email-btn" onclick="resendVerificationEmail()" class="btn" style="display:none; font-size:13px; padding:4px 10px; background:#E5EEF0; color:var(--brand-800);">📧 重新發送驗證電郵</button>
+            <div id="profile-subtab-info">
+              <form id="profile-form" onsubmit="saveUserProfile(event)" style="display:flex; flex-direction:column; gap:12px;">
+                <div>
+                  <label style="font-size:13px; font-weight:bold; color:#555; display:block;">會員帳號名稱 (Username)</label>
+                  <input type="text" id="prof-username" class="input-field" placeholder="例如：Alex Wong">
                 </div>
-              </div>
 
-              <div>
-                <label style="font-size:13px; font-weight:bold; color:#555; display:block;">學校名稱</label>
-                <input type="text" id="prof-school" class="input-field" placeholder="例如：聖保羅男女中學">
-              </div>
+                <div style="display:none;">
+                  <label style="font-size:13px; font-weight:bold; color:#555; display:block;">電子郵件 (Email)</label>
+                  <input type="email" id="prof-email" class="input-field" disabled style="background:#B3D6DE; cursor:not-allowed;">
+                </div>
 
-              <div>
-                <label style="font-size:13px; font-weight:bold; color:#555; display:block;">現時年級</label>
-                <select id="prof-grade" class="input-field">
-                  <option value="中一 (S1)">中一 (S1)</option>
-                  <option value="中二 (S2)">中二 (S2)</option>
-                  <option value="中三 (S3)">中三 (S3)</option>
-                  <option value="中四 (S4)">中四 (S4)</option>
-                  <option value="中五 (S5)">中五 (S5)</option>
-                  <option value="中六 (S6 DSE)" selected>中六 (S6 DSE)</option>
-                  <option value="大專/大學">大專 / 大學</option>
-                  <option value="其他自修生">其他 / 自修生</option>
-                </select>
-              </div>
+                <div>
+                  <label style="font-size:13px; font-weight:bold; color:#555; display:block;">聯絡電郵 (用於驗證身份 / 日後接收通知)</label>
+                  <input type="email" id="prof-contact-email" class="input-field" placeholder="例如：abc@gmail.com">
+                  <div style="margin-top:6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <span id="prof-email-verify-badge" style="font-size:13px; font-weight:bold; padding:3px 8px; border-radius:12px;"></span>
+                    <button type="button" id="resend-verify-email-btn" onclick="resendVerificationEmail()" class="btn" style="display:none; font-size:13px; padding:4px 10px; background:#E5EEF0; color:var(--brand-800);">📧 重新發送驗證電郵</button>
+                  </div>
+                </div>
 
-              <div>
-                <label style="font-size:13px; font-weight:bold; color:#555; display:block;">喜愛學科 (可留白)</label>
-                <input type="text" id="prof-fav" class="input-field" placeholder="例如：數學, 物理, M2">
-              </div>
+                <div>
+                  <label style="font-size:13px; font-weight:bold; color:#555; display:block;">學校名稱</label>
+                  <input type="text" id="prof-school" class="input-field" placeholder="例如：聖保羅男女中學">
+                </div>
 
-              <div>
-                <label style="font-size:13px; font-weight:bold; color:#555; display:block;">討厭學科 (可留白)</label>
-                <input type="text" id="prof-dislike" class="input-field" placeholder="例如：中文背誦">
-              </div>
+                <div>
+                  <label style="font-size:13px; font-weight:bold; color:#555; display:block;">現時年級</label>
+                  <select id="prof-grade" class="input-field">
+                    <option value="中一 (S1)">中一 (S1)</option>
+                    <option value="中二 (S2)">中二 (S2)</option>
+                    <option value="中三 (S3)">中三 (S3)</option>
+                    <option value="中四 (S4)">中四 (S4)</option>
+                    <option value="中五 (S5)">中五 (S5)</option>
+                    <option value="中六 (S6 DSE)" selected>中六 (S6 DSE)</option>
+                    <option value="大專/大學">大專 / 大學</option>
+                    <option value="其他自修生">其他 / 自修生</option>
+                  </select>
+                </div>
 
-              <button class="btn btn-primary" type="submit" style="padding:10px; font-size:15px; margin-top:8px; justify-content:center;">
-                💾 儲存修改資料
-              </button>
-            </form>
-          </div>
+                <div>
+                  <label style="font-size:13px; font-weight:bold; color:#555; display:block;">喜愛學科 (可留白)</label>
+                  <input type="text" id="prof-fav" class="input-field" placeholder="例如：數學, 物理, M2">
+                </div>
 
-          <!-- 更改登入密碼：獨立一個 form（唔跟主個人資料 form 一齊送出），
-               需要先打啱「目前密碼」做 reauthenticate，先可以改做新密碼
-               （見 app-core.js 嘅 window.changeUserPassword）。 -->
-          <div class="card" style="margin-top:16px;">
-            <h3 style="font-size:15px; font-weight:bold; margin-bottom:10px;">🔑 更改登入密碼</h3>
-            <form id="change-password-form" onsubmit="changeUserPassword(event)" style="display:flex; flex-direction:column; gap:12px;">
-              <div>
-                <label style="font-size:13px; font-weight:bold; color:#555; display:block;">目前密碼</label>
-                <input type="password" id="chpwd-current" class="input-field" autocomplete="current-password" placeholder="輸入目前登入密碼" required>
-              </div>
-              <div>
-                <label style="font-size:13px; font-weight:bold; color:#555; display:block;">新密碼（最少 6 個字元）</label>
-                <input type="password" id="chpwd-new" class="input-field" autocomplete="new-password" minlength="6" placeholder="輸入新密碼" required>
-              </div>
-              <div>
-                <label style="font-size:13px; font-weight:bold; color:#555; display:block;">確認新密碼</label>
-                <input type="password" id="chpwd-confirm" class="input-field" autocomplete="new-password" minlength="6" placeholder="再打一次新密碼" required>
-              </div>
-              <button class="btn btn-primary" type="submit" id="change-password-submit-btn" style="padding:10px; font-size:15px; justify-content:center;">
-                🔑 更改密碼
-              </button>
-            </form>
+                <div>
+                  <label style="font-size:13px; font-weight:bold; color:#555; display:block;">討厭學科 (可留白)</label>
+                  <input type="text" id="prof-dislike" class="input-field" placeholder="例如：中文背誦">
+                </div>
+
+                <button class="btn btn-primary" type="submit" style="padding:10px; font-size:15px; margin-top:8px; justify-content:center;">
+                  💾 儲存修改資料
+                </button>
+              </form>
+            </div>
+
+            <!-- 更改登入密碼：獨立一個 form（唔跟主個人資料 form 一齊送出），
+                 需要先打啱「目前密碼」做 reauthenticate，先可以改做新密碼
+                 （見 app-core.js 嘅 window.changeUserPassword）。 -->
+            <div id="profile-subtab-password" style="display:none;">
+              <form id="change-password-form" onsubmit="changeUserPassword(event)" style="display:flex; flex-direction:column; gap:12px;">
+                <div>
+                  <label style="font-size:13px; font-weight:bold; color:#555; display:block;">目前密碼</label>
+                  <input type="password" id="chpwd-current" class="input-field" autocomplete="current-password" placeholder="輸入目前登入密碼" required>
+                </div>
+                <div>
+                  <label style="font-size:13px; font-weight:bold; color:#555; display:block;">新密碼（最少 6 個字元）</label>
+                  <input type="password" id="chpwd-new" class="input-field" autocomplete="new-password" minlength="6" placeholder="輸入新密碼" required>
+                </div>
+                <div>
+                  <label style="font-size:13px; font-weight:bold; color:#555; display:block;">確認新密碼</label>
+                  <input type="password" id="chpwd-confirm" class="input-field" autocomplete="new-password" minlength="6" placeholder="再打一次新密碼" required>
+                </div>
+                <button class="btn btn-primary" type="submit" id="change-password-submit-btn" style="padding:10px; font-size:15px; justify-content:center;">
+                  🔑 更改密碼
+                </button>
+              </form>
+            </div>
           </div>
 
           <div class="card" style="margin-top:16px; text-align:center;">
@@ -2519,12 +2529,52 @@
           <label style="font-size:13px; font-weight:bold; color:#555;">密碼 (Password)</label>
           <input type="password" id="login-password" class="input-field" required placeholder="請輸入密碼">
         </div>
+        <div style="text-align:right;">
+          <span style="font-size:12px; color:#888; cursor:pointer; text-decoration:underline;" onclick="closeModal('modal-login'); openModal('modal-forgot-password');">忘記密碼？</span>
+        </div>
         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
           <span style="font-size:13px; color:#3E7A8A; cursor:pointer;" onclick="closeModal('modal-login'); openModal('modal-register');">還沒有帳號？點此註冊</span>
           <div style="display:flex; gap:6px;">
             <button class="btn btn-outline" type="button" id="login-cancel-btn" onclick="closeModal('modal-login')">取消</button>
             <button class="btn btn-primary" type="submit" id="login-submit-btn">登入</button>
           </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="modal-forgot-password" style="display:none;">
+    <div class="modal-box">
+      <h3 style="font-size:18px; font-weight:bold; color:var(--brand-800); text-align:center;">🔑 忘記密碼</h3>
+      <p style="font-size:13px; color:#777; text-align:center; margin-top:6px;">輸入你的帳號 ID，如果此帳戶已經登記電郵，我們將寄出一個重設密碼的連結至該電郵信箱</p>
+      <form onsubmit="handleForgotPasswordSubmit(event)" style="display:flex; flex-direction:column; gap:10px; margin-top:12px;">
+        <div>
+          <label style="font-size:13px; font-weight:bold; color:#555;">帳號 ID</label>
+          <input type="text" id="forgot-account-id" class="input-field" required placeholder="例如：student001">
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:6px; margin-top:10px;">
+          <button class="btn btn-outline" type="button" onclick="closeModal('modal-forgot-password')">取消</button>
+          <button class="btn btn-primary" type="submit" id="forgot-password-submit-btn">📧 寄出重設密碼連結</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="modal-reset-password" style="display:none;">
+    <div class="modal-box">
+      <h3 style="font-size:18px; font-weight:bold; color:var(--brand-800); text-align:center;">🔑 設定新密碼</h3>
+      <form id="reset-password-form" onsubmit="handleResetPasswordSubmit(event)" style="display:flex; flex-direction:column; gap:10px; margin-top:12px;">
+        <div>
+          <label style="font-size:13px; font-weight:bold; color:#555;">新密碼</label>
+          <input type="password" id="reset-new-password" class="input-field" required minlength="6" placeholder="請輸入 6 位或以上的新密碼">
+        </div>
+        <div>
+          <label style="font-size:13px; font-weight:bold; color:#555;">確認新密碼</label>
+          <input type="password" id="reset-confirm-password" class="input-field" required minlength="6" placeholder="再次輸入新密碼">
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:6px; margin-top:10px;">
+          <button class="btn btn-outline" type="button" onclick="closeModal('modal-reset-password')">取消</button>
+          <button class="btn btn-primary" type="submit" id="reset-password-submit-btn">🔑 確認重設密碼</button>
         </div>
       </form>
     </div>
