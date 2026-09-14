@@ -22,6 +22,7 @@
       roomTotalSeconds: 0, // 呢次入房到而家嘅「總溫習時間」（順時計），閒置暫停計分期間唔會累積
       renderFrameId: null,
       currentRoomId: null,
+      currentRoomPassword: null, // 呢間房嘅密碼鎖（冇設就係 null），畀房內🔒「查看密碼」掣用
       isHost: false,
       isMicOn: false,
       cameraToggleInProgress: false,
@@ -877,6 +878,83 @@
       }
     });
 
+    // ---------- 溫習室密碼鎖 ----------
+    // 彈出 #modal-room-password-check、等用戶輸入密碼（或者撳取消），
+    // 用 Promise 包住畀 enterRoomSetup() 用 await 接住個結果：
+    // - 撳「確認加入」：resolve 返用戶打嘅字串（可能係空字串，交返
+    //   俾外面同真正密碼比較，交俾外面判斷岩唔岩）
+    // - 撳「取消」：resolve(null)，外面睇到 null 就知係用戶主動放棄
+    let roomPasswordCheckResolve = null;
+    function promptRoomPassword() {
+      return new Promise(resolve => {
+        roomPasswordCheckResolve = resolve;
+        const input = document.getElementById('room-password-check-input');
+        if (input) input.value = '';
+        openModal('modal-room-password-check');
+        setTimeout(() => { if (input) input.focus(); }, 50);
+      });
+    }
+    window.confirmRoomPasswordCheck = function() {
+      const input = document.getElementById('room-password-check-input');
+      const val = input ? input.value.trim() : '';
+      closeModal('modal-room-password-check');
+      if (roomPasswordCheckResolve) {
+        const resolveFn = roomPasswordCheckResolve;
+        roomPasswordCheckResolve = null;
+        resolveFn(val);
+      }
+    };
+    window.cancelRoomPasswordCheck = function() {
+      closeModal('modal-room-password-check');
+      if (roomPasswordCheckResolve) {
+        const resolveFn = roomPasswordCheckResolve;
+        roomPasswordCheckResolve = null;
+        resolveFn(null);
+      }
+    };
+
+    // 房間工具列嗰粒🔒掣：撳一下就喺視訊溫習室正中間彈一個提示視窗，顯示返
+    // 呢間房嘅密碼，3 秒後自動消失（房主同已經輸入啱密碼先入到房嘅參加者，
+    // 都算「已經知道密碼」，純粹方便隨時查返、或者複製俾其他想入嚟嘅朋友，
+    // 唔使再問房主一次）。
+    // 特登唔用 window.showToast（嗰個掛喺成個瀏覽器視窗右下角／頂部，全螢幕
+    // 模式入面未必留意到），改用同 showJoinNotification 一樣嘅做法：掛喺
+    // #room-active 入面、用 position:absolute 置中喺呢個房間畫面正中間——
+    // 同 #room-active 本身係咪全螢幕狀態無關，兩種情況都一樣會出現喺視訊房
+    // 嘅正中央（見 index.html 入面 #room-active { position:relative }）。
+    window.showRoomPasswordPopup = function() {
+      if (!state.currentRoomPassword) return; // 冇密碼嘅房，粒掣本身都會隱藏，呢度係保險檢查
+
+      const roomActiveEl = document.getElementById('room-active');
+      if (!roomActiveEl) return;
+
+      // 每次撳都清走上一個未消失嘅提示，避免連撳幾下疊埋一齊顯示
+      const existing = document.getElementById('room-password-popup-overlay');
+      if (existing) existing.remove();
+
+      const overlay = document.createElement('div');
+      overlay.id = 'room-password-popup-overlay';
+      overlay.style.cssText = 'position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); z-index:600; pointer-events:none; opacity:0; transition:opacity .25s ease, transform .25s ease;';
+      overlay.innerHTML = `
+        <div style="background:rgba(20,20,20,0.85); color:#fff; padding:22px 32px; border-radius:16px; text-align:center; box-shadow:0 6px 24px rgba(0,0,0,0.35); backdrop-filter:blur(4px);">
+          <div style="font-size:30px; margin-bottom:8px;">🔒</div>
+          <div style="font-size:14px; opacity:0.85; margin-bottom:6px;">此溫習室的密碼為</div>
+          <div style="font-size:32px; font-weight:bold; letter-spacing:10px;">${window.escapeHtml(state.currentRoomPassword)}</div>
+        </div>
+      `;
+      roomActiveEl.appendChild(overlay);
+      requestAnimationFrame(() => {
+        overlay.style.opacity = '1';
+        overlay.style.transform = 'translate(-50%, -50%) scale(1)';
+      });
+
+      // 3 秒後自動消失（先淡出，再真正移除元素）
+      setTimeout(() => {
+        overlay.style.opacity = '0';
+        setTimeout(() => overlay.remove(), 300);
+      }, 3000);
+    };
+
     window.handleCreateRoomSubmit = async function(e) {
       e.preventDefault();
 
@@ -908,6 +986,15 @@
         const subject = document.getElementById('modal-room-subject').value;
         const durationMins = parseInt(document.getElementById('modal-room-duration').value, 10);
 
+        // 密碼鎖：留空代表唔設密碼；有輸入嘅話一定要係啱啱好 4 位數字，
+        // 唔係就擋住唔畀提交，並且提早解返鎖／還原個掣（跟返呢個
+        // function 最尾 finally 嗰套邏輯）。
+        const roomPasswordRaw = (document.getElementById('modal-room-password').value || '').trim();
+        if (roomPasswordRaw && !/^\d{4}$/.test(roomPasswordRaw)) {
+          window.showToast('密碼鎖必須係 4 位數字，或者留空代表不設密碼', '⚠️');
+          return;
+        }
+
         const roomId = 'room_' + Date.now();
         const createdAt = Date.now();
         const roomData = {
@@ -920,6 +1007,7 @@
           createdAt: createdAt,
           lastActiveAt: createdAt // 心跳時間戳，畀幽靈房自動清理機制用（見 gcStaleRooms）
         };
+        if (roomPasswordRaw) { roomData.roomPassword = roomPasswordRaw; } // 冇設密碼就唔加呢個欄位，等 UI／join 判斷邏輯簡單啲（得checking存唔存在）
 
         await window.fs.setDoc(window.fs.doc(window.db, "rooms", roomId), roomData);
         closeModal('modal-create-room');
@@ -951,17 +1039,43 @@
       }
 
       // 曾經俾房主踢走過嘅用家唔可以再加入返呢間房（bannedUids 名單一直
-      // 留喺房間文件度，唔會自動清走，見 window.kickParticipant）
+      // 留喺房間文件度，唔會自動清走，見 window.kickParticipant）；
+      // 同時順便喺呢一次讀取一併檢查房間密碼鎖（roomPassword）。
+      // roomCheckData 特登攞出嚟做上一層嘅變數（唔淨係喺 try 入面），
+      // 等下面「記低呢個房嘅密碼、畀房內嗰粒🔒查看掣用」嗰段都攞得到。
+      let roomCheckData = null;
       try {
         const roomCheckSnap = await window.fs.getDoc(window.fs.doc(window.db, 'rooms', roomId));
-        const roomCheckData = roomCheckSnap.exists() ? roomCheckSnap.data() : null;
+        roomCheckData = roomCheckSnap.exists() ? roomCheckSnap.data() : null;
         if (roomCheckData && Array.isArray(roomCheckData.bannedUids) && roomCheckData.bannedUids.includes(window.currentUser.uid)) {
           window.showToast('你已經給房主移出過呢間房，唔可以再加入', '🚫');
           return false;
         }
+
+        // 密碼鎖檢查：房主本人（isMyRoom）唔使輸入自己岩岩設定嘅密碼；
+        // 其他人（包括透過分享連結或者大廳撳「加入房間」）如果房間有
+        // roomPassword，就要彈窗輸入啱先真正入到房。取消／輸入錯誤都
+        // 直接擋住，唔會扣住房間座位（joinRoomParticipants 仲未叫）。
+        if (roomCheckData && roomCheckData.roomPassword && !isMyRoom) {
+          const entered = await promptRoomPassword();
+          if (entered === null) {
+            return false; // 用戶自己撳咗「取消」，唔使額外提示錯誤
+          }
+          if (entered !== roomCheckData.roomPassword) {
+            window.showToast('密碼錯誤，未能加入呢個溫習室', '🚫');
+            return false;
+          }
+        }
       } catch (e) {
-        console.error('檢查房間封鎖名單失敗:', e);
+        console.error('檢查房間封鎖名單／密碼鎖失敗:', e);
       }
+
+      // 記低呢間房嘅密碼（冇設密碼就係 null），畀房內嗰粒🔒「查看密碼」
+      // 掣用；房主同已經輸入啱密碼先入到房嘅參加者，都算「已經知道
+      // 密碼」，所以呢度唔再額外收埋，方便大家隨時查返。
+      state.currentRoomPassword = (roomCheckData && roomCheckData.roomPassword) || null;
+      const lockBtn = document.getElementById('room-password-lock-btn');
+      if (lockBtn) lockBtn.style.display = state.currentRoomPassword ? 'inline-flex' : 'none';
 
       // 房間人數上限檢查：最多 4 人同時使用同一個房間
       const canJoin = await joinRoomParticipants(roomId);
@@ -2029,6 +2143,9 @@
       state.currentRoomId = null;
       state.isHost = false;
       state.currentRoomHostUid = null;
+      state.currentRoomPassword = null;
+      const lockBtnOnLeave = document.getElementById('room-password-lock-btn');
+      if (lockBtnOnLeave) lockBtnOnLeave.style.display = 'none';
     }
 
     window.wakeVideoEngine = function() {

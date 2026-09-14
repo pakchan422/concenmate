@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.106.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.111.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -420,6 +420,13 @@
         display: flex;
         flex-direction: column;
         align-items: stretch;
+        /* 一定要用 flex-start（唔跟返基本 .room-bar 個 justify-content:
+           space-between）：呢個直向窄條而家得返 2 件直屬 flex item（🔒 鎖
+           icon + .room-bar-btn-group），如果用 space-between，得返兩件
+           item 就會俾拉到「一件貼頂、一件貼底」，中間爆出一大嚿冇嘢嘅
+           空白（見用戶反映嘅全螢幕截圖）。改用 flex-start 令啲掣／資訊
+           由上至下逐個貼實排落嚟，唔留空隙。 */
+        justify-content: flex-start;
         gap: 8px;
         overflow-y: auto;
         margin-bottom: 0;
@@ -1249,7 +1256,7 @@
     .landing-nav-badge { background: var(--brand-100); color: var(--brand-700); font-size: 13px; padding: 3px 9px; border-radius: 999px; font-weight: 700; white-space: nowrap; }
     .landing-nav-tagline { font-size: 11px; font-weight: 600; letter-spacing: .03em; color: var(--brand-500); white-space: nowrap; }
     .landing-nav-actions { display: flex; align-items: center; gap: 20px; flex-shrink: 0; }
-    .landing-nav-login { font-size: 16px; font-weight: 700; color: var(--brand-700); text-decoration: none; white-space: nowrap; cursor: pointer; background: none; border: none; padding: 0; font-family: inherit; }
+    .landing-nav-login { font-size: 15px; font-weight: 700; color: var(--brand-700); text-decoration: none; white-space: nowrap; cursor: pointer; background: none; border: none; padding: 0; font-family: inherit; }
 
     .landing-hero { padding: 84px 0 104px; overflow: hidden; }
     .landing-hero-inner { display: flex; align-items: center; gap: 56px; }
@@ -1887,6 +1894,18 @@
                 <span style="font-weight:bold; font-size:16px;" id="active-room-title">DSE 衝刺專注房</span>
                 <span class="tag" style="background:#F0E9DF; color:#1E4550;" id="active-room-subject">數學</span>
               </div>
+
+              <!-- 呢間房有設密碼鎖先會顯示（見 room-video.js 嘅 enterRoomSetup），撳一下
+                   會喺視訊溫習室正中間彈出密碼提示，5 秒後自動消失（見 room-video.js
+                   嘅 window.showRoomPasswordPopup）。圖示預設係🔒 emoji，管理員可以喺
+                   後台「功能圖示」分頁上傳自訂圖片取代（key: roomLock）。
+                   ⚠️ 特登擺喺 .fs-hide-in-fullscreen 之外（獨立一嚿），先至可以喺
+                   全螢幕模式都繼續顯示——唔係嘅話成個房名／科目嗰個 div 入咗全螢幕
+                   會俾 .fs-hide-in-fullscreen 個 CSS 規則隱藏晒，個鎖 icon 會跟埋一齊
+                   唔見咗。 -->
+              <button type="button" id="room-password-lock-btn" onclick="window.showRoomPasswordPopup()" title="查看房間密碼" style="display:none; align-items:center; justify-content:center; background:none; border:none; cursor:pointer; padding:2px;">
+                <span class="nav-icon" id="nav-icon-roomLock" style="width:20px; height:20px; font-size:18px;">🔒</span>
+              </button>
 
               <div class="room-bar-btn-group" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
                 <button class="btn btn-primary" type="button" id="btn-camera" onclick="toggleCamera()">📹 開啟鏡頭</button>
@@ -2591,6 +2610,12 @@
           <p style="font-size:13px; color:#999; margin-top:4px;">每輪專注完會自動小休 5 分鐘，之後再自動開始新一輪專注，一直循環到退房為止；每一輪專注途中仲會拆做 4 個小目標，每達成一個都會提示鼓勵一下</p>
         </div>
 
+        <div>
+          <label style="font-size:13px; font-weight:bold; color:#555; display:block;">🔒 房間密碼鎖（4 位數字，留空則不設密碼）</label>
+          <input type="text" id="modal-room-password" class="input-field" maxlength="4" inputmode="numeric" pattern="[0-9]{0,4}" placeholder="例如 1234">
+          <p style="font-size:13px; color:#999; margin-top:4px;">設定之後，只有輸入正確密碼嘅同學先可以加入呢個溫習室，適合想同指定朋友私下溫習嘅情況；房間喺公開大廳依然睇得到，但會加上 🔒 標示。</p>
+        </div>
+
         <div style="display:flex; gap:8px; margin-top:10px; justify-content:flex-end;">
           <button class="btn btn-outline" type="button" onclick="closeModal('modal-create-room')">取消</button>
           <button class="btn btn-primary" type="submit" id="btn-create-room-submit">🚀 立即建立並廣播</button>
@@ -2780,6 +2805,22 @@
       <button class="btn btn-primary" type="button" onclick="confirmStillHere()" style="width:100%; padding:12px;">
         ✅ 是，我仍在學習
       </button>
+    </div>
+  </div>
+
+  <!-- 溫習室密碼鎖：加入一個已設密碼嘅溫習室（無論係喺公開大廳撳「加入房間」，
+       定係透過分享連結加入）之前彈出，要求輸入 4 位數字密碼，正確先真正入到房。
+       房主本人（isMyRoom）唔會見到呢個視窗。 -->
+  <div class="modal-backdrop" id="modal-room-password-check" style="display:none;">
+    <div class="modal-box" style="text-align:center;">
+      <div style="font-size:32px; margin-bottom:8px;">🔒</div>
+      <h3 style="font-size:16px; font-weight:bold; margin-bottom:6px;">呢個溫習室已上鎖</h3>
+      <p style="font-size:13px; color:#666; margin-bottom:14px;">請向房主查詢密碼，並輸入 4 位數字密碼先可以加入。</p>
+      <input type="text" id="room-password-check-input" class="input-field" maxlength="4" inputmode="numeric" pattern="[0-9]{0,4}" style="text-align:center; font-size:22px; letter-spacing:10px;" placeholder="••••" onkeydown="if(event.key==='Enter'){event.preventDefault(); window.confirmRoomPasswordCheck();}">
+      <div style="display:flex; gap:8px; margin-top:14px;">
+        <button class="btn btn-outline" type="button" style="flex:1;" onclick="window.cancelRoomPasswordCheck()">取消</button>
+        <button class="btn btn-primary" type="button" style="flex:1;" onclick="window.confirmRoomPasswordCheck()">✅ 確認加入</button>
+      </div>
     </div>
   </div>
 

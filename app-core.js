@@ -156,7 +156,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
               <span class="tag" style="background:#F0F6F8; color:#1E4550;">${window.escapeHtml(room.subject || '數學')}</span>
               <span style="font-size:13px; color:#3E7A8A; font-weight:bold;">🟢 直播中</span>
             </div>
-            <h4 style="font-size:14px; font-weight:bold; color:var(--brand-800); margin-bottom:4px;">${window.escapeHtml(room.name)}</h4>
+            <h4 style="font-size:14px; font-weight:bold; color:var(--brand-800); margin-bottom:4px;">${room.roomPassword ? '🔒 ' : ''}${window.escapeHtml(room.name)}</h4>
             <p style="font-size:13px; color:#666;">房主：<strong>${window.escapeHtml(room.hostName || '匿名同學')}</strong></p>
             <p style="font-size:13px; color:#888; margin-top:2px;">👥 ${room.participantCount || 0}/${window.ROOM_CAPACITY || 4} 人 · 🍅 每輪專注：${room.duration || 30} 分鐘</p>
           </div>

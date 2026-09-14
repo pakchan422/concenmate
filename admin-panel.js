@@ -1523,6 +1523,14 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
     // 過（或者撳咗「還原做預設圖示」）嘅掣就繼續顯示返原本嘅 emoji。
     // 做法完全仿照上面「扭蛋機外觀圖片」嗰個 pattern：圖片本身上傳去
     // Firebase Storage（nav_icons/ 路徑），Firestore 淨係存返個下載連結。
+    //
+    // 呢個清單而家唔淨係側邊欄用：'roomLock' 呢個 key 對應嘅係視訊溫習室
+    // 工具列入面嗰粒「🔒 查看房間密碼」掣（見 index.html 嘅
+    // #nav-icon-roomLock），並唔喺側邊欄度。因為 applyNavIconsToSidebar()
+    // 純粹用 `#nav-icon-{key}` 呢個 id pattern 去搵元素套用圖示／emoji，
+    // 唔理個元素實際擺喺頁面邊度，所以直接加落嚟呢個清單就會自動生效，
+    // 唔使額外寫套邏輯——文件名 admin_config/navIcons 因為歷史原因冇改
+    // 名，但已經涵蓋所有「可自訂圖示」，唔止側邊欄。
     const NAV_ICON_ITEMS = [
       { key: 'home', label: '主頁', emoji: '🏠' },
       { key: 'room', label: '視訊溫習室', emoji: '📹' },
@@ -1531,7 +1539,8 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
       { key: 'vip', label: '溫習資源', emoji: '👑' },
       { key: 'store', label: '時數扭蛋機', emoji: '🎁' },
       { key: 'social', label: '夥伴與讀書會', emoji: '👥' },
-      { key: 'verification', label: '學生身份驗證', emoji: '🎓' }
+      { key: 'verification', label: '學生身份驗證', emoji: '🎓' },
+      { key: 'roomLock', label: '房間密碼鎖（房內查看密碼掣）', emoji: '🔒' }
     ];
 
     // 全站共用嘅「目前生效緊嘅圖示連結」——冇自訂圖嘅 key 就唔會出現喺
