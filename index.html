@@ -3,13 +3,51 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>ConcenMate 書伴 - 虛擬溫習空間</title>
+  <title>ConcenMate 書伴 - 香港中學生線上溫習空間</title>
+
+  <!-- ========================================
+       🔍 SEO 基本設定
+       ========================================
+       呢個 app 係單頁應用（成個網站得一個 index.html，冇分開唔同網
+       址嘅獨立頁面），所以 SEO 呢部分做得到嘅主要係：搜尋結果／社交
+       分享嗰張「卡片」入面顯示乜嘢（標題、描述、縮圖），同埋畀搜尋
+       引擎一個清晰嘅網站身份（canonical 網址、favicon、robots.txt、
+       sitemap.xml）。目標受眾：泛香港中學生（唔限 DSE），所以標題／
+       描述用返比較闊嘅字眼，唔淨係扣住 DSE 呢個詞。
+       ======================================== -->
+  <meta name="description" content="ConcenMate 書伴是專為香港中學生而設的線上溫習平台，提供視訊溫習室、專注計時器、溫習卡及溫習夥伴配對，助你保持專注、遠離分心，與同學一起高效溫習。">
+  <link rel="canonical" href="https://concenmate.com/">
+
+  <!-- Open Graph（Facebook／WhatsApp／Telegram 等分享連結時顯示嘅卡片） -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="ConcenMate 書伴">
+  <meta property="og:title" content="ConcenMate 書伴 - 香港中學生線上溫習空間">
+  <meta property="og:description" content="視訊溫習室、專注計時器、溫習卡及溫習夥伴配對，助你保持專注、遠離分心，與同學一起高效溫習。">
+  <meta property="og:url" content="https://concenmate.com/">
+  <meta property="og:image" content="https://concenmate.com/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:locale" content="zh_HK">
+
+  <!-- Twitter/X 分享卡片 -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="ConcenMate 書伴 - 香港中學生線上溫習空間">
+  <meta name="twitter:description" content="視訊溫習室、專注計時器、溫習卡及溫習夥伴配對，助你保持專注、遠離分心，與同學一起高效溫習。">
+  <meta name="twitter:image" content="https://concenmate.com/og-image.png">
+
+  <!-- Favicon／瀏覽器分頁圖示、手機主畫面圖示 -->
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
+  <meta name="theme-color" content="#4A8FA0">
 
   <!-- ========================================
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.124.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.125.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
