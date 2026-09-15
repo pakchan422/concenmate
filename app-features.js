@@ -128,7 +128,7 @@
       expPerMinute: 1,
       levelCurveFactor: 10, // 公式：升到 Level L 總共需要嘅 EXP = 難度係數 × L × (L−1)
       ranks: [
-        { minLevel: 1,  emoji: '🌱', title: '溫習新手', titleEn: 'Novice',     color: '#6FA96F', desc: '啱啱起步，每一分鐘的溫習都算數，慢慢儲 EXP 啦！' },
+        { minLevel: 1,  emoji: '🌱', title: '溫習新手', titleEn: 'Novice',     color: '#6FA96F', desc: '剛剛起步，每一分鐘的溫習都算數，慢慢累積 EXP！' },
         { minLevel: 10, emoji: '📚', title: '專注學徒', titleEn: 'Apprentice', color: '#4A8FA0', desc: '已經養成溫習習慣，繼續保持專注，向下一個段位進發。' },
         { minLevel: 20, emoji: '🔥', title: '自律達人', titleEn: 'Expert',     color: '#D9764A', desc: '自律力爆錶，是身邊同學的榜樣！' },
         { minLevel: 40, emoji: '👑', title: '專注大師', titleEn: 'Master',     color: '#D9A441', desc: '長期堅持先可以去到這個段位，值得驕傲！' },
@@ -444,7 +444,7 @@
       if (errEl) errEl.style.display = 'none';
 
       if (!raw) {
-        if (errEl) { errEl.innerText = '名稱唔可以係空白'; errEl.style.display = 'block'; }
+        if (errEl) { errEl.innerText = '名稱不可以是空白'; errEl.style.display = 'block'; }
         return;
       }
       if (raw.length > OTTER_NAME_MAX_LEN) {
@@ -452,7 +452,7 @@
         return;
       }
       if (containsBadWord(raw)) {
-        if (errEl) { errEl.innerText = '呢個名可能包含不當字眼，換過第個名試下啦～'; errEl.style.display = 'block'; }
+        if (errEl) { errEl.innerText = '這個名稱可能包含不當字眼，請換一個名稱再試～'; errEl.style.display = 'block'; }
         return;
       }
       if (!window.currentUser || !window.db || !window.fs) return;
@@ -1228,7 +1228,7 @@
 
     window.saveEditComment = async function(commentId) {
       const newBody = document.getElementById('edit-input-' + commentId)?.value.trim();
-      if (!newBody) { window.showToast('內容唔可以是空白', '⚠️'); return; }
+      if (!newBody) { window.showToast('內容不可以是空白', '⚠️'); return; }
       try {
         await window.fs.updateDoc(
           window.fs.doc(window.db, 'qa_posts', qaCurrentPostId, 'comments', commentId),
@@ -1341,7 +1341,7 @@
             ? `<img src="${st.photo}" style="width:100%; aspect-ratio:1; object-fit:cover; border-radius:8px;">`
             : `<div style="font-size:28px;">${escapeHtml(st.emoji || '🦦')}</div>`;
           return `
-            <div onclick="showStickerCollectionDetail(${st.id})" title="撳落放大睇：${escapeHtml(st.name || '')}" style="cursor:pointer; text-align:center; background:#F0F6F8; border:2px solid #7DB8C5; border-radius:10px; padding:6px 4px;">
+            <div onclick="showStickerCollectionDetail(${st.id})" title="點擊放大查看：${escapeHtml(st.name || '')}" style="cursor:pointer; text-align:center; background:#F0F6F8; border:2px solid #7DB8C5; border-radius:10px; padding:6px 4px;">
               ${thumb}
               <div style="font-size:12px; font-weight:bold; color:#2F6070; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(st.name || '')}</div>
               <div style="font-size:11px; color:#7DB8C5;">×${count}</div>
@@ -1623,7 +1623,7 @@
         const badgeColor = isNew ? '#C0524A' : '#2F6070';
         const badgeText = isNew ? '🆕 新貼紙' : `×${ownedCountAfter}`;
         return `
-          <div onclick="showGachaPrizeDetail(${idx})" style="cursor:pointer; background:${isNew ? '#FBEAE8' : '#F0F6F8'}; border:2px solid ${badgeColor}; border-radius:12px; padding:8px 4px; text-align:center;" title="撳落放大睇：${escapeHtml(sticker.name || '')}">
+          <div onclick="showGachaPrizeDetail(${idx})" style="cursor:pointer; background:${isNew ? '#FBEAE8' : '#F0F6F8'}; border:2px solid ${badgeColor}; border-radius:12px; padding:8px 4px; text-align:center;" title="點擊放大查看：${escapeHtml(sticker.name || '')}">
             <div>${thumb}</div>
             <div style="font-size:13px; font-weight:bold; color:${badgeColor}; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${badgeText}</div>
           </div>`;
@@ -1636,7 +1636,7 @@
       if (newCount > 0) {
         window.showToast(`🎉 十連抽入面攞到 ${newCount} 張新貼紙！`, '🆕');
       } else {
-        window.showToast('十連抽完成，今次全部都係已擁有嘅貼紙～', '🔁');
+        window.showToast('十連抽完成，這次全部都是已擁有的貼紙～', '🔁');
       }
 
       // 10 條歷史記錄一齊寫入；總費用只記喺第一條（避免個人資料頁「總支出」
@@ -1719,7 +1719,7 @@
         return;
       }
       if (!gachaHistoryHasLoadedOnce) {
-        listEl.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:10px;">載入緊中獎記錄...</p>';
+        listEl.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:10px;">載入中獎記錄...</p>';
         if (emptyEl) emptyEl.style.display = 'none';
       }
       try {
@@ -1896,7 +1896,7 @@
       ['pop-user-avatar','pop-user-school','pop-user-grade','pop-user-fav','pop-user-dislike','pop-user-hours','pop-user-verified'].forEach(id => {
         const el = document.getElementById(id); if (el) el.innerText = '';
       });
-      if (nameEl) nameEl.innerText = '載入緊…';
+      if (nameEl) nameEl.innerText = '載入中…';
       if (actionsEl) actionsEl.innerHTML = '';
       openModal('modal-view-profile');
 
@@ -1929,7 +1929,7 @@
     async function renderFriendActionButtons(targetUid, targetUserData) {
       const container = document.getElementById('pop-user-friend-actions');
       if (!container || !window.currentUser || !window.db || !window.fs) return;
-      container.innerHTML = '<p style="font-size:13px; color:#999;">載入緊好友狀態...</p>';
+      container.innerHTML = '<p style="font-size:13px; color:#999;">載入中好友狀態...</p>';
       try {
         const reqId = friendRequestDocId(window.currentUser.uid, targetUid);
         const [friendSnap, reqSnap] = await Promise.all([
@@ -1960,7 +1960,7 @@
               </div>
             `;
           } else {
-            container.innerHTML = `<span class="tag">⏳ 邀請已送出，等緊回覆</span>`;
+            container.innerHTML = `<span class="tag">⏳ 邀請已送出，等待回覆</span>`;
           }
           return;
         }
@@ -1976,13 +1976,13 @@
 
     window.sendFriendRequest = async function(targetUid, targetLoginId, targetUsername) {
       if (!window.currentUser || !window.db || !window.fs) return;
-      if (targetUid === window.currentUser.uid) { window.showToast('唔可以加自己做好友', '😅'); return; }
+      if (targetUid === window.currentUser.uid) { window.showToast('不可以將自己加為好友', '😅'); return; }
       const reqId = friendRequestDocId(window.currentUser.uid, targetUid);
       const reqRef = window.fs.doc(window.db, 'friendRequests', reqId);
       try {
         const existing = await window.fs.getDoc(reqRef);
         if (existing.exists() && existing.data().status === 'pending') {
-          window.showToast('已經送了邀請，等緊對方回覆', 'ℹ️');
+          window.showToast('已經送了邀請，等待對方回覆', 'ℹ️');
           return;
         }
         if (existing.exists() && existing.data().status === 'accepted') {
@@ -2060,7 +2060,7 @@
       if (!raw) return;
       if (!window.currentUser) { openModal('modal-login'); return; }
       if (!window.db || !window.fs) return;
-      resultEl.innerHTML = '<p style="font-size:13px; color:#999;">搜尋緊...</p>';
+      resultEl.innerHTML = '<p style="font-size:13px; color:#999;">搜尋中...</p>';
       const idLower = raw.toLowerCase();
       try {
         const mapSnap = await window.fs.getDoc(window.fs.doc(window.db, 'usernames', idLower));
@@ -2151,7 +2151,7 @@
       if (!container) return;
       const friends = window.friendsListDataCache || [];
       if (friends.length === 0) {
-        container.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:20px;">仲未有好友，用返上面的帳號 ID 搜尋加返幾個啦！</p>';
+        container.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:20px;">尚未有好友，請使用上方的帳號 ID 搜尋並新增幾位！</p>';
         return;
       }
       const presenceMap = window.friendPresenceMap || {};
@@ -2529,7 +2529,7 @@
         .sort((a, b) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0));
 
       if (conversations.length === 0) {
-        listEl.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:16px;">仲未有任何對話紀錄，去「夥伴與讀書會」找個好友撳「💬」開始聊天啦！</p>';
+        listEl.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:16px;">尚未有任何對話紀錄，請到「夥伴與讀書會」找一位好友按「💬」開始聊天！</p>';
         return;
       }
 
@@ -2942,7 +2942,7 @@
     // 嘅所有訊息（唔係淨係自己隱藏），撳之前會 confirm 一次先，避免手震撳錯
     window.clearChatHistory = async function(chatId) {
       if (!window.currentUser || !window.db || !window.fs) return;
-      if (!confirm('確定要刪除這個對話的全部訊息記錄？這個動作會影響返雙方，刪了就冚唔返。')) return;
+      if (!confirm('確定要刪除這個對話的全部訊息記錄？這個動作會影響雙方，刪除後將無法復原。')) return;
       try {
         const msgsSnap = await window.fs.getDocs(window.fs.collection(window.db, 'directChats', chatId, 'messages'));
         await Promise.all(msgsSnap.docs.map(d => window.fs.deleteDoc(d.ref)));
@@ -3073,7 +3073,7 @@
       if (!state.currentRoomId) { window.showToast('要在房間入面先可以邀請朋友', '⚠️'); return; }
       const listEl = document.getElementById('invite-friend-list');
       if (!listEl) return;
-      listEl.innerHTML = '<p style="font-size:13px; color:#999; text-align:center;">載入緊好友名單...</p>';
+      listEl.innerHTML = '<p style="font-size:13px; color:#999; text-align:center;">載入中好友名單...</p>';
       openModal('modal-invite-friend');
       try {
         const snap = await window.fs.getDocs(window.fs.collection(window.db, 'users', window.currentUser.uid, 'friends'));
@@ -3093,12 +3093,12 @@
       if (!window.currentUser || !window.db || !window.fs || !state.currentRoomId) return;
       try {
         const roomSnap = await window.fs.getDoc(window.fs.doc(window.db, 'rooms', state.currentRoomId));
-        if (!roomSnap.exists()) { window.showToast('房間已經唔存在喇', '🚫'); return; }
+        if (!roomSnap.exists()) { window.showToast('房間已經不存在了', '🚫'); return; }
         const room = roomSnap.data();
 
         const participantsSnap = await window.fs.getDocs(window.fs.collection(window.db, 'rooms', state.currentRoomId, 'participants'));
         if (participantsSnap.size >= window.ROOM_CAPACITY) {
-          window.showToast(`房間已滿（${window.ROOM_CAPACITY}/${window.ROOM_CAPACITY}），暫時邀請唔到`, '🚫');
+          window.showToast(`房間已滿（${window.ROOM_CAPACITY}/${window.ROOM_CAPACITY}），暫時無法邀請`, '🚫');
           return;
         }
 
@@ -3119,7 +3119,7 @@
           createdAt: now,
           expiresAt: now + ROOM_INVITE_VALID_MS
         });
-        window.showToast(`✅ 已經邀請 ${friendUsername} 入房，等緊他回應`, '📨');
+        window.showToast(`✅ 已經邀請 ${friendUsername} 入房，等待他回應`, '📨');
         window.closeModal('modal-invite-friend');
       } catch (e) {
         window.showToast('邀請失敗：' + (e.message || e), '❌');
@@ -3179,7 +3179,7 @@
       try {
         const roomSnap = await window.fs.getDoc(window.fs.doc(window.db, 'rooms', invite.roomId));
         if (!roomSnap.exists()) {
-          window.showToast('這個房間已經唔存在喇', '🚫');
+          window.showToast('這個房間已經不存在了', '🚫');
           try { await window.fs.updateDoc(window.fs.doc(window.db, 'roomInvites', invite.id), { status: 'expired' }); } catch (e) {}
           showNextRoomInvitePopup();
           return;

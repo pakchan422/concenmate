@@ -63,7 +63,8 @@
       micCooldownUntil: null, // 冷卻結束嘅時間戳（ms），畀 UI 計倒數用
       micIdleResetTimer: null, // 學生主動關咪、未撞到 3 分鐘上限之情況下，背後計緊嘅「閒置 5 分鐘就回復返成套 3 分鐘預算」計時器
       knownParticipantUids: new Set(), // 目前已知喺房入面嘅人（唔包括自己），用嚟同下一次快照比較邊個係「新加入」
-      isFirstParticipantsSnapshot: true // 岩啱入房嗰個最初快照唔算「新加入」（本身已經喺度嘅人），淨係之後先出現先算
+      isFirstParticipantsSnapshot: true, // 岩啱入房嗰個最初快照唔算「新加入」（本身已經喺度嘅人），淨係之後先出現先算
+      wakeLockObj: null // Screen Wake Lock API 拎返嚟嘅 lock 物件，喺房入面攞住佢就可以擋住手機自動熄屏／鎖屏（見 requestRoomWakeLock/releaseRoomWakeLock）
     };
 
     const ROOM_POMODORO_BREAK_SECONDS = 5 * 60; // 房入面每輪專注完之後嘅小休長度，暫時定死 5 分鐘
@@ -72,6 +73,52 @@
     const MIC_IDLE_RESET_SECONDS = 5 * 60; // 學生未撞到 3 分鐘上限、主動關咪之後，如果連續 5 分鐘都冇再開咪，就當佢已經完全休息返，回復返成套 3 分鐘預算（唔使一定撞晒 3 分鐘先可以歸零）
 
     const ROOM_CAPACITY = 4; // 同一房間最多同時容納的用家人數（包括自己）
+
+    // ------------------------------------------------------------
+    // Screen Wake Lock：喺視訊溫習室入面攞住個 wake lock，擋住手機／
+    // 電腦因為一段時間冇動作而自動熄屏（部分手機大約 10 分鐘就會熄
+    // 屏），熄咗屏計時器同視訊都會停咗。並非所有瀏覽器都支援（iOS 要
+    // 16.4+ 嘅 Safari），唔支援就靜靜哋跳過，唔會影響其他功能。
+    //
+    // 有兩個限制要留意：
+    // 1. 呢個 API 淨係擋到「因為冇動作而自動熄屏」，用戶自己撳掣熄屏
+    //    （或者揭蓋、鎖機掣）依然會即刻熄，呢個係瀏覽器故意設計，冇
+    //    辦法繞過。
+    // 2. 個分頁一旦被瀏覽器判斷做「唔喺前景」（例如切去第啲 App、
+    //    lock 咗畫面），瀏覽器會自動釋放個 lock；返嚟前景嗰陣要重新
+    //    攞過（見底下 visibilitychange 監聽），純粹畫面熄咗嘅一刻計時
+    //    器會短暫停頓，返到前景又會即刻補返。
+    async function requestRoomWakeLock() {
+      if (!('wakeLock' in navigator)) return; // 瀏覽器唔支援，直接跳過
+      try {
+        if (state.wakeLockObj) return; // 已經攞緊，唔使再攞
+        state.wakeLockObj = await navigator.wakeLock.request('screen');
+        state.wakeLockObj.addEventListener('release', () => {
+          state.wakeLockObj = null;
+        });
+      } catch (e) {
+        // 好多情況都會失敗（例如個分頁而家唔喺前景），唔算嚴重錯誤，
+        // 淨係 log 低就算，唔阻礙用戶用返視訊房其他功能
+        console.warn('未能取得 Wake Lock（畫面可能會自動熄屏）:', e);
+      }
+    }
+
+    function releaseRoomWakeLock() {
+      if (state.wakeLockObj) {
+        state.wakeLockObj.release().catch(() => {});
+        state.wakeLockObj = null;
+      }
+    }
+
+    // 分頁由背景返去前景，如果自己仲喺房入面，就補返個 wake lock
+    // （瀏覽器喺分頁去咗背景嗰陣已經自動釋放咗）
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && state.currentRoomId) {
+          requestRoomWakeLock();
+        }
+      });
+    }
     window.ROOM_CAPACITY = ROOM_CAPACITY; // 開放俾其他 <script> 區塊（例如大廳房間卡片）讀取
 
     // 房間上限 4 人，鏡頭恆常都用 2x2「四格漫畫」版面（見 CSS，唔理
@@ -1132,6 +1179,9 @@
       // 溫習日曆同「連續溫習日」都當今日有溫習
       if (typeof window.recordStudyDayIfNeeded === 'function') window.recordStudyDayIfNeeded();
 
+      // 入咗房就即刻攞 wake lock，擋住手機因閒置一段時間自動熄屏令計時停頓
+      requestRoomWakeLock();
+
       state.currentRoomId = roomId;
       state.isHost = isMyRoom;
       // 「👑 房主」牌而家改為掛喺真正房主本人嗰一格（自己或者遠端），
@@ -2077,6 +2127,7 @@
     }
 
     async function cleanupRoomConnections() {
+      releaseRoomWakeLock(); // 離開房間就放返個 wake lock，唔使成部機一直唔熄得屏
       if (state.renderFrameId) cancelAnimationFrame(state.renderFrameId);
       if (state.countdownTimer) clearInterval(state.countdownTimer);
       if (state.heartbeatTimer) { clearInterval(state.heartbeatTimer); state.heartbeatTimer = null; }

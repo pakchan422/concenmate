@@ -187,7 +187,7 @@
 
       if (!adminGachaDraft) {
         if (!gachaConfigLoaded) {
-          container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入緊扭蛋機設定...</p>';
+          container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入中扭蛋機設定...</p>';
           return; // Firestore 資料一到，loadGachaConfigFromFirestore() 會自動再 render 多次
         }
         adminGachaDraft = {
@@ -208,7 +208,7 @@
             <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;">🎰 扭蛋機外觀圖片</h3>
             <p style="font-size:13px; color:#888; margin-bottom:10px;">呢張係扭蛋機本身嘅外殼圖（唔係貼紙），顯示喺學生撳扭蛋果版度。上傳新圖會即時取代埋畫面上見到嘅圖案，唔上傳就繼續用返程式碼入面嘅預設圖。</p>
             <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-              <div id="admin-gacha-machine-thumb" onclick="document.getElementById('admin-gacha-machine-input').click()" title="撳這裡上傳圖片" style="width:80px; height:80px; border-radius:10px; background:#F0F6F8; border:1px dashed #B3D6DE; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden;">${previewInner}</div>
+              <div id="admin-gacha-machine-thumb" onclick="document.getElementById('admin-gacha-machine-input').click()" title="點擊這裡上傳圖片" style="width:80px; height:80px; border-radius:10px; background:#F0F6F8; border:1px dashed #B3D6DE; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden;">${previewInner}</div>
               <input type="file" accept="image/*" id="admin-gacha-machine-input" style="display:none;" onchange="adminUploadGachaMachineImage(this)">
               <div style="display:flex; flex-direction:column; gap:6px;">
                 <button type="button" class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="document.getElementById('admin-gacha-machine-input').click()">📤 上傳新圖片</button>
@@ -235,7 +235,7 @@
             <td style="text-align:center; color:#888; font-size:13px;">#${p.id}</td>
             <td>
               <div style="display:flex; flex-direction:column; align-items:center; gap:3px;">
-                <div id="${thumbId}" onclick="document.getElementById('${inputId}').click()" title="撳這裡上傳圖片" style="width:44px; height:44px; border-radius:8px; background:#F0F6F8; border:1px dashed #B3D6DE; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden;">${thumbInner}</div>
+                <div id="${thumbId}" onclick="document.getElementById('${inputId}').click()" title="點擊這裡上傳圖片" style="width:44px; height:44px; border-radius:8px; background:#F0F6F8; border:1px dashed #B3D6DE; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden;">${thumbInner}</div>
                 <input type="file" accept="image/*" id="${inputId}" style="display:none;" onchange="adminUploadGachaPhoto(${idx},this)">
                 ${p.photo ? `<button type="button" class="btn btn-outline" style="font-size:13px; padding:1px 6px;" onclick="adminRemoveGachaPhoto(${idx})">移除圖片</button>` : ''}
               </div>
@@ -255,19 +255,19 @@
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
               <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800);">🦦 Ottiee 貼紙圖鑑（共 ${pool.length} 隻）</h3>
               <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                <button class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="adminNormalizeGachaWeights()">⚖️ 調整做啱好 100</button>
+                <button class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="adminNormalizeGachaWeights()">⚖️ 調整為剛好 100</button>
                 <button class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="adminRenumberGachaStickers()">🔢 重新排序編號</button>
                 <button class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="adminAddGachaPrize()">➕ 新增貼紙</button>
               </div>
             </div>
-            <p style="font-size:13px; color:#888; margin-bottom:8px;">貼紙編號（#id）對應用戶收集圖鑑嘅位置，刪除貼紙之後編號會留返個缺口（例如刪走 #13~#17 之後就由 #12 跳去 #18），呢個唔影響扭蛋／收集功能，純粹畫面上唔靚。如果想執返靚佢，撳「🔢 重新排序編號」會將現存貼紙由上到下重新編做 1、2、3...連續號碼——但要留意：如果已經有真實學生扭過蛋、收藏緊某幾隻貼紙，重新編號會令佢哋原有嘅收藏對唔返新編號（貼紙會「變咗做另一隻」），所以呢個掣淨係啱喺未有學生正式用過、或者你肯接受洗牌返晒佢哋收藏記錄嗰陣先撳。</p>
+            <p style="font-size:13px; color:#888; margin-bottom:8px;">貼紙編號（#id）對應用戶收集圖鑑嘅位置，刪除貼紙之後編號會留返個缺口（例如刪走 #13~#17 之後就由 #12 跳去 #18），呢個唔影響扭蛋／收集功能，純粹畫面上唔靚。如果想執返靚佢，撳「🔢 重新排序編號」會將現存貼紙由上到下重新編做 1、2、3...連續號碼——但要留意：如果已經有真實學生扭過蛋、收藏了某幾隻貼紙，重新編號會令他們原有的收藏對應不上新編號（貼紙會「變咗做另一隻」），所以呢個掣淨係啱喺未有學生正式用過、或者你肯接受洗牌返晒佢哋收藏記錄嗰陣先撳。</p>
             <div style="overflow-x:auto;">
               <table class="admin-table">
                 <thead><tr><th>#</th><th>圖片</th><th>貼紙名稱</th><th>機率權重</th><th></th></tr></thead>
-                <tbody>${rows || '<tr><td colspan="5" style="text-align:center; color:#999; padding:16px;">未有貼紙，撳「新增貼紙」開始</td></tr>'}</tbody>
+                <tbody>${rows || '<tr><td colspan="5" style="text-align:center; color:#999; padding:16px;">未有貼紙，請點擊「新增貼紙」開始</td></tr>'}</tbody>
               </table>
             </div>
-            <p style="font-size:13px; color:#888; margin-top:8px;">總權重：<span id="admin-gacha-total">${totalWeight}</span>（右邊「≈ %」欄會在你打緊數字嗰陣即時更新，撳「調整做啱好 100」會將所有權重等比例縮放到啱啱好加埋等於 100，之後那個 % 就會同權重數字一致）</p>
+            <p style="font-size:13px; color:#888; margin-top:8px;">總權重：<span id="admin-gacha-total">${totalWeight}</span>（右邊「≈ %」欄會在你輸入數字時即時更新，點擊「調整為剛好 100」會將所有權重等比例縮放到剛好合計等於 100，之後那個 % 就會與權重數字一致）</p>
           </div>
         `;
       }
@@ -381,7 +381,7 @@
       }
       const sticker = adminGachaDraft.stickers[idx];
       const oldPhoto = sticker.photo;
-      window.showToast('⏳ 上傳緊相片…', '📤');
+      window.showToast('⏳ 上傳中相片…', '📤');
       try {
         const { blob, mimeType } = await compressImageFileToBlob(file, 300, 0.75);
         const ext = mimeType === 'image/png' ? 'png' : 'jpg';
@@ -391,7 +391,7 @@
         const downloadUrl = await window.storageApi.getDownloadURL(fileRef);
         adminGachaDraft.stickers[idx].photo = downloadUrl;
         renderAdminGachaTab();
-        window.showToast('✅ 相片上傳成功，記得撳「儲存全部改動」先會正式生效', '🎉');
+        window.showToast('✅ 相片上傳成功，請點擊「儲存全部改動」才會正式生效', '🎉');
         tryDeleteOldGachaStoragePhoto(oldPhoto); // best-effort，唔使等佢完成
       } catch (err) {
         window.showToast('圖片上傳失敗：' + (err.message || err), '❌');
@@ -422,7 +422,7 @@
         return;
       }
       const oldUrl = adminGachaDraft.machineImageUrl;
-      window.showToast('⏳ 上傳緊圖片…', '📤');
+      window.showToast('⏳ 上傳中圖片…', '📤');
       try {
         const { blob, mimeType } = await compressImageFileToBlob(file, 400, 0.85);
         const ext = mimeType === 'image/png' ? 'png' : 'jpg';
@@ -432,7 +432,7 @@
         const downloadUrl = await window.storageApi.getDownloadURL(fileRef);
         adminGachaDraft.machineImageUrl = downloadUrl;
         renderAdminGachaTab();
-        window.showToast('✅ 圖片上傳成功，記得撳「儲存全部改動」先會正式生效', '🎉');
+        window.showToast('✅ 圖片上傳成功，請點擊「儲存全部改動」才會正式生效', '🎉');
         tryDeleteOldGachaStoragePhoto(oldUrl); // best-effort，唔使等佢完成
       } catch (err) {
         window.showToast('圖片上傳失敗：' + (err.message || err), '❌');
@@ -471,7 +471,7 @@
         }
       });
       renderAdminGachaTab();
-      window.showToast('已將權重調整做啱好加埋等於 100', '⚖️');
+      window.showToast('已將權重調整為合計等於 100', '⚖️');
     };
 
     window.adminAddGachaPrize = function() {
@@ -484,7 +484,7 @@
 
     window.adminRemoveGachaPrize = function(idx) {
       if (!adminGachaDraft) return;
-      if (!confirm('確定刪除這隻貼紙？已經有用戶擁有嘅話，佢哋收集紀錄入面呢隻貼紙會留返底但喺圖鑑度唔會再顯示。')) return;
+      if (!confirm('確定刪除這隻貼紙？若已經有用戶擁有，其收集紀錄中這隻貼紙會保留，但在圖鑑中將不再顯示。')) return;
       adminGachaDraft.stickers.splice(idx, 1);
       renderAdminGachaTab();
     };
@@ -499,16 +499,16 @@
     // 未有學生正式扭過蛋）先撳。
     window.adminRenumberGachaStickers = function() {
       if (!adminGachaDraft || !adminGachaDraft.stickers.length) return;
-      if (!confirm('重新排序編號會將貼紙 id 由 1 開始重新連續編號。\n\n⚠️ 如果已經有真實學生用呢個扭蛋機扭過蛋、收藏緊某幾隻貼紙，佢哋原有嘅收藏會因為編號變咗而對唔返位（貼紙會「變咗做另一隻」）。如果仲未有學生正式用過，或者你肯接受洗牌返晒收藏記錄，先繼續。\n\n確定要重新編號？')) return;
+      if (!confirm('重新排序編號會將貼紙 id 由 1 開始重新連續編號。\n\n⚠️ 如果已經有真實學生使用這個扭蛋機扭過蛋、收藏了某幾隻貼紙，他們原有的收藏會因為編號改變而對應不上（貼紙會「變成另一隻」）。如果尚未有學生正式使用過，或者你願意接受洗牌整批收藏記錄，才繼續。\n\n確定要重新編號？')) return;
       adminGachaDraft.stickers.forEach((p, i) => { p.id = i + 1; });
       renderAdminGachaTab();
-      window.showToast('已重新排序編號，記得撳「儲存全部改動」先會正式生效', '🔢');
+      window.showToast('已重新排序編號，請點擊「儲存全部改動」才會正式生效', '🔢');
     };
 
     window.adminResetGachaDraft = function() {
       adminGachaDraft = null;
       renderAdminGachaTab();
-      window.showToast('已還原返上次儲存的版本', '↩️');
+      window.showToast('已還原至上次儲存的版本', '↩️');
     };
 
     window.adminSaveGachaConfig = async function() {
@@ -540,7 +540,7 @@
       }
 
       const btn = document.getElementById('btn-admin-save-gacha');
-      if (btn) { btn.disabled = true; btn.innerText = '⏳ 儲存緊…'; }
+      if (btn) { btn.disabled = true; btn.innerText = '⏳ 儲存中…'; }
       try {
         await window.fs.setDoc(window.fs.doc(window.db, 'admin_config', 'gacha'), payload);
         window.showToast('✅ 扭蛋機設定已儲存，即時對所有用戶生效！', '🎉');
@@ -583,7 +583,7 @@
         // 喺呢度補叫多一次先會顯示到啱嘅相（登入嗰陣呢份資料仲未到）
         if (typeof updateOtterDisplay === 'function') updateOtterDisplay();
         // 如果管理員岩岩好打開緊「扭蛋機獎品」呢個分頁、又仲未開始編輯
-        // （adminGachaDraft 仲係 null，即係岩岩好卡喺「載入緊...」嗰個畫面），
+        // （adminGachaDraft 仲係 null，即係岩岩好卡喺「載入中...」嗰個畫面），
         // 而家攞到資料喇，即刻幫佢用返最新（剛儲存低嗰份）資料重新 render 一次，
         // 唔使佢自己撳一撳個分頁先會刷新
         if (currentAdminTab === 'gacha' && !adminGachaDraft) {
@@ -594,7 +594,7 @@
         }
       }, (err) => {
         console.error('讀取扭蛋機設定失敗:', err);
-        gachaConfigLoaded = true; // 唔好卡死喺「載入緊...」畫面，起碼俾程式碼入面嘅預設值可以用
+        gachaConfigLoaded = true; // 唔好卡死喺「載入中...」畫面，起碼俾程式碼入面嘅預設值可以用
         if (typeof window.isCurrentUserAdmin === 'function' && window.isCurrentUserAdmin()) {
           window.showToast('讀取扭蛋機設定失敗（可能是 Firestore 規則未生效）：' + (err.message || err), '⚠️');
         }
@@ -614,7 +614,7 @@
       if (!container) return;
       if (!adminLevelDraft) {
         if (!levelConfigLoaded) {
-          container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入緊等級系統設定...</p>';
+          container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入中等級系統設定...</p>';
           return;
         }
         adminLevelDraft = JSON.parse(JSON.stringify(LEVEL_CONFIG));
@@ -708,7 +708,7 @@
 
     window.adminRemoveLevelRank = function(idx) {
       if (!adminLevelDraft) return;
-      if (adminLevelDraft.ranks.length <= 1) { window.showToast('最少要留返一個段位', '⚠️'); return; }
+      if (adminLevelDraft.ranks.length <= 1) { window.showToast('最少需保留一個段位', '⚠️'); return; }
       adminLevelDraft.ranks.splice(idx, 1);
       renderAdminLevelTab();
     };
@@ -806,7 +806,7 @@
     function renderAdminRoomsTab() {
       const container = document.getElementById('admin-tab-rooms');
       if (!container || !window.db || !window.fs) return;
-      container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入緊房間資料...</p>';
+      container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入中房間資料...</p>';
 
       if (adminRoomsUnsubscribe) adminRoomsUnsubscribe();
       adminRoomsUnsubscribe = window.fs.onSnapshot(window.fs.collection(window.db, 'rooms'), (snapshot) => {
@@ -847,7 +847,7 @@
     window.renderAdminRoomsTab = renderAdminRoomsTab;
 
     window.adminDeleteRoom = async function(roomId, roomName) {
-      if (!confirm(`確定要強制關閉房間「${roomName}」？裡面的同學會即時被移返大廳。`)) return;
+      if (!confirm(`確定要強制關閉房間「${roomName}」？裡面的同學會即時被移至大廳。`)) return;
       try {
         await window.fs.deleteDoc(window.fs.doc(window.db, 'rooms', roomId));
         window.showToast('已強制關閉該房間', '🗑️');
@@ -860,7 +860,7 @@
     function renderAdminQaTab() {
       const container = document.getElementById('admin-tab-qa');
       if (!container || !window.db || !window.fs) return;
-      container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入緊帖子資料...</p>';
+      container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入中帖子資料...</p>';
 
       if (adminQaUnsubscribe) adminQaUnsubscribe();
       adminQaUnsubscribe = window.fs.onSnapshot(window.fs.collection(window.db, 'qa_posts'), (snapshot) => {
@@ -953,7 +953,7 @@
 
           <div id="admin-flashcard-generic-fields" style="display:none; margin-top:8px;">
             <label style="font-size:13px; font-weight:600; color:#555;">問題（正面）</label>
-            <textarea id="admin-flashcard-front-input" class="input-field" rows="2" placeholder="例如：牛頓第二定律是咩？"></textarea>
+            <textarea id="admin-flashcard-front-input" class="input-field" rows="2" placeholder="例如：牛頓第二定律是什麼？"></textarea>
             <label style="font-size:13px; font-weight:600; color:#555; margin-top:8px; display:block;">答案（背面）</label>
             <textarea id="admin-flashcard-back-input" class="input-field" rows="2" placeholder="例如：F = ma"></textarea>
             <label style="font-size:13px; font-weight:600; color:#555; margin-top:8px; display:block;">科目（可選）</label>
@@ -985,7 +985,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
               <option value="all">🗂 全部範疇</option>
             </select>
           </div>
-          <div id="admin-flashcards-list-container"><p style="text-align:center; color:#999; padding:20px;">載入緊溫習卡...</p></div>
+          <div id="admin-flashcards-list-container"><p style="text-align:center; color:#999; padding:20px;">載入中溫習卡...</p></div>
         </div>
       `;
       toggleFlashcardSubjectMode();
@@ -1215,11 +1215,11 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
       });
 
       if (items.length === 0) { window.showToast('沒有解析到任何有效的詞卡，檢查吓每行是否用「 | 」分隔㗎', '⚠️'); return; }
-      if (!confirm(`將會匯入 ${items.length} 張詞卡（範疇：${category}）${badLineCount ? '，另外有 ' + badLineCount + ' 行格式唔啱會跳過' : ''}，確定嗎？`)) return;
+      if (!confirm(`將會匯入 ${items.length} 張詞卡（範疇：${category}）${badLineCount ? '，另外有 ' + badLineCount + ' 行格式不正確將被跳過' : ''}，確定嗎？`)) return;
 
       const btn = document.getElementById('btn-bulk-import-flashcards');
       const originalText = btn ? btn.innerText : '';
-      if (btn) { btn.disabled = true; btn.innerText = '⏳ 匯入緊…'; }
+      if (btn) { btn.disabled = true; btn.innerText = '⏳ 匯入中…'; }
       try {
         const existingSnap = await window.fs.getDocs(window.fs.collection(window.db, 'flashcards'));
         const existingKeys = new Set(existingSnap.docs.map(d => {
@@ -1245,7 +1245,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
     };
 
     window.adminDeleteFlashcard = async function(cardId) {
-      if (!confirm('確定要刪除呢張溫習卡？刪除之後所有學生都唔會再見到呢張卡。')) return;
+      if (!confirm('確定要刪除這張溫習卡？刪除之後所有學生都不會再見到這張卡。')) return;
       try {
         await window.fs.deleteDoc(window.fs.doc(window.db, 'flashcards', cardId));
         window.showToast('🗑️ 已刪除溫習卡', '🗑️');
@@ -1258,7 +1258,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
     function renderAdminUsersTab() {
       const container = document.getElementById('admin-tab-users');
       if (!container || !window.db || !window.fs) return;
-      container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入緊用戶資料...</p>';
+      container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入中用戶資料...</p>';
 
       if (adminUsersUnsubscribe) adminUsersUnsubscribe();
       adminUsersUnsubscribe = window.fs.onSnapshot(window.fs.collection(window.db, 'users'), (snapshot) => {
@@ -1387,7 +1387,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
       const when = r.createdAt ? new Date(r.createdAt).toLocaleString('zh-HK') : '—';
       const screenshotHtml = r.screenshot
         ? `<img src="${r.screenshot}" style="width:100%; max-width:280px; border-radius:8px; border:1px solid #ddd; margin-top:6px; display:block; cursor:pointer;" onclick="window.open(this.src, '_blank')">`
-        : `<p style="font-size:13px; color:#c99; margin-top:6px;">⚠️ 當時攞唔到截圖</p>`;
+        : `<p style="font-size:13px; color:#c99; margin-top:6px;">⚠️ 當時無法取得截圖</p>`;
       return `
         <div class="admin-card" style="${status !== 'pending' ? 'opacity:.6;' : ''}">
           <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
@@ -1426,7 +1426,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
            </div>`;
       container.innerHTML = `
         <div style="margin-bottom:10px; background:#FFF7E6; border:1px solid #F0D9A0; border-radius:8px; padding:8px 10px; font-size:13px; color:#8a6d1f;">
-          ⚠️ 技術上的重要提醒：這個網站沒有獨立伺服器，只是用緊 Firebase，所以這裡看唔到、亦都做唔到真正的「IP 封鎖」（因為 Firestore 規則見唔到用戶的真實 IP）。「停權」這個功能就實實在在有效——會即刻令該帳戶下次登入被強制登出，亦令他完全用唔到這個平台。
+          ⚠️ 技術上的重要提醒：這個網站沒有獨立伺服器，只是使用 Firebase，所以這裡看不到、也無法做到真正的「IP 封鎖」（因為 Firestore 規則看不到用戶的真實 IP）。「停權」這個功能就確實有效——會即刻令該帳戶下次登入被強制登出，亦令他完全無法使用這個平台。
         </div>
         ${cards}
         ${loadMoreHtml}
@@ -1436,7 +1436,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
     function renderAdminReportsTab() {
       const container = document.getElementById('admin-tab-reports');
       if (!container || !window.db || !window.fs) return;
-      container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入緊舉報記錄...</p>';
+      container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入中舉報記錄...</p>';
 
       adminReportsLoadedDocs = [];
       adminReportsAllLoaded = false;
@@ -1466,7 +1466,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
       const lastDoc = adminReportsLoadedDocs[adminReportsLoadedDocs.length - 1];
       if (!lastDoc) return;
       const btn = document.getElementById('admin-reports-load-more-btn');
-      if (btn) { btn.disabled = true; btn.innerText = '載入緊...'; }
+      if (btn) { btn.disabled = true; btn.innerText = '載入中...'; }
       try {
         const q = window.fs.query(
           window.fs.collection(window.db, 'reports'),
@@ -1540,7 +1540,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
       { key: 'store', label: '時數扭蛋機', emoji: '🎁' },
       { key: 'social', label: '夥伴與讀書會', emoji: '👥' },
       { key: 'verification', label: '學生身份驗證', emoji: '🎓' },
-      { key: 'roomLock', label: '房間密碼鎖（房內查看密碼掣）', emoji: '🔒' }
+      { key: 'roomLock', label: '房間密碼鎖（房內查看密碼按鈕）', emoji: '🔒' }
     ];
 
     // 全站共用嘅「目前生效緊嘅圖示連結」——冇自訂圖嘅 key 就唔會出現喺
@@ -1571,7 +1571,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
 
       if (!adminNavIconsDraft) {
         if (!navIconsConfigLoaded) {
-          container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入緊圖示設定...</p>';
+          container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入中圖示設定...</p>';
           return; // Firestore 資料一到，loadNavIconsFromFirestore() 會自動再 render 多次
         }
         adminNavIconsDraft = Object.assign({}, window.NAV_ICON_URLS);
@@ -1586,7 +1586,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
           : `<span style="font-size:22px;">${escapeHtml(item.emoji)}</span>`;
         return `
           <div style="display:flex; align-items:center; gap:14px; padding:10px 0; border-bottom:1px solid #F0F0F0;">
-            <div id="${thumbId}" onclick="document.getElementById('${inputId}').click()" title="撳這裡上傳圖片" style="width:52px; height:52px; border-radius:10px; background:#F0F6F8; border:1px dashed #B3D6DE; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden; flex-shrink:0;">${thumbInner}</div>
+            <div id="${thumbId}" onclick="document.getElementById('${inputId}').click()" title="點擊這裡上傳圖片" style="width:52px; height:52px; border-radius:10px; background:#F0F6F8; border:1px dashed #B3D6DE; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden; flex-shrink:0;">${thumbInner}</div>
             <input type="file" accept="image/*" id="${inputId}" style="display:none;" onchange="adminUploadNavIcon('${item.key}',this)">
             <div style="flex:1; font-size:14px; font-weight:600; color:#333;">${escapeHtml(item.label)}</div>
             <div style="display:flex; gap:6px;">
@@ -1624,7 +1624,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
         return;
       }
       const oldUrl = adminNavIconsDraft[key];
-      window.showToast('⏳ 上傳緊圖片…', '📤');
+      window.showToast('⏳ 上傳中圖片…', '📤');
       try {
         const { blob, mimeType } = await compressImageFileToBlob(file, 128, 0.85);
         const ext = mimeType === 'image/png' ? 'png' : 'jpg';
@@ -1634,7 +1634,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
         const downloadUrl = await window.storageApi.getDownloadURL(fileRef);
         adminNavIconsDraft[key] = downloadUrl;
         renderAdminNavIconsTab();
-        window.showToast('✅ 圖片上傳成功，記得撳「儲存全部改動」先會正式生效', '🎉');
+        window.showToast('✅ 圖片上傳成功，請點擊「儲存全部改動」才會正式生效', '🎉');
         tryDeleteOldGachaStoragePhoto(oldUrl); // best-effort，唔使等佢完成（呢個函式其實通用，唔止扭蛋貼紙先用得）
       } catch (err) {
         window.showToast('圖片上傳失敗：' + (err.message || err), '❌');
@@ -1691,7 +1691,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
         }
       }, (err) => {
         console.error('讀取側邊欄圖示設定失敗:', err);
-        navIconsConfigLoaded = true; // 唔好卡死喺「載入緊...」畫面
+        navIconsConfigLoaded = true; // 唔好卡死喺「載入中...」畫面
       });
     }
     window.loadNavIconsFromFirestore = loadNavIconsFromFirestore;
