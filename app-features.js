@@ -1407,7 +1407,31 @@
       if (el) el.innerText = pts;
     }
 
+    // 扭蛋掣防連撳：撳落去到伺服器回應（spendGachaPoints）之間有網絡
+    // 來回時間，手機網絡唔穩（學校 WiFi 常見）嗰陣，用戶好容易手快連
+    // 撳兩下，結果觸發兩次扣分——變成「畀咗兩次分先扭到一次」。呢個
+    // flag 加埋兩粒掣（單抽／十連抽）一齊鎖住，確保同一時間淨係得一
+    // 次扭蛋請求喺處理緊。
+    let gachaDrawInProgress = false;
+    function setGachaButtonsDisabled(disabled) {
+      const normalBtn = document.getElementById('gacha-draw-normal-btn');
+      const luckyBtn = document.getElementById('gacha-draw-lucky-btn');
+      [normalBtn, luckyBtn].forEach(btn => { if (btn) btn.disabled = disabled; });
+    }
+
     window.doGacha = async function(type) {
+      if (gachaDrawInProgress) return; // 上一次請求仲未回應，忽略呢次連撳
+      gachaDrawInProgress = true;
+      setGachaButtonsDisabled(true);
+      try {
+        await doGachaInner(type);
+      } finally {
+        gachaDrawInProgress = false;
+        setGachaButtonsDisabled(false);
+      }
+    };
+
+    async function doGachaInner(type) {
       // 「幸運扭蛋」掣而家改咗做「連續抽十次」——一次過用同一個獎池
       // （lucky 池）抽 10 次、一次過扣總費用，結果分兩行顯示，唔再係
       // 單抽嗰一套流程，所以獨立分支去 doGachaBatch()。
@@ -1490,7 +1514,7 @@
       addGachaHistory(sticker, type, undefined, isNew);
       saveGachaHistoryToFirestore(sticker, type, undefined, isNew);
       refreshCollectionBookIfOpen();
-    };
+    }
 
     // 扭蛋結果彈出視窗（單抽同「連續抽十次」兩個都用返呢一套）：置中／
     // 背景遮罩／自動關閉呢幾個共用邏輯抽做一個通用 helper，兩個彈窗行為

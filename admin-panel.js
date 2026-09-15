@@ -1130,7 +1130,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
         const meaning = meaningEl ? meaningEl.value.trim() : '';
         const example = exampleEl ? exampleEl.value.trim() : '';
         const exampleTranslation = exampleTrEl ? exampleTrEl.value.trim() : '';
-        if (!word || !meaning) { window.showToast('英文詞語同中文意思都要填㗎', '⚠️'); return; }
+        if (!word || !meaning) { window.showToast('英文詞語及中文意思均須填寫', '⚠️'); return; }
 
         const front = pos ? `${word} (${pos})` : word;
         let back = meaning;
@@ -1156,7 +1156,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
       const front = frontEl ? frontEl.value.trim() : '';
       const back = backEl ? backEl.value.trim() : '';
       const subject = subjectEl ? subjectEl.value.trim() : '';
-      if (!front || !back) { window.showToast('問題同答案都要填㗎', '⚠️'); return; }
+      if (!front || !back) { window.showToast('問題及答案均須填寫', '⚠️'); return; }
       try {
         await window.fs.addDoc(window.fs.collection(window.db, 'flashcards'), {
           front, back, subject, createdAt: Date.now()
@@ -1199,7 +1199,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
       const category = categoryEl ? categoryEl.value : '';
       const raw = textEl ? textEl.value : '';
       const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
-      if (lines.length === 0) { window.showToast('未貼了任何內容，先貼低些詞卡先啦', '⚠️'); return; }
+      if (lines.length === 0) { window.showToast('尚未貼上任何內容，請先貼上詞卡內容', '⚠️'); return; }
 
       const items = [];
       let badLineCount = 0;
@@ -1214,7 +1214,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
         items.push({ word, pos, meaning, example, exampleTranslation });
       });
 
-      if (items.length === 0) { window.showToast('沒有解析到任何有效的詞卡，檢查吓每行是否用「 | 」分隔㗎', '⚠️'); return; }
+      if (items.length === 0) { window.showToast('沒有解析到任何有效的詞卡，請檢查每行是否用「 | 」分隔', '⚠️'); return; }
       if (!confirm(`將會匯入 ${items.length} 張詞卡（範疇：${category}）${badLineCount ? '，另外有 ' + badLineCount + ' 行格式不正確將被跳過' : ''}，確定嗎？`)) return;
 
       const btn = document.getElementById('btn-bulk-import-flashcards');

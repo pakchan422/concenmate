@@ -558,36 +558,30 @@
 
       if (btn) { btn.disabled = true; btn.innerText = '⏳ 傳送中...'; }
       try {
-        // 順便攞埋被舉報用家嘅帳號 ID／Email，等管理員唔使再自己查一次
-        // 就知道實際要停權邊個帳戶
-        let targetLoginId = '', targetEmail = '';
+        // 舉報寫入而家改用 Cloud Function（submitReport）做，用 Admin
+        // SDK 寫入 reports，同時套用咗速率限制（同一舉報人 10 分鐘內
+        // 最多 5 次），防止俾人攞嚟濫發舉報滋擾對方、或者洗版管理後台
+        // 嘅舉報清單。查「被舉報用家嘅帳號 ID／Email」呢步都搬咗去伺
+        // 服器度做，前端唔使再自己查一次。
         try {
-          const targetSnap = await window.fs.getDoc(window.fs.doc(window.db, 'users', pendingReportTarget.uid));
-          if (targetSnap.exists()) {
-            const td = targetSnap.data();
-            targetLoginId = td.loginId || '';
-            targetEmail = td.email || '';
+          await window.callCloudFunction('submitReport', {
+            reportedUid: pendingReportTarget.uid,
+            reportedName: pendingReportTarget.name,
+            roomId: state.currentRoomId || '',
+            roomName: (document.getElementById('active-room-title') || {}).innerText || '',
+            reason,
+            notes,
+            screenshot: pendingReportScreenshot || null
+          });
+        } catch (submitErr) {
+          const code = submitErr && (submitErr.code || '');
+          if (typeof code === 'string' && code.indexOf('resource-exhausted') !== -1) {
+            window.showToast(submitErr.message || '舉報次數過多，請稍後再試', '⏳');
+          } else {
+            window.showToast('送出舉報失敗：' + (submitErr.message || submitErr), '❌');
           }
-        } catch (e) {
-          console.error('查詢被舉報用家資料失敗（唔影響舉報送出）:', e);
+          return;
         }
-
-        await window.fs.addDoc(window.fs.collection(window.db, 'reports'), {
-          reporterUid: window.currentUser.uid,
-          reporterName: window.currentUser.username || '同學',
-          reporterLoginId: window.currentUser.loginId || '',
-          reportedUid: pendingReportTarget.uid,
-          reportedName: pendingReportTarget.name,
-          reportedLoginId: targetLoginId,
-          reportedEmail: targetEmail,
-          roomId: state.currentRoomId || '',
-          roomName: (document.getElementById('active-room-title') || {}).innerText || '',
-          reason,
-          notes,
-          screenshot: pendingReportScreenshot || null,
-          status: 'pending',
-          createdAt: Date.now()
-        });
 
         window.showToast('已送出舉報，管理員會盡快跟進，多謝你保障大家的安全 🙏', '🚩');
         window.closeReportModal();
@@ -663,37 +657,56 @@
     }
 
     // 進入房間前檢查人數上限，未滿則寫入自己的 participants 紀錄。回傳 true/false 代表能否加入
+    //
+    // ⚠️ 呢度一定要用 Firestore transaction 嚟做「讀人數 → 判斷夠唔夠位
+    // → 寫入」呢三步，唔可以拆開成兩條獨立嘅 getDocs／setDoc（舊做
+    // 法）：如果拆開，兩個同學幾乎同一時間撳「入房」，就會出現大家
+    // 都喺「讀人數」嗰一刻見到房間仲有位（例如都讀到 3/4），於是兩個
+    // 都通過檢查、都寫低自己個 participants 紀錄，結果房間變成 5 人
+    // 或以上——但畫面格仔佈局同 WebRTC mesh 連線邏輯全部係按固定 4 人
+    // 設計，超出嘅話畫面會冧、連線會錯亂。用 transaction 嘅話，
+    // Firestore 會保證同一時間淨係得一個 transaction 讀到「未過龍」嘅
+    // 狀態並成功寫入，第二個會自動重試、再讀一次已經加咗嘅新人數，
+    // 咁就唔會再過龍。
+    //
+    // 呢度信任 room 文件嘅 participantCount 呢個數字（唔再重新
+    // getDocs 成個 participants 子集合數過一次），因為呢個欄位一直以
+    // 嚟都係跟住加入／退出同步更新（見底下 leaveRoomParticipants 等
+    // 幾處 increment(-1)），而家將「讀呢個數字」同「寫入」夾埋做同一
+    // 個原子操作，先真正杜絕到競態漏洞。
     async function joinRoomParticipants(roomId) {
       const myUid = window.currentUser.uid;
-      const participantsRef = window.fs.collection(window.db, "rooms", roomId, "participants");
+      const roomRef = window.fs.doc(window.db, "rooms", roomId);
+      const participantRef = window.fs.doc(window.db, "rooms", roomId, "participants", myUid);
 
-      const snapshot = await window.fs.getDocs(participantsRef);
-      const existingUids = snapshot.docs.map(d => d.id);
-      const alreadyIn = existingUids.includes(myUid);
+      try {
+        return await window.fs.runTransaction(window.db, async (tx) => {
+          const [roomSnap, participantSnap] = await Promise.all([tx.get(roomRef), tx.get(participantRef)]);
+          const alreadyIn = participantSnap.exists();
+          const currentCount = roomSnap.exists() ? (roomSnap.data().participantCount || 0) : 0;
 
-      if (!alreadyIn && existingUids.length >= ROOM_CAPACITY) {
-        return false; // 房間已滿 4 人，禁止加入
-      }
+          if (!alreadyIn && currentCount >= ROOM_CAPACITY) {
+            return false; // 房間已滿 4 人，禁止加入
+          }
 
-      await window.fs.setDoc(window.fs.doc(window.db, "rooms", roomId, "participants", myUid), {
-        uid: myUid,
-        name: window.currentUser.username || '同學',
-        joinedAt: Date.now(),
-        cameraOn: false
-      });
-
-      // 同步更新房間文件的人數統計，等大廳嘅房間卡片可以即時顯示「👥 X/4 人」
-      if (!alreadyIn) {
-        try {
-          await window.fs.updateDoc(window.fs.doc(window.db, "rooms", roomId), {
-            participantCount: window.fs.increment(1)
+          tx.set(participantRef, {
+            uid: myUid,
+            name: window.currentUser.username || '同學',
+            joinedAt: Date.now(),
+            cameraOn: false
           });
-        } catch (e) {
-          console.error("更新房間人數失敗:", e);
-        }
-      }
 
-      return true;
+          // 同步更新房間文件的人數統計，等大廳嘅房間卡片可以即時顯示「👥 X/4 人」
+          if (!alreadyIn) {
+            tx.update(roomRef, { participantCount: currentCount + 1 });
+          }
+
+          return true;
+        });
+      } catch (e) {
+        console.error("加入房間失敗:", e);
+        return false;
+      }
     }
 
     // 把自己目前鏡頭開／關的狀態寫回 participants 文件，讓其他人看到正確的「鏡頭已關閉」提示

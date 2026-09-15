@@ -20,7 +20,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app-check.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, deleteUser, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs, increment, query, where, orderBy, limit, arrayUnion, arrayRemove, documentId, startAfter } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs, increment, query, where, orderBy, limit, arrayUnion, arrayRemove, documentId, startAfter, runTransaction } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
     import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
     import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-functions.js";
 
@@ -77,7 +77,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
     const cloudFunctions = getFunctions(app, "asia-east1");
 
     window.db = db;
-    window.fs = { doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs, increment, query, where, orderBy, limit, arrayUnion, arrayRemove, documentId, startAfter };
+    window.fs = { doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs, increment, query, where, orderBy, limit, arrayUnion, arrayRemove, documentId, startAfter, runTransaction };
     window.storage = storage;
     window.storageApi = { ref: storageRef, uploadBytes, getDownloadURL, deleteObject };
 
@@ -896,12 +896,23 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       e.preventDefault();
       const loginId = document.getElementById('reg-account-id').value.trim();
       const password = document.getElementById('reg-password').value;
+      const passwordConfirm = document.getElementById('reg-password-confirm').value;
       const username = document.getElementById('reg-username').value.trim();
       const school = document.getElementById('reg-school').value.trim();
       const grade = document.getElementById('reg-grade').value;
       const favSubjects = document.getElementById('reg-fav').value.trim();
       const dislikeSubjects = document.getElementById('reg-dislike').value.trim();
       const contactEmail = document.getElementById('reg-contact-email').value.trim();
+
+      // 兩次密碼輸入要完全一致先俾提交，避免同學打錯字自己都唔知，
+      // 之後登入嗰陣先發現「個密碼點打都錯」（其實係註冊嗰陣打錯咗）。
+      const mismatchHint = document.getElementById('reg-password-mismatch-hint');
+      if (password !== passwordConfirm) {
+        if (mismatchHint) mismatchHint.style.display = 'block';
+        window.showToast('兩次輸入的密碼不一致，請重新確認', '⚠️');
+        return;
+      }
+      if (mismatchHint) mismatchHint.style.display = 'none';
 
       if (!/^[A-Za-z0-9_]{3,20}$/.test(loginId)) {
         window.showToast('帳號 ID 格式要是 3-20 個英文字母／數字／底線', '⚠️');

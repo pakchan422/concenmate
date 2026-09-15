@@ -9,7 +9,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.122.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.124.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -2426,13 +2426,13 @@
             <!-- 扭蛋按鈕（費用已經直接顯示喺掣度，上面嗰個獨立嘅「費用說明」
                  卡已經刪走，唔使同一個資訊喺畫面度出現兩次） -->
             <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
-              <button class="btn btn-primary" type="button" onclick="doGacha('normal')" style="padding:10px 20px; font-size:15px;">
+              <button id="gacha-draw-normal-btn" class="btn btn-primary" type="button" onclick="doGacha('normal')" style="padding:10px 20px; font-size:15px;">
                 抽一次 (<span id="gacha-cost-normal-btn">30</span> PTS)
               </button>
               <!-- 呢兩粒扭蛋掣統一用返 btn-primary（跟 Brand Theme 主色
                    var(--brand-500)），唔再用啡色系嘅 btn-amber，等成個
                    畫面色調一致，hover 轉色亦都跟 .btn-primary:hover。 -->
-              <button class="btn btn-primary" type="button" onclick="doGacha('lucky')" style="padding:10px 20px; font-size:15px;">
+              <button id="gacha-draw-lucky-btn" class="btn btn-primary" type="button" onclick="doGacha('lucky')" style="padding:10px 20px; font-size:15px;">
                 連續抽十次 (<span id="gacha-cost-lucky-btn">270</span> PTS)
               </button>
             </div>
@@ -2618,12 +2618,18 @@
         </div>
 
         <div>
-          <label style="font-size:13px; font-weight:bold; color:#555;">4. 學校名稱 *</label>
+          <label style="font-size:13px; font-weight:bold; color:#555;">4. 確認密碼 *</label>
+          <input type="password" id="reg-password-confirm" class="input-field" required placeholder="請再次輸入相同的密碼">
+          <p id="reg-password-mismatch-hint" style="display:none; font-size:13px; color:#c0392b; margin-top:4px;">⚠️ 兩次輸入的密碼不一致，請重新確認</p>
+        </div>
+
+        <div>
+          <label style="font-size:13px; font-weight:bold; color:#555;">5. 學校名稱 *</label>
           <input type="text" id="reg-school" class="input-field" required placeholder="例如：屯門官立中學">
         </div>
 
         <div>
-          <label style="font-size:13px; font-weight:bold; color:#555;">5. 現時年級 *</label>
+          <label style="font-size:13px; font-weight:bold; color:#555;">6. 現時年級 *</label>
           <select id="reg-grade" class="input-field">
             <option value="中一 (S1)">中一 (S1)</option>
             <option value="中二 (S2)">中二 (S2)</option>
@@ -2637,17 +2643,17 @@
         </div>
 
         <div>
-          <label style="font-size:13px; font-weight:bold; color:#555;">6. 喜愛學科 (可留白)</label>
+          <label style="font-size:13px; font-weight:bold; color:#555;">7. 喜愛學科 (可留白)</label>
           <input type="text" id="reg-fav" class="input-field" placeholder="例如：數學, 物理">
         </div>
 
         <div>
-          <label style="font-size:13px; font-weight:bold; color:#555;">7. 討厭學科 (可留白)</label>
+          <label style="font-size:13px; font-weight:bold; color:#555;">8. 討厭學科 (可留白)</label>
           <input type="text" id="reg-dislike" class="input-field" placeholder="例如：中文範文">
         </div>
 
         <div>
-          <label style="font-size:13px; font-weight:bold; color:#555;">8. 電郵地址 *</label>
+          <label style="font-size:13px; font-weight:bold; color:#555;">9. 電郵地址 *</label>
           <input type="email" id="reg-contact-email" class="input-field" required placeholder="example@school.edu.hk">
           <p style="font-size:13px; color:#999; margin-top:4px;">不會用作登入，但需要進行電郵驗證：提交表格後會收到一封驗證電郵，請點擊當中的連結確認</p>
         </div>
