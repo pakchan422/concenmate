@@ -1149,7 +1149,16 @@
           try {
             verifyResult = await window.callCloudFunction('verifyRoomPassword', { roomId, password: entered });
           } catch (verifyErr) {
-            window.showToast('驗證密碼失敗，請檢查網絡連線後再試', '❌');
+            // 伺服器而家加咗速率限制（見 functions/index.js 嘅
+            // checkRateLimit），短時間內試太多次密碼會拋
+            // resource-exhausted，呢種情況要話畀用戶知係「試得太密」，
+            // 唔係網絡問題，唔好誤導佢去檢查網絡連線
+            const code = verifyErr && (verifyErr.code || '');
+            if (typeof code === 'string' && code.indexOf('resource-exhausted') !== -1) {
+              window.showToast(verifyErr.message || '嘗試次數過多，請稍後再試', '⏳');
+            } else {
+              window.showToast('驗證密碼失敗，請檢查網絡連線後再試', '❌');
+            }
             return false;
           }
           if (!verifyResult || !verifyResult.ok) {

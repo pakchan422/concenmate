@@ -510,10 +510,10 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
     //      嘅用戶改自己密碼，改唔到第二個未登入用戶嘅密碼）。
     //   token 30 分鐘後失效、用完即棄，防止連結流出去俾第二個人執到都
     //   仲用得。
-    // ⚠️ v1 限制：同 verifyRoomPassword 一樣未有速率限制，理論上可以
-    // 短時間內連環噉打 requestPasswordReset 嚟濫發電郵，日後想加固可以
-    // 喺 Cloud Function 度加返「同一帳號 ID／同一 IP 幾多分鐘內只可以
-    // 攞幾次」嘅計數器。
+    // ✅ 已加返速率限制：同一個帳號 ID，1 小時內最多申請 5 次（見
+    // functions/index.js 嘅 checkRateLimit），防止俾人連環噉打
+    // requestPasswordReset 濫發電郵。超咗限制會拋 resource-exhausted，
+    // 落便個 catch 會將伺服器嘅提示訊息直接顯示畀用戶睇。
     window.handleForgotPasswordSubmit = async function(e) {
       e.preventDefault();
       const loginId = (document.getElementById('forgot-account-id').value || '').trim();
