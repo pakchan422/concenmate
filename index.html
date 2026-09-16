@@ -47,7 +47,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.126.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.126.1"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -1586,7 +1586,7 @@
     <div style="max-width:480px; margin:0 auto; display:flex; align-items:stretch; gap:10px;">
       <div style="flex:1; min-width:0; cursor:pointer;" onclick="switchTab('home')" title="看你今日的溫習目標">
         <div style="display:flex; align-items:baseline; justify-content:space-between; gap:6px;">
-          <span style="font-size:13px; font-weight:700; color:#fff; white-space:nowrap;">🎯 今日目標 <span onclick="event.stopPropagation(); openPtsExpInfoModal();" title="PTS 及 EXP 點樣獲得？" style="display:inline-flex; align-items:center; justify-content:center; width:15px; height:15px; border-radius:50%; background:rgba(255,255,255,.35); font-size:11px; font-weight:900; font-style:normal; vertical-align:middle; cursor:pointer;">!</span></span>
+          <span style="font-size:13px; font-weight:700; color:#fff; white-space:nowrap;">🎯 今日目標</span>
           <span id="global-goal-label" style="font-size:13px; color:rgba(255,255,255,.9); white-space:nowrap;">0/60分鐘</span>
         </div>
         <div style="background:rgba(255,255,255,.3); border-radius:99px; height:5px; overflow:hidden; margin-top:3px;">
@@ -1595,7 +1595,10 @@
       </div>
       <div style="width:1px; align-self:stretch; background:rgba(255,255,255,.3); flex-shrink:0;"></div>
       <div style="flex:1; min-width:0; cursor:pointer;" onclick="openLevelInfoModal()" title="看升級詳情">
-        <div id="global-level-badge" style="color:#fff; font-size:13px; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">🌱 Lv.1 溫習新手 · 仍欠 20 EXP 升級</div>
+        <div style="display:flex; align-items:baseline; gap:4px; overflow:hidden;">
+          <span id="global-level-badge" style="color:#fff; font-size:13px; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">🌱 Lv.1 溫習新手 · 仍欠 20 EXP 升級</span>
+          <span onclick="event.stopPropagation(); openPtsExpInfoModal();" title="PTS 及 EXP 點樣獲得？" style="display:inline-flex; align-items:center; justify-content:center; width:15px; height:15px; border-radius:50%; background:rgba(255,255,255,.35); font-size:11px; font-weight:900; font-style:normal; flex-shrink:0; cursor:pointer;">!</span>
+        </div>
         <div style="background:rgba(255,255,255,.3); border-radius:6px; height:5px; margin-top:3px; overflow:hidden;">
           <div id="global-exp-bar" style="background:#fff; height:100%; width:0%; transition:width .4s ease;"></div>
         </div>
