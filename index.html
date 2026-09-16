@@ -47,7 +47,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.126.2"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.127.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -89,9 +89,34 @@
         // 完全冇辦法追蹤係邊行程式碼、咩原因。常見成因包括瀏覽器擴充
         // 功能干擾、手機瀏覽器背景行為等，通常同我哋自己嘅程式碼冇
         // 關，加落嚟純粹擋噪音，唔會擋到真正有用嘅錯誤報告。
-        ignoreErrors: ["Script error.", "Script error"]
+        // 「Connection to Indexed Database server lost.」係 iOS Safari／
+        // Chrome iOS 一個已知嘅瀏覽器層面 bug（WebKit bug #273827，iOS
+        // 17.4 開始出現）：手機背景太耐或者記憶體回收之後，IndexedDB 嘅
+        // 連線會斷咗，導致 Firestore 本地持久化拋出呢個錯誤，唔關我哋
+        // 程式碼事，亦冇得喺程式碼層面完全避免，所以同「Script error.」
+        // 一樣列入雜訊過濾名單，避免洗版；真正嘅使用者提示由下面嘅
+        // unhandledrejection handler 負責。
+        ignoreErrors: ["Script error.", "Script error", "Connection to Indexed Database server lost"]
       });
     };
+  </script>
+
+  <!-- 揭返上面提到嘅 IndexedDB 連線中斷問題：呢個 bug 會令 Firestore
+       嘅所有即時同步（例如房間計時、積分、聊天）默默停咗，用家自己好
+       難察覺，所以加呢個全域 handler 專門攔截，主動彈個提示叫佢哋重
+       新整理頁面，唔使靠佢哋自己發現個功能壞咗先嚟問。 -->
+  <script>
+    window.addEventListener('unhandledrejection', function(event) {
+      const reason = event && event.reason;
+      const msg = reason && (reason.message || (typeof reason === 'string' ? reason : ''));
+      if (typeof msg === 'string' && msg.indexOf('Connection to Indexed Database server lost') !== -1) {
+        if (typeof window.showToast === 'function') {
+          window.showToast('與瀏覽器資料庫失去連線（部分 iOS 裝置已知問題），請重新整理頁面', '🔄');
+        } else {
+          console.warn('IndexedDB 連線中斷，建議重新整理頁面');
+        }
+      }
+    });
   </script>
   <script
     src="https://js.sentry-cdn.com/e8090dad66b95efd4dd99b863a016f9e.min.js"
