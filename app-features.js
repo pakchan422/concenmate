@@ -257,6 +257,13 @@
     }
     window.openLevelInfoModal = openLevelInfoModal;
 
+    // PTS／EXP 獲得方式說明視窗：內容係固定文字，唔需要跟使用者數據
+    // 動態計算，撳落「今日目標」旁邊嘅「!」圖示就會顯示。
+    function openPtsExpInfoModal() {
+      openModal('modal-pts-exp-info');
+    }
+    window.openPtsExpInfoModal = openPtsExpInfoModal;
+
     // ===================== 水獺寵物系統 =====================
     // 「肚餓／餵食」個 Tamagotchi 機制已經應用戶要求整個移除（唔再有
     // 飽足度、唔再有餵食按鈕），主頁「我的水獺」呢張卡而家淨係顯示靜態

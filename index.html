@@ -47,7 +47,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.125.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.126.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -1566,7 +1566,7 @@
     </div>
 
     <div class="user-stats" id="header-user-stats" style="display:none;">
-      <span id="header-level-badge" style="font-weight:bold; color:#4A8FA0;" onclick="switchTab('profile')" title="看你的溫習等級">🌱 Lv.1</span>
+      <span id="header-level-badge" style="font-weight:bold; color:#4A8FA0;">🌱 Lv.1</span>
       <span style="color:#ccc">|</span>
       <span>⏱️ <span id="stat-hours">0.0</span>h</span>
       <span style="color:#ccc">|</span>
@@ -1586,7 +1586,7 @@
     <div style="max-width:480px; margin:0 auto; display:flex; align-items:stretch; gap:10px;">
       <div style="flex:1; min-width:0; cursor:pointer;" onclick="switchTab('home')" title="看你今日的溫習目標">
         <div style="display:flex; align-items:baseline; justify-content:space-between; gap:6px;">
-          <span style="font-size:13px; font-weight:700; color:#fff; white-space:nowrap;">🎯 今日目標</span>
+          <span style="font-size:13px; font-weight:700; color:#fff; white-space:nowrap;">🎯 今日目標 <span onclick="event.stopPropagation(); openPtsExpInfoModal();" title="PTS 及 EXP 點樣獲得？" style="display:inline-flex; align-items:center; justify-content:center; width:15px; height:15px; border-radius:50%; background:rgba(255,255,255,.35); font-size:11px; font-weight:900; font-style:normal; vertical-align:middle; cursor:pointer;">!</span></span>
           <span id="global-goal-label" style="font-size:13px; color:rgba(255,255,255,.9); white-space:nowrap;">0/60分鐘</span>
         </div>
         <div style="background:rgba(255,255,255,.3); border-radius:99px; height:5px; overflow:hidden; margin-top:3px;">
@@ -2857,6 +2857,27 @@
       <div id="level-info-current" style="background:var(--brand-50); border:1px solid var(--brand-200); border-radius:12px; padding:10px 12px; margin:8px 0 12px;"></div>
       <div id="level-info-tiers" style="display:flex; flex-direction:column; gap:8px; max-height:320px; overflow-y:auto;"></div>
       <button class="btn btn-outline" type="button" style="width:100%; justify-content:center; margin-top:14px;" onclick="closeModal('modal-level-info')">關閉</button>
+    </div>
+  </div>
+
+  <!-- PTS／EXP 獲得方式說明視窗：撳置頂狀態列「今日目標」旁邊嘅「!」圖示會彈出 -->
+  <div class="modal-backdrop" id="modal-pts-exp-info" style="display:none;">
+    <div class="modal-box" style="max-width:400px;">
+      <h3 style="font-size:17px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;">💡 PTS 及 EXP 點樣獲得？</h3>
+      <div style="background:var(--brand-50); border:1px solid var(--brand-200); border-radius:12px; padding:12px 14px; margin-bottom:12px;">
+        <div style="font-size:14px; font-weight:bold; color:var(--brand-800); margin-bottom:6px;">🪙 PTS（積分）</div>
+        <ul style="font-size:13px; color:#555; line-height:1.7; margin:0; padding-left:18px;">
+          <li>視訊溫習室內每專注溫習 1 分鐘：+1 PTS</li>
+          <li>學科溫習卡每複習 5 張：+1 PTS</li>
+          <li>視訊溫習室確認「仲喺度」：+2 PTS</li>
+        </ul>
+        <div style="font-size:13px; color:#999; margin-top:6px;">PTS 可用於「時數扭蛋機」抽獎，扭出獎品後會扣除相應 PTS。</div>
+      </div>
+      <div style="background:var(--brand-50); border:1px solid var(--brand-200); border-radius:12px; padding:12px 14px;">
+        <div style="font-size:14px; font-weight:bold; color:var(--brand-800); margin-bottom:6px;">🌱 EXP（經驗值）</div>
+        <div style="font-size:13px; color:#555; line-height:1.7;">每次獲得 PTS 嘅同時，都會獲得同等數量嘅 EXP（例如溫習 1 分鐘 +1 PTS 亦會同時 +1 EXP）。EXP 只升不跌，累積夠指定數量就會升級，記錄你喺 ConcenMate 嘅總溫習成就。</div>
+      </div>
+      <button class="btn btn-outline" type="button" style="width:100%; justify-content:center; margin-top:14px;" onclick="closeModal('modal-pts-exp-info')">關閉</button>
     </div>
   </div>
 
