@@ -264,6 +264,79 @@
     }
     window.openPtsExpInfoModal = openPtsExpInfoModal;
 
+    // ===================== 會員頭像 =====================
+    // 統一畫返頭像嘅共用函數：有上傳過相片（currentUser.avatarBase64）
+    // 就顯示相片，冇就沿用返舊有「用戶名首字母」嘅預設顯示。「編輯個人
+    // 資料」頁面嘅預覽圈、同「我的帳號」資料卡嘅頭像圈，兩邊共用呢個
+    // 函數，確保畫面一致，唔使分開兩份邏輯。
+    function renderUserAvatar() {
+      if (!window.currentUser) return;
+      const initial = (window.currentUser.username || 'U').charAt(0).toUpperCase();
+      const avatarSrc = window.currentUser.avatarBase64;
+      ['prof-avatar-preview', 'myacc-avatar'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (avatarSrc) {
+          el.innerHTML = `<img src="${avatarSrc}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" alt="會員頭像">`;
+        } else {
+          el.innerText = initial;
+        }
+      });
+    }
+    window.renderUserAvatar = renderUserAvatar;
+
+    // 揀完相片之後：先喺瀏覽器度用 canvas 置中裁切做正方形、縮細至
+    // 240x240、壓縮做 JPEG，先傳個 base64 去 uploadAvatar 呢個 Cloud
+    // Function——函數入面會用 Google Cloud Vision 嘅 SafeSearch 檢測
+    // 相片內容，通過先會真正寫入 Firestore，所以呢度一定要等
+    // callCloudFunction 嘅 Promise resolve／reject 先知道結果。
+    window.handleAvatarFileSelected = async function(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      if (!window.currentUser) { window.showToast('請先登入會員', '⚠️'); return; }
+
+      const preview = document.getElementById('prof-avatar-preview');
+      if (preview) preview.innerText = '⏳';
+
+      try {
+        const dataUrl = await new Promise((resolve, reject) => {
+          const img = new Image();
+          const objectUrl = URL.createObjectURL(file);
+          img.onload = () => {
+            const size = 240; // 統一輸出正方形頭像
+            const minSide = Math.min(img.width, img.height);
+            const sx = (img.width - minSide) / 2;
+            const sy = (img.height - minSide) / 2;
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            canvas.getContext('2d').drawImage(img, sx, sy, minSide, minSide, 0, 0, size, size);
+            URL.revokeObjectURL(objectUrl);
+            resolve(canvas.toDataURL('image/jpeg', 0.8));
+          };
+          img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('圖片載入失敗，請更換其他相片')); };
+          img.src = objectUrl;
+        });
+
+        await window.callCloudFunction('uploadAvatar', { image: dataUrl });
+        window.currentUser.avatarBase64 = dataUrl;
+        renderUserAvatar();
+        window.showToast('頭像已成功更新！', '🎉');
+      } catch (err) {
+        const code = err && (err.code || '');
+        if (typeof code === 'string' && code.indexOf('resource-exhausted') !== -1) {
+          window.showToast(err.message || '上傳次數過多，請稍後再試', '⏳');
+        } else if (typeof code === 'string' && code.indexOf('invalid-argument') !== -1) {
+          window.showToast(err.message || '相片不符合要求，請更換其他相片', '🚫');
+        } else {
+          window.showToast('上傳頭像失敗：' + (err.message || err), '❌');
+        }
+        renderUserAvatar();
+      } finally {
+        event.target.value = '';
+      }
+    };
+
     // ===================== 水獺寵物系統 =====================
     // 「肚餓／餵食」個 Tamagotchi 機制已經應用戶要求整個移除（唔再有
     // 飽足度、唔再有餵食按鈕），主頁「我的水獺」呢張卡而家淨係顯示靜態
@@ -789,6 +862,7 @@
         document.getElementById('prof-fav').value = window.currentUser.favSubjects || '';
         document.getElementById('prof-dislike').value = window.currentUser.dislikeSubjects || '';
         if (typeof window.updateProfileEmailVerifyUI === 'function') window.updateProfileEmailVerifyUI();
+        if (typeof window.renderUserAvatar === 'function') window.renderUserAvatar();
 
         switchTab('home');
       } else {
@@ -828,7 +902,7 @@
       const u = window.currentUser;
       const setText = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
 
-      setText('myacc-avatar', (u.username || 'U').charAt(0).toUpperCase());
+      if (typeof window.renderUserAvatar === 'function') window.renderUserAvatar();
       setText('myacc-username', u.username || '同學');
       setText('myacc-loginid', u.loginId ? ('🆔 ' + u.loginId) : '🆔 未設定');
       setText('myacc-email', u.email || '—');

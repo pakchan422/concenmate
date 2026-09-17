@@ -47,7 +47,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.127.1"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.128.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -2314,6 +2314,18 @@
             </div>
 
             <div id="profile-subtab-info">
+              <!-- 頭像上傳：揀相之後即時壓縮並經 uploadAvatar 呢個 Cloud
+                   Function 上傳，函數內部會用 Google Cloud Vision 嘅
+                   SafeSearch 自動偵測相片是否含有不當內容，通過先會真正
+                   寫入 Firestore；呢個上傳動作獨立於下面嘅「儲存個人
+                   資料」表格，揀完相就會即時生效，唔使再撳「儲存」。 -->
+              <div style="text-align:center; margin-bottom:6px;">
+                <div id="prof-avatar-preview" class="avatar-circle" style="margin:0 auto 8px; width:84px; height:84px; font-size:32px; background:var(--brand-500); border-color:var(--brand-200); overflow:hidden;">A</div>
+                <input type="file" id="prof-avatar-input" accept="image/*" style="display:none;" onchange="handleAvatarFileSelected(event)">
+                <button type="button" class="btn btn-outline" style="padding:6px 14px; font-size:13px;" onclick="document.getElementById('prof-avatar-input').click()">📷 更換頭像</button>
+                <p style="font-size:12px; color:#999; margin-top:6px; line-height:1.5;">上傳後會經系統自動檢測，如相片含有不當內容將會被拒絕。</p>
+              </div>
+
               <form id="profile-form" onsubmit="saveUserProfile(event)" style="display:flex; flex-direction:column; gap:12px;">
                 <div>
                   <label style="font-size:13px; font-weight:bold; color:#555; display:block;">會員帳號名稱 (Username)</label>
@@ -2904,9 +2916,9 @@
       <div style="background:var(--brand-50); border:1px solid var(--brand-200); border-radius:12px; padding:12px 14px;">
         <div style="font-size:14px; font-weight:bold; color:var(--brand-800); margin-bottom:6px;">🌱 EXP（經驗值）</div>
         <ul style="font-size:13px; color:#555; line-height:1.7; margin:0; padding-left:18px;">
-          <li>每次獲得 PTS 的同時，會獲得同等數量的 EXP（例如溫習 1 分鐘 +1 PTS，同時亦會 +1 EXP）</li>
-          <li>EXP 只升不跌，用於記錄你在 ConcenMate 的總溫習成就</li>
-          <li>累積足夠 EXP 即可升級</li>
+          <li>每次獲得 PTS，都會同時獲得同等數量的 EXP</li>
+          <li>EXP 只升不跌，記錄你的總溫習成就</li>
+          <li>累積足夠即可升級</li>
         </ul>
       </div>
       <button class="btn btn-outline" type="button" style="width:100%; justify-content:center; margin-top:14px;" onclick="closeModal('modal-pts-exp-info')">關閉</button>
