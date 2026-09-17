@@ -277,7 +277,11 @@
         const el = document.getElementById(id);
         if (!el) return;
         if (avatarSrc) {
-          el.innerHTML = `<img src="${avatarSrc}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" alt="會員頭像">`;
+          // 「我的帳號」資料卡嗰個頭像圈可以撳大睇（複用返 QA 相片嗰個
+          // lightbox），編輯頁面嗰個細預覽圈就唔使畀人撳（揀相／換相已
+          // 經有專用嘅「更換頭像」掣，撳個預覽圈冇意義）。
+          const clickable = id === 'myacc-avatar';
+          el.innerHTML = `<img src="${avatarSrc}" style="width:100%; height:100%; object-fit:cover; border-radius:50%; ${clickable ? 'cursor:zoom-in;' : ''}" alt="會員頭像"${clickable ? ` onclick="openLightbox('${avatarSrc}')"` : ''}>`;
         } else {
           el.innerText = initial;
         }
