@@ -785,6 +785,12 @@
     // 唔同（例如朋友嗰邊冇「發佈相片」掣，多咗「追蹤」掣同「返回我的
     // 溫習日記」連結）。
     let _diaryViewUid = null;
+    // 而家「溫習日記」分頁顯示緊邊個嘅 uid：睇緊自己就傳返自己個 uid，
+    // 睇緊朋友就傳返嗰位朋友嘅 uid。畀 diary-follower-count／
+    // diary-following-count 嗰兩粒可撳嘅數字用（見 openFollowListModal()）。
+    window.getCurrentDiaryUid = function() {
+      return _diaryViewUid || (window.currentUser && window.currentUser.uid) || null;
+    };
 
     async function openDiaryView(uid) {
       _diaryViewUid = (uid && window.currentUser && uid !== window.currentUser.uid) ? uid : null;
@@ -855,6 +861,58 @@
       }
     }
     window.openDiaryView = openDiaryView;
+
+    // ===================== 粉絲／追蹤中名單 =====================
+    // 撳「溫習日記」（或「我的帳號」／朋友資料卡）入面嘅粉絲／追蹤中數字，
+    // 彈出一個名單：每行顯示對方頭像（撳到放大）同用戶名（撳到彈出佢個
+    // 人資料卡）。type 係 'followers'（邊個追蹤緊呢位用戶）或者
+    // 'following'（呢位用戶追蹤緊邊個）。
+    window.openFollowListModal = async function(uid, type) {
+      if (!uid || !window.db || !window.fs) return;
+      const titleEl = document.getElementById('follow-list-title');
+      const listEl = document.getElementById('follow-list-container');
+      if (titleEl) titleEl.innerText = type === 'following' ? '追蹤中名單' : '粉絲名單';
+      if (listEl) listEl.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:20px;">🔄 載入中...</p>';
+      openModal('modal-follow-list');
+
+      try {
+        const { collection, query, where, getDocs } = window.fs;
+        const field = type === 'following' ? 'followerUid' : 'followedUid';
+        const snap = await getDocs(query(collection(window.db, 'follows'), where(field, '==', uid)));
+
+        if (snap.empty) {
+          if (listEl) listEl.innerHTML = `<p style="text-align:center; color:#999; font-size:13px; padding:20px;">${type === 'following' ? '未有追蹤緊任何書伴' : '仲未有粉絲'}</p>`;
+          return;
+        }
+
+        const counterpartField = type === 'following' ? 'followedUid' : 'followerUid';
+        const counterpartUids = snap.docs.map(d => d.data()[counterpartField]).filter(Boolean);
+
+        const userSnaps = await Promise.all(
+          counterpartUids.map(cuid => window.fs.getDoc(window.fs.doc(window.db, 'users', cuid)))
+        );
+
+        let html = '';
+        userSnaps.forEach((uSnap, i) => {
+          if (!uSnap.exists()) return;
+          const u = uSnap.data();
+          const cuid = counterpartUids[i];
+          const name = u.username || '同學';
+          const avatarInner = u.avatarBase64
+            ? `<img src="${u.avatarBase64}" style="width:100%; height:100%; object-fit:cover; border-radius:50%; cursor:zoom-in;" alt="會員頭像" onclick="event.stopPropagation(); openLightbox('${u.avatarBase64}', true)">`
+            : `${(name || '同').charAt(0).toUpperCase()}`;
+          html += `
+            <div style="display:flex; align-items:center; gap:10px; padding:6px 4px;">
+              <div class="avatar-circle" style="width:40px; height:40px; font-size:16px; background:var(--brand-500); border-color:var(--brand-200); flex-shrink:0;">${avatarInner}</div>
+              <span style="font-size:14px; font-weight:bold; color:var(--brand-800); cursor:pointer;" onclick="closeModal('modal-follow-list'); viewUserProfile('${cuid}');">${escapeHtml(name)}</span>
+            </div>`;
+        });
+        if (listEl) listEl.innerHTML = html || `<p style="text-align:center; color:#999; font-size:13px; padding:20px;">找不到相關用戶資料</p>`;
+      } catch (e) {
+        console.error('讀取名單失敗:', e);
+        if (listEl) listEl.innerHTML = '<p style="text-align:center; color:#D9764A; font-size:13px; padding:20px;">讀取名單失敗，請稍後再試</p>';
+      }
+    };
 
     // ===================== 水獺寵物系統 =====================
     // 「肚餓／餵食」個 Tamagotchi 機制已經應用戶要求整個移除（唔再有
@@ -2518,12 +2576,18 @@
 
     // 撳個名／頭像開返呢位用家的資料卡；如果撳的是自己就直接開「我的帳號」，
     // 不用再顯示多一次自己的資料。
+    // 記住而家「查看朋友資料卡」個視窗顯示緊邊個 uid，畀 pop-follower-count
+    // 嗰粒可撳嘅粉絲數字用（見 getCurrentPopUid() / openFollowListModal()）
+    let _popViewUid = null;
+    window.getCurrentPopUid = function() { return _popViewUid; };
+
     async function viewUserProfile(uid) {
       if (!uid) return;
       if (window.currentUser && uid === window.currentUser.uid) {
         if (typeof window.openMyAccountModal === 'function') window.openMyAccountModal();
         return;
       }
+      _popViewUid = uid;
 
       const nameEl = document.getElementById('pop-user-name');
       const actionsEl = document.getElementById('pop-user-friend-actions');
