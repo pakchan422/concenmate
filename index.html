@@ -47,7 +47,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.128.1"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.130.3"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -803,6 +803,8 @@
        全螢幕先撳得到。 */
     .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 16px; backdrop-filter: blur(4px); }
     .modal-box { background: white; border-radius: 20px; padding: 20px; max-width: 440px; width: 100%; border: 2px solid var(--brand-200); max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+    /* 頭像放大燈箱專用：以圓形顯示（一般相片放大燈箱維持返矩形，唔套呢個 class） */
+    .lightbox-img-circle { border-radius: 50% !important; width: min(70vw, 70vh); height: min(70vw, 70vh); max-width: 360px; max-height: 360px; object-fit: cover; }
 
     .card { background: white; border-radius: 16px; padding: 14px; border: 1px solid var(--brand-200); margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
     .tag { background: var(--brand-100); color: var(--brand-800); font-size: 13px; font-weight: bold; padding: 2px 6px; border-radius: 6px; }
@@ -1581,7 +1583,7 @@
   <div id="app-top-sticky">
   <header>
     <div class="logo-box" onclick="switchTab('home')">
-      <div class="logo-avatar" style="background:transparent; border:none; padding:0; width:40px; height:40px;"><img src="logo.png" width="36" height="36" alt="ConcenMate" style="border-radius:50%; object-fit:cover;"></div>
+      <div class="logo-avatar" style="background:transparent; border:none; padding:0; width:40px; height:40px;"><img id="header-logo-img" src="logo.png" width="36" height="36" alt="ConcenMate" style="border-radius:50%; object-fit:cover;"></div>
       <div>
         <div style="display:flex; align-items:center; gap:4px;">
           <span class="logo-title">ConcenMate</span>
@@ -1643,6 +1645,7 @@
         <button class="nav-btn" id="nav-btn-vip" type="button" onclick="switchTab('vip', this)"><span class="nav-icon" id="nav-icon-vip">👑</span> <span class="nav-text">溫習資源</span></button>
         <button class="nav-btn" id="nav-btn-store" type="button" onclick="switchTab('store', this)"><span class="nav-icon" id="nav-icon-store">🎁</span> <span class="nav-text">時數扭蛋機</span></button>
         <button class="nav-btn" id="nav-btn-social" type="button" onclick="switchTab('social', this)"><span class="nav-icon" id="nav-icon-social">👥</span> <span class="nav-text">夥伴與讀書會</span> <span class="home-sec-badge" id="nav-social-badge" style="display:none; margin-left:auto;"></span></button>
+        <button class="nav-btn" id="nav-btn-diary" type="button" onclick="switchTab('diary', this)"><span class="nav-icon" id="nav-icon-diary">📔</span> <span class="nav-text">溫習日記</span></button>
         <button class="nav-btn" id="nav-btn-verification" type="button" onclick="switchTab('verification', this)"><span class="nav-icon" id="nav-icon-verification">🎓</span> <span class="nav-text">學生身份驗證</span></button>
       </div>
     </aside>
@@ -1685,7 +1688,7 @@
           <!-- ── Hero 歡迎列 ── -->
           <div class="home-hero">
             <div class="home-hero-left">
-              <img src="logo.png" width="52" height="52" alt="ConcenMate"
+              <img id="home-hero-avatar" src="logo.png" width="52" height="52" alt="ConcenMate"
                 style="border-radius:50%; object-fit:cover; flex-shrink:0; border:2px solid rgba(255,255,255,.4);">
               <div>
                 <div class="home-hero-greeting">你好，<span id="home-username">同學</span>👋</div>
@@ -2594,6 +2597,45 @@
 
         </section>
 
+        <!-- 溫習日記：Instagram 式嘅個人溫習相片頁面（相片牆／粉絲／追蹤）。
+             預設顯示自己嘅溫習日記；如果係由「查看朋友資料卡」入面撳
+             「查看溫習日記」入嚟，就會顯示緊嗰位朋友嘅溫習日記（見
+             openDiaryView()），呢陣會隱藏發佈掣、顯示追蹤掣同「返回我的
+             溫習日記」連結。 -->
+        <section id="tab-diary" class="tab-content">
+
+          <div id="diary-back-to-self" style="display:none; margin-bottom:10px;">
+            <button class="btn btn-outline" type="button" style="width:100%; justify-content:center; font-size:13px;" onclick="switchTab('diary', null, null)">← 返回我的溫習日記</button>
+          </div>
+
+          <div class="card" style="text-align:center;">
+            <div class="avatar-circle" style="margin:0 auto 10px; width:64px; height:64px; font-size:26px; background:var(--brand-500); border-color:var(--brand-200);" id="diary-avatar">A</div>
+            <h3 style="font-size:17px; font-weight:bold; color:var(--brand-800);" id="diary-username">同學</h3>
+
+            <div style="display:flex; align-items:center; justify-content:center; gap:20px; margin:10px 0; font-size:13px; color:#555;">
+              <div><strong id="diary-photo-count" style="font-size:16px; color:var(--brand-800);">0</strong><br>相片</div>
+              <div><strong id="diary-follower-count" style="font-size:16px; color:var(--brand-800);">0</strong><br>粉絲</div>
+              <div><strong id="diary-following-count" style="font-size:16px; color:var(--brand-800);">0</strong><br>追蹤中</div>
+            </div>
+
+            <div id="diary-follow-btn-wrap" style="display:none; margin-bottom:10px;"></div>
+
+            <div id="diary-upload-section">
+              <input type="file" id="diary-photo-input" accept="image/*" style="display:none;" onchange="handleStudyPhotoFileSelected(event)">
+              <button id="diary-photo-upload-btn" class="btn btn-primary" type="button" style="width:100%; justify-content:center; margin-bottom:6px;" onclick="handlePostPhotoButtonClick()">➕ 發佈今日溫習相片</button>
+              <p style="font-size:12px; color:#999;">每日限發佈一張，需條件：在視訊溫習室累積溫習滿 15 分鐘</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;" id="diary-photos-heading">📔 我的溫習相片</h3>
+            <div id="diary-photo-grid" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; margin-bottom:8px;"></div>
+            <p id="diary-photo-empty" style="font-size:13px; color:#999; text-align:center; padding:10px; display:none;">仲未發佈過溫習相片</p>
+            <button id="diary-photo-more-btn" class="btn btn-outline" type="button" style="width:100%; justify-content:center; font-size:13px; padding:6px; display:none;" onclick="loadMorePhotos('diary')">📷 更多</button>
+          </div>
+
+        </section>
+
         <section id="tab-verification" class="tab-content">
           <div style="text-align:center; padding:60px 20px;">
             <div style="font-size:64px; margin-bottom:16px;">🚧</div>
@@ -2815,6 +2857,16 @@
 
       <div id="pop-user-friend-actions" style="margin-bottom:12px; min-height:20px;"></div>
 
+      <!-- Instagram 式溫習相片：呢度淨係顯示簡要數字 + 追蹤掣，撳「查看
+           溫習日記」先去獨立嘅「溫習日記」分頁睇呢位同學嘅完整相片牆
+           （見 tab-diary 同 openDiaryView()）。 -->
+      <div style="display:flex; align-items:center; justify-content:center; gap:18px; margin-bottom:10px; font-size:13px; color:#555;">
+        <div><strong id="pop-photo-count" style="font-size:15px; color:var(--brand-800);">0</strong><br>相片</div>
+        <div><strong id="pop-follower-count" style="font-size:15px; color:var(--brand-800);">0</strong><br>粉絲</div>
+      </div>
+      <div id="pop-follow-btn-wrap" style="margin-bottom:8px;"></div>
+      <div id="pop-diary-btn-wrap" style="margin-bottom:12px;"></div>
+
       <button class="btn btn-outline" type="button" style="width:100%; justify-content:center;" onclick="closeModal('modal-view-profile')">關閉資料卡</button>
     </div>
   </div>
@@ -2861,8 +2913,16 @@
     <div class="modal-box" style="text-align:center;">
       <div class="avatar-circle" style="margin:0 auto 10px; width:64px; height:64px; font-size:26px; background:var(--brand-500); border-color:var(--brand-200);" id="myacc-avatar">A</div>
       <h3 style="font-size:18px; font-weight:bold; color:var(--brand-800);" id="myacc-username">同學</h3>
-      <p style="font-size:13px; color:#888; margin-bottom:2px;" id="myacc-loginid"></p>
-      <p style="font-size:13px; color:#888; margin-bottom:8px;" id="myacc-email"></p>
+      <p style="font-size:13px; color:#888; margin-bottom:8px;" id="myacc-loginid"></p>
+
+      <!-- Instagram 式溫習相片：自己嘅完整相片牆／發佈相片已經有側邊欄
+           「📔 溫習日記」分頁可以直接去到，呢度資料卡淨係顯示簡要數字，
+           唔再重複擺多一個入口掣。 -->
+      <div style="display:flex; align-items:center; justify-content:center; gap:16px; margin-bottom:14px; font-size:13px; color:#555;">
+        <div><strong id="myacc-photo-count" style="font-size:15px; color:var(--brand-800);">0</strong><br>相片</div>
+        <div><strong id="myacc-follower-count" style="font-size:15px; color:var(--brand-800);">0</strong><br>粉絲</div>
+        <div><strong id="myacc-following-count" style="font-size:15px; color:var(--brand-800);">0</strong><br>追蹤中</div>
+      </div>
 
       <div style="margin-bottom:12px;">
         <div id="myacc-level-badge" style="font-size:15px; font-weight:bold;">🌱 Lv.1 溫習新手</div>
@@ -3038,9 +3098,27 @@
     </div>
   </div>
 
-  <!-- 圖片放大燈箱 -->
+  <!-- 頭像調整（拖曳定位 + 縮放）視窗：揀完相片之後、真正上傳之前，等用戶
+       自己調校邊部分放喺圓形頭像入面，避免自動置中裁切裁走想要嘅部分。 -->
+  <div class="modal-backdrop" id="modal-avatar-crop" style="display:none;">
+    <div class="modal-box" style="max-width:340px; text-align:center;">
+      <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); margin-bottom:12px;">📷 調整頭像位置</h3>
+      <div id="avatar-crop-viewport" style="position:relative; width:260px; height:260px; margin:0 auto 14px; border-radius:50%; overflow:hidden; background:#eee; cursor:grab; touch-action:none;">
+        <img id="avatar-crop-img" src="" alt="" draggable="false" style="position:absolute; left:0; top:0; transform-origin:top left; user-select:none; pointer-events:none;">
+      </div>
+      <input type="range" id="avatar-crop-zoom" min="100" max="300" value="100" style="width:100%; margin-bottom:4px;" oninput="onAvatarCropZoomChange(this.value)">
+      <p style="font-size:12px; color:#999; margin-bottom:16px;">拖曳相片調整位置，並使用滑桿調整縮放</p>
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-outline" type="button" style="flex:1; justify-content:center;" onclick="cancelAvatarCrop()">取消</button>
+        <button class="btn btn-primary" type="button" style="flex:1; justify-content:center;" onclick="confirmAvatarCrop()">✅ 確認上傳</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 圖片放大燈箱：z-index 要高過 .modal-backdrop（10000），否則喺「我的帳號」
+       等資料卡入面撳相片放大時，個燈箱會被資料卡本身遮住（睇落好似冇反應）。 -->
   <div id="qa-lightbox" onclick="document.getElementById('qa-lightbox').style.display='none'"
-    style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.85); z-index:9999;
+    style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.85); z-index:10050;
            align-items:center; justify-content:center; cursor:zoom-out;">
     <img id="qa-lightbox-img" src="" alt=""
       style="max-width:92vw; max-height:92vh; border-radius:10px; object-fit:contain;
