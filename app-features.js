@@ -678,6 +678,8 @@
         setText('diary-follower-count', window.currentUser.followerCount || 0);
         setText('diary-following-count', window.currentUser.followingCount || 0);
         setText('diary-username', window.currentUser.username || '同學');
+        setText('home-stat-followers', window.currentUser.followerCount || 0);
+        setText('home-stat-following', window.currentUser.followingCount || 0);
         updatePhotoUploadButtonState();
       };
       applyStats();
@@ -809,6 +811,13 @@
         if (wrap) wrap.innerHTML = `<button class="btn btn-outline" type="button" style="width:100%; justify-content:center; font-size:13px;" onclick="unfollowUserAction('${targetUid}', '${wrapId}')">✅ 已追蹤（撳此取消）</button>`;
         const countEl = document.getElementById(_followCountIdFor(wrapId));
         if (countEl) countEl.innerText = (parseInt(countEl.innerText, 10) || 0) + 1;
+        // 追蹤緊嘅係自己嘅「追蹤中」數，唔係對方嘅「粉絲」數——呢兩個
+        // 欄位要分開處理，所以呢度額外更新返自己個「追蹤中」顯示
+        window.currentUser.followingCount = (window.currentUser.followingCount || 0) + 1;
+        ['home-stat-following', 'myacc-following-count', 'diary-following-count'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.innerText = window.currentUser.followingCount;
+        });
         window.showToast('已追蹤呢位書伴！', '🤝');
       } catch (e) {
         window.showToast('追蹤失敗：' + (e.message || e), '❌');
@@ -824,6 +833,11 @@
         if (wrap) wrap.innerHTML = `<button class="btn btn-primary" type="button" style="width:100%; justify-content:center; font-size:13px;" onclick="followUserAction('${targetUid}', '${wrapId}')">➕ 追蹤書伴</button>`;
         const countEl = document.getElementById(_followCountIdFor(wrapId));
         if (countEl) countEl.innerText = Math.max(0, (parseInt(countEl.innerText, 10) || 0) - 1);
+        window.currentUser.followingCount = Math.max(0, (window.currentUser.followingCount || 0) - 1);
+        ['home-stat-following', 'myacc-following-count', 'diary-following-count'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.innerText = window.currentUser.followingCount;
+        });
         window.showToast('已取消追蹤', 'ℹ️');
       } catch (e) {
         window.showToast('取消追蹤失敗：' + (e.message || e), '❌');
@@ -1461,9 +1475,13 @@
         const homeUser = document.getElementById('home-username');
         const homeHours = document.getElementById('home-stat-hours');
         const homePts = document.getElementById('home-stat-pts');
+        const homeFollowers = document.getElementById('home-stat-followers');
+        const homeFollowing = document.getElementById('home-stat-following');
         if (homeUser) homeUser.innerText = displayName;
         if (homeHours) homeHours.innerText = formatHoursMinutes(window.currentUser.hours);
         if (homePts) homePts.innerText = window.currentUser.points ?? 0;
+        if (homeFollowers) homeFollowers.innerText = window.currentUser.followerCount || 0;
+        if (homeFollowing) homeFollowing.innerText = window.currentUser.followingCount || 0;
         if (typeof window.renderUserAvatar === 'function') window.renderUserAvatar();
 
         // 溫習日曆／連續溫習日數：淨係靠「有冇入過視訊溫習室」呢個記錄

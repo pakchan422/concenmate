@@ -47,7 +47,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.131.2"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.131.3"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -1715,6 +1715,20 @@
                 <div>
                   <div class="home-stat-val" id="home-stat-streak">1</div>
                   <div class="home-stat-label">連續天</div>
+                </div>
+              </div>
+              <div class="home-stat-pill" style="cursor:pointer;" onclick="openFollowListModal(window.currentUser && window.currentUser.uid, 'followers')" title="查看粉絲名單">
+                <span class="home-stat-icon">👥</span>
+                <div>
+                  <div class="home-stat-val" id="home-stat-followers">0</div>
+                  <div class="home-stat-label">粉絲</div>
+                </div>
+              </div>
+              <div class="home-stat-pill" style="cursor:pointer;" onclick="openFollowListModal(window.currentUser && window.currentUser.uid, 'following')" title="查看追蹤中名單">
+                <span class="home-stat-icon">➕</span>
+                <div>
+                  <div class="home-stat-val" id="home-stat-following">0</div>
+                  <div class="home-stat-label">追蹤中</div>
                 </div>
               </div>
             </div>
