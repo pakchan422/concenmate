@@ -385,30 +385,82 @@
       const vp = document.getElementById('avatar-crop-viewport');
       if (!vp || vp._dragHandlersBound) return;
       vp._dragHandlersBound = true;
+
+      // 用 Map 追蹤所有現正按住嘅手指（pointerId -> {x,y}），咁先可以分辨單指拖拉同雙指縮放
+      const activePointers = new Map();
+      let pinchStartDist = 0;
+      let pinchStartZoom = 1;
+
+      const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+
       vp.addEventListener('pointerdown', (e) => {
         if (!_avatarCropState) return;
-        _avatarCropState.dragging = true;
-        _avatarCropState.dragStartX = e.clientX;
-        _avatarCropState.dragStartY = e.clientY;
-        _avatarCropState.startOffsetX = _avatarCropState.offsetX;
-        _avatarCropState.startOffsetY = _avatarCropState.offsetY;
         vp.setPointerCapture(e.pointerId);
-        vp.style.cursor = 'grabbing';
+        activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+        if (activePointers.size === 2) {
+          // 由單指拖拉切換去雙指縮放：記低開始時嘅兩指距離同當時嘅 zoom
+          _avatarCropState.dragging = false;
+          const pts = Array.from(activePointers.values());
+          pinchStartDist = dist(pts[0], pts[1]);
+          pinchStartZoom = _avatarCropState.zoom;
+        } else if (activePointers.size === 1) {
+          _avatarCropState.dragging = true;
+          _avatarCropState.dragStartX = e.clientX;
+          _avatarCropState.dragStartY = e.clientY;
+          _avatarCropState.startOffsetX = _avatarCropState.offsetX;
+          _avatarCropState.startOffsetY = _avatarCropState.offsetY;
+          vp.style.cursor = 'grabbing';
+        }
       });
+
       vp.addEventListener('pointermove', (e) => {
-        if (!_avatarCropState || !_avatarCropState.dragging) return;
-        _avatarCropState.offsetX = _avatarCropState.startOffsetX + (e.clientX - _avatarCropState.dragStartX);
-        _avatarCropState.offsetY = _avatarCropState.startOffsetY + (e.clientY - _avatarCropState.dragStartY);
-        renderAvatarCropTransform();
+        if (!_avatarCropState || !activePointers.has(e.pointerId)) return;
+        activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+        if (activePointers.size >= 2) {
+          // 雙指縮放
+          const pts = Array.from(activePointers.values());
+          const curDist = dist(pts[0], pts[1]);
+          if (pinchStartDist > 0) {
+            let newZoom = pinchStartZoom * (curDist / pinchStartDist);
+            newZoom = Math.min(3, Math.max(1, newZoom));
+            _avatarCropState.zoom = newZoom;
+            const zoomSlider = document.getElementById('avatar-crop-zoom');
+            if (zoomSlider) zoomSlider.value = Math.round(newZoom * 100);
+            renderAvatarCropTransform();
+          }
+        } else if (_avatarCropState.dragging) {
+          // 單指拖拉
+          _avatarCropState.offsetX = _avatarCropState.startOffsetX + (e.clientX - _avatarCropState.dragStartX);
+          _avatarCropState.offsetY = _avatarCropState.startOffsetY + (e.clientY - _avatarCropState.dragStartY);
+          renderAvatarCropTransform();
+        }
       });
-      const endDrag = () => {
+
+      const endPointer = (e) => {
         if (!_avatarCropState) return;
-        _avatarCropState.dragging = false;
-        vp.style.cursor = 'grab';
+        activePointers.delete(e.pointerId);
+
+        if (activePointers.size === 1) {
+          // 由雙指縮放返去剩返單指：重設拖拉起始點，避免影像跳位
+          const remaining = Array.from(activePointers.entries())[0];
+          const pid = remaining[0], pt = remaining[1];
+          _avatarCropState.dragging = true;
+          _avatarCropState.dragStartX = pt.x;
+          _avatarCropState.dragStartY = pt.y;
+          _avatarCropState.startOffsetX = _avatarCropState.offsetX;
+          _avatarCropState.startOffsetY = _avatarCropState.offsetY;
+          pinchStartDist = 0;
+        } else if (activePointers.size === 0) {
+          _avatarCropState.dragging = false;
+          vp.style.cursor = 'grab';
+          pinchStartDist = 0;
+        }
       };
-      vp.addEventListener('pointerup', endDrag);
-      vp.addEventListener('pointercancel', endDrag);
-      vp.addEventListener('pointerleave', endDrag);
+      vp.addEventListener('pointerup', endPointer);
+      vp.addEventListener('pointercancel', endPointer);
+      vp.addEventListener('pointerleave', endPointer);
     }
 
     window.onAvatarCropZoomChange = function(val) {

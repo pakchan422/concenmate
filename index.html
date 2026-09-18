@@ -47,7 +47,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.131.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.131.2"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -1611,7 +1611,7 @@
   <!-- 全站置頂嘅「今日目標 + 等級／EXP」合併狀態列：唔理揭緊邊個分頁都見到，登入先顯示 -->
   <div id="global-status-bar" style="display:none; background:linear-gradient(135deg, #4A8FA0, #7DB8C5); padding:6px 16px;">
     <div style="max-width:480px; margin:0 auto; display:flex; align-items:stretch; gap:10px;">
-      <div style="flex:1; min-width:0; cursor:pointer;" onclick="switchTab('home')" title="看你今日的溫習目標">
+      <div style="flex:1; min-width:0;">
         <div style="display:flex; align-items:baseline; justify-content:space-between; gap:6px;">
           <span style="font-size:13px; font-weight:700; color:#fff; white-space:nowrap;">🎯 今日目標</span>
           <span id="global-goal-label" style="font-size:13px; color:rgba(255,255,255,.9); white-space:nowrap;">0/60分鐘</span>
@@ -1720,88 +1720,6 @@
             </div>
           </div>
 
-          <!-- ── 我的水獺 Ottiee（寵物系統）── -->
-          <div class="card" id="otter-pet-card" style="text-align:center; position:relative;">
-            <button type="button" onclick="openOtterRenameModal()" title="自訂我的水獺" style="position:absolute; top:8px; right:8px; background:none; border:none; cursor:pointer; font-size:16px; padding:4px; color:#7DB8C5; line-height:1;">✏️</button>
-            <h3 style="font-size:15px; font-weight:bold; margin-bottom:6px; color:var(--brand-800); display:flex; align-items:center; justify-content:center; gap:6px;">
-              🦦 <span id="otter-name-display">Ottiee</span>
-            </h3>
-            <div id="otter-pet-wrap" class="otter-mood-happy" style="display:inline-block; margin:4px 0;">
-              <!-- 管理員如果有上傳自訂水獺相片，會優先顯示呢張相，取代下面嘅插畫 -->
-              <img id="otter-photo-img" style="display:none; max-width:150px; max-height:150px; width:auto; height:auto; object-fit:contain;" alt="我的水獺">
-              <!-- 管理員未上傳呢個等級嘅相片時，顯示呢個簡單佔位圖示，唔會用返預設插畫 -->
-              <div id="otter-blank-placeholder" style="display:none; width:120px; height:120px; border-radius:50%; background:#EFEAE0; border:3px solid #C08B57; box-shadow:0 2px 10px rgba(0,0,0,.15); align-items:center; justify-content:center; font-size:44px;">🦦</div>
-              <svg id="otter-pet-svg" width="120" height="120" viewBox="0 0 140 140" style="display:none;">
-                <!-- 尾巴 -->
-                <ellipse cx="112" cy="100" rx="18" ry="10" fill="#A9764F" transform="rotate(25 112 100)"/>
-                <!-- 身體 -->
-                <ellipse cx="70" cy="80" rx="46" ry="42" fill="#C08B57"/>
-                <!-- 肚仔 -->
-                <ellipse cx="70" cy="92" rx="28" ry="26" fill="#F3E2C7"/>
-                <!-- 前腳 -->
-                <ellipse cx="50" cy="112" rx="11" ry="8" fill="#C08B57"/>
-                <ellipse cx="90" cy="112" rx="11" ry="8" fill="#C08B57"/>
-                <!-- 耳仔 -->
-                <circle cx="42" cy="38" r="12" fill="#A9764F"/>
-                <circle cx="98" cy="38" r="12" fill="#A9764F"/>
-                <circle cx="42" cy="38" r="6" fill="#7A5636"/>
-                <circle cx="98" cy="38" r="6" fill="#7A5636"/>
-                <!-- 頭 -->
-                <ellipse cx="70" cy="55" rx="34" ry="30" fill="#C08B57"/>
-                <ellipse cx="70" cy="64" rx="20" ry="15" fill="#F3E2C7"/>
-                <!-- 鼻仔 -->
-                <ellipse cx="70" cy="60" rx="4" ry="3" fill="#5C3A22"/>
-                <!-- 開心表情 -->
-                <g id="otter-face-happy">
-                  <circle cx="58" cy="50" r="4" fill="#3A2A1B"/>
-                  <circle cx="82" cy="50" r="4" fill="#3A2A1B"/>
-                  <circle cx="50" cy="60" r="5" fill="#F2A9A0" opacity=".6"/>
-                  <circle cx="90" cy="60" r="5" fill="#F2A9A0" opacity=".6"/>
-                  <path d="M62 68 Q70 75 78 68" stroke="#5C3A22" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-                </g>
-                <!-- 普通表情 -->
-                <g id="otter-face-neutral" style="display:none;">
-                  <circle cx="58" cy="50" r="4" fill="#3A2A1B"/>
-                  <circle cx="82" cy="50" r="4" fill="#3A2A1B"/>
-                  <path d="M63 70 L77 70" stroke="#5C3A22" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-                </g>
-                <!-- 肚餓表情 -->
-                <g id="otter-face-hungry" style="display:none;">
-                  <path d="M53 48 Q58 53 63 48" stroke="#3A2A1B" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-                  <path d="M77 48 Q82 53 87 48" stroke="#3A2A1B" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-                  <path d="M62 76 Q70 69 78 76" stroke="#5C3A22" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-                  <ellipse cx="48" cy="58" rx="2.5" ry="4.5" fill="#7FC7E0" opacity=".85"/>
-                </g>
-              </svg>
-            </div>
-            <!-- 寵物「肚餓/餵食」機制已經移除，改成顯示呢幾個同「溫習成就」
-                 有關嘅實用數據：等級、升級所需 EXP、累積時數、連續溫習
-                 天數、貼紙圖鑑完成度。呢幾個欄位由 updateOtterStatsCard()
-                 統一更新（見下面 JS）。 -->
-            <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:4px; margin-top:10px; max-width:520px; margin-left:auto; margin-right:auto;">
-              <div style="min-width:0;">
-                <div id="otter-stat-level" style="font-size:clamp(13px,3.8vw,17px); font-weight:bold; color:#1E4550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">🌱 Lv.1</div>
-                <div style="font-size:11px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">等級</div>
-              </div>
-              <div style="min-width:0;">
-                <div id="otter-stat-exp-remaining" style="font-size:clamp(13px,3.8vw,17px); font-weight:bold; color:#1E4550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">0/20</div>
-                <div style="font-size:11px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">升級所需 EXP</div>
-              </div>
-              <div style="min-width:0;">
-                <div id="otter-stat-hours" style="font-size:clamp(13px,3.8vw,17px); font-weight:bold; color:#1E4550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">0.0h</div>
-                <div style="font-size:11px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">已累計時數</div>
-              </div>
-              <div style="min-width:0;">
-                <div id="otter-stat-streak" style="font-size:clamp(13px,3.8vw,17px); font-weight:bold; color:#1E4550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">0</div>
-                <div style="font-size:11px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">連續天數</div>
-              </div>
-              <div style="min-width:0;">
-                <div id="otter-stat-stickers" style="font-size:clamp(13px,3.8vw,17px); font-weight:bold; color:#1E4550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">0/0</div>
-                <div style="font-size:11px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">圖鑑完成度</div>
-              </div>
-            </div>
-          </div>
-
           <!-- 自訂我的水獺彈出視窗：撳主頁「🦦 我的水獺」卡右上角嗰粒 ✏️
                就會開，入面可以（1）改名——新名要通過長度限制同基本粗口
                關鍵字名單檢查先儲得到（見 JS 嘅 containsBadWord），唔通
@@ -1833,6 +1751,90 @@
             <!-- 左欄：功能卡 -->
             <div class="home-main-col">
 
+              <!-- ── 我的水獺 Ottiee（寵物系統）──
+                   原本呢個卡通版闊，而家搬咗入左欄，同「視訊溫習室」
+                   卡對齊，闊度一致 -->
+              <div class="card" id="otter-pet-card" style="text-align:center; position:relative;">
+                <button type="button" onclick="openOtterRenameModal()" title="自訂我的水獺" style="position:absolute; top:8px; right:8px; background:none; border:none; cursor:pointer; font-size:16px; padding:4px; color:#7DB8C5; line-height:1;">✏️</button>
+                <h3 style="font-size:15px; font-weight:bold; margin-bottom:6px; color:var(--brand-800); display:flex; align-items:center; justify-content:center; gap:6px;">
+                  🦦 <span id="otter-name-display">Ottiee</span>
+                </h3>
+                <div id="otter-pet-wrap" class="otter-mood-happy" style="display:inline-block; margin:4px 0;">
+                  <!-- 管理員如果有上傳自訂水獺相片，會優先顯示呢張相，取代下面嘅插畫 -->
+                  <img id="otter-photo-img" style="display:none; max-width:150px; max-height:150px; width:auto; height:auto; object-fit:contain;" alt="我的水獺">
+                  <!-- 管理員未上傳呢個等級嘅相片時，顯示呢個簡單佔位圖示，唔會用返預設插畫 -->
+                  <div id="otter-blank-placeholder" style="display:none; width:120px; height:120px; border-radius:50%; background:#EFEAE0; border:3px solid #C08B57; box-shadow:0 2px 10px rgba(0,0,0,.15); align-items:center; justify-content:center; font-size:44px;">🦦</div>
+                  <svg id="otter-pet-svg" width="120" height="120" viewBox="0 0 140 140" style="display:none;">
+                    <!-- 尾巴 -->
+                    <ellipse cx="112" cy="100" rx="18" ry="10" fill="#A9764F" transform="rotate(25 112 100)"/>
+                    <!-- 身體 -->
+                    <ellipse cx="70" cy="80" rx="46" ry="42" fill="#C08B57"/>
+                    <!-- 肚仔 -->
+                    <ellipse cx="70" cy="92" rx="28" ry="26" fill="#F3E2C7"/>
+                    <!-- 前腳 -->
+                    <ellipse cx="50" cy="112" rx="11" ry="8" fill="#C08B57"/>
+                    <ellipse cx="90" cy="112" rx="11" ry="8" fill="#C08B57"/>
+                    <!-- 耳仔 -->
+                    <circle cx="42" cy="38" r="12" fill="#A9764F"/>
+                    <circle cx="98" cy="38" r="12" fill="#A9764F"/>
+                    <circle cx="42" cy="38" r="6" fill="#7A5636"/>
+                    <circle cx="98" cy="38" r="6" fill="#7A5636"/>
+                    <!-- 頭 -->
+                    <ellipse cx="70" cy="55" rx="34" ry="30" fill="#C08B57"/>
+                    <ellipse cx="70" cy="64" rx="20" ry="15" fill="#F3E2C7"/>
+                    <!-- 鼻仔 -->
+                    <ellipse cx="70" cy="60" rx="4" ry="3" fill="#5C3A22"/>
+                    <!-- 開心表情 -->
+                    <g id="otter-face-happy">
+                      <circle cx="58" cy="50" r="4" fill="#3A2A1B"/>
+                      <circle cx="82" cy="50" r="4" fill="#3A2A1B"/>
+                      <circle cx="50" cy="60" r="5" fill="#F2A9A0" opacity=".6"/>
+                      <circle cx="90" cy="60" r="5" fill="#F2A9A0" opacity=".6"/>
+                      <path d="M62 68 Q70 75 78 68" stroke="#5C3A22" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                    </g>
+                    <!-- 普通表情 -->
+                    <g id="otter-face-neutral" style="display:none;">
+                      <circle cx="58" cy="50" r="4" fill="#3A2A1B"/>
+                      <circle cx="82" cy="50" r="4" fill="#3A2A1B"/>
+                      <path d="M63 70 L77 70" stroke="#5C3A22" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                    </g>
+                    <!-- 肚餓表情 -->
+                    <g id="otter-face-hungry" style="display:none;">
+                      <path d="M53 48 Q58 53 63 48" stroke="#3A2A1B" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                      <path d="M77 48 Q82 53 87 48" stroke="#3A2A1B" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                      <path d="M62 76 Q70 69 78 76" stroke="#5C3A22" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                      <ellipse cx="48" cy="58" rx="2.5" ry="4.5" fill="#7FC7E0" opacity=".85"/>
+                    </g>
+                  </svg>
+                </div>
+                <!-- 寵物「肚餓/餵食」機制已經移除，改成顯示呢幾個同「溫習成就」
+                     有關嘅實用數據：等級、升級所需 EXP、累積時數、連續溫習
+                     天數、貼紙圖鑑完成度。呢幾個欄位由 updateOtterStatsCard()
+                     統一更新（見下面 JS）。 -->
+                <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:4px; margin-top:10px; max-width:520px; margin-left:auto; margin-right:auto;">
+                  <div style="min-width:0;">
+                    <div id="otter-stat-level" style="font-size:clamp(13px,3.8vw,17px); font-weight:bold; color:#1E4550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">🌱 Lv.1</div>
+                    <div style="font-size:11px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">等級</div>
+                  </div>
+                  <div style="min-width:0;">
+                    <div id="otter-stat-exp-remaining" style="font-size:clamp(13px,3.8vw,17px); font-weight:bold; color:#1E4550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">0/20</div>
+                    <div style="font-size:11px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">升級所需 EXP</div>
+                  </div>
+                  <div style="min-width:0;">
+                    <div id="otter-stat-hours" style="font-size:clamp(13px,3.8vw,17px); font-weight:bold; color:#1E4550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">0.0h</div>
+                    <div style="font-size:11px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">已累計時數</div>
+                  </div>
+                  <div style="min-width:0;">
+                    <div id="otter-stat-streak" style="font-size:clamp(13px,3.8vw,17px); font-weight:bold; color:#1E4550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">0</div>
+                    <div style="font-size:11px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">連續天數</div>
+                  </div>
+                  <div style="min-width:0;">
+                    <div id="otter-stat-stickers" style="font-size:clamp(13px,3.8vw,17px); font-weight:bold; color:#1E4550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">0/0</div>
+                    <div style="font-size:11px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">圖鑑完成度</div>
+                  </div>
+                </div>
+              </div>
+
               <!-- 主打功能：視訊溫習室 -->
               <button class="home-primary-card" onclick="switchTab('room')">
                 <div class="home-primary-icon">📹</div>
@@ -1844,54 +1846,6 @@
                   <span class="live-dot"></span>立即加入
                 </div>
               </button>
-
-              <!-- 次要功能 2×2 格 -->
-              <div class="home-secondary-grid">
-
-                <button class="home-sec-card" onclick="switchTab('qa')">
-                  <div class="home-sec-head">
-                    <span class="home-sec-icon">❓</span>
-                    <span class="home-sec-badge" id="home-qa-badge" style="display:none;"></span>
-                  </div>
-                  <div class="home-sec-title">疑難解答區</div>
-                  <div class="home-sec-desc">發問 · 回答 · 共同進步</div>
-                </button>
-
-                <button class="home-sec-card" onclick="switchTab('store')">
-                  <div class="home-sec-head">
-                    <span class="home-sec-icon">🎰</span>
-                    <span class="home-sec-badge" id="home-gacha-badge" style="display:none; background:#4A8FA0; color:white;">可扭蛋</span>
-                  </div>
-                  <div class="home-sec-title">時數扭蛋機</div>
-                  <div class="home-sec-desc">用積分抽取學習大獎</div>
-                </button>
-
-                <button class="home-sec-card" onclick="switchTab('social')">
-                  <div class="home-sec-head">
-                    <span class="home-sec-icon">👥</span>
-                    <span class="home-sec-badge" id="home-social-badge" style="display:none;"></span>
-                  </div>
-                  <div class="home-sec-title">夥伴與讀書會</div>
-                  <div class="home-sec-desc">找書友，一齊讀</div>
-                </button>
-
-                <button class="home-sec-card" onclick="switchTab('vip')">
-                  <div class="home-sec-head">
-                    <span class="home-sec-icon">👑</span>
-                  </div>
-                  <div class="home-sec-title">溫習資源</div>
-                  <div class="home-sec-desc">精選筆記及升級方案</div>
-                </button>
-
-                <button class="home-sec-card" onclick="switchTab('study')">
-                  <div class="home-sec-head">
-                    <span class="home-sec-icon">🗂</span>
-                  </div>
-                  <div class="home-sec-title">學科溫習卡</div>
-                  <div class="home-sec-desc">間隔重複記憶法溫習</div>
-                </button>
-
-              </div>
             </div>
 
             <!-- 右欄：動態資訊 -->
@@ -1911,9 +1865,10 @@
                 </div>
               </div>
 
-              <!-- 溫習日曆（細 widget）：淨係要有入過視訊溫習室（唔理幾多
-                   分鐘）當日就算有溫習，畫個細細嘅月曆俾用家睇返自己邊
-                   幾日有溫習過 -->
+              <!-- 溫習日曆（細 widget）：原本擺喺左欄取代 5 格快捷功能嘅
+                   位置，而家再搬去右欄，同「🎯 今日目標」放埋一齊。淨係
+                   要有入過視訊溫習室（唔理幾多分鐘）當日就算有溫習，畫
+                   個細細嘅月曆俾用家睇返自己邊幾日有溫習過 -->
               <div class="home-side-card" id="study-calendar-card" style="padding:10px;">
                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
                   <span style="font-size:13px; font-weight:700; color:var(--brand-800);">📅 溫習日曆</span>
@@ -1927,15 +1882,6 @@
                 <div style="display:flex; justify-content:space-between; margin-top:8px; padding-top:7px; border-top:1px solid #eee; font-size:13px; color:#888;">
                   <span>🔥 <b id="study-calendar-streak" style="color:var(--brand-800);">0</b> 連續</span>
                   <span>📚 <b id="study-calendar-total" style="color:var(--brand-800);">0</b> 總日數</span>
-                </div>
-              </div>
-
-              <!-- 快捷入口 -->
-              <div class="home-side-card" style="padding:10px;">
-                <div style="font-size:13px; font-weight:700; color:#aaa; margin-bottom:8px; text-transform:uppercase; letter-spacing:.05em;">快速功能</div>
-                <div style="display:flex; flex-direction:column; gap:2px;">
-                  <button class="home-quick-btn" onclick="switchTab('profile')">👤 編輯個人資料</button>
-                  <button class="home-quick-btn" onclick="switchTab('verification')">🎓 學生身份驗證</button>
                 </div>
               </div>
 
