@@ -1051,6 +1051,17 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       }
     };
 
+    // 密碼／確認密碼即時對比：打緊字嗰陣就檢查，唔使等撳咗「註冊」
+    // 先知道兩次密碼唔一致（見 index.html 個 oninput 掛勾）。確認密碼
+    // 未打字之前唔顯示提示，避免一開始就嚇親用戶。
+    window.checkRegisterPasswordMatch = function() {
+      const password = document.getElementById('reg-password').value;
+      const passwordConfirm = document.getElementById('reg-password-confirm').value;
+      const mismatchHint = document.getElementById('reg-password-mismatch-hint');
+      if (!mismatchHint) return;
+      mismatchHint.style.display = (passwordConfirm.length > 0 && password !== passwordConfirm) ? 'block' : 'none';
+    };
+
     window.handleRegisterSubmit = function(e) {
       e.preventDefault();
       const accountType = (document.getElementById('reg-account-type').value === 'tutor') ? 'tutor' : 'student';

@@ -47,7 +47,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.136.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.137.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -2408,7 +2408,8 @@
             <h2 style="font-size:18px; font-weight:bold;">👑 溫習資源</h2>
             <p style="font-size:13px; color:#3E5A63; margin-top:4px;">瀏覽已上架的導師，點擊卡片可以查看資料並追蹤，接收最新消息</p>
           </div>
-          <div id="tutor-directory-list" style="display:flex; flex-direction:column; gap:10px; margin-top:12px;"></div>
+          <div id="tutor-directory-tabs" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:12px;"></div>
+          <div id="tutor-directory-list" style="display:flex; flex-direction:column; gap:10px; margin-top:10px;"></div>
         </section>
 
         <!-- 🎓 導師專用：管理教材（科目／課題／PDF 筆記）。內容全部由
@@ -2771,12 +2772,12 @@
 
         <div>
           <label style="font-size:13px; font-weight:bold; color:#555;">設定密碼 *</label>
-          <input type="password" id="reg-password" class="input-field" required placeholder="請輸入 6 位或以上的密碼">
+          <input type="password" id="reg-password" class="input-field" required placeholder="請輸入 6 位或以上的密碼" oninput="window.checkRegisterPasswordMatch && window.checkRegisterPasswordMatch()">
         </div>
 
         <div>
           <label style="font-size:13px; font-weight:bold; color:#555;">確認密碼 *</label>
-          <input type="password" id="reg-password-confirm" class="input-field" required placeholder="請再次輸入相同的密碼">
+          <input type="password" id="reg-password-confirm" class="input-field" required placeholder="請再次輸入相同的密碼" oninput="window.checkRegisterPasswordMatch && window.checkRegisterPasswordMatch()">
           <p id="reg-password-mismatch-hint" style="display:none; font-size:13px; color:#c0392b; margin-top:4px;">⚠️ 兩次輸入的密碼不一致，請重新確認</p>
         </div>
 

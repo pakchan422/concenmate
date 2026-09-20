@@ -1438,6 +1438,11 @@
         headerAuthBtn.style.padding = "4px 10px";
         headerAuthBtn.style.fontSize = "11px";
         headerAuthBtn.innerHTML = `⏳ 待驗證電郵`;
+
+        // 導師帳戶就算仲未驗證電郵，左邊側邊欄都要即刻顯示返導師專用
+        // 版本（唔係學生版），唔可以淨係喺下面「已驗證」嗰個分支先
+        // call，唔係嘅話會喺呢個等待畫面見到學生專用嘅選單。
+        if (typeof window.applyRoleBasedSidebar === 'function') window.applyRoleBasedSidebar();
         return;
       }
 

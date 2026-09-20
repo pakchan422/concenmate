@@ -67,6 +67,8 @@ window.applyRoleBasedSidebar = function() {
   let notesUnsub = null;
   let lastRegisteredNoteId = null; // 上傳完成、等緊揀預覽頁嗰份教材
   let tutorDirectoryUnsub = null;
+  let tutorDirectoryAllTutors = []; // 快取最新一批已上架導師（{ uid, ...data }），用來喺切 tab 嗰陣即時篩選，唔使再問多次伺服器
+  let tutorDirectorySelectedSubject = null; // null＝「全部」
 
   function escapeHtmlLocal(str) {
     return String(str == null ? '' : str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -83,9 +85,11 @@ window.applyRoleBasedSidebar = function() {
   // 資料卡」彈出視窗（window.viewUserProfile()），入面已經有齊追蹤掣、
   // 粉絲人數呢啲，唔使再寫多一套追蹤邏輯。
   window.renderTutorDirectoryTab = function() {
-    const container = document.getElementById('tutor-directory-list');
-    if (!container || !window.db || !window.fs) return;
-    container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入導師名錄中…</p>';
+    const tabsContainer = document.getElementById('tutor-directory-tabs');
+    const listContainer = document.getElementById('tutor-directory-list');
+    if (!listContainer || !window.db || !window.fs) return;
+    listContainer.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入導師名錄中…</p>';
+    tutorDirectorySelectedSubject = null;
 
     if (tutorDirectoryUnsub) tutorDirectoryUnsub();
     const q = window.fs.query(
@@ -94,35 +98,84 @@ window.applyRoleBasedSidebar = function() {
       window.fs.limit(100)
     );
     tutorDirectoryUnsub = window.fs.onSnapshot(q, (snapshot) => {
-      const activeTutors = snapshot.docs.filter((d) => (d.data().status || 'active') === 'active');
-      if (!activeTutors.length) {
-        container.innerHTML = '<div class="card" style="text-align:center; color:#999;">目前尚未有已上架的導師</div>';
-        return;
-      }
-      container.innerHTML = activeTutors.map((docSnap) => {
-        const t = docSnap.data();
-        const uid = docSnap.id;
-        const subjectsHtml = (t.subjectsIntended || [])
-          .map((s) => `<span class="tag" style="background:#F0F6F8; color:#1E4550; margin-right:4px;">${escapeHtmlLocal(s)}</span>`)
-          .join('');
-        return `
-          <div class="card" style="cursor:pointer;" onclick="window.viewUserProfile('${uid}')">
-            <div style="display:flex; align-items:center; gap:10px;">
-              <div style="width:44px; height:44px; border-radius:50%; background:var(--brand-100); display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;">🎓</div>
-              <div style="min-width:0; flex:1;">
-                <p style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:2px;">${escapeHtmlLocal(t.displayName || '導師')}</p>
-                <p style="font-size:13px; color:#666; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtmlLocal(t.bio || '')}</p>
-              </div>
-              <span style="font-size:13px; color:var(--brand-600); flex-shrink:0;">查看 ›</span>
-            </div>
-            ${subjectsHtml ? `<div style="margin-top:8px;">${subjectsHtml}</div>` : ''}
-          </div>
-        `;
-      }).join('');
+      tutorDirectoryAllTutors = snapshot.docs
+        .filter((d) => (d.data().status || 'active') === 'active')
+        .map((docSnap) => ({ uid: docSnap.id, ...docSnap.data() }));
+      renderTutorDirectoryTabsUI();
+      renderTutorDirectoryListUI();
     }, (err) => {
-      container.innerHTML = `<div class="card" style="color:#C0524A;">載入導師名錄失敗：${escapeHtmlLocal(err.message || err)}</div>`;
+      if (tabsContainer) tabsContainer.innerHTML = '';
+      listContainer.innerHTML = `<div class="card" style="color:#C0524A;">載入導師名錄失敗：${escapeHtmlLocal(err.message || err)}</div>`;
     });
   };
+
+  // 分科目 tab 列：按 TUTOR_DSE_SUBJECTS 嘅固定順序排列，只顯示現時有
+  // 已上架導師任教嘅科目（避免一大堆冇導師嘅空 tab）；導師自行輸入、
+  // 唔喺固定清單入面嘅科目就跟出現次序排喺最後。一個導師教多過一科
+  // 嘅話，會同時出現喺佢任教嘅每一個科目 tab 之下。
+  function renderTutorDirectoryTabsUI() {
+    const tabsContainer = document.getElementById('tutor-directory-tabs');
+    if (!tabsContainer) return;
+
+    const subjectsInUse = new Set();
+    tutorDirectoryAllTutors.forEach((t) => {
+      (t.subjectsIntended || []).forEach((s) => { if (s) subjectsInUse.add(s); });
+    });
+    if (!subjectsInUse.size) { tabsContainer.innerHTML = ''; return; }
+
+    const fixedList = (window.TUTOR_DSE_SUBJECTS || []).filter((s) => subjectsInUse.has(s) && s !== '其他（自行輸入）');
+    const extraList = [...subjectsInUse].filter((s) => !fixedList.includes(s)).sort((a, b) => a.localeCompare(b, 'zh-Hant'));
+    const orderedSubjects = [...fixedList, ...extraList];
+
+    const makeTabBtn = (label, value) => {
+      const active = tutorDirectorySelectedSubject === value;
+      return `<button type="button" class="btn ${active ? 'btn-primary' : 'btn-outline'}" style="font-size:13px; padding:5px 12px;" onclick="window.selectTutorDirectorySubject(${value === null ? 'null' : `'${escapeHtmlLocal(value).replace(/'/g, "\\'")}'`})">${escapeHtmlLocal(label)}</button>`;
+    };
+
+    tabsContainer.innerHTML = [makeTabBtn('全部', null), ...orderedSubjects.map((s) => makeTabBtn(s, s))].join('');
+  }
+
+  window.selectTutorDirectorySubject = function(subject) {
+    tutorDirectorySelectedSubject = subject || null;
+    renderTutorDirectoryTabsUI();
+    renderTutorDirectoryListUI();
+  };
+
+  function renderTutorDirectoryListUI() {
+    const listContainer = document.getElementById('tutor-directory-list');
+    if (!listContainer) return;
+
+    const filtered = tutorDirectorySelectedSubject
+      ? tutorDirectoryAllTutors.filter((t) => (t.subjectsIntended || []).includes(tutorDirectorySelectedSubject))
+      : tutorDirectoryAllTutors;
+
+    if (!filtered.length) {
+      listContainer.innerHTML = tutorDirectorySelectedSubject
+        ? `<div class="card" style="text-align:center; color:#999;">暫時未有教授「${escapeHtmlLocal(tutorDirectorySelectedSubject)}」的已上架導師</div>`
+        : '<div class="card" style="text-align:center; color:#999;">目前尚未有已上架的導師</div>';
+      return;
+    }
+
+    listContainer.innerHTML = filtered.map((t) => {
+      const uid = t.uid;
+      const subjectsHtml = (t.subjectsIntended || [])
+        .map((s) => `<span class="tag" style="background:#F0F6F8; color:#1E4550; margin-right:4px;">${escapeHtmlLocal(s)}</span>`)
+        .join('');
+      return `
+        <div class="card" style="cursor:pointer;" onclick="window.viewUserProfile('${uid}')">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div style="width:44px; height:44px; border-radius:50%; background:var(--brand-100); display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;">🎓</div>
+            <div style="min-width:0; flex:1;">
+              <p style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:2px;">${escapeHtmlLocal(t.displayName || '導師')}</p>
+              <p style="font-size:13px; color:#666; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtmlLocal(t.bio || '')}</p>
+            </div>
+            <span style="font-size:13px; color:var(--brand-600); flex-shrink:0;">查看 ›</span>
+          </div>
+          ${subjectsHtml ? `<div style="margin-top:8px;">${subjectsHtml}</div>` : ''}
+        </div>
+      `;
+    }).join('');
+  }
 
   // ===================== 分頁入口 =====================
   window.renderTutorMaterialsTab = async function() {
