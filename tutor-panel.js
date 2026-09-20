@@ -678,6 +678,84 @@ window.applyRoleBasedSidebar = function() {
     }
   };
 
+  // ===================== 「查看用戶資料卡」入面嘅導師教材列表（學生用） =====================
+  // 學生喺「溫習資源」點開某位導師嘅資料卡（window.viewUserProfile()）
+  // 嗰陣，如果對方係導師，就喺卡入面顯示佢已上架嘅 PDF 筆記，畀學生
+  // 「瀏覽＋試睇」。試睇淨係讀 previewStoragePath（已經喺 storage.rules
+  // 開放俾所有已登入用戶），唔會亦唔應該讀到 fullStoragePath（淨係
+  // 導師本人／admin 先讀得到）。「購買」暫時仲未起（Phase D 先有真正
+  // 嘅付款／購買紀錄），撳落去先顯示「開發中」提示，唔會扣任何嘢。
+  window.renderTutorNotesInProfileCard = async function(tutorUid) {
+    const wrap = document.getElementById('pop-tutor-notes-wrap');
+    if (!wrap || !tutorUid || !window.db || !window.fs) return;
+    try {
+      const notesSnap = await window.fs.getDocs(window.fs.query(
+        window.fs.collection(window.db, 'tutorNotes'),
+        window.fs.where('tutorUid', '==', tutorUid),
+        window.fs.where('status', '==', 'published')
+      ));
+      if (notesSnap.empty) { wrap.innerHTML = ''; return; }
+
+      const notes = notesSnap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (typeof a.order === 'number' ? a.order : a.createdAt) - (typeof b.order === 'number' ? b.order : b.createdAt));
+
+      // 教材文件本身淨係存咗 topicId，冇存埋課題名稱，呢度逐個獨立
+      // topicId 攞多次 tutorTopics 文件嚟顯示返課題名（tutorTopics 對
+      // 所有已登入用戶開放讀取，見 firestore.rules）
+      const topicIds = [...new Set(notes.map((n) => n.topicId).filter(Boolean))];
+      const topicNameMap = {};
+      await Promise.all(topicIds.map(async (tid) => {
+        try {
+          const tSnap = await window.fs.getDoc(window.fs.doc(window.db, 'tutorTopics', tid));
+          if (tSnap.exists()) topicNameMap[tid] = tSnap.data().name || '';
+        } catch (e) { /* 讀唔到就唔顯示課題名，唔影響其他資訊顯示 */ }
+      }));
+
+      wrap.innerHTML = `
+        <div style="font-size:14px; font-weight:700; color:var(--brand-800); margin-bottom:8px;">📚 已上架教材</div>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          ${notes.map((n) => `
+            <div class="card" style="padding:10px 12px;">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+                <div style="min-width:0;">
+                  <div style="font-weight:700; font-size:14px; color:var(--brand-800); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtmlLocal(n.title)}</div>
+                  ${topicNameMap[n.topicId] ? `<div style="font-size:12px; color:#888; margin-top:2px;">${escapeHtmlLocal(topicNameMap[n.topicId])}</div>` : ''}
+                </div>
+                <div style="font-size:13px; color:#3E7A8A; font-weight:700; flex-shrink:0; white-space:nowrap;">${centsToDollarStr(n.priceCents)}</div>
+              </div>
+              <div style="display:flex; gap:6px; margin-top:8px;">
+                ${n.previewStoragePath
+                  ? `<button class="btn btn-outline" type="button" style="font-size:12px; padding:4px 10px; flex:1; justify-content:center;" onclick="window.previewPublicTutorNote('${n.id}')">👁️ 試睇</button>`
+                  : ''}
+                <button class="btn btn-outline" type="button" style="font-size:12px; padding:4px 10px; flex:1; justify-content:center; opacity:.6;" onclick="window.showToast('購買功能仍在開發中，敬請期待', '🚧')">🛒 購買</button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    } catch (err) {
+      wrap.innerHTML = `<p style="font-size:13px; color:#c0392b;">載入教材失敗：${escapeHtmlLocal(err.message || err)}</p>`;
+    }
+  };
+
+  // 學生「試睇」：直接由 Firestore 讀返呢份教材文件（唔靠 tutorNotes
+  // 呢個模組內部快取，因為嗰個快取淨係喺導師管理緊自己教材嗰陣先有
+  // 資料，學生睇緊第三方導師嘅教材時個快取係空嘅）
+  window.previewPublicTutorNote = async function(noteId) {
+    if (!noteId || !window.db || !window.fs) return;
+    try {
+      const snap = await window.fs.getDoc(window.fs.doc(window.db, 'tutorNotes', noteId));
+      if (!snap.exists() || snap.data().status !== 'published') { window.showToast('找不到這份教材', '⚠️'); return; }
+      const n = snap.data();
+      if (!n.previewStoragePath) { window.showToast('這份教材尚未設定預覽頁', '⚠️'); return; }
+      const url = await window.storageApi.getDownloadURL(window.storageApi.ref(window.storage, n.previewStoragePath));
+      showPdfPreviewModal(url, '👁️ 試睇：' + (n.title || ''));
+    } catch (err) {
+      window.showToast('開啟檔案失敗：' + (err.message || err), '❌');
+    }
+  };
+
   // ---------- 教材卡第一頁縮圖 ----------
   // 圖三要求：教材卡直接顯示PDF第一頁嘅縮圖，唔使撳「預覽整份文件」先
   // 見到。用 pdf.js 讀 fullStoragePath 嘅第一頁，畫落一個細嘅離屏

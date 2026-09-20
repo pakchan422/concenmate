@@ -47,7 +47,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.137.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.138.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -2921,6 +2921,11 @@
       </div>
       <div id="pop-follow-btn-wrap" style="margin-bottom:8px;"></div>
       <div id="pop-diary-btn-wrap" style="margin-bottom:12px;"></div>
+
+      <!-- 導師專用：已上架的 PDF 筆記列表（供學生瀏覽／試睇）。內容由
+           renderTutorNotesInProfileCard() 動態產生，非導師帳戶會保持
+           空白。 -->
+      <div id="pop-tutor-notes-wrap" style="margin-bottom:12px; text-align:left;"></div>
 
       <button class="btn btn-outline" type="button" style="width:100%; justify-content:center;" onclick="closeModal('modal-view-profile')">關閉資料卡</button>
     </div>
