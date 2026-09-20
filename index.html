@@ -47,7 +47,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.131.3"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.135.7"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -1070,7 +1070,11 @@
       position: fixed;
       top: 20px;
       right: 20px;
-      z-index: 200;
+      /* ⚠️ 一定要高過 .modal-backdrop（10000）同 #qa-lightbox（10050）：
+         showToast() 成日喺彈出視窗開住嗰陣先觸發（例如表格驗證失敗），
+         原本 z-index:200 會俾個彈出視窗完全遮住，用戶見唔到個提示，
+         好似撳咗「儲存」冇反應咁（見「編輯教材」定價驗證嗰次截圖）。 */
+      z-index: 10100;
       background: var(--brand-800);
       color: white;
       padding: 12px 18px;
@@ -1639,14 +1643,22 @@
     <aside>
       <div>
         <button class="nav-btn active" id="nav-btn-home" type="button" onclick="switchTab('home', this)"><span class="nav-icon" id="nav-icon-home">🏠</span> <span class="nav-text">主頁</span></button>
-        <button class="nav-btn" id="nav-btn-room" type="button" onclick="switchTab('room', this)"><span class="nav-icon" id="nav-icon-room">📹</span> <span class="nav-text">視訊溫習室</span></button>
-        <button class="nav-btn" id="nav-btn-study" type="button" onclick="switchTab('study', this)"><span class="nav-icon" id="nav-icon-study">🗂</span> <span class="nav-text">學科溫習卡</span></button>
-        <button class="nav-btn" id="nav-btn-qa" type="button" onclick="switchTab('qa', this)"><span class="nav-icon" id="nav-icon-qa">❓</span> <span class="nav-text">疑難解答區</span></button>
-        <button class="nav-btn" id="nav-btn-vip" type="button" onclick="switchTab('vip', this)"><span class="nav-icon" id="nav-icon-vip">👑</span> <span class="nav-text">溫習資源</span></button>
-        <button class="nav-btn" id="nav-btn-store" type="button" onclick="switchTab('store', this)"><span class="nav-icon" id="nav-icon-store">🎁</span> <span class="nav-text">時數扭蛋機</span></button>
-        <button class="nav-btn" id="nav-btn-social" type="button" onclick="switchTab('social', this)"><span class="nav-icon" id="nav-icon-social">👥</span> <span class="nav-text">夥伴與讀書會</span> <span class="home-sec-badge" id="nav-social-badge" style="display:none; margin-left:auto;"></span></button>
-        <button class="nav-btn" id="nav-btn-diary" type="button" onclick="switchTab('diary', this)"><span class="nav-icon" id="nav-icon-diary">📔</span> <span class="nav-text">溫習日記</span></button>
-        <button class="nav-btn" id="nav-btn-verification" type="button" onclick="switchTab('verification', this)"><span class="nav-icon" id="nav-icon-verification">🎓</span> <span class="nav-text">學生身份驗證</span></button>
+        <!-- 以下呢一批係「學生／Admin」帳戶先見到嘅功能，導師帳戶登入
+             之後會由 applyRoleBasedSidebar()（tutor-panel.js）將佢哋全部
+             隱藏，淨係留低「主頁」＋「管理教材」兩項——導師介面同學生
+             介面要完全分開，唔應該見到溫習卡／扭蛋機呢類學生專屬功能。
+             加咗 class="student-only-nav" 方便嗰個 function 一次過搵晒。 -->
+        <button class="nav-btn student-only-nav" id="nav-btn-room" type="button" onclick="switchTab('room', this)"><span class="nav-icon" id="nav-icon-room">📹</span> <span class="nav-text">視訊溫習室</span></button>
+        <button class="nav-btn student-only-nav" id="nav-btn-study" type="button" onclick="switchTab('study', this)"><span class="nav-icon" id="nav-icon-study">🗂</span> <span class="nav-text">學科溫習卡</span></button>
+        <button class="nav-btn student-only-nav" id="nav-btn-qa" type="button" onclick="switchTab('qa', this)"><span class="nav-icon" id="nav-icon-qa">❓</span> <span class="nav-text">疑難解答區</span></button>
+        <button class="nav-btn student-only-nav" id="nav-btn-vip" type="button" onclick="switchTab('vip', this)"><span class="nav-icon" id="nav-icon-vip">👑</span> <span class="nav-text">溫習資源</span></button>
+        <button class="nav-btn student-only-nav" id="nav-btn-store" type="button" onclick="switchTab('store', this)"><span class="nav-icon" id="nav-icon-store">🎁</span> <span class="nav-text">時數扭蛋機</span></button>
+        <button class="nav-btn student-only-nav" id="nav-btn-social" type="button" onclick="switchTab('social', this)"><span class="nav-icon" id="nav-icon-social">👥</span> <span class="nav-text">夥伴與讀書會</span> <span class="home-sec-badge" id="nav-social-badge" style="display:none; margin-left:auto;"></span></button>
+        <button class="nav-btn student-only-nav" id="nav-btn-diary" type="button" onclick="switchTab('diary', this)"><span class="nav-icon" id="nav-icon-diary">📔</span> <span class="nav-text">溫習日記</span></button>
+        <button class="nav-btn student-only-nav" id="nav-btn-verification" type="button" onclick="switchTab('verification', this)"><span class="nav-icon" id="nav-icon-verification">🎓</span> <span class="nav-text">學生身份驗證</span></button>
+        <!-- 導師帳戶專用：淨係批核通過（role==='tutor'）先會顯示，見
+             applyRoleBasedSidebar()。 -->
+        <button class="nav-btn" id="nav-btn-tutor-materials" type="button" onclick="switchTab('tutor-materials', this)" style="display:none;"><span class="nav-icon">🗂️</span> <span class="nav-text">管理教材</span></button>
       </div>
     </aside>
 
@@ -1692,25 +1704,25 @@
                 style="border-radius:50%; object-fit:cover; flex-shrink:0; border:2px solid rgba(255,255,255,.4);">
               <div>
                 <div class="home-hero-greeting">你好，<span id="home-username">同學</span>👋</div>
-                <div class="home-hero-sub">今日準備好溫習了嗎？</div>
+                <div class="home-hero-sub student-only-nav" id="home-hero-sub">今日準備好溫習了嗎？</div>
               </div>
             </div>
             <div class="home-hero-stats">
-              <div class="home-stat-pill">
+              <div class="home-stat-pill" id="home-stat-hours-pill">
                 <span class="home-stat-icon">⏱️</span>
                 <div>
                   <div class="home-stat-val"><span id="home-stat-hours">0分鐘</span></div>
                   <div class="home-stat-label">本日時數</div>
                 </div>
               </div>
-              <div class="home-stat-pill">
+              <div class="home-stat-pill" id="home-stat-pts-pill">
                 <span class="home-stat-icon">🪙</span>
                 <div>
                   <div class="home-stat-val"><span id="home-stat-pts">0</span></div>
                   <div class="home-stat-label">積分</div>
                 </div>
               </div>
-              <div class="home-stat-pill" id="home-stat-streak-pill">
+              <div class="home-stat-pill student-only-nav" id="home-stat-streak-pill">
                 <span class="home-stat-icon">🔥</span>
                 <div>
                   <div class="home-stat-val" id="home-stat-streak">1</div>
@@ -1724,7 +1736,7 @@
                   <div class="home-stat-label">粉絲</div>
                 </div>
               </div>
-              <div class="home-stat-pill" style="cursor:pointer;" onclick="openFollowListModal(window.currentUser && window.currentUser.uid, 'following')" title="查看追蹤中名單">
+              <div class="home-stat-pill student-only-nav" id="home-stat-following-pill" style="cursor:pointer;" onclick="openFollowListModal(window.currentUser && window.currentUser.uid, 'following')" title="查看追蹤中名單">
                 <span class="home-stat-icon">➕</span>
                 <div>
                   <div class="home-stat-val" id="home-stat-following">0</div>
@@ -1849,8 +1861,9 @@
                 </div>
               </div>
 
-              <!-- 主打功能：視訊溫習室 -->
-              <button class="home-primary-card" onclick="switchTab('room')">
+              <!-- 主打功能：視訊溫習室（導師帳號暫時唔顯示呢個卡，因為
+                   視訊溫習室係學生專用功能，導師個位暫時留空） -->
+              <button class="home-primary-card student-only-nav" id="home-video-room-card" onclick="switchTab('room')">
                 <div class="home-primary-icon">📹</div>
                 <div class="home-primary-text">
                   <div class="home-primary-title">視訊溫習室</div>
@@ -1866,7 +1879,7 @@
             <div class="home-side-col">
 
               <!-- 積分進度 -->
-              <div class="home-side-card">
+              <div class="home-side-card" id="home-goal-card">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                   <span style="font-size:14px; font-weight:700; color:var(--brand-800);">🎯 今日目標</span>
                   <span style="font-size:13px; color:var(--brand-600);" id="home-goal-label">0 / 60 分鐘</span>
@@ -2386,14 +2399,63 @@
           </div>
         </section>
 
+        <!-- 「溫習資源」分頁：目前先做「導師名錄」——列出已上架嘅導師，
+             撳落去開返現有嗰個「查看用戶資料卡」彈出視窗（已經有齊追蹤
+             掣同粉絲人數），等學生揾到導師先追蹤到佢。實際列表由
+             tutor-panel.js 嘅 renderTutorDirectoryTab() 產生。 -->
         <section id="tab-vip" class="tab-content">
-          <div style="text-align:center; padding:60px 20px;">
-            <div style="font-size:64px; margin-bottom:16px;">🚧</div>
-            <h2 style="font-size:20px; font-weight:800; color:var(--brand-800); margin-bottom:10px;">溫習資源</h2>
-            <p style="font-size:15px; color:#7DB8C5; font-weight:600; margin-bottom:8px;">⏳ 期待日後更新</p>
-            <p style="font-size:13px; color:#aaa; line-height:1.7; max-width:320px; margin:0 auto;">
-              功能仍在開發中，敬請期待！
-            </p>
+          <div class="card" style="background: linear-gradient(135deg, #D9EBEF, #D9C9B5); color:#1E4550;">
+            <h2 style="font-size:18px; font-weight:bold;">👑 溫習資源</h2>
+            <p style="font-size:13px; color:#3E5A63; margin-top:4px;">瀏覽已上架的導師，點擊卡片可以查看資料並追蹤，接收最新消息</p>
+          </div>
+          <div id="tutor-directory-list" style="display:flex; flex-direction:column; gap:10px; margin-top:12px;"></div>
+        </section>
+
+        <!-- 🎓 導師專用：管理教材（科目／課題／PDF 筆記）。內容全部由
+             tutor-panel.js 嘅 renderTutorMaterialsTab() 動態產生，呢度
+             淨係擺幾個掛勾用嘅容器。 -->
+        <section id="tab-tutor-materials" class="tab-content">
+          <div class="card" style="background: linear-gradient(135deg, #D9EBEF, #D9C9B5); color:#1E4550;">
+            <h2 style="font-size:18px; font-weight:bold;">🗂️ 管理教材</h2>
+            <p style="font-size:13px; color:#3E5A63; margin-top:4px;">管理您的科目、課題分類，以及上架給學生購買的 PDF 筆記</p>
+          </div>
+
+          <!-- 未批核／被拒嗰陣顯示（role !== 'tutor'），內容由
+               renderTutorMaterialsTab() 動態產生 -->
+          <div class="card" id="tutor-materials-pending-panel" style="display:none;"></div>
+
+          <!-- 已批核（role === 'tutor'）先顯示嘅正式管理介面 -->
+          <div id="tutor-materials-approved-panel" style="display:none;">
+            <div class="card">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800);">📚 我的科目</h3>
+                <div style="display:flex; gap:6px;">
+                  <button class="btn btn-outline" type="button" style="font-size:12px; padding:5px 9px; color:#c0392b; border-color:#e0b0b0;" onclick="window.deleteTutorSubject(window.getSelectedTutorSubjectId())">🗑️ 刪除目前科目</button>
+                  <button class="btn btn-outline" type="button" style="font-size:13px; padding:5px 10px;" onclick="window.openTutorAddSubjectModal()">＋ 新增科目</button>
+                </div>
+              </div>
+              <div id="tutor-subject-tabs" style="display:flex; gap:6px; flex-wrap:wrap;"></div>
+            </div>
+
+            <div class="card" id="tutor-topics-card" style="display:none;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800);">📑 課題</h3>
+                <div style="display:flex; gap:6px;">
+                  <button class="btn btn-outline" type="button" style="font-size:12px; padding:5px 9px; color:#c0392b; border-color:#e0b0b0;" onclick="window.deleteTutorTopic(window.getSelectedTutorTopicId())">🗑️ 刪除目前課題</button>
+                  <button class="btn btn-outline" type="button" style="font-size:13px; padding:5px 10px;" onclick="window.promptCreateTutorTopic()">＋ 新增課題</button>
+                </div>
+              </div>
+              <div id="tutor-topic-tabs" style="display:flex; gap:6px; flex-wrap:wrap;"></div>
+            </div>
+
+            <div class="card" id="tutor-notes-card" style="display:none;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800);">📄 教材</h3>
+                <button class="btn btn-primary" type="button" style="font-size:13px; padding:5px 10px;" onclick="window.openTutorNoteUploadForm()">⬆️ 上傳教材</button>
+              </div>
+              <div id="tutor-note-upload-panel" style="display:none; background:var(--brand-50); border:1px solid var(--brand-200); border-radius:10px; padding:12px; margin-bottom:12px;"></div>
+              <div id="tutor-notes-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:10px;"></div>
+            </div>
           </div>
         </section>
 
@@ -2680,62 +2742,93 @@
   <div class="modal-backdrop" id="modal-register" style="display:none;">
     <div class="modal-box">
       <h3 style="font-size:18px; font-weight:bold; color:var(--brand-800); text-align:center;">📝 註冊 ConcenMate 會員</h3>
+
+      <!-- 帳號類型：學生／導師 兩邊，一開始註冊就要揀，唔係先開學生
+           帳號再事後申請升級。揀「導師」嗰邊會直接喺呢個表格入面收埋
+           導師申請所需嘅資料（自我介紹、想教嘅科目），註冊成功嗰刻
+           就會即刻連同申請一齊送出，之後帳戶會以「導師身份審批中」
+           嘅狀態運作（審批批准之前，功能同學生帳戶一樣，唔會因為
+           揀咗導師就即刻解鎖導師後台）。見 window.setRegisterAccountType()。 -->
+      <div style="display:flex; gap:8px; margin-top:12px;">
+        <button type="button" id="reg-type-student-btn" class="btn btn-primary" style="flex:1; justify-content:center;" onclick="setRegisterAccountType('student')">🎒 我是學生</button>
+        <button type="button" id="reg-type-tutor-btn" class="btn btn-outline" style="flex:1; justify-content:center;" onclick="setRegisterAccountType('tutor')">🎓 我是導師</button>
+      </div>
+      <p id="reg-type-tutor-hint" style="display:none; font-size:13px; color:#8a6d1f; background:#FFF7E6; border:1px solid #F0D9A0; border-radius:8px; padding:8px 10px; margin-top:8px;">📌 導師帳號需要管理員審批，通過之前可以正常以學生身份使用平台其他功能，審批結果會在「我的帳戶」顯示。</p>
+
       <form onsubmit="handleRegisterSubmit(event)" style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">
+        <input type="hidden" id="reg-account-type" value="student">
+
         <div>
-          <label style="font-size:13px; font-weight:bold; color:#555;">1. 暱稱（顯示用）*</label>
+          <label style="font-size:13px; font-weight:bold; color:#555;">暱稱（顯示用）*</label>
           <input type="text" id="reg-username" class="input-field" required placeholder="例如：Alex Wong">
         </div>
 
         <div>
-          <label style="font-size:13px; font-weight:bold; color:#555;">2. 帳號 ID（登入用）*</label>
+          <label style="font-size:13px; font-weight:bold; color:#555;">帳號 ID（登入用）*</label>
           <input type="text" id="reg-account-id" class="input-field" required placeholder="例如：alex_wong2026" pattern="[A-Za-z0-9_]{3,20}" maxlength="20">
-          <p style="font-size:13px; color:#999; margin-top:4px;">3-20 個英文字母／數字／底線，設定了就要用來登入，揀個記得住的</p>
+          <p style="font-size:13px; color:#999; margin-top:4px;">3-20 個英文字母／數字／底線，設定了就要用來登入，請選擇一個容易記住的</p>
         </div>
 
         <div>
-          <label style="font-size:13px; font-weight:bold; color:#555;">3. 設定密碼 *</label>
+          <label style="font-size:13px; font-weight:bold; color:#555;">設定密碼 *</label>
           <input type="password" id="reg-password" class="input-field" required placeholder="請輸入 6 位或以上的密碼">
         </div>
 
         <div>
-          <label style="font-size:13px; font-weight:bold; color:#555;">4. 確認密碼 *</label>
+          <label style="font-size:13px; font-weight:bold; color:#555;">確認密碼 *</label>
           <input type="password" id="reg-password-confirm" class="input-field" required placeholder="請再次輸入相同的密碼">
           <p id="reg-password-mismatch-hint" style="display:none; font-size:13px; color:#c0392b; margin-top:4px;">⚠️ 兩次輸入的密碼不一致，請重新確認</p>
         </div>
 
-        <div>
-          <label style="font-size:13px; font-weight:bold; color:#555;">5. 學校名稱 *</label>
-          <input type="text" id="reg-school" class="input-field" required placeholder="例如：屯門官立中學">
+        <!-- 學生專用欄位：揀「導師」嗰陣會隱藏並取消 required -->
+        <div id="register-student-fields">
+          <div>
+            <label style="font-size:13px; font-weight:bold; color:#555;">學校名稱 *</label>
+            <input type="text" id="reg-school" class="input-field" required placeholder="例如：屯門官立中學">
+          </div>
+
+          <div style="margin-top:10px;">
+            <label style="font-size:13px; font-weight:bold; color:#555;">現時年級 *</label>
+            <select id="reg-grade" class="input-field">
+              <option value="中一 (S1)">中一 (S1)</option>
+              <option value="中二 (S2)">中二 (S2)</option>
+              <option value="中三 (S3)">中三 (S3)</option>
+              <option value="中四 (S4)">中四 (S4)</option>
+              <option value="中五 (S5)">中五 (S5)</option>
+              <option value="中六 (S6 DSE)" selected>中六 (S6 DSE)</option>
+              <option value="大專/大學">大專 / 大學</option>
+              <option value="其他自修生">其他 / 自修生</option>
+            </select>
+          </div>
+
+          <div style="margin-top:10px;">
+            <label style="font-size:13px; font-weight:bold; color:#555;">喜愛學科 (可留白)</label>
+            <input type="text" id="reg-fav" class="input-field" placeholder="例如：數學, 物理">
+          </div>
+
+          <div style="margin-top:10px;">
+            <label style="font-size:13px; font-weight:bold; color:#555;">討厭學科 (可留白)</label>
+            <input type="text" id="reg-dislike" class="input-field" placeholder="例如：中文範文">
+          </div>
+        </div>
+
+        <!-- 導師專用欄位（導師申請資料）：揀「學生」嗰陣會隱藏並取消 required -->
+        <div id="register-tutor-fields" style="display:none;">
+          <div>
+            <label style="font-size:13px; font-weight:bold; color:#555;">自我介紹</label>
+            <textarea id="reg-tutor-bio" class="input-field" rows="3" maxlength="500" placeholder="簡單介紹自己的教學背景、經驗" style="width:100%; resize:vertical;"></textarea>
+          </div>
+
+          <div style="margin-top:10px;">
+            <label style="font-size:13px; font-weight:bold; color:#555;">想教的科目 *（用逗號分隔，例如：數學, 英文）</label>
+            <input type="text" id="reg-tutor-subjects" class="input-field" maxlength="200" placeholder="數學, 英文">
+          </div>
         </div>
 
         <div>
-          <label style="font-size:13px; font-weight:bold; color:#555;">6. 現時年級 *</label>
-          <select id="reg-grade" class="input-field">
-            <option value="中一 (S1)">中一 (S1)</option>
-            <option value="中二 (S2)">中二 (S2)</option>
-            <option value="中三 (S3)">中三 (S3)</option>
-            <option value="中四 (S4)">中四 (S4)</option>
-            <option value="中五 (S5)">中五 (S5)</option>
-            <option value="中六 (S6 DSE)" selected>中六 (S6 DSE)</option>
-            <option value="大專/大學">大專 / 大學</option>
-            <option value="其他自修生">其他 / 自修生</option>
-          </select>
-        </div>
-
-        <div>
-          <label style="font-size:13px; font-weight:bold; color:#555;">7. 喜愛學科 (可留白)</label>
-          <input type="text" id="reg-fav" class="input-field" placeholder="例如：數學, 物理">
-        </div>
-
-        <div>
-          <label style="font-size:13px; font-weight:bold; color:#555;">8. 討厭學科 (可留白)</label>
-          <input type="text" id="reg-dislike" class="input-field" placeholder="例如：中文範文">
-        </div>
-
-        <div>
-          <label style="font-size:13px; font-weight:bold; color:#555;">9. 電郵地址 *</label>
+          <label style="font-size:13px; font-weight:bold; color:#555;">電郵地址 *</label>
           <input type="email" id="reg-contact-email" class="input-field" required placeholder="example@school.edu.hk">
-          <p style="font-size:13px; color:#999; margin-top:4px;">不會用作登入，但需要進行電郵驗證：提交表格後會收到一封驗證電郵，請點擊當中的連結確認</p>
+          <p id="reg-contact-email-hint" style="font-size:13px; color:#999; margin-top:4px;">不會用作登入，但需要進行電郵驗證：提交表格後會收到一封驗證電郵，請點擊當中的連結確認</p>
         </div>
 
         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
@@ -2901,10 +2994,100 @@
         <div><strong>🪙 積分：</strong><span id="myacc-points">0 PTS</span></div>
       </div>
 
+      <!-- 導師身份狀態／申請入口：內容由 updateMyAccountTutorStatus() 動態
+           產生（未申請／審批中／已被拒／已經係導師 四種狀態） -->
+      <div id="myacc-tutor-area" style="margin-bottom:10px;"></div>
+
       <div style="display:flex; flex-direction:column; gap:8px;">
         <button class="btn btn-primary" type="button" style="width:100%; justify-content:center;" onclick="goEditProfileFromAccountModal()">✏️ 編輯個人資料</button>
         <button class="btn btn-red" type="button" style="width:100%; justify-content:center;" onclick="closeModal('modal-my-account'); logoutWithFirebase();">🚪 登出帳號</button>
         <button class="btn btn-outline" type="button" style="width:100%; justify-content:center;" onclick="closeModal('modal-my-account')">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🎓 導師身份申請表格（Phase A：導師 PDF 筆記商店，第一階段）
+       由 myacc-tutor-area 入面嘅「申請成為導師」掣觸發，交咗之後
+       就要等管理員喺後台審批，暫時未有任何後續功能（上傳筆記等）。 -->
+  <div class="modal-backdrop" id="modal-tutor-apply" style="display:none;">
+    <div class="modal-box" style="max-width:420px;">
+      <h3 style="font-size:17px; font-weight:bold; color:var(--brand-800); margin-bottom:4px;">🎓 申請成為導師</h3>
+      <p style="font-size:13px; color:#888; margin-bottom:14px;">通過審批之後，您就可以在導師後台管理科目、上傳付費筆記給其他同學購買。請填好以下資料交給管理員審批。</p>
+
+      <label style="font-size:13px; font-weight:bold; color:var(--brand-800); display:block; margin-bottom:4px;">顯示名稱</label>
+      <input id="tutor-apply-name" class="input-field" type="text" maxlength="40" placeholder="學生會見到的導師名稱" style="width:100%; margin-bottom:10px;">
+
+      <label style="font-size:13px; font-weight:bold; color:var(--brand-800); display:block; margin-bottom:4px;">自我介紹</label>
+      <textarea id="tutor-apply-bio" class="input-field" rows="3" maxlength="500" placeholder="簡單介紹自己的教學背景、經驗" style="width:100%; margin-bottom:10px; resize:vertical;"></textarea>
+
+      <label style="font-size:13px; font-weight:bold; color:var(--brand-800); display:block; margin-bottom:4px;">想教的科目（用逗號分隔，例如：數學, 英文）</label>
+      <input id="tutor-apply-subjects" class="input-field" type="text" maxlength="200" placeholder="數學, 英文" style="width:100%; margin-bottom:10px;">
+
+      <label style="font-size:13px; font-weight:bold; color:var(--brand-800); display:block; margin-bottom:4px;">聯絡方式（管理員審批用，不會公開）</label>
+      <input id="tutor-apply-contact" class="input-field" type="text" maxlength="200" placeholder="例如電郵或電話" style="width:100%; margin-bottom:14px;">
+
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-outline" type="button" style="flex:1; justify-content:center;" onclick="closeModal('modal-tutor-apply')">取消</button>
+        <button class="btn btn-primary" type="button" id="tutor-apply-submit-btn" style="flex:1; justify-content:center;" onclick="submitTutorApplication()">送出申請</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🎓 導師「新增科目」：科目名稱由 HKDSE 常見科目清單揀選（避免
+       各導師自己隨意打字，令科目名稱唔統一），揀「其他」先出現自訂
+       文字輸入格。清單由 tutor-panel.js 嘅 TUTOR_DSE_SUBJECTS 產生。 -->
+  <div class="modal-backdrop" id="modal-tutor-add-subject" style="display:none;">
+    <div class="modal-box" style="max-width:380px;">
+      <h3 style="font-size:17px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;">📚 新增科目</h3>
+      <label style="font-size:13px; font-weight:bold; color:#555; display:block; margin-bottom:4px;">科目名稱</label>
+      <select id="tutor-add-subject-select" class="input-field" style="width:100%; margin-bottom:10px;" onchange="window.onTutorAddSubjectSelectChange()"></select>
+      <div id="tutor-add-subject-custom-wrap" style="display:none;">
+        <label style="font-size:13px; font-weight:bold; color:#555; display:block; margin-bottom:4px;">自訂科目名稱</label>
+        <input id="tutor-add-subject-custom" class="input-field" type="text" maxlength="30" style="width:100%; margin-bottom:10px;" placeholder="例如：法文">
+      </div>
+      <div style="display:flex; gap:8px; margin-top:6px;">
+        <button class="btn btn-outline" type="button" style="flex:1; justify-content:center;" onclick="closeModal('modal-tutor-add-subject')">取消</button>
+        <button class="btn btn-primary" type="button" style="flex:1; justify-content:center;" onclick="window.confirmTutorAddSubject()">新增</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🎓 導師「編輯教材」：修改標題／簡介／定價，取代原本逐個 prompt() 彈窗嘅做法 -->
+  <div class="modal-backdrop" id="modal-tutor-edit-note" style="display:none;">
+    <div class="modal-box" style="max-width:420px;">
+      <h3 style="font-size:17px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;">✏️ 編輯教材</h3>
+      <label style="font-size:13px; font-weight:bold; color:#555; display:block; margin-bottom:4px;">標題 *</label>
+      <input id="tutor-edit-note-title" class="input-field" type="text" maxlength="80" style="width:100%; margin-bottom:10px;">
+      <label style="font-size:13px; font-weight:bold; color:#555; display:block; margin-bottom:4px;">簡介</label>
+      <textarea id="tutor-edit-note-desc" class="input-field" rows="3" maxlength="1000" style="width:100%; margin-bottom:10px; resize:vertical;"></textarea>
+      <label style="font-size:13px; font-weight:bold; color:#555; display:block; margin-bottom:4px;">定價（港幣，最低 $10，只能為整數）*</label>
+      <input id="tutor-edit-note-price" class="input-field" type="number" min="10" step="1" style="width:100%; margin-bottom:14px;">
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-outline" type="button" style="flex:1; justify-content:center;" onclick="closeModal('modal-tutor-edit-note')">取消</button>
+        <button class="btn btn-primary" type="button" style="flex:1; justify-content:center;" onclick="window.confirmTutorEditNote()">儲存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🎓 導師 PDF 預覽（整份文件／學生視角）：原本用 iframe 帶入 PDF 網址
+       靠瀏覽器內建 PDF viewer 顯示，但手機版（尤其 iOS Safari）個內建
+       viewer 塞喺 iframe 入面嗰陣，滾動/揭頁唔穩定，成日淨係睇到第一
+       頁、揭唔到落去第二頁。改用 pdf.js（見下面 JS 檔案引入）自己
+       將每一頁畫落畫布，自己控制「上一頁／下一頁」，桌面同手機
+       行為完全一致，唔再靠瀏覽器自己嗰個PDF viewer。 -->
+  <div class="modal-backdrop" id="modal-pdf-preview" style="display:none;">
+    <div class="modal-box" style="max-width:960px; width:92vw; height:88vh; display:flex; flex-direction:column; padding:16px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; gap:8px; flex-wrap:wrap;">
+        <h3 id="pdf-preview-title" style="font-size:15px; font-weight:bold; color:var(--brand-800); margin:0; flex:1; min-width:120px;">📄 預覽</h3>
+        <button class="btn btn-outline" type="button" style="padding:4px 10px;" onclick="window.closePdfPreviewModal()">✕ 關閉</button>
+      </div>
+      <div id="pdf-preview-canvas-wrap" style="flex:1; width:100%; overflow:auto; border:1px solid #E5EEF0; border-radius:8px; background:#f5f5f5; display:flex; align-items:flex-start; justify-content:center; -webkit-overflow-scrolling:touch;">
+        <canvas id="pdf-preview-canvas" style="max-width:100%; height:auto; box-shadow:0 1px 4px rgba(0,0,0,0.15);"></canvas>
+      </div>
+      <div style="display:flex; align-items:center; justify-content:center; gap:14px; margin-top:10px;">
+        <button class="btn btn-outline" type="button" style="padding:6px 14px;" onclick="window.pdfPreviewPrevPage()">‹ 上一頁</button>
+        <span id="pdf-preview-page-label" style="font-size:13px; color:#555; min-width:64px; text-align:center;">1 / 1</span>
+        <button class="btn btn-outline" type="button" style="padding:6px 14px;" onclick="window.pdfPreviewNextPage()">下一頁 ›</button>
       </div>
     </div>
   </div>
@@ -2965,7 +3148,7 @@
         <img id="report-screenshot-preview" style="width:100%; border-radius:10px; border:1px solid #ddd; display:block;">
       </div>
       <div id="report-screenshot-missing" style="margin-bottom:10px; font-size:13px; color:#c99; display:none;">
-        ⚠️ 呢一刻攞唔到對方畫面（可能對方鏡頭已關閉），舉報仍然會照送出，管理員會看返其他資料處理。
+        ⚠️ 目前無法取得對方畫面（可能對方鏡頭已關閉），舉報仍然會照常送出，管理員會依其他資料處理。
       </div>
 
       <div style="margin-bottom:10px;">
@@ -3133,6 +3316,7 @@
         <button class="btn btn-outline admin-tab-btn" data-tab="flashcards" onclick="switchAdminTab('flashcards')">🗂 溫習卡管理</button>
         <button class="btn btn-outline admin-tab-btn" data-tab="reports" onclick="switchAdminTab('reports')">🚩 舉報處理 <span id="admin-reports-badge" style="display:none; background:#C0524A; color:#fff; border-radius:99px; font-size:13px; padding:1px 6px; margin-left:3px;">0</span></button>
         <button class="btn btn-outline admin-tab-btn" data-tab="icons" onclick="switchAdminTab('icons')">🖼 功能圖示</button>
+        <button class="btn btn-outline admin-tab-btn" data-tab="tutors" onclick="switchAdminTab('tutors')">🎓 導師申請 <span id="admin-tutors-badge" style="display:none; background:#C0524A; color:#fff; border-radius:99px; font-size:13px; padding:1px 6px; margin-left:3px;">0</span></button>
       </div>
 
       <div id="admin-tab-gacha" class="admin-tab-panel"></div>
@@ -3143,6 +3327,7 @@
       <div id="admin-tab-flashcards" class="admin-tab-panel" style="display:none;"></div>
       <div id="admin-tab-reports" class="admin-tab-panel" style="display:none;"></div>
       <div id="admin-tab-icons" class="admin-tab-panel" style="display:none;"></div>
+      <div id="admin-tab-tutors" class="admin-tab-panel" style="display:none;"></div>
 
     </div>
   </div>
@@ -3157,6 +3342,17 @@
   </div>
 
   <script src="admin-panel.js"></script>
+  <!-- pdf.js：導師教材嘅 PDF 預覽（整份文件／學生視角）同教材卡嘅第一頁
+       縮圖，都用呢個 library 自己畫落 <canvas>，唔再靠瀏覽器內建嘅PDF
+       viewer（手機Safari個內建viewer塞喺iframe度揭唔到第二頁）。淨係
+       tutor-panel.js 用到，所以擺喺佢之前載入就得。 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous"></script>
+  <script>
+    if (window.pdfjsLib) {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+  </script>
+  <script src="tutor-panel.js"></script>
 
 </body>
 </html>

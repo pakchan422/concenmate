@@ -123,6 +123,18 @@
       if (tabId === 'diary' && typeof window.openDiaryView === 'function') {
         window.openDiaryView(diaryUid || null);
       }
+
+      // 「管理教材」分頁（導師專用）一開就即刻載入呢位導師自己嘅科目
+      // ／課題／教材清單，函式定義喺 tutor-panel.js
+      if (tabId === 'tutor-materials' && typeof window.renderTutorMaterialsTab === 'function') {
+        window.renderTutorMaterialsTab();
+      }
+
+      // 「溫習資源」分頁（學生專用）一開就即刻載入導師名錄，函式定義喺
+      // tutor-panel.js
+      if (tabId === 'vip' && typeof window.renderTutorDirectoryTab === 'function') {
+        window.renderTutorDirectoryTab();
+      }
     }
     window.switchTab = switchTab;
 
@@ -818,7 +830,7 @@
           const el = document.getElementById(id);
           if (el) el.innerText = window.currentUser.followingCount;
         });
-        window.showToast('已追蹤呢位書伴！', '🤝');
+        window.showToast('已追蹤這位書伴！', '🤝');
       } catch (e) {
         window.showToast('追蹤失敗：' + (e.message || e), '❌');
       }
@@ -904,7 +916,7 @@
       try {
         const snap = await window.fs.getDoc(window.fs.doc(window.db, 'users', _diaryViewUid));
         if (!snap.exists()) {
-          if (usernameEl) usernameEl.innerText = '找不到呢位用家';
+          if (usernameEl) usernameEl.innerText = '找不到這位使用者';
           return;
         }
         const u = snap.data();
@@ -1512,6 +1524,11 @@
         if (typeof window.updateProfileEmailVerifyUI === 'function') window.updateProfileEmailVerifyUI();
         if (typeof window.renderUserAvatar === 'function') window.renderUserAvatar();
 
+        // 導師帳戶（role==='tutor'）嘅側邊欄同學生／Admin 完全唔同，淨係
+        // 得返「主頁」＋「管理教材」——呢個 function 定義喺
+        // tutor-panel.js，負責隱藏晒其他學生專屬分頁、顯示返「管理教材」。
+        if (typeof window.applyRoleBasedSidebar === 'function') window.applyRoleBasedSidebar();
+
         switchTab('home');
       } else {
         if (appShell) appShell.style.display = 'none';
@@ -1575,6 +1592,7 @@
       // 簡要數字（相片／粉絲／追蹤中），撳「查看溫習日記」先真正載入
       // 相片牆——所以呢度唔使再喺開資料卡嗰陣就攞相片。
       if (typeof window.updateMyAccountPhotoStats === 'function') window.updateMyAccountPhotoStats();
+      if (typeof window.updateMyAccountTutorStatus === 'function') window.updateMyAccountTutorStatus();
 
       openModal('modal-my-account');
     }
@@ -1585,6 +1603,96 @@
       switchTab('profile');
     }
     window.goEditProfileFromAccountModal = goEditProfileFromAccountModal;
+
+    // ===================== 🎓 導師身份申請（Phase A：導師 PDF 筆記商店） =====================
+    // 呢一段純粹負責「資料卡入面嘅導師身份狀態顯示」＋「申請表格提交」，
+    // 審批（approveTutorApplication／rejectTutorApplication）由管理後台
+    // 嘅 admin-panel.js 負責。四種狀態：(1) 未申請過——顯示申請掣；
+    // (2) 已交低、審批中——顯示提示文字；(3) 之前被拒——顯示拒絕原因＋
+    // 重新申請掣；(4) 已經係導師——顯示已批核文字（Phase B 先會加返
+    // 「前往導師後台」嘅入口，而家仲未有導師後台）。
+    async function updateMyAccountTutorStatus() {
+      const area = document.getElementById('myacc-tutor-area');
+      if (!area || !window.currentUser || !window.db || !window.fs) return;
+
+      if (window.currentUser.role === 'tutor') {
+        area.innerHTML = `
+          <div style="background:#EAF6EC; border:1px solid #B7E0BE; border-radius:10px; padding:10px 12px; font-size:13px; color:#2F6B3A; text-align:left;">
+            🎓 您已經是 ConcenMate 認證導師。請在左側選單點選「管理教材」，即可上傳與管理您的科目、課題及教材。
+          </div>
+        `;
+        return;
+      }
+
+      area.innerHTML = '<p style="font-size:13px; color:#999; text-align:center;">正在查詢導師身份狀態…</p>';
+      try {
+        const snap = await window.fs.getDoc(window.fs.doc(window.db, 'tutorApplications', window.currentUser.uid));
+        if (!snap.exists()) {
+          area.innerHTML = `
+            <button class="btn btn-outline" type="button" style="width:100%; justify-content:center;" onclick="openTutorApplyModal()">🎓 申請成為導師</button>
+          `;
+          return;
+        }
+        const app = snap.data();
+        if (app.status === 'pending') {
+          area.innerHTML = `
+            <div style="background:#FFF7E6; border:1px solid #F0D9A0; border-radius:10px; padding:10px 12px; font-size:13px; color:#8a6d1f; text-align:left;">
+              ⏳ 您的導師申請正在審批中，請耐心等候管理員處理。
+            </div>
+          `;
+        } else if (app.status === 'rejected') {
+          area.innerHTML = `
+            <div style="background:#FBEAEA; border:1px solid #E3B4B4; border-radius:10px; padding:10px 12px; font-size:13px; color:#8a2f2f; text-align:left; margin-bottom:8px;">
+              ❌ 上一次的導師申請未獲批准。${app.rejectionReason ? ('原因：' + escapeHtml(app.rejectionReason)) : ''}
+            </div>
+            <button class="btn btn-outline" type="button" style="width:100%; justify-content:center;" onclick="openTutorApplyModal()">🔁 重新申請</button>
+          `;
+        } else {
+          // status === 'approved'，但 users/{uid}.role 未及時同步（理論上
+          // approveTutorApplication 一定會兩者一齊改，出現呢個狀態機會
+          // 極微，保留呢個分支純粹係防禦性顯示）
+          area.innerHTML = `
+            <div style="background:#EAF6EC; border:1px solid #B7E0BE; border-radius:10px; padding:10px 12px; font-size:13px; color:#2F6B3A; text-align:left;">
+              🎓 您的導師申請已經批核，重新登入後即可生效。
+            </div>
+          `;
+        }
+      } catch (err) {
+        area.innerHTML = `<p style="font-size:13px; color:#c0392b; text-align:center;">查詢導師身份狀態失敗：${escapeHtml(err.message || String(err))}</p>`;
+      }
+    }
+    window.updateMyAccountTutorStatus = updateMyAccountTutorStatus;
+
+    window.openTutorApplyModal = function() {
+      if (!window.currentUser) { openModal('modal-login'); return; }
+      const nameInput = document.getElementById('tutor-apply-name');
+      if (nameInput && !nameInput.value) nameInput.value = window.currentUser.username || '';
+      closeModal('modal-my-account');
+      openModal('modal-tutor-apply');
+    };
+
+    window.submitTutorApplication = async function() {
+      const btn = document.getElementById('tutor-apply-submit-btn');
+      const displayName = (document.getElementById('tutor-apply-name').value || '').trim();
+      const bio = (document.getElementById('tutor-apply-bio').value || '').trim();
+      const subjectsRaw = (document.getElementById('tutor-apply-subjects').value || '').trim();
+      const contactInfo = (document.getElementById('tutor-apply-contact').value || '').trim();
+      const subjectsIntended = subjectsRaw.split(/[,，、]/).map(s => s.trim()).filter(Boolean);
+
+      if (!displayName) { window.showToast('請填寫顯示名稱', '⚠️'); return; }
+      if (subjectsIntended.length === 0) { window.showToast('請至少填寫一個想教的科目', '⚠️'); return; }
+
+      if (btn) { btn.disabled = true; btn.innerText = '送出中…'; }
+      try {
+        await window.callCloudFunction('applyTutorRole', { displayName, bio, subjectsIntended, contactInfo });
+        closeModal('modal-tutor-apply');
+        window.showToast('已送出導師申請，請等候管理員審批', '✅');
+      } catch (err) {
+        window.showToast('送出申請失敗：' + (err.message || err), '❌');
+      } finally {
+        if (btn) { btn.disabled = false; btn.innerText = '送出申請'; }
+      }
+    };
 
     // 產生一個飄浮嘅表情動畫，放入指定嘅容器（自己或其他人嘅視訊卡片皆可用）
     function spawnSticker(container, emoji) {
@@ -2676,7 +2784,7 @@
       try {
         const snap = await window.fs.getDoc(window.fs.doc(window.db, 'users', uid));
         if (!snap.exists()) {
-          if (nameEl) nameEl.innerText = '找不到呢位用家';
+          if (nameEl) nameEl.innerText = '找不到這位使用者';
           return;
         }
         const u = snap.data();
@@ -2826,7 +2934,7 @@
 
     window.removeFriendAction = async function(friendUid) {
       if (!window.currentUser || !window.db || !window.fs) return;
-      if (!confirm('確定要移除呢位好友？')) return;
+      if (!confirm('確定要移除這位好友嗎？')) return;
       try {
         await window.fs.deleteDoc(window.fs.doc(window.db, 'users', window.currentUser.uid, 'friends', friendUid));
         await window.fs.deleteDoc(window.fs.doc(window.db, 'users', friendUid, 'friends', window.currentUser.uid));
@@ -2862,7 +2970,7 @@
         }
         const userSnap = await window.fs.getDoc(window.fs.doc(window.db, 'users', targetUid));
         if (!userSnap.exists()) {
-          resultEl.innerHTML = '<p style="font-size:13px; color:#D9764A;">找不到呢位用家的資料</p>';
+          resultEl.innerHTML = '<p style="font-size:13px; color:#D9764A;">找不到這位使用者的資料</p>';
           return;
         }
         const u = userSnap.data();
@@ -3643,7 +3751,7 @@
       if (!bodyEl || !window.currentUser) return;
       const messages = chatMessagesCache[chatId] || [];
       if (messages.length === 0) {
-        bodyEl.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:16px;">聊天啦～同呢位朋友講聲哈囉！</p>';
+        bodyEl.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:16px;">開始與這位朋友聊天，打個招呼吧！</p>';
         return;
       }
       const myUid = window.currentUser.uid;
