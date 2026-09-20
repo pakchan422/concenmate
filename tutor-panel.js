@@ -69,6 +69,8 @@ window.applyRoleBasedSidebar = function() {
   let tutorDirectoryUnsub = null;
   let tutorDirectoryAllTutors = []; // 快取最新一批已上架導師（{ uid, ...data }），用來喺切 tab 嗰陣即時篩選，唔使再問多次伺服器
   let tutorDirectorySelectedSubject = null; // null＝「全部」
+  let currentTutorViewUid = null; // 而家「導師專頁」顯示緊邊位導師，畀「粉絲」數字撳落去開追蹤名單用
+  window.getCurrentTutorViewUid = function() { return currentTutorViewUid; };
 
   function escapeHtmlLocal(str) {
     return String(str == null ? '' : str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -141,15 +143,18 @@ window.applyRoleBasedSidebar = function() {
   // 觸發（見 app-features.js）。
   window.openTutorProfileView = async function(uid) {
     if (!uid) return;
+    currentTutorViewUid = uid;
     const avatarEl = document.getElementById('tutorview-avatar');
     const nameEl = document.getElementById('tutorview-name');
     const bioEl = document.getElementById('tutorview-bio');
     const subjectsEl = document.getElementById('tutorview-subjects');
+    const followerCountEl = document.getElementById('tutorview-follower-count');
     const followWrap = document.getElementById('tutorview-follow-wrap');
     const notesWrap = document.getElementById('tutorview-notes-wrap');
     if (nameEl) nameEl.innerText = '載入中…';
     if (bioEl) bioEl.innerText = '';
     if (subjectsEl) subjectsEl.innerHTML = '';
+    if (followerCountEl) followerCountEl.innerText = '0';
     if (followWrap) followWrap.innerHTML = '';
     if (notesWrap) notesWrap.innerHTML = '<p style="font-size:13px; color:#999; text-align:center; padding:10px;">載入中…</p>';
     if (avatarEl) { avatarEl.innerHTML = ''; avatarEl.innerText = '🎓'; }
@@ -181,6 +186,7 @@ window.applyRoleBasedSidebar = function() {
           .map((s) => `<span class="tag" style="background:#F0F6F8; color:#1E4550;">${escapeHtmlLocal(s)}</span>`)
           .join('');
       }
+      if (followerCountEl) followerCountEl.innerText = u.followerCount || 0;
       if (window.currentUser && uid !== window.currentUser.uid && typeof window.renderFollowButton === 'function') {
         window.renderFollowButton(uid, u, 'tutorview-follow-wrap');
       }
