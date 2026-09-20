@@ -217,17 +217,21 @@ window.applyRoleBasedSidebar = function() {
       const subjectsHtml = (t.subjectsIntended || [])
         .map((s) => `<span class="tag" style="background:#F0F6F8; color:#1E4550; margin-right:4px;">${escapeHtmlLocal(s)}</span>`)
         .join('');
-      // 撳頭像：只開細細張「資料卡」（window.viewUserProfile()），純顯示
-      // 基本身份資訊；撳卡片其他位置：入去呢位導師嘅完整專頁（見下面
-      // window.openTutorProfileView()），睇齊佢嘅簡介同已上架嘅教材。
-      // 頭像個 onclick 一定要 stopPropagation，唔係嘅話會同時觸發埋外層
-      // 卡片個 onclick，變咗兩個彈出視窗／分頁一齊開。
+      // 撳頭像／導師名稱：只開細細張「資料卡」（window.viewUserProfile()），
+      // 純顯示基本身份資訊；撳卡片其他位置（簡介、科目標籤、「查看 ›」、
+      // 空白位）：用 switchTab() 真正切換去「導師專頁」呢個分頁（見
+      // index.html 嘅 #tab-tutor-view），入面先由 window.openTutorProfileView()
+      // 載入呢位導師嘅完整資料同已上架嘅教材——⚠️ 之前呢度試過直接
+      // call window.openTutorProfileView()，漏咗實際切換分頁嗰步，資料
+      // 有載入但個分頁冇顯示出嚟，撳落去好似「冇反應」。
+      // 頭像／名稱嘅 onclick 一定要 stopPropagation，唔係嘅話會同時觸發
+      // 埋外層卡片個 onclick，變咗兩樣嘢一齊觸發。
       return `
-        <div class="card" style="cursor:pointer;" onclick="window.openTutorProfileView('${uid}')">
+        <div class="card" style="cursor:pointer;" onclick="switchTab('tutor-view', null, '${uid}')">
           <div style="display:flex; align-items:center; gap:10px;">
             <div style="width:44px; height:44px; border-radius:50%; background:var(--brand-100); display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; cursor:pointer;" onclick="event.stopPropagation(); window.viewUserProfile('${uid}')">🎓</div>
             <div style="min-width:0; flex:1;">
-              <p style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:2px;">${escapeHtmlLocal(t.displayName || '導師')}</p>
+              <p style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:2px; cursor:pointer; width:fit-content;" onclick="event.stopPropagation(); window.viewUserProfile('${uid}')">${escapeHtmlLocal(t.displayName || '導師')}</p>
               <p style="font-size:13px; color:#666; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtmlLocal(t.bio || '')}</p>
             </div>
             <span style="font-size:13px; color:var(--brand-600); flex-shrink:0;">查看 ›</span>
