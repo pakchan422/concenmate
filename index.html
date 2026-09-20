@@ -47,7 +47,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.135.7"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.136.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -2820,8 +2820,9 @@
           </div>
 
           <div style="margin-top:10px;">
-            <label style="font-size:13px; font-weight:bold; color:#555;">想教的科目 *（用逗號分隔，例如：數學, 英文）</label>
-            <input type="text" id="reg-tutor-subjects" class="input-field" maxlength="200" placeholder="數學, 英文">
+            <label style="font-size:13px; font-weight:bold; color:#555;">想教的科目 *（可選多科，亦可自行輸入）</label>
+            <div id="reg-tutor-subjects-picker"></div>
+            <input type="hidden" id="reg-tutor-subjects">
           </div>
         </div>
 
@@ -3020,8 +3021,9 @@
       <label style="font-size:13px; font-weight:bold; color:var(--brand-800); display:block; margin-bottom:4px;">自我介紹</label>
       <textarea id="tutor-apply-bio" class="input-field" rows="3" maxlength="500" placeholder="簡單介紹自己的教學背景、經驗" style="width:100%; margin-bottom:10px; resize:vertical;"></textarea>
 
-      <label style="font-size:13px; font-weight:bold; color:var(--brand-800); display:block; margin-bottom:4px;">想教的科目（用逗號分隔，例如：數學, 英文）</label>
-      <input id="tutor-apply-subjects" class="input-field" type="text" maxlength="200" placeholder="數學, 英文" style="width:100%; margin-bottom:10px;">
+      <label style="font-size:13px; font-weight:bold; color:var(--brand-800); display:block; margin-bottom:4px;">想教的科目（可選多科，亦可自行輸入）</label>
+      <div id="tutor-apply-subjects-picker" style="margin-bottom:10px;"></div>
+      <input id="tutor-apply-subjects" type="hidden">
 
       <label style="font-size:13px; font-weight:bold; color:var(--brand-800); display:block; margin-bottom:4px;">聯絡方式（管理員審批用，不會公開）</label>
       <input id="tutor-apply-contact" class="input-field" type="text" maxlength="200" placeholder="例如電郵或電話" style="width:100%; margin-bottom:14px;">

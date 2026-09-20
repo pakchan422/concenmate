@@ -241,7 +241,10 @@ window.applyRoleBasedSidebar = function() {
   // HKDSE 常見科目清單（核心＋選修），揀「其他」先出現自訂文字輸入
   // 格——用固定清單嚟揀，避免各導師自己隨意打字令同一科出現唔同名
   // 稱（例如「Maths」「數學」「Math」混雜），方便日後學生瀏覽篩選。
-  const TUTOR_DSE_SUBJECTS = [
+  // ⚠️ 掛喺 window 度：app-core.js（註冊表格）同 app-features.js（事後
+  // 補交導師申請）嘅 renderTutorSubjectChipPicker() 都要用返同一份
+  // HKDSE 科目清單，等成個 app 入面所有「想教的科目」揀嘅嘢都一致。
+  const TUTOR_DSE_SUBJECTS = window.TUTOR_DSE_SUBJECTS = [
     '中國語文', '英國語文', '數學（必修部分）', '數學延伸部分單元一（M1）', '數學延伸部分單元二（M2）',
     '公民與社會發展',
     '中國歷史', '歷史', '地理', '經濟', '企業、會計與財務概論（BAFS）', '倫理與宗教',

@@ -942,6 +942,79 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       if (typeof window.stopRoomInvitesListener === 'function') window.stopRoomInvitesListener();
     };
 
+    // ===================== 導師「想教的科目」勾選式選擇器 =====================
+    // 原本呢個位係一個「用逗號分隔」嘅純文字輸入格，容易打錯字或者格式
+    // 唔一致（例如有人打「數學」有人打「Math」），同「管理教材」分頁
+    // 新增科目嗰陣用嘅固定 HKDSE 科目清單唔統一。而家改用同一份清單
+    // （window.TUTOR_DSE_SUBJECTS，由 tutor-panel.js 定義並掛喺 window
+    // 度，注意呢個檔案本身喺 tutor-panel.js 之前載入，但呢個函數要用戶
+    // 撳咗「我是導師」或者開咗「申請成為導師」視窗先會被叫，到嗰時全部
+    // <script> 都已經載入完，唔會撞到 TUTOR_DSE_SUBJECTS 未定義嘅問題）
+    // 畫成可以剔選多科嘅 chip，同埋保留一個文字輸入畀清單以外嘅科目。
+    // 用返個原本嘅 hidden input 做「真正嘅欄位」，將剔選結果用頓號合埋
+    // 一齊寫入去，咁樣 handleRegisterSubmit()／submitTutorApplication()
+    // 嗰套「讀 .value 再用逗號分割」嘅邏輯完全唔使改。
+    window.renderTutorSubjectChipPicker = function(pickerId, hiddenInputId) {
+      const picker = document.getElementById(pickerId);
+      const hiddenInput = document.getElementById(hiddenInputId);
+      if (!picker || !hiddenInput || !window.TUTOR_DSE_SUBJECTS) return;
+
+      const selected = new Set((hiddenInput.value || '').split(/[,，、]/).map((s) => s.trim()).filter(Boolean));
+      const fixedSubjects = window.TUTOR_DSE_SUBJECTS.filter((s) => s !== '其他（自行輸入）');
+      const escAttr = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+
+      function sync() {
+        hiddenInput.value = Array.from(selected).join('、');
+      }
+
+      function render() {
+        const chipsHtml = fixedSubjects.map((s) => {
+          const active = selected.has(s);
+          return `<button type="button" class="tag" data-subject="${escAttr(s)}"
+            style="cursor:pointer; border:1px solid ${active ? 'var(--brand-500)' : '#ddd'};
+            background:${active ? 'var(--brand-500)' : '#F5F7F8'}; color:${active ? '#fff' : '#555'};
+            border-radius:99px; padding:4px 10px; font-size:13px; margin:0 6px 6px 0;">${active ? '✓ ' : ''}${s}</button>`;
+        }).join('');
+        const customSelected = Array.from(selected).filter((s) => !fixedSubjects.includes(s));
+        const customChipsHtml = customSelected.map((s) => `
+          <button type="button" class="tag" data-custom-subject="${escAttr(s)}"
+            style="cursor:pointer; border:1px solid var(--brand-500); background:var(--brand-500);
+            color:#fff; border-radius:99px; padding:4px 10px; font-size:13px; margin:0 6px 6px 0;">✓ ${s} ✕</button>
+        `).join('');
+        picker.innerHTML = `
+          <div style="display:flex; flex-wrap:wrap;">${chipsHtml}${customChipsHtml}</div>
+          <input type="text" id="${pickerId}-custom" class="input-field" placeholder="其他科目（自行輸入，按 Enter 新增）" style="width:100%; margin-top:4px;">
+        `;
+        picker.querySelectorAll('button[data-subject]').forEach((btn) => {
+          btn.onclick = () => {
+            const subj = btn.getAttribute('data-subject');
+            if (selected.has(subj)) selected.delete(subj); else selected.add(subj);
+            sync();
+            render();
+          };
+        });
+        picker.querySelectorAll('button[data-custom-subject]').forEach((btn) => {
+          btn.onclick = () => {
+            selected.delete(btn.getAttribute('data-custom-subject'));
+            sync();
+            render();
+          };
+        });
+        const customInput = document.getElementById(`${pickerId}-custom`);
+        if (customInput) {
+          customInput.onkeydown = (e) => {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            const v = customInput.value.trim();
+            if (v) { selected.add(v); sync(); render(); }
+          };
+        }
+      }
+
+      render();
+      sync();
+    };
+
     // 註冊表格嘅「🎒 我是學生」／「🎓 我是導師」切換：揀導師嗰邊會顯示
     // 導師申請專用欄位（自我介紹、想教嘅科目），同時隱藏埋學生專用嘅
     // 學校／年級／喜愛學科／討厭學科——並且將呢兩組欄位嘅 required
@@ -968,6 +1041,14 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       const subjectsInput = document.getElementById('reg-tutor-subjects');
       if (schoolInput) schoolInput.required = !isTutor;
       if (subjectsInput) subjectsInput.required = isTutor;
+
+      // 揀「我是導師」先畫個科目剔選器（唔喺頁面一載入就畫，慳返啲
+      // 唔使嘅工夫；每次切返導師嗰邊都重畫一次，會保留返之前剔選開嘅
+      // 內容，因為 renderTutorSubjectChipPicker() 係由 hidden input 而家
+      // 嘅 value 讀返選咗乜嘢）
+      if (isTutor && typeof window.renderTutorSubjectChipPicker === 'function') {
+        window.renderTutorSubjectChipPicker('reg-tutor-subjects-picker', 'reg-tutor-subjects');
+      }
     };
 
     window.handleRegisterSubmit = function(e) {

@@ -1669,6 +1669,12 @@
       if (nameInput && !nameInput.value) nameInput.value = window.currentUser.username || '';
       closeModal('modal-my-account');
       openModal('modal-tutor-apply');
+      // 「想教的科目」改用剔選式選擇器（見 app-core.js 嘅
+      // renderTutorSubjectChipPicker()），同註冊表格導師欄位共用同一份
+      // HKDSE 科目清單，唔使用戶自己打逗號分隔嘅文字。
+      if (typeof window.renderTutorSubjectChipPicker === 'function') {
+        window.renderTutorSubjectChipPicker('tutor-apply-subjects-picker', 'tutor-apply-subjects');
+      }
     };
 
     window.submitTutorApplication = async function() {
