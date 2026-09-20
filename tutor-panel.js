@@ -135,6 +135,62 @@ window.applyRoleBasedSidebar = function() {
     tabsContainer.innerHTML = [makeTabBtn('全部', null), ...orderedSubjects.map((s) => makeTabBtn(s, s))].join('');
   }
 
+  // 導師專頁：學生撳導師卡片（頭像除外）入嚟嘅完整版面，顯示呢位導師
+  // 嘅頭像、簡介、任教科目、追蹤掣，同埋已上架嘅教材列表（試睇／
+  // 購買，後者暫時仍在開發中）。由 switchTab('tutor-view', null, uid)
+  // 觸發（見 app-features.js）。
+  window.openTutorProfileView = async function(uid) {
+    if (!uid) return;
+    const avatarEl = document.getElementById('tutorview-avatar');
+    const nameEl = document.getElementById('tutorview-name');
+    const bioEl = document.getElementById('tutorview-bio');
+    const subjectsEl = document.getElementById('tutorview-subjects');
+    const followWrap = document.getElementById('tutorview-follow-wrap');
+    const notesWrap = document.getElementById('tutorview-notes-wrap');
+    if (nameEl) nameEl.innerText = '載入中…';
+    if (bioEl) bioEl.innerText = '';
+    if (subjectsEl) subjectsEl.innerHTML = '';
+    if (followWrap) followWrap.innerHTML = '';
+    if (notesWrap) notesWrap.innerHTML = '<p style="font-size:13px; color:#999; text-align:center; padding:10px;">載入中…</p>';
+    if (avatarEl) { avatarEl.innerHTML = ''; avatarEl.innerText = '🎓'; }
+
+    if (!window.db || !window.fs) return;
+    try {
+      const [tutorSnap, userSnap] = await Promise.all([
+        window.fs.getDoc(window.fs.doc(window.db, 'tutors', uid)),
+        window.fs.getDoc(window.fs.doc(window.db, 'users', uid)),
+      ]);
+      if (!tutorSnap.exists()) {
+        if (nameEl) nameEl.innerText = '找不到這位導師';
+        return;
+      }
+      const t = tutorSnap.data();
+      const u = userSnap.exists() ? userSnap.data() : {};
+
+      if (nameEl) nameEl.innerText = t.displayName || '導師';
+      if (bioEl) bioEl.innerText = t.bio || '';
+      if (avatarEl) {
+        if (u.avatarBase64) {
+          avatarEl.innerHTML = `<img src="${u.avatarBase64}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" alt="導師頭像">`;
+        } else {
+          avatarEl.innerText = '🎓';
+        }
+      }
+      if (subjectsEl) {
+        subjectsEl.innerHTML = (t.subjectsIntended || [])
+          .map((s) => `<span class="tag" style="background:#F0F6F8; color:#1E4550;">${escapeHtmlLocal(s)}</span>`)
+          .join('');
+      }
+      if (window.currentUser && uid !== window.currentUser.uid && typeof window.renderFollowButton === 'function') {
+        window.renderFollowButton(uid, u, 'tutorview-follow-wrap');
+      }
+      window.renderTutorNotesInProfileCard(uid, 'tutorview-notes-wrap');
+    } catch (err) {
+      if (nameEl) nameEl.innerText = '載入失敗';
+      if (notesWrap) notesWrap.innerHTML = `<p style="font-size:13px; color:#c0392b; text-align:center;">${escapeHtmlLocal(err.message || err)}</p>`;
+    }
+  };
+
   window.selectTutorDirectorySubject = function(subject) {
     tutorDirectorySelectedSubject = subject || null;
     renderTutorDirectoryTabsUI();
@@ -161,10 +217,15 @@ window.applyRoleBasedSidebar = function() {
       const subjectsHtml = (t.subjectsIntended || [])
         .map((s) => `<span class="tag" style="background:#F0F6F8; color:#1E4550; margin-right:4px;">${escapeHtmlLocal(s)}</span>`)
         .join('');
+      // 撳頭像：只開細細張「資料卡」（window.viewUserProfile()），純顯示
+      // 基本身份資訊；撳卡片其他位置：入去呢位導師嘅完整專頁（見下面
+      // window.openTutorProfileView()），睇齊佢嘅簡介同已上架嘅教材。
+      // 頭像個 onclick 一定要 stopPropagation，唔係嘅話會同時觸發埋外層
+      // 卡片個 onclick，變咗兩個彈出視窗／分頁一齊開。
       return `
-        <div class="card" style="cursor:pointer;" onclick="window.viewUserProfile('${uid}')">
+        <div class="card" style="cursor:pointer;" onclick="window.openTutorProfileView('${uid}')">
           <div style="display:flex; align-items:center; gap:10px;">
-            <div style="width:44px; height:44px; border-radius:50%; background:var(--brand-100); display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;">🎓</div>
+            <div style="width:44px; height:44px; border-radius:50%; background:var(--brand-100); display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; cursor:pointer;" onclick="event.stopPropagation(); window.viewUserProfile('${uid}')">🎓</div>
             <div style="min-width:0; flex:1;">
               <p style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:2px;">${escapeHtmlLocal(t.displayName || '導師')}</p>
               <p style="font-size:13px; color:#666; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtmlLocal(t.bio || '')}</p>
@@ -685,8 +746,8 @@ window.applyRoleBasedSidebar = function() {
   // 開放俾所有已登入用戶），唔會亦唔應該讀到 fullStoragePath（淨係
   // 導師本人／admin 先讀得到）。「購買」暫時仲未起（Phase D 先有真正
   // 嘅付款／購買紀錄），撳落去先顯示「開發中」提示，唔會扣任何嘢。
-  window.renderTutorNotesInProfileCard = async function(tutorUid) {
-    const wrap = document.getElementById('pop-tutor-notes-wrap');
+  window.renderTutorNotesInProfileCard = async function(tutorUid, wrapId) {
+    const wrap = document.getElementById(wrapId || 'tutorview-notes-wrap');
     if (!wrap || !tutorUid || !window.db || !window.fs) return;
     try {
       const notesSnap = await window.fs.getDocs(window.fs.query(
@@ -694,7 +755,10 @@ window.applyRoleBasedSidebar = function() {
         window.fs.where('tutorUid', '==', tutorUid),
         window.fs.where('status', '==', 'published')
       ));
-      if (notesSnap.empty) { wrap.innerHTML = ''; return; }
+      if (notesSnap.empty) {
+        wrap.innerHTML = '<p style="font-size:13px; color:#999; text-align:center; padding:10px;">這位導師暫時未有已上架的教材</p>';
+        return;
+      }
 
       const notes = notesSnap.docs
         .map((d) => ({ id: d.id, ...d.data() }))
@@ -713,7 +777,6 @@ window.applyRoleBasedSidebar = function() {
       }));
 
       wrap.innerHTML = `
-        <div style="font-size:14px; font-weight:700; color:var(--brand-800); margin-bottom:8px;">📚 已上架教材</div>
         <div style="display:flex; flex-direction:column; gap:8px;">
           ${notes.map((n) => `
             <div class="card" style="padding:10px 12px;">

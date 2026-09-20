@@ -135,6 +135,13 @@
       if (tabId === 'vip' && typeof window.renderTutorDirectoryTab === 'function') {
         window.renderTutorDirectoryTab();
       }
+
+      // 導師專頁：由「溫習資源」入面撳導師卡片入嚟（見 tutor-panel.js
+      // 嘅 window.openTutorProfileView()），呢度借用返 diaryUid 呢個參數
+      // 位傳導師 uid，唔使另外加多個參數
+      if (tabId === 'tutor-view' && typeof window.openTutorProfileView === 'function') {
+        window.openTutorProfileView(diaryUid || null);
+      }
     }
     window.switchTab = switchTab;
 
@@ -2790,8 +2797,6 @@
       if (popFollowWrap) popFollowWrap.innerHTML = '';
       const popDiaryWrap = document.getElementById('pop-diary-btn-wrap');
       if (popDiaryWrap) popDiaryWrap.innerHTML = '';
-      const popNotesWrap = document.getElementById('pop-tutor-notes-wrap');
-      if (popNotesWrap) popNotesWrap.innerHTML = '';
       openModal('modal-view-profile');
 
       if (!window.db || !window.fs) return;
@@ -2825,11 +2830,6 @@
         // 完整嘅相片牆搬咗去獨立嘅「溫習日記」分頁顯示，呢度淨係擺一粒
         // 掣，撳落去就去嗰個分頁睇呢位同學嘅溫習日記（見 openDiaryView()）
         if (popDiaryWrap) popDiaryWrap.innerHTML = `<button class="btn btn-outline" type="button" style="width:100%; justify-content:center;" onclick="closeModal('modal-view-profile'); switchTab('diary', null, '${uid}');">📔 查看溫習日記</button>`;
-        // 導師帳戶：顯示已上架嘅 PDF 筆記俾學生瀏覽／試睇（見
-        // tutor-panel.js 嘅 renderTutorNotesInProfileCard()）
-        if (u.role === 'tutor' && typeof window.renderTutorNotesInProfileCard === 'function') {
-          window.renderTutorNotesInProfileCard(uid);
-        }
         await renderFriendActionButtons(uid, u);
       } catch (e) {
         console.error('讀取用戶資料失敗:', e);

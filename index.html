@@ -47,7 +47,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.138.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.139.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -2659,6 +2659,34 @@
 
         </section>
 
+        <!-- 導師專頁：學生喺「溫習資源」撳導師卡片入嚟嘅完整介面，顯示
+             呢位導師嘅資料同已上架嘅 PDF 筆記（試睇／購買）。撳導師卡片
+             嘅頭像會改為開返 window.viewUserProfile() 嗰個細資料卡；撳
+             卡片其他位置就入嚟呢個完整分頁（見 tutor-panel.js 嘅
+             window.openTutorProfileView()）。 -->
+        <section id="tab-tutor-view" class="tab-content">
+
+          <div style="margin-bottom:10px;">
+            <button class="btn btn-outline" type="button" style="width:100%; justify-content:center; font-size:13px;" onclick="switchTab('vip')">← 返回溫習資源</button>
+          </div>
+
+          <div class="card" style="text-align:center;">
+            <div class="avatar-circle" style="margin:0 auto 10px; width:64px; height:64px; font-size:26px; background:var(--brand-500); border-color:var(--brand-200);" id="tutorview-avatar">🎓</div>
+            <h3 style="font-size:18px; font-weight:bold; color:var(--brand-800);" id="tutorview-name">導師</h3>
+            <p style="font-size:13px; color:#888; margin-top:4px; white-space:pre-line;" id="tutorview-bio"></p>
+            <div id="tutorview-subjects" style="display:flex; flex-wrap:wrap; gap:4px; justify-content:center; margin-top:8px;"></div>
+            <div id="tutorview-follow-wrap" style="margin-top:12px;"></div>
+          </div>
+
+          <div class="card" style="margin-top:12px; text-align:left;">
+            <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;">📚 已上架教材</h3>
+            <div id="tutorview-notes-wrap">
+              <p style="font-size:13px; color:#999; text-align:center; padding:10px;">載入中…</p>
+            </div>
+          </div>
+
+        </section>
+
         <section id="tab-verification" class="tab-content">
           <div style="text-align:center; padding:60px 20px;">
             <div style="font-size:64px; margin-bottom:16px;">🚧</div>
@@ -2921,11 +2949,6 @@
       </div>
       <div id="pop-follow-btn-wrap" style="margin-bottom:8px;"></div>
       <div id="pop-diary-btn-wrap" style="margin-bottom:12px;"></div>
-
-      <!-- 導師專用：已上架的 PDF 筆記列表（供學生瀏覽／試睇）。內容由
-           renderTutorNotesInProfileCard() 動態產生，非導師帳戶會保持
-           空白。 -->
-      <div id="pop-tutor-notes-wrap" style="margin-bottom:12px; text-align:left;"></div>
 
       <button class="btn btn-outline" type="button" style="width:100%; justify-content:center;" onclick="closeModal('modal-view-profile')">關閉資料卡</button>
     </div>
