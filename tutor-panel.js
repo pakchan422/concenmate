@@ -799,7 +799,7 @@ window.applyRoleBasedSidebar = function() {
               </div>
               <div style="display:flex; gap:6px; margin-top:8px;">
                 ${n.previewStoragePath
-                  ? `<button class="btn btn-outline" type="button" style="font-size:12px; padding:4px 10px; flex:1; justify-content:center;" onclick="window.previewPublicTutorNote('${n.id}')">👁️ 試睇</button>`
+                  ? `<button class="btn btn-outline" type="button" style="font-size:12px; padding:4px 10px; flex:1; justify-content:center;" onclick="window.previewPublicTutorNote('${n.id}')">👁️ 預覽</button>`
                   : ''}
                 <button class="btn btn-outline" type="button" style="font-size:12px; padding:4px 10px; flex:1; justify-content:center; opacity:.6;" onclick="window.showToast('購買功能仍在開發中，敬請期待', '🚧')">🛒 購買</button>
               </div>
@@ -823,7 +823,7 @@ window.applyRoleBasedSidebar = function() {
       const n = snap.data();
       if (!n.previewStoragePath) { window.showToast('這份教材尚未設定預覽頁', '⚠️'); return; }
       const url = await window.storageApi.getDownloadURL(window.storageApi.ref(window.storage, n.previewStoragePath));
-      showPdfPreviewModal(url, '👁️ 試睇：' + (n.title || ''));
+      showPdfPreviewModal(url, '👁️ 預覽：' + (n.title || ''));
     } catch (err) {
       window.showToast('開啟檔案失敗：' + (err.message || err), '❌');
     }

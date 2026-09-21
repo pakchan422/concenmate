@@ -821,7 +821,7 @@
         const followId = `${window.currentUser.uid}_${targetUid}`;
         const snap = await window.fs.getDoc(window.fs.doc(window.db, 'follows', followId));
         if (snap.exists()) {
-          wrap.innerHTML = `<button class="btn btn-outline" type="button" style="width:100%; justify-content:center; font-size:13px;" onclick="unfollowUserAction('${targetUid}', '${wrapId}')">✅ 已追蹤（撳此取消）</button>`;
+          wrap.innerHTML = `<button class="btn btn-outline" type="button" style="width:100%; justify-content:center; font-size:13px;" onclick="unfollowUserAction('${targetUid}', '${wrapId}')">✅ 已追蹤（點擊取消）</button>`;
         } else {
           wrap.innerHTML = `<button class="btn btn-primary" type="button" style="width:100%; justify-content:center; font-size:13px;" onclick="followUserAction('${targetUid}', '${wrapId}')">➕ 追蹤書伴</button>`;
         }
@@ -837,7 +837,7 @@
       try {
         await window.callCloudFunction('followUser', { targetUid });
         const wrap = document.getElementById(wrapId);
-        if (wrap) wrap.innerHTML = `<button class="btn btn-outline" type="button" style="width:100%; justify-content:center; font-size:13px;" onclick="unfollowUserAction('${targetUid}', '${wrapId}')">✅ 已追蹤（撳此取消）</button>`;
+        if (wrap) wrap.innerHTML = `<button class="btn btn-outline" type="button" style="width:100%; justify-content:center; font-size:13px;" onclick="unfollowUserAction('${targetUid}', '${wrapId}')">✅ 已追蹤（點擊取消）</button>`;
         const countEl = document.getElementById(_followCountIdFor(wrapId));
         if (countEl) countEl.innerText = (parseInt(countEl.innerText, 10) || 0) + 1;
         // 追蹤緊嘅係自己嘅「追蹤中」數，唔係對方嘅「粉絲」數——呢兩個
@@ -3001,7 +3001,7 @@
           return;
         }
         if (existing.exists() && existing.data().status === 'accepted') {
-          window.showToast('你們已經是好友喇', 'ℹ️');
+          window.showToast('你們已經是好友', 'ℹ️');
           return;
         }
         await window.fs.setDoc(reqRef, {
@@ -4185,7 +4185,7 @@
 
       // 就算已經彈咗出嚟，都要重新核對一次有冇過期先真正放行入房
       if (invite.expiresAt && Date.now() > invite.expiresAt) {
-        window.showToast('⌛ 這個邀請已經過期喇，叫朋友再邀請多次啦', '⌛');
+        window.showToast('⌛ 這個邀請已經過期，請朋友重新發送邀請', '⌛');
         try { await window.fs.updateDoc(window.fs.doc(window.db, 'roomInvites', invite.id), { status: 'expired' }); } catch (e) {}
         showNextRoomInvitePopup();
         return;

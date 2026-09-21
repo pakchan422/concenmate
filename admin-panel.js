@@ -648,7 +648,7 @@
             <label style="font-size:13px; color:#555; display:flex; align-items:center; gap:4px;">顏色
               <input type="color" style="width:36px; height:26px; padding:1px; border:1px solid #ccc; border-radius:4px;" value="${r.color || '#4A8FA0'}" onchange="adminLevelDraft.ranks[${idx}].color = this.value">
             </label>
-            <label style="font-size:13px; color:#555; display:flex; align-items:flex-start; gap:4px; width:100%;">升級詳情文字（用家撳「Lv.」列會彈出視窗顯示）
+            <label style="font-size:13px; color:#555; display:flex; align-items:flex-start; gap:4px; width:100%;">升級詳情文字（用戶點擊「Lv.」列會彈出視窗顯示）
               <textarea class="admin-input-sm" rows="2" style="flex:1; min-width:200px; resize:vertical;" oninput="adminLevelDraft.ranks[${idx}].desc = this.value">${escapeHtml(r.desc || '')}</textarea>
             </label>
           </div>
@@ -1042,7 +1042,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
       }
 
       if (adminFlashcardsAllDocs.length === 0) {
-        listContainer.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">目前沒有任何溫習卡，在上面新增第一張啦！</div>';
+        listContainer.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">目前沒有任何溫習卡，請在上面新增第一張</div>';
         return;
       }
 
@@ -1319,7 +1319,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
         }).join('');
         container.innerHTML = `
           <div class="admin-card">
-            <p style="font-size:13px; color:#888; margin-bottom:10px;">改完積分／時數／EXP 之後記得逐行撳「💾 儲存」；EXP 決定用戶的溫習等級同段位，一般不用人手改，特殊情況（例如補發）先用。「停權」會令該用戶下次登入時被強制登出。</p>
+            <p style="font-size:13px; color:#888; margin-bottom:10px;">修改積分／時數／EXP 後，請記得逐行點擊「💾 儲存」；EXP 決定用戶的溫習等級與段位，一般毋須人手修改，只有在特殊情況（例如補發）才使用。「停權」會令該用戶下次登入時被強制登出。</p>
             <div style="overflow-x:auto;">
               <table class="admin-table">
                 <thead><tr><th>用戶名</th><th>帳號 ID</th><th>Email</th><th>學校</th><th>最後上線</th><th>積分</th><th>時數</th><th>EXP</th><th></th></tr></thead>

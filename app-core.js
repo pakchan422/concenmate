@@ -773,7 +773,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
         return;
       }
       if (existing.exists()) {
-        window.showToast('這個帳號 ID 已經有人用了，換一個啦', '⚠️');
+        window.showToast('這個帳號 ID 已經有人使用，請更換一個', '⚠️');
         return;
       }
 
@@ -880,7 +880,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       try {
         // 登入一律用帳號 ID，唔再支援直接打電郵登入
         if (idOrEmail.includes('@')) {
-          window.showToast('請用「帳號 ID」登入，不要打電郵喇', '⚠️');
+          window.showToast('請使用「帳號 ID」登入，而非電郵地址', '⚠️');
           return;
         }
         const idLower = idOrEmail.toLowerCase();

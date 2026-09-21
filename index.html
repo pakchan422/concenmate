@@ -47,7 +47,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.140.3"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.141.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -1553,6 +1553,23 @@
         <button type="button" class="landing-btn landing-btn-primary" style="padding:16px 36px; font-size:18px;" onclick="openModal('modal-register')">註冊帳號</button>
       </div>
     </section>
+
+    <!-- 網站頁腳：主要目的係讓《服務條款》同《私隱政策》喺主頁任何
+         位置都可以搵到（唔止喺註冊表格入面先睇到），方便使用者、
+         家長或者任何第三方（例如評審）隨時查閱。內容彈出視窗見
+         modal-terms／modal-privacy-policy，由 PRIVACY_POLICY.md／
+         TERMS_OF_SERVICE.md 轉錄過嚟。 -->
+    <footer style="padding:28px 20px; text-align:center; background:var(--brand-50, #F5F7F8); border-top:1px solid rgba(0,0,0,.06);">
+      <div style="font-size:13px; color:#777; display:flex; flex-wrap:wrap; gap:6px 16px; justify-content:center; align-items:center;">
+        <span>© 2026 ConcenMate 書伴</span>
+        <span style="color:#ccc;">|</span>
+        <span style="cursor:pointer; text-decoration:underline;" onclick="openModal('modal-terms')">服務條款</span>
+        <span style="color:#ccc;">|</span>
+        <span style="cursor:pointer; text-decoration:underline;" onclick="openModal('modal-privacy-policy')">私隱政策</span>
+        <span style="color:#ccc;">|</span>
+        <span>support@concenmate.com</span>
+      </div>
+    </footer>
   </div>
 
   <!-- 初始載入畫面：喺 JS 未判斷到用戶登入狀態之前顯示，避免一打開網站
@@ -1628,7 +1645,7 @@
       <div style="flex:1; min-width:0; cursor:pointer;" onclick="openLevelInfoModal()" title="看升級詳情">
         <div style="display:flex; align-items:baseline; gap:4px; overflow:hidden;">
           <span id="global-level-badge" style="color:#fff; font-size:13px; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">🌱 Lv.1 溫習新手 · 仍欠 20 EXP 升級</span>
-          <span onclick="event.stopPropagation(); openPtsExpInfoModal();" title="PTS 及 EXP 點樣獲得？" style="display:inline-flex; align-items:center; justify-content:center; width:15px; height:15px; border-radius:50%; background:rgba(255,255,255,.35); font-size:11px; font-weight:900; font-style:normal; flex-shrink:0; cursor:pointer;">!</span>
+          <span onclick="event.stopPropagation(); openPtsExpInfoModal();" title="PTS 及 EXP 如何獲得？" style="display:inline-flex; align-items:center; justify-content:center; width:15px; height:15px; border-radius:50%; background:rgba(255,255,255,.35); font-size:11px; font-weight:900; font-style:normal; flex-shrink:0; cursor:pointer;">!</span>
         </div>
         <div style="background:rgba(255,255,255,.3); border-radius:6px; height:5px; margin-top:3px; overflow:hidden;">
           <div id="global-exp-bar" style="background:#fff; height:100%; width:0%; transition:width .4s ease;"></div>
@@ -1682,7 +1699,7 @@
         <h2 style="font-size:22px; font-weight:bold; color:var(--brand-800);">請先驗證你的電郵地址</h2>
         <p style="font-size:14px; color:#666; margin-top:6px; line-height:1.5;">
           我們已經寄了一封驗證電郵去 <strong id="verify-gate-email">-</strong><br>
-          撳入面的連結完成驗證，先可以開始使用 ConcenMate 書伴。
+          請點擊郵件內的連結完成驗證，方可開始使用 ConcenMate 書伴。
         </p>
         <div style="display:flex; justify-content:center; gap:12px; margin-top:20px; flex-wrap:wrap;">
           <button class="btn btn-primary" id="verify-gate-resend-btn" type="button" onclick="resendVerificationEmail()">📧 重新發送驗證電郵</button>
@@ -2142,7 +2159,7 @@
           <div id="study-sub-flashcards">
 
             <div id="flashcards-manage-view">
-              <p style="font-size:13px; color:#999; margin-bottom:10px;">這些溫習卡由老師／管理員準備，你只需要負責複習就得㗎喇！</p>
+              <p style="font-size:13px; color:#999; margin-bottom:10px;">這些溫習卡由老師／管理員準備，你只需要負責複習即可！</p>
 
               <!-- 學科 Tab 列，格局同「疑難解答區」一致：左對齊、唔限寬，未有內容嘅學科
                    都會顯示個 tab 出嚟，但暫時撳唔到，等學生知道呢科將來會有溫習卡 -->
@@ -2880,6 +2897,22 @@
           <p id="reg-contact-email-hint" style="font-size:13px; color:#999; margin-top:4px;">不會用作登入，但需要進行電郵驗證：提交表格後會收到一封驗證電郵，請點擊當中的連結確認</p>
         </div>
 
+        <!-- 同意條款：註冊前一定要剔選先可以提交（required），連結
+             會打開下面嘅 modal-terms／modal-privacy-policy（喺註冊視窗
+             之上再彈多一層，唔會令註冊視窗關閉、之前填嘅資料唔會
+             因此不見咗）。見 #10 審查報告：未成年使用者收集個人資料，
+             一定要有清晰嘅同意機制先可以正式對外。 -->
+        <div style="display:flex; align-items:flex-start; gap:8px; background:#F5F7F8; border-radius:10px; padding:10px 12px;">
+          <input type="checkbox" id="reg-agree-terms" required style="margin-top:3px; flex-shrink:0; width:16px; height:16px;">
+          <label for="reg-agree-terms" style="font-size:13px; color:#555; line-height:1.6;">
+            我已閱讀並同意
+            <span style="color:#3E7A8A; text-decoration:underline; cursor:pointer;" onclick="event.preventDefault(); openModal('modal-terms');">《服務條款》</span>
+            及
+            <span style="color:#3E7A8A; text-decoration:underline; cursor:pointer;" onclick="event.preventDefault(); openModal('modal-privacy-policy');">《私隱政策》</span>
+            *
+          </label>
+        </div>
+
         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
           <span style="font-size:13px; color:#3E7A8A; cursor:pointer;" onclick="closeModal('modal-register'); openModal('modal-login');">已有帳號？點此登入</span>
           <div style="display:flex; gap:6px;">
@@ -2888,6 +2921,112 @@
           </div>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- ===== 服務條款 Modal ===== -->
+  <div class="modal-backdrop" id="modal-terms" style="display:none; align-items:flex-start; padding-top:40px;">
+    <div class="modal-box" style="max-width:640px; max-height:85vh; overflow-y:auto;">
+      <h3 style="font-size:17px; font-weight:bold; color:var(--brand-800); margin-bottom:4px;">📄 服務條款</h3>
+      <p style="font-size:12px; color:#999; margin-bottom:14px;">生效日期：2026 年 9 月 1 日　最後更新日期：2026 年 9 月</p>
+      <div style="font-size:13px; color:#444; line-height:1.8;">
+        <p>歡迎使用 ConcenMate 書伴（下稱「本服務」）。本服務由 ConcenMate 書伴（下稱「本公司」或「我們」）營運。本服務條款（下稱「本條款」）構成閣下（下稱「使用者」或「閣下」）與本公司之間具法律約束力之協議。</p>
+        <p>閣下一經註冊帳戶，或以任何方式使用本服務之任何功能，即視為閣下已閱讀、理解並同意接受本條款所載之全部內容，並同意受其約束。倘若閣下未滿十八歲，閣下確認已取得閣下之家長或監護人就使用本服務一事之同意。倘若閣下不同意本條款之任何部分，請立即停止使用本服務。</p>
+
+        <p style="font-weight:bold; margin-top:14px;">第一條　服務內容</p>
+        <p>本服務提供線上溫習室（包括視訊及語音功能）、學習進度追蹤（等級、經驗值、貼紙收藏）、詞卡溫習、好友及即時通訊功能、疑難解答討論區等功能。本公司保留隨時新增、修改、暫停或終止本服務任何功能之權利，毋須事先通知使用者。</p>
+
+        <p style="font-weight:bold; margin-top:14px;">第二條　帳戶註冊及使用者責任</p>
+        <p>（一）使用者於註冊帳戶時所提供之資料（包括登入識別碼、電郵地址等），須真實、準確及完整；<br>
+        （二）使用者有責任妥善保管其帳戶登入密碼，不得將帳戶資料轉讓、出借或以任何方式提供予他人；<br>
+        （三）除有證據證明帳戶遭第三方未經授權存取外，使用者帳戶下所發生之一切活動，均視為由使用者本人所為，使用者須就此負全責；<br>
+        （四）除本公司另行書面同意外，每名使用者僅可擁有一個帳戶。</p>
+
+        <p style="font-weight:bold; margin-top:14px;">第三條　使用守則</p>
+        <p>使用者於使用本服務時，須遵守下列守則，不得從事下列行為：</p>
+        <p>（一）上載、發佈或傳送任何違法、猥褻、暴力、具威嚇性、侵犯他人權利，或帶有歧視成分之內容（包括但不限於即時通訊訊息、頭像圖片、討論區發帖及留言）；<br>
+        （二）冒充他人身份，或提供虛假不實之個人資料；<br>
+        （三）以任何方式（包括但不限於利用瀏覽器開發者工具）試圖繞過、破壞或篡改本服務之計分及經驗值機制；<br>
+        （四）干擾或破壞本服務之正常運作，包括但不限於發動阻斷服務（DDoS）攻擊、大量發送垃圾訊息、濫用系統資源（例如無故大量開設溫習室）；<br>
+        （五）未經授權存取其他使用者之帳戶或個人資料；<br>
+        （六）將本服務用於任何違反香港特別行政區現行法例之用途。</p>
+        <p>使用者如違反上述任何守則，本公司有權暫停或終止該使用者之帳戶，情節嚴重者，本公司保留追究相關法律責任之一切權利。本服務已設有舉報機制，供使用者就違規內容或行為作出舉報，由本公司管理團隊進行審查及處理。</p>
+
+        <p style="font-weight:bold; margin-top:14px;">第四條　使用者生成內容</p>
+        <p>使用者於本服務上所發佈之內容（包括但不限於即時通訊訊息、討論區發帖及留言，下稱「使用者生成內容」）之知識產權，仍歸屬於該使用者。惟使用者同意，就其發佈之使用者生成內容，授予本公司一項非獨家、免版稅、全球性之許可，容許本公司於營運及提供本服務所必需之範圍內（包括顯示、儲存、傳輸該等內容），使用該等使用者生成內容。</p>
+        <p>本公司保留移除任何違反本條款之使用者生成內容之權利，毋須事先通知該使用者。</p>
+
+        <p style="font-weight:bold; margin-top:14px;">第五條　收費及訂閱</p>
+        <p>本服務於本條款生效之時，並不涉及任何收費功能，現有一切功能均以免費方式提供予使用者。倘若本公司日後推出收費或訂閱服務，本公司將另行公佈詳細之收費條款（包括但不限於收費方式、退款政策），並於使用者使用該等收費功能前，徵得使用者之明確同意。</p>
+
+        <p style="font-weight:bold; margin-top:14px;">第六條　服務可用性及免責聲明</p>
+        <p>（一）本服務按「現況」（as is）及「現有」（as available）之基礎提供，本公司不對本服務之不間斷運作、無錯誤或絕對安全作出任何保證；<br>
+        （二）本服務之運作依賴第三方基礎設施（包括但不限於 Google Firebase、GitHub Pages、Cloudflare、EmailJS），倘若因該等第三方服務之故障或中斷而導致本服務無法正常運作，本公司對此不負直接責任；<br>
+        （三）本服務之視訊溫習室功能依賴點對點即時通訊技術（WebRTC），於使用者之間直接建立連線，連線之品質可能受使用者之網絡環境及裝置性能所影響，本公司不對連線品質作出保證；<br>
+        （四）於香港現行法例容許之最大範圍內，本公司對因使用或無法使用本服務而引致之任何直接、間接、附帶、特殊或衍生性損失或損害，概不負責。</p>
+
+        <p style="font-weight:bold; margin-top:14px;">第七條　帳戶暫停及終止</p>
+        <p>（一）使用者可隨時自行停止使用本服務，或依本公司之私隱政策申請刪除帳戶；<br>
+        （二）倘若使用者違反本條款，或本公司合理懷疑使用者涉嫌濫用本服務，或基於其他合理理由，本公司保留暫停或終止該使用者帳戶之權利，並將於可行範圍內事先通知使用者，惟涉及惡意行為之情況則不在此限。</p>
+
+        <p style="font-weight:bold; margin-top:14px;">第八條　本條款之修訂</p>
+        <p>本公司保留隨時修訂本條款之權利。任何重大修訂將於本服務網站上公佈，並同時更新本文件頂部所載之「最後更新日期」。使用者於修訂公佈後繼續使用本服務，即視為使用者已接受該等經修訂之條款。</p>
+
+        <p style="font-weight:bold; margin-top:14px;">第九條　準據法及司法管轄</p>
+        <p>本條款受香港特別行政區法例管轄，並依照香港特別行政區法例解釋。因本條款所引起或與本條款有關之任何爭議，雙方同意接受香港特別行政區法院之非專屬司法管轄權。</p>
+
+        <p style="font-weight:bold; margin-top:14px;">第十條　聯絡方式</p>
+        <p>閣下如對本條款有任何疑問，請透過下列方式與本公司聯絡：電郵 support@concenmate.com</p>
+      </div>
+      <button class="btn btn-primary" type="button" onclick="closeModal('modal-terms')" style="width:100%; margin-top:16px;">關閉</button>
+    </div>
+  </div>
+
+  <!-- ===== 私隱政策 Modal ===== -->
+  <div class="modal-backdrop" id="modal-privacy-policy" style="display:none; align-items:flex-start; padding-top:40px;">
+    <div class="modal-box" style="max-width:640px; max-height:85vh; overflow-y:auto;">
+      <h3 style="font-size:17px; font-weight:bold; color:var(--brand-800); margin-bottom:4px;">🔒 私隱政策</h3>
+      <p style="font-size:12px; color:#999; margin-bottom:14px;">生效日期：2026 年 9 月 1 日　最後更新日期：2026 年 9 月</p>
+      <div style="font-size:13px; color:#444; line-height:1.8;">
+        <p>ConcenMate 書伴（下稱「本服務」）由 ConcenMate 書伴（下稱「本公司」或「我們」）營運及管理。本公司高度重視使用者（下稱「閣下」或「使用者」）之個人資料私隱，並致力遵守香港特別行政區《個人資料（私隱）條例》（香港法例第486章，下稱「該條例」）之相關規定。</p>
+        <p>閣下透過瀏覽器登入、使用或以任何方式存取本服務，即表示閣下已閱讀、理解並同意接受本私隱政策（下稱「本政策」）所載之全部條款。倘若閣下不同意本政策之任何部分，請立即停止使用本服務。</p>
+
+        <p style="font-weight:bold; margin-top:14px;">第一條　本政策之適用範圍</p>
+        <p>本政策適用於閣下透過 concenmate.com 及其任何相關子網域使用本服務之情況。倘若閣下未滿十八歲，本公司建議由閣下之家長或監護人陪同閱讀本政策，並就使用本服務一事給予同意。</p>
+
+        <p style="font-weight:bold; margin-top:14px;">第二條　本公司所收集之資料類別</p>
+        <p>本公司因提供本服務之需要，可能收集以下類別之資料：帳戶資料（登入識別碼、電郵地址、顯示暱稱、頭像選項，於帳戶註冊時收集）；學習記錄（累積溫習時數、經驗值、等級、貼紙收藏紀錄、詞卡溫習進度，於使用服務過程中自動記錄）；社交互動資料（好友名單、即時通訊內容、討論區發帖及留言，於使用者主動使用相關功能時收集）；溫習室及視訊相關資料（房間設定、加入及離開時間、建立視像連線所需之協調訊息，於使用視訊溫習室功能時收集）；舉報資料（舉報內容及相關佐證，於使用者提交舉報時收集）；技術資料（瀏覽器類型、裝置資訊、網際網路協定（IP）位址，於連接本服務時由基礎設施自動記錄）。</p>
+        <p><strong>關於視訊及語音資料之特別聲明：</strong>本服務之視訊溫習室功能採用點對點即時通訊技術（WebRTC），使用者之鏡頭及咪高風畫面乃於瀏覽器之間直接傳輸，並不經由本公司之伺服器儲存或錄製。本公司之資料庫僅用作交換建立該連線所需之協調（signaling）訊息，並不接觸實際之影像或聲音內容。</p>
+        <p>本公司不會收集閣下之身份證明文件號碼、住址、電話號碼，或信用卡及其他付款工具資料；本服務於現階段並不涉及任何收費功能。</p>
+
+        <p style="font-weight:bold; margin-top:14px;">第三條　收集資料之目的</p>
+        <p>本公司收集及處理閣下之個人資料，僅限於下列目的：（一）提供及維持本服務之核心功能，包括帳戶登入、溫習室運作、學習進度追蹤及社交互動功能；（二）維護帳戶安全及防止濫用行為，包括偵測異常操作及處理舉報事宜；（三）透過第三方服務提供者發送電郵驗證訊息（詳見第五條）；（四）分析及改善本服務之功能與使用體驗。本公司承諾不會將閣下之個人資料用於向第三方廣告商進行行銷推廣之目的。</p>
+
+        <p style="font-weight:bold; margin-top:14px;">第四條　資料儲存地點及保安措施</p>
+        <p>閣下之個人資料儲存於 Google Firebase（包括 Firestore 資料庫及 Cloud Storage 儲存空間），該等服務由 Google Cloud Platform 提供。資料於傳輸過程中，均以超文本傳輸安全協定（HTTPS/TLS）加密。本公司並已採取下列保安措施：（一）Firebase App Check（結合 reCAPTCHA Enterprise），用以識別及阻截非經正常途徑發出之存取請求；（二）資料庫及儲存空間存取規則，訂明使用者僅可存取屬於自己之資料，唯獲授權之管理員方可存取管理功能；（三）單次資料變更幅度限制，就學習進度等敏感數值之單次變更設有上限，以防止篡改。</p>
+
+        <p style="font-weight:bold; margin-top:14px;">第五條　資料之披露及第三方服務提供者</p>
+        <p>本公司不會出售或出租閣下之個人資料予任何第三方。惟為提供本服務所需之技術支援，本公司會將有限度之資料傳送予下列第三方服務提供者：（一）Google Firebase——提供資料庫、身份驗證、檔案儲存及防濫用機制等服務；（二）EmailJS——用於發送電郵驗證訊息，僅會接觸閣下之電郵地址。倘若本公司因法律程序而有責任披露閣下之個人資料，本公司將依法配合，並於法律容許之範圍內事先通知閣下。</p>
+
+        <p style="font-weight:bold; margin-top:14px;">第六條　Cookie 及本地儲存技術</p>
+        <p>本服務會利用瀏覽器之本地儲存功能（localStorage）記錄閣下之登入狀態，以省卻閣下每次重新登入之需要。該等資料儲存於閣下自身之裝置內，本公司並不藉此透過第三方追蹤 Cookie 監察閣下於其他網站之瀏覽活動。</p>
+
+        <p style="font-weight:bold; margin-top:14px;">第七條　未成年使用者</p>
+        <p>本公司理解本服務之使用者當中，不乏未滿十八歲之學生。倘若閣下為家長或監護人，並發現閣下之子女未經閣下同意而建立帳戶，或閣下希望查閱、更正或刪除該等未成年人士之個人資料，歡迎透過第十條所載之聯絡方式與本公司聯絡，本公司將優先處理該等請求。</p>
+
+        <p style="font-weight:bold; margin-top:14px;">第八條　使用者之權利</p>
+        <p>根據該條例，閣下就本公司所持有關於閣下之個人資料，享有下列權利：（一）查閱權；（二）更正權；（三）刪除權（惟因安全審查需要而須保留之資料，或經匿名化處理而無法識別個人身份之統計數據，則不在此限）；（四）停止使用權。閣下如欲行使上述任何權利，請透過第十條所載之聯絡方式提出申請，本公司將於合理時間內作出回覆及處理。</p>
+
+        <p style="font-weight:bold; margin-top:14px;">第九條　資料保留期限</p>
+        <p>本公司將於閣下之帳戶維持活躍狀態期間，保留閣下之個人資料。倘若閣下申請刪除帳戶，本公司將於合理時間內刪除或將閣下之個人可識別資料進行匿名化處理，惟因安全審查或法律責任而須予保留之資料，則不受此限。</p>
+
+        <p style="font-weight:bold; margin-top:14px;">第十條　聯絡方式</p>
+        <p>閣下如對本政策有任何疑問，或欲行使第八條所載之任何權利，請透過下列方式與本公司聯絡：電郵 support@concenmate.com</p>
+
+        <p style="font-weight:bold; margin-top:14px;">第十一條　政策之修訂</p>
+        <p>本公司保留隨時修訂本政策之權利。任何重大修訂將於本服務網站上公佈，並同時更新本文件頂部所載之「最後更新日期」。本公司建議閣下定期查閱本政策，以知悉最新內容。閣下於修訂公佈後繼續使用本服務，即視為閣下已接受該等修訂。</p>
+      </div>
+      <button class="btn btn-primary" type="button" onclick="closeModal('modal-privacy-policy')" style="width:100%; margin-top:16px;">關閉</button>
     </div>
   </div>
 
@@ -3156,7 +3295,7 @@
   <!-- PTS／EXP 獲得方式說明視窗：撳置頂狀態列「今日目標」旁邊嘅「!」圖示會彈出 -->
   <div class="modal-backdrop" id="modal-pts-exp-info" style="display:none;">
     <div class="modal-box" style="max-width:400px;">
-      <h3 style="font-size:17px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;">💡 PTS 及 EXP 點樣獲得？</h3>
+      <h3 style="font-size:17px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;">💡 PTS 及 EXP 如何獲得？</h3>
       <div style="background:var(--brand-50); border:1px solid var(--brand-200); border-radius:12px; padding:12px 14px; margin-bottom:12px;">
         <div style="font-size:14px; font-weight:bold; color:var(--brand-800); margin-bottom:6px;">🪙 PTS（積分）</div>
         <ul style="font-size:13px; color:#555; line-height:1.7; margin:0; padding-left:18px;">
