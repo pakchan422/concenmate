@@ -53,6 +53,19 @@ window.applyRoleBasedSidebar = function() {
     const el = document.getElementById(id);
     if (el && isTutorPath) el.style.display = 'none';
   });
+
+  // 導師帳戶：主頁改為顯示「粉絲」（已經有，見 index.html home-stat-
+  // followers 呢粒 pill，冇 student-only-nav 所以導師都見到）同「已上
+  // 架教材」呢兩項數字，唔需要溫習時數／積分。呢粒教材數目 pill 預設
+  // display:none（學生帳戶唔應該見到），淨係導師先顯示，並且觸發一次
+  // 讀取去攞返實際數字。
+  const materialsPill = document.getElementById('home-stat-materials-pill');
+  if (materialsPill) {
+    materialsPill.style.display = isTutorPath ? '' : 'none';
+    if (isTutorPath && typeof window.loadTutorHomeMaterialsCount === 'function') {
+      window.loadTutorHomeMaterialsCount();
+    }
+  }
 };
 
 (function() {
@@ -86,14 +99,27 @@ window.applyRoleBasedSidebar = function() {
   // collection 一樣。撳張卡就開返 app-features.js 嗰個現成嘅「查看用戶
   // 資料卡」彈出視窗（window.viewUserProfile()），入面已經有齊追蹤掣、
   // 粉絲人數呢啲，唔使再寫多一套追蹤邏輯。
+  // ⚠️ 之前呢個函數每次撳返「溫習資源」分頁都會先拆咗（unsubscribe）
+  // 舊嘅監聽器，再重新訂閱一次——即係每次揭返呢個分頁都要重新問一次
+  // 伺服器攞晒 100 位導師嘅資料，先會顯示到內容，呢個就係「Loading 好
+  // 耐」嘅主因。而家跟返 app-features.js 嘅 loadQAPosts()／
+  // loadFriendsList()／room-video.js 嘅 loadFlashcards() 同一套做法：
+  // 監聽器一登入／一開始訂閱就持續運作，唔理你而家揭緊邊個分頁，已經
+  // 訂閱緊嘅話就直接用返 cache 即時畫返出嚟，唔使再問多次伺服器。
   window.renderTutorDirectoryTab = function() {
     const tabsContainer = document.getElementById('tutor-directory-tabs');
     const listContainer = document.getElementById('tutor-directory-list');
     if (!listContainer || !window.db || !window.fs) return;
-    listContainer.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入導師名錄中…</p>';
     tutorDirectorySelectedSubject = null;
 
-    if (tutorDirectoryUnsub) tutorDirectoryUnsub();
+    if (tutorDirectoryUnsub) {
+      // 已經訂閱緊：即刻用返 cache 畫，唔使等網絡來回
+      renderTutorDirectoryTabsUI();
+      renderTutorDirectoryListUI();
+      return;
+    }
+
+    listContainer.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入導師名錄中…</p>';
     const q = window.fs.query(
       window.fs.collection(window.db, 'tutors'),
       window.fs.orderBy('createdAt', 'desc'),
@@ -523,6 +549,28 @@ window.applyRoleBasedSidebar = function() {
       window.showToast('已刪除課題', '✅');
     } catch (err) {
       window.showToast('刪除失敗：' + (err.message || err), '❌');
+    }
+  };
+
+  // ===================== 主頁：導師「已上架教材」數目 =====================
+  // 導師主頁唔再顯示溫習時數／積分，改為顯示粉絲數（沿用現成嘅
+  // followerCount）同呢個「已上架教材」數目。查詢淨係帶 tutorUid 呢
+  // 個篩選條件（唔加 status），因為 firestore.rules 嘅 tutorNotes 讀取
+  // 規則係 tutorUid==自己 OR status=='published' 二揀一就roK——淨係帶
+  // tutorUid 已經滿足第一支，唔使煩多一個 composite index；已上架嘅
+  // 數目喺前端用 status==='published' 篩返出嚟就得。
+  window.loadTutorHomeMaterialsCount = async function() {
+    const el = document.getElementById('home-stat-materials');
+    if (!el || !window.currentUser || !window.db || !window.fs) return;
+    try {
+      const snap = await window.fs.getDocs(window.fs.query(
+        window.fs.collection(window.db, 'tutorNotes'),
+        window.fs.where('tutorUid', '==', window.currentUser.uid)
+      ));
+      const publishedCount = snap.docs.filter((d) => d.data().status === 'published').length;
+      el.innerText = publishedCount;
+    } catch (err) {
+      console.error('讀取導師已上架教材數目失敗:', err);
     }
   };
 

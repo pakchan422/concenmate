@@ -47,7 +47,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.141.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.143.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -279,20 +279,17 @@
       /* 按鈕在手機上放大觸控區 */
       .btn { padding: 9px 14px; font-size: 14px; min-height: 38px; }
 
-      /* 手機直向嗰陣，視訊房控制列（開鏡頭／靜音／番茄鐘／本房總時間／
-         背景音／全螢幕／退出房間）逐樣逐樣排落去會分成好多行，好亂。
-         做兩件事收窄返：(1) 背景音由「落拉選單＋滑桿＋暫停掣」3 件嘢，
-         收埋做同全螢幕模式一樣嘅單一粒「🔊 背景音」掣（撳先彈個細面板
-         揀），跟全螢幕嗰個 .fs-bg-noise-only 用返同一套 UI，唔使兩份；
-         (2) 番茄鐘同本房總時間兩個 widget 縮小 padding／字體，等佢哋
-         儘量企埋一行，減少成體換行嘅次數。用 !important 係因為
+      /* 手機直向嗰陣，視訊房控制列（開鏡頭／靜音／本房總時間／背景音／
+         全螢幕／退出房間）逐樣逐樣排落去會分成好多行，好亂。背景音由
+         「落拉選單＋滑桿＋暫停掣」3 件嘢，收埋做同全螢幕模式一樣嘅單
+         一粒「🔊 背景音」掣（撳先彈個細面板揀），跟全螢幕嗰個
+         .fs-bg-noise-only 用返同一套 UI，唔使兩份。用 !important 係因為
          .fs-bg-noise-only 平時（唔係全螢幕）本身有 inline
          style="display:none"，一定要蓋得過先顯示到。 */
       #room-active:not(.video-fullscreen-mode) .bg-noise-inline-row { display: none !important; }
       #room-active:not(.video-fullscreen-mode) .fs-bg-noise-only { display: flex !important; }
-      #pomodoro-widget, #room-total-time-widget { padding: 5px 8px 6px; font-size: 12px; gap: 5px; }
-      #pomodoro-widget #room-timer, #room-total-time-widget #room-total-time { font-size: 13px; }
-      #pomodoro-round-label { padding: 1px 6px; font-size: 12px; }
+      #room-total-time-widget { padding: 5px 8px 6px; font-size: 12px; gap: 5px; }
+      #room-total-time-widget #room-total-time { font-size: 13px; }
     }
 
     /* ── 超小（≤360px，例如舊 Android）── */
@@ -377,7 +374,7 @@
     /* 全螢幕模式：撳「⛶ 全螢幕」之後，成個 room-active（room-bar 連埋
        四格鏡頭）蓋晒全螢幕——特登連 room-bar 都包埋一齊全螢幕，唔係
        淨係個視訊格，唔係嘅話開咗鏡頭／咪嘅按鈕會俾個黑色遮罩擋晒，
-       撳唔到。room-bar 淨係保留鏡頭／靜音／鏡頭方向／番茄鐘／全螢幕
+       撳唔到。room-bar 淨係保留鏡頭／靜音／鏡頭方向／全螢幕
        切換呢幾樣嘢（見 .fs-hide-in-fullscreen），其他資訊（房名、
        人數、背景音、退出房間等）退出全螢幕先再顯示。原本獨立浮動嘅
        「退出全螢幕」按鈕已經取消——依家 room-bar 個「⛶ 全螢幕」掣
@@ -424,7 +421,7 @@
     /* room-bar 呢張卡本身需要 position:relative，等下面 #fs-room-bar-
        collapse-btn 嘅 position:absolute 係「掛喺呢張卡度」，唔係掛喺
        成個 body／視窗。額外留返 padding-bottom：入面啲掣（鏡頭／靜音／
-       背景音／番茄鐘／全螢幕切換）數目多，窄螢幕度會 flex-wrap 折埋
+       背景音／全螢幕切換）數目多，窄螢幕度會 flex-wrap 折埋
        幾行，如果冇呢個預留空間，掛喺左下角嘅收埋掣就會撞埋最後一行嘅
        掣（見用家反映，粒 ➖ 遮咗「全螢幕」個掣）。留咗呢一嚿淨係得
        個掣自己用嘅空白，就唔會再撞。 */
@@ -435,7 +432,7 @@
     /* 全螢幕控制列「收埋」掣：平時（唔係全螢幕）收埋（inline
        display:none），入咗全螢幕先現形，掛喺 room-bar 呢張卡自己嘅左下
        角（唔理直向定橫向、room-bar 而家收埋緊定顯示緊都唔會郁）。撳一
-       下就將 room-bar 入面所有嘢（鏡頭／靜音／番茄鐘／背景音／全螢幕
+       下就將 room-bar 入面所有嘢（鏡頭／靜音／背景音／全螢幕
        切換等）都隱藏，等鏡頭畫面盡用返成個螢幕；再撳一下就顯示返晒。 */
     #room-active.video-fullscreen-mode #fs-room-bar-collapse-btn {
       display: flex !important;
@@ -523,7 +520,7 @@
         align-items: stretch;
         gap: 8px;
       }
-      #room-active.video-fullscreen-mode #pomodoro-widget {
+      #room-active.video-fullscreen-mode #room-total-time-widget {
         flex-direction: column;
         align-items: flex-start;
         gap: 4px;
@@ -1532,9 +1529,9 @@
           </div>
           <div class="landing-step-card">
             <div class="landing-step-num">2</div>
-            <div class="landing-step-icon">🍅</div>
+            <div class="landing-step-icon">📹</div>
             <h3 class="landing-step-title">專注溫習室</h3>
-            <p class="landing-step-desc">以番茄鐘節奏進行溫習，與其他學生一同在鏡頭前互相督促專注，同時累積積分與經驗值。</p>
+            <p class="landing-step-desc">與其他學生一同在鏡頭前互相督促專注溫習，同時累積積分與經驗值。</p>
           </div>
           <div class="landing-step-card">
             <div class="landing-step-num">3</div>
@@ -1739,6 +1736,16 @@
                   <div class="home-stat-label">積分</div>
                 </div>
               </div>
+              <!-- 導師帳戶專用：已上架教材數目。學生帳戶唔需要呢個資訊，
+                   預設 display:none，只有 applyRoleBasedSidebar() 判斷
+                   到係導師帳戶先會顯示（見 tutor-panel.js）。 -->
+              <div class="home-stat-pill" id="home-stat-materials-pill" style="display:none;">
+                <span class="home-stat-icon">🗂️</span>
+                <div>
+                  <div class="home-stat-val" id="home-stat-materials">0</div>
+                  <div class="home-stat-label">已上架教材</div>
+                </div>
+              </div>
               <div class="home-stat-pill student-only-nav" id="home-stat-streak-pill">
                 <span class="home-stat-icon">🔥</span>
                 <div>
@@ -1884,7 +1891,7 @@
                 <div class="home-primary-icon">📹</div>
                 <div class="home-primary-text">
                   <div class="home-primary-title">視訊溫習室</div>
-                  <div class="home-primary-desc">🍅 番茄鐘式專注/小休循環，與同學一起溫習賺積分</div>
+                  <div class="home-primary-desc">📹 與同學一起開鏡頭專注溫習賺積分</div>
                 </div>
                 <div class="home-primary-badge" id="home-room-badge">
                   <span class="live-dot"></span>立即加入
@@ -1992,7 +1999,7 @@
                      一旦入咗全螢幕，嗰個會被隱藏（見 .fs-hide-in-fullscreen 嘅
                      全螢幕 CSS），呢粒掣先會現形，等用戶有需要先撳開個細面板揀
                      背景音，唔使成幅全螢幕視訊畫面都長期佔住呢個控制列位置。
-                     擺喺呢個位置（開鏡頭／靜音之後、番茄鐘之前）係跟返用家
+                     擺喺呢個位置（開鏡頭／靜音之後）係跟返用家
                      喺全螢幕控制列想要嘅第 3 個位置。 -->
                 <div class="fs-bg-noise-only" style="display:none; position:relative;">
                   <button class="btn btn-outline" type="button" id="fs-bg-noise-toggle-btn" onclick="toggleFsBgNoisePanel()" title="選擇背景音" style="border-color:#DDCABB; color:#1E4550;">🔊 背景音</button>
@@ -2021,23 +2028,9 @@
                   </div>
                 </div>
 
-                <div id="pomodoro-widget" style="background:#fff; color:var(--brand-800); padding:6px 10px 8px; border-radius:10px; font-size:13px; display:flex; align-items:center; gap:8px; position:relative; overflow:hidden; border:1px solid var(--brand-200);">
-                  <span id="room-timer-phase" style="font-weight:bold; white-space:nowrap;">🍅 專注中</span>
-                  <span id="pomodoro-round-label" title="這個房入面現在踏入第幾輪專注（只是這次入房計，離開房間會重新計過）" style="font-size:13px; font-weight:700; white-space:nowrap; background:var(--brand-50); color:var(--brand-700); padding:1px 7px; border-radius:10px;">第 1 輪</span>
-                  <span id="room-timer" style="font-family:monospace; font-size:14px; font-weight:700; white-space:nowrap;" title="這一輪（專注／小休）已經計時多久——正向計時">00:00</span>
-                  <!-- 專注時段拆做 4 個「小目標」段落顯示（唔係一條望唔到盡頭嘅長 bar），
-                       每一格啱啱好等如成輪專注時間嘅 25%，等學生覺得每格都係一個好快
-                       捱到嘅小終點，更加容易達成。未填色嘅底色用灰色，同個白色 widget
-                       背景清晰分開，4 段界線同進度都望得清楚。 -->
-                  <div id="room-timer-progress-track" style="position:absolute; left:0; bottom:0; width:100%; height:5px; display:flex; gap:3px;" title="呢輪專注分成 4 個小目標（每格 25%），一段段儲滿他">
-                    <div class="pomodoro-quarter-seg" style="flex:1; background:#D9D9D9; border-radius:2px;"></div>
-                    <div class="pomodoro-quarter-seg" style="flex:1; background:#D9D9D9; border-radius:2px;"></div>
-                    <div class="pomodoro-quarter-seg" style="flex:1; background:#D9D9D9; border-radius:2px;"></div>
-                    <div class="pomodoro-quarter-seg" style="flex:1; background:#D9D9D9; border-radius:2px;"></div>
-                  </div>
-                </div>
-                <!-- 呢一次入房到而家嘅「總溫習時間」：順時計，唔理番茄鐘行到專注定
-                     小休都計，只在被判定為閒置、暫停計分嗰陣先會跟住暫停累積 -->
+                <!-- 番茄鐘（專注／小休自動循環）功能已經整個移除。這次入房到
+                     而家嘅「總溫習時間」：順時計，只在被判定為閒置、暫停計分
+                     嗰陣先會跟住暫停累積 -->
                 <div id="room-total-time-widget" style="background:#fff; color:var(--brand-800); padding:6px 10px; border-radius:10px; font-size:13px; display:flex; align-items:center; gap:6px; border:1px solid var(--brand-200);" title="這次入房到現在的總溫習時間（正向計時，閒置暫停計分時會暫停累積）">
                   <span>⏱️ 已溫習</span>
                   <span id="room-total-time" style="font-family:monospace; font-size:14px; font-weight:700; white-space:nowrap;">00:00</span>
@@ -3057,7 +3050,7 @@
         </div>
 
         <div>
-          <label style="font-size:13px; font-weight:bold; color:#555; display:block;">🍅 每輪專注時間 (分鐘)</label>
+          <label style="font-size:13px; font-weight:bold; color:#555; display:block;">⏱️ 預計溫習時間 (分鐘)</label>
           <select id="modal-room-duration" class="input-field">
             <option value="15">15 分鐘</option>
             <option value="30" selected>30 分鐘</option>
@@ -3065,7 +3058,7 @@
             <option value="45">45 分鐘</option>
             <option value="60">60 分鐘</option>
           </select>
-          <p style="font-size:13px; color:#999; margin-top:4px;">每輪專注完成後會自動小休 5 分鐘，之後再自動開始新一輪專注，並持續循環直至退房為止；每一輪專注途中還會分成 4 個小目標，每達成一個都會提示鼓勵一下</p>
+          <p style="font-size:13px; color:#999; margin-top:4px;">這個時間只會顯示喺公開大廳嘅房間列表，讓其他同學參考；房間不會因為時間到而自動結束，你可以隨時繼續溫習或退出房間</p>
         </div>
 
         <div>

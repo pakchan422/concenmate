@@ -812,18 +812,27 @@
       return wrapId === 'diary-follow-btn-wrap' ? 'diary-follower-count' : 'pop-follower-count';
     }
 
+    // 「追蹤書伴」呢個掣文字喺導師專頁（wrapId==='tutorview-follow-wrap'，
+    // 見 tutor-panel.js openTutorProfileView() 嗰邊）要改做「追蹤導師」，
+    // 學生同學生之間互相追蹤（日記／朋友資料卡）就維持返「追蹤書伴」呢
+    // 個原本嘅講法——淨係靠 wrapId 分辨場景，唔使改呢組函數嘅簽名。
+    function _followVerbFor(wrapId) {
+      return wrapId === 'tutorview-follow-wrap' ? '導師' : '書伴';
+    }
+
     async function renderFollowButton(targetUid, targetUserData, wrapId) {
       wrapId = wrapId || 'pop-follow-btn-wrap';
       const wrap = document.getElementById(wrapId);
       if (!wrap || !window.currentUser || !window.db || !window.fs) return;
       wrap.innerHTML = '';
+      const verb = _followVerbFor(wrapId);
       try {
         const followId = `${window.currentUser.uid}_${targetUid}`;
         const snap = await window.fs.getDoc(window.fs.doc(window.db, 'follows', followId));
         if (snap.exists()) {
           wrap.innerHTML = `<button class="btn btn-outline" type="button" style="width:100%; justify-content:center; font-size:13px;" onclick="unfollowUserAction('${targetUid}', '${wrapId}')">✅ 已追蹤（點擊取消）</button>`;
         } else {
-          wrap.innerHTML = `<button class="btn btn-primary" type="button" style="width:100%; justify-content:center; font-size:13px;" onclick="followUserAction('${targetUid}', '${wrapId}')">➕ 追蹤書伴</button>`;
+          wrap.innerHTML = `<button class="btn btn-primary" type="button" style="width:100%; justify-content:center; font-size:13px;" onclick="followUserAction('${targetUid}', '${wrapId}')">➕ 追蹤${verb}</button>`;
         }
       } catch (e) {
         console.error('讀取追蹤狀態失敗:', e);
@@ -859,7 +868,7 @@
       try {
         await window.callCloudFunction('unfollowUser', { targetUid });
         const wrap = document.getElementById(wrapId);
-        if (wrap) wrap.innerHTML = `<button class="btn btn-primary" type="button" style="width:100%; justify-content:center; font-size:13px;" onclick="followUserAction('${targetUid}', '${wrapId}')">➕ 追蹤書伴</button>`;
+        if (wrap) wrap.innerHTML = `<button class="btn btn-primary" type="button" style="width:100%; justify-content:center; font-size:13px;" onclick="followUserAction('${targetUid}', '${wrapId}')">➕ 追蹤${_followVerbFor(wrapId)}</button>`;
         const countEl = document.getElementById(_followCountIdFor(wrapId));
         if (countEl) countEl.innerText = Math.max(0, (parseInt(countEl.innerText, 10) || 0) - 1);
         window.currentUser.followingCount = Math.max(0, (window.currentUser.followingCount || 0) - 1);
@@ -1978,13 +1987,25 @@
           img.src = url;
         })));
 
-        await window.fs.addDoc(window.fs.collection(window.db, 'qa_posts'), {
+        const newPostData = {
           uid: window.currentUser.uid,
           authorName: window.currentUser.username || '匿名同學',
           subject, title, body, photos,
           commentCount: 0,
           createdAt: Date.now()
-        });
+        };
+        const newPostRef = await window.fs.addDoc(window.fs.collection(window.db, 'qa_posts'), newPostData);
+
+        // ⚠️ 剛才 await 完 addDoc() 之後即刻讀 qaPostsCache 嚟畫面，呢個
+        // cache 係由下面嗰個持續運行嘅 onSnapshot 監聽器更新——監聽器
+        // 收到呢次寫入嘅本機回聲（local echo）通常會遲過呢一行執行，
+        // 所以之前呢度會有一刻畫面睇落去「呢科暫時未有提問」，要用戶
+        // 手動重新整頁先見到自己啱啱發佈嗰條（其實遞晒一兩拍已經有，
+        // 但畫面冇再重畫過）。而家改為主動將呢條啱啱建立嘅提問塞入
+        // qaPostsCache 最前面，令畫面即刻見到；之後 onSnapshot 嘅正式
+        // 回應一到，會用返伺服器嘅完整資料整個 cache 重新覆蓋一次
+        // （唔會因為呢度提早塞咗一份而出現重複）。
+        qaPostsCache = [{ id: newPostRef.id, ...newPostData }, ...qaPostsCache];
 
         closeModal('modal-qa-post');
         window.showToast('提問已發布！', '✅');
@@ -3094,6 +3115,13 @@
           return;
         }
         const u = userSnap.data();
+        // 導師帳號唔應該可以透過「用帳號 ID 搜尋朋友」呢個功能搵到——
+        // 呢度只係俾學生同學生互加做讀書夥伴用，導師帳號請學生去
+        // 「溫習資源」分頁嘅導師名錄度搵。
+        if (u.role === 'tutor') {
+          resultEl.innerHTML = '<p style="font-size:13px; color:#D9764A;">找不到這個帳號 ID，請檢查有沒有打錯</p>';
+          return;
+        }
         const levelInfo = calcLevelInfo(u.exp || 0);
         const rank = getRankTitle(levelInfo.level);
         resultEl.innerHTML = `

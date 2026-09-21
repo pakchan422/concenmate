@@ -18,7 +18,6 @@
       isCameraOn: false,
       mediaStream: null,
       countdownTimer: null,
-      remainingSeconds: 1800,
       roomTotalSeconds: 0, // 呢次入房到而家嘅「總溫習時間」（順時計），閒置暫停計分期間唔會累積
       renderFrameId: null,
       currentRoomId: null,
@@ -45,9 +44,6 @@
       slotAssignments: {}, // { uid: 2|3|4 } 遠端用家目前佔用的視窗格 (格1固定留給自己)
       creatingRoom: false, // 防止「立即建立並廣播」撳得太快／撳多次，開出多過一間房間
       currentRoomHostUid: null, // 現時房間嘅房主 uid，方便隨時知道要喺邊一格顯示「👑 房主」牌
-      pomodoroPhase: 'focus', // 'focus' | 'break'：房入面嘅計時器而家跑緊邊個階段
-      focusDurationSeconds: 1800, // 呢間房嘅「專注時段」長度（跟房主揀嘅目標時間），小休完之後會用返呢個數重新開始新一輪專注
-      pomodoroCyclesCompleted: 0, // 呢次入房到而家已經完成咗幾多個完整嘅「專注」循環，用嚟畀學生睇到自己嘅進度／成就感
       heartbeatTimer: null, // 房間心跳計時器（見 startRoomHeartbeat），畀大廳嘅幽靈房自動清理機制用
       presenceCheckTimer: null, // 定時彈窗確認「仲喺度嗎？」嘅計時器
       presenceTimeoutTimer: null, // 彈窗後 2 分鐘未確認就暫停計分嘅計時器
@@ -67,7 +63,6 @@
       wakeLockObj: null // Screen Wake Lock API 拎返嚟嘅 lock 物件，喺房入面攞住佢就可以擋住手機自動熄屏／鎖屏（見 requestRoomWakeLock/releaseRoomWakeLock）
     };
 
-    const ROOM_POMODORO_BREAK_SECONDS = 5 * 60; // 房入面每輪專注完之後嘅小休長度，暫時定死 5 分鐘
     const MIC_OPEN_LIMIT_SECONDS = 3 * 60; // 每次開咪最多連續 3 分鐘，避免學生掛住傾偈唔記得溫習
     const MIC_COOLDOWN_SECONDS = 5 * 60; // 開咪上限一到，要等 5 分鐘冷卻先可以再開
     const MIC_IDLE_RESET_SECONDS = 5 * 60; // 學生未撞到 3 分鐘上限、主動關咪之後，如果連續 5 分鐘都冇再開咪，就當佢已經完全休息返，回復返成套 3 分鐘預算（唔使一定撞晒 3 分鐘先可以歸零）
@@ -1214,19 +1209,11 @@
       document.getElementById('active-room-subject').innerText = subject;
       updateHostBadge();
 
-      // 用「房間建立時間」而非「進入房間時間」起計倒數，確保所有人睇到一致嘅剩餘時間
-      const totalSeconds = (durationMins || 30) * 60;
-      let remainingSeconds = totalSeconds;
-      if (createdAt) {
-        const elapsedSeconds = Math.floor((Date.now() - createdAt) / 1000);
-        remainingSeconds = Math.max(0, totalSeconds - elapsedSeconds);
-      }
-      state.remainingSeconds = remainingSeconds;
-      // 房主揀嘅「目標時間」而家變成「番茄鐘」每一輪嘅專注長度，
-      // 專注完會自動小休 5 分鐘，再自動開始新一輪專注，一直循環到退房為止
-      state.pomodoroPhase = 'focus';
-      state.focusDurationSeconds = totalSeconds;
-      state.pomodoroCyclesCompleted = 0; // 每次新入房，「已完成番茄鐘」由 0 開始儲
+      // 番茄鐘（專注／小休自動循環）呢個功能已經整個移除——房入面而家
+      // 淨係一個好簡單嘅「順時計」總溫習時間，由入房嗰刻開始由 0 計起，
+      // 冇自動小休、都唔會停，一直計到退房為止。durationMins（房主建
+      // 立房間時揀嘅目標時間）而家淨係用嚟喺大廳房間列表度顯示畀人參
+      // 考，唔會再驅動任何計時器邏輯。
       state.roomTotalSeconds = 0; // 每次新入房，「呢間房總溫習時間」由 0 開始順時計
       updateTimerDisplay();
 
@@ -1459,59 +1446,25 @@
     function startTimer() {
       if (state.countdownTimer) clearInterval(state.countdownTimer);
 
-      // 房入面嘅計時器而家係「番茄鐘」循環：專注 → 小休 → 專注 → 小休……
-      // 一直到退房為止先停。追蹤依家呢一輪（專注／小休）已經過咗幾多秒，
-      // 專注階段每滿 60 秒獎勵 1 PTS，小休階段唔計分（避免同時計分令獎勵翻倍）。
-      let secondsElapsedInPhase = 0;
-
-      // 依家嘅年輕學生專注力普遍比較弱，成段專注時間（例如 40 分鐘）一次過睇落
-      // 好遙遠、好難捱到終點。所以將專注階段拆做 4 個「小目標」（大約每 1/4 時長
-      // 一個），每達成一個就即時彈提示鼓勵一下、個底部進度條都會一段一段咁儲滿，
-      // 等學生睇到自己一步步接近終點，而唔係得一條望唔到盡頭嘅長 bar。
-      let lastQuarterMilestoneShown = 0;
+      // 番茄鐘（專注／小休自動循環）呢個功能已經整個移除。房入面而家淨
+      // 係一個好簡單嘅順時計時器：一直計一直計，唔會自動停低小休，都
+      // 冇「幾多輪」嘅概念。淨係喺無被判定為閒置（awardingPaused）嘅
+      // 時候先計時、先計分，每滿真正嘅 60 秒就畀 1 PTS + 1/60 小時嘅
+      // 累積溫習時數。
+      let secondsSinceLastAward = 0;
 
       state.countdownTimer = setInterval(async () => {
-        // 「呢間房總溫習時間」順時累加：淨係喺無被判定為閒置（awardingPaused）
-        // 嘅時候先計，同積分／時數嘅暫停邏輯保持一致
         if (!state.awardingPaused) {
           state.roomTotalSeconds = (state.roomTotalSeconds || 0) + 1;
+          secondsSinceLastAward++;
         }
+        updateTimerDisplay();
 
-        if (state.remainingSeconds > 0) {
-          state.remainingSeconds--;
-          secondsElapsedInPhase++;
-          updateTimerDisplay();
-
-          if (state.pomodoroPhase === 'focus' && secondsElapsedInPhase % 60 === 0 && !state.awardingPaused) {
-            // 每滿 60 秒真正嘅專注時間，除咗畀 1 PTS，仲要累加 1/60 小時到
-            // 「累積溫習時數」度，等個時數可以同視訊房嘅實際專注時間掛鈎
-            awardStudyPoint(1, 1 / 60);
-          }
-
-          if (state.pomodoroPhase === 'focus' && !state.awardingPaused) {
-            const quarterSeconds = Math.max(60, Math.round((state.focusDurationSeconds || 1) / 4));
-            const quartersDone = Math.min(4, Math.floor(secondsElapsedInPhase / quarterSeconds));
-            // 第 4 個小目標其實即係「成輪專注完成」，留返俾下面嗰個「番茄鐘完成」
-            // 提示去講就夠，唔使呢度重複彈多次
-            if (quartersDone > lastQuarterMilestoneShown && quartersDone < 4) {
-              lastQuarterMilestoneShown = quartersDone;
-              window.showToast(`🎯 小目標達成！已完成 ${quartersDone}/4 段，繼續加油～`, '🌟');
-            }
-          }
-        } else {
-          secondsElapsedInPhase = 0;
-          lastQuarterMilestoneShown = 0;
-          if (state.pomodoroPhase === 'focus') {
-            state.pomodoroPhase = 'break';
-            state.remainingSeconds = ROOM_POMODORO_BREAK_SECONDS;
-            state.pomodoroCyclesCompleted = (state.pomodoroCyclesCompleted || 0) + 1;
-            window.showToast(`🍅 第 ${state.pomodoroCyclesCompleted} 個番茄鐘完成！小休 5 分鐘啦～`, '🎉');
-          } else {
-            state.pomodoroPhase = 'focus';
-            state.remainingSeconds = state.focusDurationSeconds;
-            window.showToast('☕ 小休完畢，開始新一輪專注！', '🍅');
-          }
-          updateTimerDisplay();
+        if (secondsSinceLastAward >= 60 && !state.awardingPaused) {
+          secondsSinceLastAward = 0;
+          // 每滿 60 秒真正嘅溫習時間，除咗畀 1 PTS，仲要累加 1/60 小時到
+          // 「累積溫習時數」度，等個時數可以同視訊房嘅實際溫習時間掛鈎
+          awardStudyPoint(1, 1 / 60);
         }
       }, 1000);
     }
@@ -1562,7 +1515,7 @@
       const newLevel = calcLevelInfo(window.currentUser.exp).level;
       if (newLevel > prevLevel) {
         const rank = getRankTitle(newLevel);
-        window.showToast(`🎉 升級喇！現在是 Lv.${newLevel} ${rank.emoji} ${rank.title}！`, '⬆️');
+        window.showToast(`🎉 升級了！現在是 Lv.${newLevel} ${rank.emoji} ${rank.title}！`, '⬆️');
       }
       if (hoursIncrement > 0) {
         const newHours = (parseFloat(window.currentUser.hours) || 0) + hoursIncrement;
@@ -1951,57 +1904,12 @@
     }
 
     function updateTimerDisplay() {
-      // 番茄鐘改為順時顯示：畫面上顯示嘅係「呢一輪（專注／小休）已經計咗幾耐」，
-      // 唔再係倒數剩返幾耐——實際循環邏輯（幾時完、幾時轉階段）仍然係靠
-      // state.remainingSeconds 喺背後倒數控制，淨係顯示方式改咗。
-      const phaseTotalSecondsForDisplay = state.pomodoroPhase === 'break' ? ROOM_POMODORO_BREAK_SECONDS : (state.focusDurationSeconds || 1);
-      const elapsedForDisplay = Math.max(0, phaseTotalSecondsForDisplay - state.remainingSeconds);
-      const timerEl = document.getElementById('room-timer');
-      if (timerEl) {
-        timerEl.innerText = formatElapsedClock(elapsedForDisplay);
-      }
+      // 番茄鐘（專注／小休自動循環）呢個功能已經整個移除，房入面而家淨
+      // 係顯示一個順時計嘅「本房總溫習時間」，冇任何階段／輪數嘅概念。
       const totalTimeEl = document.getElementById('room-total-time');
       if (totalTimeEl) {
         totalTimeEl.innerText = formatElapsedClock(state.roomTotalSeconds || 0);
       }
-      const phaseEl = document.getElementById('room-timer-phase');
-      if (phaseEl) {
-        phaseEl.innerText = state.pomodoroPhase === 'break' ? '☕ 小休中' : '🍅 專注中';
-      }
-
-      // 番茄鐘進度條：喺個 widget 底部畫 4 段幼幼嘅進度線，代表呢一節專注拆開嘅
-      // 4 個小目標，一段一段咁儲滿（唔係一條望唔到盡頭嘅長 bar）——每一格啱啱好
-      // 等如成輪專注時間嘅 25%，等學生覺得每格都係一個好快捱到嘅小終點，同時
-      // 唔會加高成個 widget，保持同旁邊其他掣（開啟鏡頭／已靜音／人數）高度
-      // 一致。未填色嘅底色用灰色，同個白色 widget 背景清晰分開，4 段界線同
-      // 進度都望得清楚啲；填滿咗嘅段仲會加返少少光暈，等「呢段啱啱達成」更加
-      // 吸引眼球。
-      const phaseTotalSeconds = state.pomodoroPhase === 'break' ? ROOM_POMODORO_BREAK_SECONDS : (state.focusDurationSeconds || 1);
-      const elapsedInPhase = Math.max(0, phaseTotalSeconds - state.remainingSeconds);
-      const segColor = state.pomodoroPhase === 'break' ? '#7DB8C5' : '#F2A65A';
-      const segTrackColor = '#D9D9D9';
-      const segEls = document.querySelectorAll('#room-timer-progress-track .pomodoro-quarter-seg');
-      if (segEls && segEls.length) {
-        const quarterTotal = phaseTotalSeconds / segEls.length;
-        segEls.forEach((segEl, i) => {
-          const segElapsed = Math.min(quarterTotal, Math.max(0, elapsedInPhase - i * quarterTotal));
-          const segPct = quarterTotal > 0 ? (segElapsed / quarterTotal) * 100 : 0;
-          segEl.style.background = `linear-gradient(to right, ${segColor} ${segPct}%, ${segTrackColor} ${segPct}%)`;
-          segEl.style.boxShadow = segPct >= 100 ? `0 0 4px ${segColor}` : 'none';
-        });
-      }
-
-      // 第幾輪計數器：房間唔會因為房主揀嘅專注時間到咗就自動關閉，學生可以一直
-      // 逗留繼續一輪接一輪咁溫習，所以要有個清晰嘅數字話俾佢知而家踏入第幾輪。
-      // 專注中顯示緊做嘅呢一輪；小休中就顯示啱啱完成嗰一輪（小休完先會跳去下一輪）。
-      const completed = state.pomodoroCyclesCompleted || 0;
-      const roundNumber = state.pomodoroPhase === 'break' ? Math.max(1, completed) : completed + 1;
-      const roundLabelEl = document.getElementById('pomodoro-round-label');
-      if (roundLabelEl) {
-        roundLabelEl.innerText = `第 ${roundNumber} 輪`;
-        roundLabelEl.title = `已完成 ${completed} 個完整番茄鐘（這個計數只是計這次入房，離開房間會重新開始計）`;
-      }
-
     }
 
     // ===================== 防「開房掛機刷分」：定時確認用家是否真係喺度 =====================
@@ -2405,7 +2313,7 @@
               } else if (reusableTransceiver.direction === 'inactive') {
                 reusableTransceiver.direction = 'sendonly';
               }
-              wrtcLog(`重用返同 ${remoteUid} 的舊 ${track.kind} transceiver（避免重複 m-line）`);
+              wrtcLog(`重複使用與 ${remoteUid} 的舊 ${track.kind} transceiver（避免重複 m-line）`);
             } catch (e) {
               console.warn(`replaceTrack 失敗，改用 addTrack (${remoteUid}, ${track.kind}):`, e);
               pc.addTrack(track, state.mediaStream);
@@ -2832,7 +2740,7 @@
         state.micUsedSeconds = 0;
         if (state.micCooldownUiTimer) { clearInterval(state.micCooldownUiTimer); state.micCooldownUiTimer = null; }
         updateMicButtonUI();
-        window.showToast('咪冷卻完成，可以再開咪啦 🎤', '✅');
+        window.showToast('麥克風冷卻完成，可以重新開啟 🎤', '✅');
       }, MIC_COOLDOWN_SECONDS * 1000);
     }
 
