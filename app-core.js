@@ -1217,8 +1217,10 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       if (tutorHint) tutorHint.style.display = isTutor ? 'block' : 'none';
 
       const schoolInput = document.getElementById('reg-school');
+      const gradeInput = document.getElementById('reg-grade');
       const subjectsInput = document.getElementById('reg-tutor-subjects');
       if (schoolInput) schoolInput.required = !isTutor;
+      if (gradeInput) gradeInput.required = !isTutor;
       if (subjectsInput) subjectsInput.required = isTutor;
 
       // 揀「我是導師」先畫個科目剔選器（唔喺頁面一載入就畫，慳返啲

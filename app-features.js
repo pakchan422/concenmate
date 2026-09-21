@@ -1756,6 +1756,26 @@
       all: '📚 全部', math: '➕ 數學', chi: '📝 中文',
       eng: '🔤 英文', sci: '🔬 科學', econ: '💹 經濟', other: '💬 其他'
     };
+
+    // 學科分類 Tab 列由以前逐科逐科（數學／中文／英文…）改為「必修
+    // 科目／選修科目／其他」三大分類。呢個 map 負責將每個提問實際
+    // 揀嘅學科（p.subject）歸類做邊個分類，先至畀 Tab 篩選用：
+    // - 舊制提問（math/chi/eng/sci/econ/other）：中英數跟返 HKDSE
+    //   必修科（中國語文／英國語文／數學（必修部分）／公民與社會
+    //   發展）歸做「必修」，科學／經濟呢啲選修科歸做「選修」，其他
+    //   就係「其他」。
+    // - 如果日後「發起提問」個學科揀擇改用返 window.TUTOR_DSE_SUBJECTS
+    //   嗰份完整清單，呢個 map 亦都要跟住加返新科目嘅分類。
+    const QA_CATEGORY_MAP = {
+      math: 'core', chi: 'core', eng: 'core',
+      sci: 'elective', econ: 'elective',
+      other: 'other',
+    };
+    function getQACategory(subject) {
+      return QA_CATEGORY_MAP[subject] || 'other';
+    }
+    window.getQACategory = getQACategory;
+
     let qaCurrentSubject = 'all';
     let qaUnsubscribe = null;
     let qaPostsCache = [];
@@ -1779,7 +1799,7 @@
     function renderQAPostsList() {
       const list = document.getElementById('qa-post-list');
       if (!list) return;
-      let posts = qaPostsCache.filter(p => qaCurrentSubject === 'all' || p.subject === qaCurrentSubject);
+      let posts = qaPostsCache.filter(p => qaCurrentSubject === 'all' || getQACategory(p.subject) === qaCurrentSubject);
       posts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
       if (posts.length === 0) {
@@ -1905,8 +1925,12 @@
 
         closeModal('modal-qa-post');
         window.showToast('提問已發布！', '✅');
-        const btn = document.querySelector(`.qa-subject-btn[onclick*="${subject}"]`);
-        switchQASubject(subject, btn);
+        // Tab 列而家係跟「必修／選修／其他」分類嚟揀，唔再係跟實際
+        // 學科（subject）本身，所以要用 getQACategory() 轉一轉，先至
+        // 揾到啱嘅分類 Tab 撳落去、跳去顯示啱嘅分類。
+        const category = getQACategory(subject);
+        const btn = document.querySelector(`.qa-subject-btn[onclick*="'${category}'"]`);
+        switchQASubject(category, btn);
       } catch(e) {
         console.error('發布提問失敗:', e);
         window.showToast('發布失敗：' + (e.message || '請稍後再試'), '❌');

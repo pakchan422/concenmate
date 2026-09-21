@@ -47,7 +47,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.140.1"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.140.2"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -2186,14 +2186,15 @@
 
         <section id="tab-qa" class="tab-content">
 
-          <!-- 學科 Tab 列 -->
+          <!-- 學科分類 Tab 列：由以前逐科逐科分（數學／中文／英文…）
+               改為「必修科目／選修科目／其他」三大分類，跟返 HKDSE
+               嘅必修／選修劃分（見 app-features.js 嘅 QA_CATEGORY_MAP），
+               揀邊個分類就篩選返屬於嗰個分類嘅提問。個別提問實際係
+               邊一科，仍然會喺提問卡片上面用返 QA_SUBJECTS 個標籤顯示。 -->
           <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;">
             <button class="qa-subject-btn active" onclick="switchQASubject('all', this)">📚 全部</button>
-            <button class="qa-subject-btn" onclick="switchQASubject('math', this)">➕ 數學</button>
-            <button class="qa-subject-btn" onclick="switchQASubject('chi', this)">📝 中文</button>
-            <button class="qa-subject-btn" onclick="switchQASubject('eng', this)">🔤 英文</button>
-            <button class="qa-subject-btn" onclick="switchQASubject('sci', this)">🔬 科學</button>
-            <button class="qa-subject-btn" onclick="switchQASubject('econ', this)">💹 經濟</button>
+            <button class="qa-subject-btn" onclick="switchQASubject('core', this)">📖 必修科目</button>
+            <button class="qa-subject-btn" onclick="switchQASubject('elective', this)">🧪 選修科目</button>
             <button class="qa-subject-btn" onclick="switchQASubject('other', this)">💬 其他</button>
           </div>
 
@@ -2796,7 +2797,7 @@
         </div>
 
         <div>
-          <label style="font-size:13px; font-weight:bold; color:#555;">帳號 ID（登入用）* <span style="font-weight:normal; color:#999; font-size:12px;">設定了就要用來登入，請選擇一個容易記住的</span></label>
+          <label style="font-size:13px; font-weight:bold; color:#555;">帳號 ID（登入用）*</label>
           <input type="text" id="reg-account-id" class="input-field" required placeholder="例如：alex_wong2026" pattern="[A-Za-z0-9_]{3,20}" maxlength="20">
         </div>
 
@@ -2832,13 +2833,14 @@
 
           <div style="margin-top:10px;">
             <label style="font-size:13px; font-weight:bold; color:#555;">現時年級 *</label>
-            <select id="reg-grade" class="input-field">
+            <select id="reg-grade" class="input-field" required>
+              <option value="" selected disabled>請選擇年級</option>
               <option value="中一 (S1)">中一 (S1)</option>
               <option value="中二 (S2)">中二 (S2)</option>
               <option value="中三 (S3)">中三 (S3)</option>
               <option value="中四 (S4)">中四 (S4)</option>
               <option value="中五 (S5)">中五 (S5)</option>
-              <option value="中六 (S6 DSE)" selected>中六 (S6 DSE)</option>
+              <option value="中六 (S6 DSE)">中六 (S6 DSE)</option>
               <option value="大專/大學">大專 / 大學</option>
               <option value="其他自修生">其他 / 自修生</option>
             </select>
