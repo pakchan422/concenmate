@@ -47,7 +47,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.139.2"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.140.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -2815,8 +2815,20 @@
         <!-- 學生專用欄位：揀「導師」嗰陣會隱藏並取消 required -->
         <div id="register-student-fields">
           <div>
+            <label style="font-size:13px; font-weight:bold; color:#555;">學校所在地區 *</label>
+            <select id="reg-school-district" class="input-field" required onchange="window.updateRegSchoolOptions && window.updateRegSchoolOptions()">
+              <option value="">請先選擇地區</option>
+            </select>
+          </div>
+
+          <div style="margin-top:10px;">
             <label style="font-size:13px; font-weight:bold; color:#555;">學校名稱 *</label>
-            <input type="text" id="reg-school" class="input-field" required placeholder="例如：屯門官立中學">
+            <select id="reg-school" class="input-field" required disabled onchange="window.handleRegSchoolSelectChange && window.handleRegSchoolSelectChange()">
+              <option value="">請先選擇地區</option>
+            </select>
+            <div id="reg-school-custom-wrap" style="display:none; margin-top:6px;">
+              <input type="text" id="reg-school-custom" class="input-field" placeholder="請輸入學校名稱">
+            </div>
           </div>
 
           <div style="margin-top:10px;">
@@ -2834,8 +2846,9 @@
           </div>
 
           <div style="margin-top:10px;">
-            <label style="font-size:13px; font-weight:bold; color:#555;">喜愛學科 (可留白)</label>
-            <input type="text" id="reg-fav" class="input-field" placeholder="例如：數學, 物理">
+            <label style="font-size:13px; font-weight:bold; color:#555;">喜愛學科（可留白，最多揀 4 科）</label>
+            <div id="reg-fav-picker"></div>
+            <input type="hidden" id="reg-fav">
           </div>
 
           <div style="margin-top:10px;">

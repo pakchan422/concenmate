@@ -57,7 +57,17 @@
     }
     window.showToast = showToast;
 
-    function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+    function openModal(id) {
+      document.getElementById(id).style.display = 'flex';
+      // 打開「註冊」視窗嗰陣，順便初始化學生嗰邊嘅「地區／學校」
+      // 選單同「喜愛學科」剔選器——呢兩樣嘢淨係喺 setRegisterAccountType()
+      // 入面先會畫，而個註冊視窗一開波個帳號類型預設係「學生」，但
+      // 冇撳過切換按鈕就唔會執行過 setRegisterAccountType('student')，
+      // 所以呢度要主動叫一次，等個表格一打開就已經填好晒。
+      if (id === 'modal-register' && typeof window.setRegisterAccountType === 'function') {
+        window.setRegisterAccountType('student');
+      }
+    }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
     // 撳視窗外面（背景黑色半透明部分）就關閉彈出視窗

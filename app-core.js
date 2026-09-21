@@ -1015,6 +1015,182 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       sync();
     };
 
+    // ===================== 學生「喜愛學科」勾選式選擇器（最多揀 4 科） =====================
+    // 同上面導師嗰個 renderTutorSubjectChipPicker() 用同一套 UI 風格、
+    // 亦都借用返同一份 window.TUTOR_DSE_SUBJECTS 固定科目清單（喺
+    // tutor-panel.js 定義），令成個 app 入面「科目」呢個概念全部用同
+    // 一份分類，方便日後按學生「喜愛學科」推送對應導師嘅廣告。同導師
+    // 嗰個唔同嘅係呢度多咗一個上限（預設 4 科），揀夠上限之後其餘
+    // 未揀嘅 chip 會變成灰色唔畀再撳，敇止學生亂咁揀晒成個清單，令
+    // 「喜愛學科」呢個資料失去篩選意義。
+    window.renderStudentFavSubjectChipPicker = function(pickerId, hiddenInputId, maxSelect) {
+      const picker = document.getElementById(pickerId);
+      const hiddenInput = document.getElementById(hiddenInputId);
+      const max = maxSelect || 4;
+      if (!picker || !hiddenInput || !window.TUTOR_DSE_SUBJECTS) return;
+
+      const selected = new Set((hiddenInput.value || '').split(/[,，、]/).map((s) => s.trim()).filter(Boolean));
+      const fixedSubjects = window.TUTOR_DSE_SUBJECTS.filter((s) => s !== '其他（自行輸入）');
+      const escAttr = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+
+      function sync() {
+        hiddenInput.value = Array.from(selected).join('、');
+      }
+
+      function render() {
+        const atMax = selected.size >= max;
+        const chipsHtml = fixedSubjects.map((s) => {
+          const active = selected.has(s);
+          const disabled = atMax && !active;
+          return `<button type="button" class="tag" data-subject="${escAttr(s)}" ${disabled ? 'disabled' : ''}
+            style="cursor:${disabled ? 'not-allowed' : 'pointer'}; border:1px solid ${active ? 'var(--brand-500)' : '#ddd'};
+            background:${active ? 'var(--brand-500)' : (disabled ? '#eee' : '#F5F7F8')}; color:${active ? '#fff' : (disabled ? '#bbb' : '#555')};
+            border-radius:99px; padding:4px 10px; font-size:13px; margin:0 6px 6px 0;">${active ? '✓ ' : ''}${s}</button>`;
+        }).join('');
+        const customSelected = Array.from(selected).filter((s) => !fixedSubjects.includes(s));
+        const customChipsHtml = customSelected.map((s) => `
+          <button type="button" class="tag" data-custom-subject="${escAttr(s)}"
+            style="cursor:pointer; border:1px solid var(--brand-500); background:var(--brand-500);
+            color:#fff; border-radius:99px; padding:4px 10px; font-size:13px; margin:0 6px 6px 0;">✓ ${s} ✕</button>
+        `).join('');
+        picker.innerHTML = `
+          <div style="display:flex; flex-wrap:wrap;">${chipsHtml}${customChipsHtml}</div>
+          <input type="text" id="${pickerId}-custom" class="input-field" placeholder="${atMax ? `最多可揀 ${max} 科` : '其他科目（自行輸入，按 Enter 新增）'}" style="width:100%; margin-top:4px;" ${atMax ? 'disabled' : ''}>
+          <p style="font-size:12px; color:#999; margin-top:4px;">已選 ${selected.size} / ${max} 科</p>
+        `;
+        picker.querySelectorAll('button[data-subject]').forEach((btn) => {
+          btn.onclick = () => {
+            const subj = btn.getAttribute('data-subject');
+            if (selected.has(subj)) {
+              selected.delete(subj);
+            } else {
+              if (selected.size >= max) {
+                window.showToast && window.showToast(`最多只可以揀 ${max} 個喜愛學科`, '⚠️');
+                return;
+              }
+              selected.add(subj);
+            }
+            sync();
+            render();
+          };
+        });
+        picker.querySelectorAll('button[data-custom-subject]').forEach((btn) => {
+          btn.onclick = () => {
+            selected.delete(btn.getAttribute('data-custom-subject'));
+            sync();
+            render();
+          };
+        });
+        const customInput = document.getElementById(`${pickerId}-custom`);
+        if (customInput) {
+          customInput.onkeydown = (e) => {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            const v = customInput.value.trim();
+            if (!v) return;
+            if (selected.size >= max) {
+              window.showToast && window.showToast(`最多只可以揀 ${max} 個喜愛學科`, '⚠️');
+              return;
+            }
+            selected.add(v);
+            sync();
+            render();
+          };
+        }
+      }
+
+      render();
+      sync();
+    };
+
+    // ===================== 香港中學名單（按地區分組，註冊表格用） =====================
+    // 資料來源：教育局（EDB）各區中學名單官方網頁（2026-09 整理），只
+    // 包括官立／資助／直接資助計劃／英基學校協會／私立中學，唔包括
+    // 小學、幼稚園同埋補習／教育中心。18 區分類跟返教育局／政府慣用
+    // 嘅十八區劃分。呢份清單只供學生註冊嗰陣揀返自己間學校用，如果
+    // 見到有學校執笠／改名／清單有錯漏，可以自行喺「其他」度輸入。
+    window.HK_SECONDARY_SCHOOLS_BY_DISTRICT = {
+      "中西區": ["英皇書院","樂善堂梁銶琚書院","高主教書院","聖嘉勒女書院","聖若瑟書院","聖類斯中學","聖士提反堂中學","聖士提反女子中學","英華女學校","聖保羅男女中學","聖保羅書院","Island School","德瑞國際學校","香島華德福學校"],
+      "灣仔區": ["何東中學","皇仁書院","鄧肇堅維多利亞官立中學","佛教黃鳳翎中學","北角協同中學","香港鄧鏡波書院","瑪利曼中學","聖公會鄧肇堅中學","嘉諾撒聖方濟各書院","聖保祿中學","香港真光中學","東華三院李潤田紀念中學","香港華仁書院","孔聖堂禮仁書院","中華基督教會公理書院","聖保祿學校","香港道爾頓學校","Lycée Français International (French Intl Sch)","香港華德福教育基金會瑪利亞書院"],
+      "東區": ["庇理羅士女子中學","金文泰中學","筲箕灣東官立中學","筲箕灣官立中學","嘉諾撒書院","明愛柴灣馬登基金中學","中華基督教會桂華山中學","張祝珊英文中學","張振興伉儷書院","中華傳道會劉永生中學","文理書院（香港）","炮台山循道衛理中學","福建中學（小西灣）","顯理中學","香港中國婦女會中學","伊斯蘭脫維善紀念中學","嶺南衡怡紀念中學","嶺南中學","閩僑中學","港島民生書院","寶血女子中學","慈幼英文學校","聖公會李福慶中學","聖貞德中學","聖馬可中學","衞理中學","漢華中學","蘇浙公學","培僑中學","中華基金中學","Carmel School","漢基國際學校","德思齊加拿大國際學校","培生學校","茵維特學校（香港）","Korean International School"],
+      "南區": ["香港仔浸信會呂明才書院","香港仔工業學校","明愛莊月明中學","香港航海學校","香港真光書院","嘉諾撒培德書院","培英中學","嘉諾撒聖心書院","新會商會陳白沙紀念中學","聖公會呂明才中學","聖伯多祿中學","余振強紀念第二中學","港大同學會書院","聖士提反書院","South Island School","West Island School","香港加拿大國際學校","漢鼎書院","Hong Kong International School","蒙特梭利國際學校","新加坡國際學校","港灣學校","弘立書院","滬江維多利亞學校","香港威雅學校"],
+      "油尖旺區": ["伊利沙伯中學","官立嘉道理爵士中學（西九龍）","中華基督教會銘基書院","基督教香港信義會信義中學","港九潮州公會中學","麗澤中學","世界龍岡學校劉皇發中學","循道中學","天主教新民書院","保良局莊啓程預科書院","聖芳濟書院","嘉諾撒聖瑪利書院","真光女書院","華仁書院（九龍）","拔萃女書院","香港管理專業協會李國寶中學","九龍三育中學","聖公會諸聖中學","遵理學校（旺角）","California School","倫敦卓越書院（尖沙咀）","香港力邁學校","香港華德福教育基金會瑪利亞書院","Stamford American Sch HK (West Kowloon)","華夏書院"],
+      "深水埗區": ["九龍工業學校","佛教大雄中學","中華基督教會銘賢書院","長沙灣天主教英文中學","廠商會中學","路德會協同中學","香港四邑商工總會黃棣珊紀念中學","寶血會上智英文書院","瑪利諾神父教會學校","天主教南華中學","聖母玫瑰書院","保良局唐乃勤初中書院","聖公會聖馬利亞堂莫慶堯中學","德貞女子中學","德雅中學","東華三院張明添中學","中聖書院","地利亞修女紀念學校﹝百老匯﹞","地利亞修女紀念學校（吉利徑）","香島中學","聖瑪加利男女英文中小學","基督教崇真中學","惠僑英文中學","英華書院","滙基書院","宣道國際學校","協同國際學校","路德會呂祥光夜中學","保良局蔡繼有學校","聖道百卉書院","中黃書院"],
+      "九龍城區": ["何文田官立中學","賽馬會官立中學","何明華會督銀禧中學","迦密中學","中華基督教會基道中學","陳瑞祺（喇沙）書院","文理書院（九龍）","旅港開平商會中學","嘉諾撒聖家書院","九龍塘學校（中學部）","九龍真光中學","喇沙書院","瑪利諾修院學校（中學部）","民生書院","新亞中學","獻主會聖母院書院","五旬節中學","香港培道中學","香港培正中學","禮賢會彭學高紀念中學","聖公會聖匠中學","聖公會聖三一堂中學","聖公會蔡功譜中學","德蘭中學","順德聯誼總會胡兆熾中學","鄧鏡波學校","東華三院黃笏南中學","華英中學","余振強紀念中學","基督教女青年會丘佐榮中學","拔萃男書院","協恩中學","香港兆基創意書院","保良局顏寶鈴書院","創知中學","King George V School","美國國際學校","泰來書院","香港澳洲國際學校","Nord Anglia International School, HK","劍津英國學校","香港華德福教育基金會瑪利亞書院","斯彼德書院","Stamford American School Hong Kong","耀中國際學校（中學）"],
+      "黃大仙區": ["佛教孔仙洲紀念中學","中華基督教會協和書院","中華基督教會基協中學","中華基督教會扶輪中學","佛教志蓮中學","彩虹邨天主教英文中學","可立中學（嗇色園主辦）","潔心林炳炎中學","李求恩紀念中學","樂善堂王仲銘中學","樂善堂余近卿中學","天主教伍華中學","聖母書院","五旬節聖潔會永光書院","保良局何蔭棠中學","保良局第一張永慶中學","救世軍卜維廉中學","聖公會聖本德中學","聖文德書院","香港神託會培敦中學","德愛中學","德望學校","國際基督教優質音樂中學暨小學","香港威雅學校（九龍）"],
+      "觀塘區": ["觀塘官立中學","觀塘功樂官立中學","佛教何南金中學","中華基督教會基智中學","中華基督教會蒙民偉書院","五邑司徒浩中學","香港聖公會何明華會督中學","香港道教聯合會青松中學","香港布廠商會朱石麟中學","高雷中學","觀塘瑪利諾書院","梁式芝書院","瑪利諾中學","基督教聖約教會堅樂中學","寧波公學","寧波第二中學","新生命教育協會呂郭碧鳳中學","天主教普照中學","順利天主教中學","聖言中學","聖公會基孝中學","聖公會梁季彜中學","聖安當女書院","聖傑靈女子中學","聖若瑟英文中學","藍田聖保祿中學","仁濟醫院羅陳楚思中學","地利亞修女紀念學校（協和二中）","地利亞修女紀念學校（協和）","基督教中國佈道會聖道迦南書院","福建中學","慕光英文書院","滙基書院（東九龍）","香港紫荊書院","Kellett School","Nord Anglia International School, HK","示昕學校"],
+      "葵青區": ["佛教善德英文中學","佛教葉紀南紀念中學","明愛聖若瑟中學","迦密愛禮信中學","中華基督教會全完中學","中華基督教會燕京書院","中華傳道會安柱中學","中華傳道會李賢堯紀念中學","棉紡會中學","天主教母佑會蕭明中學","香港四邑商工總會陳南昌紀念中學","香港道教聯合會圓玄學院第一中學","裘錦秋中學（葵涌）","葵涌蘇浙公學","葵涌循道中學","荔景天主教中學","嶺南鍾榮光博士紀念中學","獅子會蔣翠琼中學","樂善堂顧超文中學","樂善堂梁植偉紀念中學","李惠利中學","保良局羅傑承（一九八三）中學","保祿六世書院","皇仁舊生會中學","天主教慈幼會伍少梅中學","石籬天主教中學","聖公會林護紀念中學","順德聯誼總會李兆基中學","東華三院陳兆民中學","東華三院伍若瑜夫人紀念中學","東華三院吳祥川紀念中學"],
+      "荃灣區": ["荃灣官立中學","博愛醫院歷屆總理聯誼會梁省德中學","可風中學（嗇色園主辦）","廖寶珊紀念書院","路德會呂明才中學","保良局李城璧中學","保良局姚連生中學","寶安商會王少清中學","聖公會李炳中學","荃灣聖芳濟中學","紡織學會美國商會胡漢輝中學","荃灣公立何傳耀紀念中學","仁濟醫院林百欣中學","香港蔚來中學","弘爵國際學校"],
+      "屯門區": ["南屯門官立中學","屯門官立中學","浸信會永隆中學","佛教沈香林紀念中學","明愛屯門馬登基金中學","迦密唐賓南紀念中學","中華基督教會何福堂書院","中華基督教會譚李麗芬紀念中學","青松侯寶垣中學","宣道中學","香港九龍塘基督教中華宣道會陳瑞芝紀念中學","廠商會蔡章閣中學","鐘聲慈善社胡陳金枝中學","香海正覺蓮社佛教梁植偉中學","嗇色園主辦可藝中學","裘錦秋中學﹝屯門﹞","路德會呂祥光中學","妙法寺劉金龍中學","新生命教育協會平安福音中學","加拿大神召會嘉智中學","保良局百周年李兆忠紀念中學","保良局董玉娣中學","新會商會中學","深培中學","聖公會聖西門呂明才中學","馬錦明慈善基金馬可賓紀念中學","順德聯誼總會梁銶琚中學","順德聯誼總會譚伯羽中學","崇真書院","屯門天主教中學","東華三院辛亥年總理中學","東華三院邱子田紀念中學","東華三院鄺錫坤伉儷中學","仁濟醫院第二中學","仁愛堂田家炳中學","仁愛堂陳黃淑芳紀念中學","恩平工商會李琳明中學","哈羅香港國際學校"],
+      "元朗區": ["趙聿修紀念中學","新界鄉議局元朗區中學","天水圍官立中學","元朗公立中學","伯特利中學","佛教茂峰法師紀念中學","明愛元朗陳震夏中學","中華基督教會方潤華中學","中華基督教會基朗中學","中華基督教會基元中學","香港中文大學校友會聯會張煊昌中學","金巴崙長老會耀道中學","基督教香港信義會元朗信義中學","路德會西門英才中學","香港管理專業協會羅桂祥中學","可道中學（嗇色園主辦）","賽馬會萬鈞毅智書院","裘錦秋中學（元朗）","博愛醫院鄧佩瓊紀念中學","天主教培聖中學","伊利沙伯中學舊生會中學","伊利沙伯中學舊生會湯國華中學","天主教崇德英文書院","聖公會白約翰會督中學","十八鄉鄉事委員會公益社中學","順德聯誼總會翁祐中學","天水圍循道衞理中學","東華三院馬振玉紀念中學","東華三院郭一葦中學","東華三院盧幹庭紀念中學","圓玄學院妙法寺內明陳呂重德紀念中學","元朗公立中學校友會鄧兆棠中學","元朗天主教中學","元朗商會中學","中華基督教青年會中學","基督教香港信義會宏信書院","天水圍香島中學","香港青年協會李兆基書院","萬鈞伯裘書院","遵理學校","路德會西門英才夜校","香港華德福教育基金會瑪利亞書院"],
+      "北區": ["粉嶺官立中學","上水官立中學","明愛粉嶺陳震夏中學","中華基督教會基新中學","宣道會陳朱素華紀念中學","新界喇沙中學","風采中學（教育評議會主辦）","粉嶺救恩書院","粉嶺禮賢會中學","鳳溪廖萬石堂中學","鳳溪第一中學","香海正覺蓮社佛教馬錦燦紀念英文中學","香港道教聯合會鄧顯紀念中學","保良局馬錦明中學","聖公會陳融中學","聖芳濟各書院","田家炳中學","東華三院甲寅年總理中學","東華三院李嘉誠中學","基督教香港信義會心誠中學","International College Hong Kong (NT)","香港華德福教育基金會瑪利亞書院"],
+      "大埔區": ["新界鄉議局大埔區中學","神召會康樂中學","佛教大光慈航中學","迦密聖道中學","迦密柏雨中學","中華基督教會馮梁結紀念中學","中華聖潔會靈風中學","孔教學院大成何郭佩珍中學","港九街坊婦女會孫方中書院","香港教師會李興貴中學","香港紅卍字會大埔卍慈中學","香港道教聯合會圓玄學院第二中學","救恩書院","靈糧堂劉梅軒中學","南亞路德會沐恩中學","聖公會莫壽增會督中學","恩主教書院","王肇枝中學","羅定邦中學","大埔三育中學","American School Hong Kong","Japanese International School","香港墨爾文國際學校","香港西班牙學校","大光德萃書院"],
+      "沙田區": ["梁文燕紀念中學（沙田）","沙田官立中學","浸信會呂明才中學","佛教覺光法師中學","佛教黃允畋中學","明愛馬鞍山中學","青年會書院","潮州會館中學","基督書院","香港九龍塘基督教中華宣道會鄭榮之中學","香港中文大學校友會聯會陳震夏中學","東莞工商總會劉百樂中學","香港中國婦女會馮堯敬紀念中學","聖母無玷聖心書院","賽馬會體藝中學","沙田蘇浙公學","天主教郭得勝中學","樂道中學","樂善堂楊葛小琳中學","馬鞍山聖若瑟中學","馬鞍山崇真中學","五育中學","五旬節林漢光中學","保良局朱敬文中學","保良局胡忠中學","博愛醫院陳楷紀念中學","沙田循道衞理中學","沙田培英中學","沙田崇真中學","聖公會林裘謀中學","聖公會曾肇添中學","聖羅撒書院","台山商會中學","曾璧山（崇蘭）中學","東華三院馮黃鳳亭中學","東華三院黃鳳翎中學","東華三院邱金元中學","仁濟醫院董之英紀念中學","香港浸會大學附屬學校王錦輝中小學","林大輝中學","李寶椿聯合世界書院","培僑書院","香港神託會培基書院","德信中學","Shatin College","基督教國際學校","啓新書院"],
+      "西貢區": ["將軍澳官立中學","基督教宣道會宣基中學","迦密主恩中學","天主教鳴遠中學","新界西貢坑口區鄭植之中學","香海正覺蓮社佛教正覺中學","港澳信義會慕德中學","香港道教聯合會圓玄學院第三中學","景嶺書院","馬錦明慈善基金馬陳端喜紀念中學","保良局甲子何玉清中學","寶覺中學","博愛醫院八十週年鄧英喜中學","西貢崇真天主教學校（中學部）","順德聯誼總會鄭裕彤中學","東華三院呂潤財紀念中學","威靈頓教育機構張沛松紀念中學","仁濟醫院靚次伯紀念中學","仁濟醫院王華湘中學","啓思中學","播道書院","優才（楊殷有娣）書院","將軍澳香島中學","香港華人基督教聯會真道書院","萬鈞匯知中學","保良局羅氏基金中學","香港學堂國際學校","香港復臨學校","Lycée Français International (French Intl Sch)","香港華德福教育基金會瑪利亞書院","思貝禮國際學校"],
+      "離島區": ["長洲官立中學","明愛陳震夏郊野學園","明愛胡振中書院","香港教育工作者聯會黃楚標中學","嗇色園主辦可譽中學暨可譽小學","靈糧堂怡文中學","保良局馬錦明夫人章馥仙中學","東涌天主教學校","佛教筏可紀念中學","港青基信書院","Discovery Bay International School","智新書院"],
+    };
+
+    // 十八區點樣歸類做「港島／九龍／新界」三大分區，淨係用嚟喺
+    // <optgroup> 度分組顯示，方便學生揀嗰陣冇咁多區一次過睇晒。
+    window.HK_DISTRICT_REGION_GROUPS = [
+      { region: '香港島', districts: ['中西區', '灣仔區', '東區', '南區'] },
+      { region: '九龍', districts: ['油尖旺區', '深水埗區', '九龍城區', '黃大仙區', '觀塘區'] },
+      { region: '新界', districts: ['葵青區', '荃灣區', '屯門區', '元朗區', '北區', '大埔區', '沙田區', '西貢區', '離島區'] },
+    ];
+
+    // 註冊表格「學校名稱」欄位改為「先揀地區、再揀學校」兩級選單：
+    // 揀咗地區先至畀揀學校（第二個 <select> 響第一次都會顯示提示字，
+    // 唔會一開波就得個空嘅選單）。呢個函數負責填第一級（地區）嘅
+    // <optgroup>，喺頁面載入／打開註冊視窗嗰陣叫一次就夠。
+    window.populateRegSchoolDistrictOptions = function() {
+      const districtSelect = document.getElementById('reg-school-district');
+      if (!districtSelect || !window.HK_DISTRICT_REGION_GROUPS) return;
+      if (districtSelect.dataset.populated === '1') return; // 淨係填一次，唔使重複填
+      const escAttr = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+      const groupsHtml = window.HK_DISTRICT_REGION_GROUPS.map((g) => {
+        const optionsHtml = g.districts.map((d) => `<option value="${escAttr(d)}">${d}</option>`).join('');
+        return `<optgroup label="${escAttr(g.region)}">${optionsHtml}</optgroup>`;
+      }).join('');
+      districtSelect.innerHTML = `<option value="">請先選擇地區</option>${groupsHtml}`;
+      districtSelect.dataset.populated = '1';
+    };
+
+    // 揀完地區之後，根據所揀嘅地區填第二級（學校）嘅選單。如果學校
+    // 唔喺清單入面（例如新開嘅學校，或者清單有錯漏），揀「其他（自行
+    // 輸入學校名稱）」會彈出一個文字輸入格畀自己打，唔會因為資料庫
+    // 未夠齊全而卡住學生註冊唔到。
+    window.updateRegSchoolOptions = function() {
+      const districtSelect = document.getElementById('reg-school-district');
+      const schoolSelect = document.getElementById('reg-school');
+      const customWrap = document.getElementById('reg-school-custom-wrap');
+      const customInput = document.getElementById('reg-school-custom');
+      if (!districtSelect || !schoolSelect) return;
+      const district = districtSelect.value;
+      const schools = (window.HK_SECONDARY_SCHOOLS_BY_DISTRICT && window.HK_SECONDARY_SCHOOLS_BY_DISTRICT[district]) || [];
+      const escAttr = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+      if (!district) {
+        schoolSelect.innerHTML = `<option value="">請先選擇地區</option>`;
+        schoolSelect.disabled = true;
+      } else {
+        const optionsHtml = schools.map((s) => `<option value="${escAttr(s)}">${s}</option>`).join('');
+        schoolSelect.innerHTML = `<option value="">請選擇學校</option>${optionsHtml}<option value="__other__">其他（自行輸入學校名稱）</option>`;
+        schoolSelect.disabled = false;
+      }
+      if (customWrap) customWrap.style.display = 'none';
+      if (customInput) customInput.value = '';
+    };
+
+    // 揀咗「其他（自行輸入學校名稱）」先顯示文字輸入格；一旦打字，
+    // 就即刻將個 hidden input（其實就係 #reg-school 本身，因為佢已經
+    // 變成一個 <select>）用返個自訂學校名稱覆蓋返，等 handleRegisterSubmit()
+    // 讀 #reg-school 個 value 嗰陣唔使另外改邏輯。
+    window.handleRegSchoolSelectChange = function() {
+      const schoolSelect = document.getElementById('reg-school');
+      const customWrap = document.getElementById('reg-school-custom-wrap');
+      if (!schoolSelect || !customWrap) return;
+      customWrap.style.display = (schoolSelect.value === '__other__') ? 'block' : 'none';
+    };
+
     // 註冊表格嘅「🎒 我是學生」／「🎓 我是導師」切換：揀導師嗰邊會顯示
     // 導師申請專用欄位（自我介紹、想教嘅科目），同時隱藏埋學生專用嘅
     // 學校／年級／喜愛學科／討厭學科——並且將呢兩組欄位嘅 required
@@ -1048,6 +1224,19 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       // 嘅 value 讀返選咗乜嘢）
       if (isTutor && typeof window.renderTutorSubjectChipPicker === 'function') {
         window.renderTutorSubjectChipPicker('reg-tutor-subjects-picker', 'reg-tutor-subjects');
+      }
+
+      // 揀「我是學生」就填好「地區／學校」兩級選單，同埋畫返「喜愛
+      // 學科」嘅剔選器（最多 4 科）——道理同上面導師嗰段一樣，都係
+      // 由對應嘅 hidden input／select 現有 value 讀返之前揀開嘅嘢，
+      // 唔會因為切換返學生／導師嚟嚟去去而清空咗之前填嘅資料。
+      if (!isTutor) {
+        if (typeof window.populateRegSchoolDistrictOptions === 'function') {
+          window.populateRegSchoolDistrictOptions();
+        }
+        if (typeof window.renderStudentFavSubjectChipPicker === 'function') {
+          window.renderStudentFavSubjectChipPicker('reg-fav-picker', 'reg-fav', 4);
+        }
       }
     };
 
@@ -1091,7 +1280,24 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       }
 
       if (accountType === 'student') {
-        const school = document.getElementById('reg-school').value.trim();
+        // 「學校名稱」而家係「先揀地區、再揀學校」嘅兩級選單：一般
+        // 情況下 #reg-school 個 select 嘅 value 就係學校名（同以前純
+        // 文字輸入格一樣，直接讀 .value 就得）；但揀咗「其他（自行
+        // 輸入學校名稱）」（value 係特殊值 __other__）就要改讀隔籬嗰個
+        // 自訂文字輸入格。
+        const schoolSelectValue = document.getElementById('reg-school').value.trim();
+        let school = schoolSelectValue;
+        if (schoolSelectValue === '__other__') {
+          const customSchoolInput = document.getElementById('reg-school-custom');
+          school = customSchoolInput ? customSchoolInput.value.trim() : '';
+          if (!school) {
+            window.showToast('請輸入學校名稱', '⚠️');
+            return;
+          }
+        } else if (!schoolSelectValue) {
+          window.showToast('請選擇學校所在地區同學校名稱', '⚠️');
+          return;
+        }
         const grade = document.getElementById('reg-grade').value;
         const favSubjects = document.getElementById('reg-fav').value.trim();
         const dislikeSubjects = document.getElementById('reg-dislike').value.trim();
