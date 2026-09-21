@@ -47,7 +47,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.140.2"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.140.3"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -2187,15 +2187,22 @@
         <section id="tab-qa" class="tab-content">
 
           <!-- 學科分類 Tab 列：由以前逐科逐科分（數學／中文／英文…）
-               改為「必修科目／選修科目／其他」三大分類，跟返 HKDSE
-               嘅必修／選修劃分（見 app-features.js 嘅 QA_CATEGORY_MAP），
-               揀邊個分類就篩選返屬於嗰個分類嘅提問。個別提問實際係
-               邊一科，仍然會喺提問卡片上面用返 QA_SUBJECTS 個標籤顯示。 -->
-          <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;">
+               改為「必修科目／選修科目／其他」三大分類（見 app-features.js
+               嘅 getQACategory()）。揀咗「必修科目」或「選修科目」之後，
+               下面會出多一個「揀返邊一科」嘅下拉選單（qa-subject-detail-select，
+               見 window.handleQASubjectDetailChange()），入面淨係列出
+               嗰個分類入面嘅實際科目，揀咗先至再篩多一層去嗰一科；
+               唔揀就繼續顯示成個分類嘅全部提問。「其他」分類科目冇
+               固定清單（學生自行輸入），所以冇呢個下拉選單。 -->
+          <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;">
             <button class="qa-subject-btn active" onclick="switchQASubject('all', this)">📚 全部</button>
             <button class="qa-subject-btn" onclick="switchQASubject('core', this)">📖 必修科目</button>
             <button class="qa-subject-btn" onclick="switchQASubject('elective', this)">🧪 選修科目</button>
             <button class="qa-subject-btn" onclick="switchQASubject('other', this)">💬 其他</button>
+          </div>
+
+          <div id="qa-subject-detail-wrap" style="display:none; margin-bottom:14px;">
+            <select id="qa-subject-detail-select" class="input-field" onchange="window.handleQASubjectDetailChange && window.handleQASubjectDetailChange()"></select>
           </div>
 
           <!-- 發起提問按鈕 -->
@@ -2217,15 +2224,9 @@
 
             <div style="display:flex; flex-direction:column; gap:10px;">
               <div>
-                <label style="font-size:13px; font-weight:bold; color:#555;">學科</label>
-                <select id="qa-subject-select" class="input-field">
-                  <option value="math">➕ 數學</option>
-                  <option value="chi">📝 中文</option>
-                  <option value="eng">🔤 英文</option>
-                  <option value="sci">🔬 科學</option>
-                  <option value="econ">💹 經濟</option>
-                  <option value="other">💬 其他</option>
-                </select>
+                <label style="font-size:13px; font-weight:bold; color:#555;">學科 *</label>
+                <div id="qa-subject-picker"></div>
+                <input type="hidden" id="qa-subject-select">
               </div>
 
               <div>

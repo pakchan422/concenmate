@@ -1106,6 +1106,73 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       sync();
     };
 
+    // ===================== 單選科目剔選器（一次淨係揀到一科） =====================
+    // 同上面兩個剔選器（「想教的科目」／「喜愛／討厭學科」）用返同一
+    // 套 UI 風格、同一份 window.TUTOR_DSE_SUBJECTS 清單，但呢度淨係
+    // 畀揀一科——撳另一個 chip 就自動取消之前揀開嗰個，唔使加減／
+    // 上限咁複雜嘅邏輯。用喺「疑難解答區」嘅「發起提問」，一條問題
+    // 淨係屬於一科，多選冇意思。
+    window.renderSingleSubjectChipPicker = function(pickerId, hiddenInputId) {
+      const picker = document.getElementById(pickerId);
+      const hiddenInput = document.getElementById(hiddenInputId);
+      if (!picker || !hiddenInput || !window.TUTOR_DSE_SUBJECTS) return;
+
+      let selected = (hiddenInput.value || '').trim();
+      const fixedSubjects = window.TUTOR_DSE_SUBJECTS.filter((s) => s !== '其他（自行輸入）');
+      const escAttr = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+
+      function sync() {
+        hiddenInput.value = selected;
+      }
+
+      function render() {
+        const chipsHtml = fixedSubjects.map((s) => {
+          const active = selected === s;
+          return `<button type="button" class="tag" data-subject="${escAttr(s)}"
+            style="cursor:pointer; border:1px solid ${active ? 'var(--brand-500)' : '#ddd'};
+            background:${active ? 'var(--brand-500)' : '#F5F7F8'}; color:${active ? '#fff' : '#555'};
+            border-radius:99px; padding:4px 10px; font-size:13px; margin:0 6px 6px 0;">${active ? '✓ ' : ''}${s}</button>`;
+        }).join('');
+        const isCustomSelected = selected && !fixedSubjects.includes(selected);
+        const customChipHtml = isCustomSelected ? `
+          <button type="button" class="tag" data-custom-subject="${escAttr(selected)}"
+            style="cursor:pointer; border:1px solid var(--brand-500); background:var(--brand-500);
+            color:#fff; border-radius:99px; padding:4px 10px; font-size:13px; margin:0 6px 6px 0;">✓ ${selected} ✕</button>
+        ` : '';
+        picker.innerHTML = `
+          <div style="display:flex; flex-wrap:wrap;">${chipsHtml}${customChipHtml}</div>
+          <input type="text" id="${pickerId}-custom" class="input-field" placeholder="其他科目（自行輸入，按 Enter 選定）" style="width:100%; margin-top:4px;">
+        `;
+        picker.querySelectorAll('button[data-subject]').forEach((btn) => {
+          btn.onclick = () => {
+            const subj = btn.getAttribute('data-subject');
+            selected = (selected === subj) ? '' : subj; // 撳多次同一個 chip 可以取消揀選
+            sync();
+            render();
+          };
+        });
+        picker.querySelectorAll('button[data-custom-subject]').forEach((btn) => {
+          btn.onclick = () => {
+            selected = '';
+            sync();
+            render();
+          };
+        });
+        const customInput = document.getElementById(`${pickerId}-custom`);
+        if (customInput) {
+          customInput.onkeydown = (e) => {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            const v = customInput.value.trim();
+            if (v) { selected = v; sync(); render(); }
+          };
+        }
+      }
+
+      render();
+      sync();
+    };
+
     // ===================== 香港中學名單（按地區分組，註冊表格用） =====================
     // 資料來源：教育局（EDB）各區中學名單官方網頁（2026-09 整理），只
     // 包括官立／資助／直接資助計劃／英基學校協會／私立中學，唔包括

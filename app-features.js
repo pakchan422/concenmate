@@ -1752,31 +1752,48 @@
 
     // ===================== 疑難解答區 =====================
 
+    // 舊制提問（math/chi/eng/sci/econ/other）留低嘅顯示標籤——依家
+    // 「發起提問」已經改用返 window.TUTOR_DSE_SUBJECTS 嗰份完整科目
+    // 清單（見 window.renderSingleSubjectChipPicker()），p.subject 會
+    // 係實際科目全名（例如「數學（必修部分）」），QA_SUBJECTS 淨係
+    // 用嚟兼容返舊制提問嘅標籤，新制科目直接顯示返個名就得。
     const QA_SUBJECTS = {
       all: '📚 全部', math: '➕ 數學', chi: '📝 中文',
       eng: '🔤 英文', sci: '🔬 科學', econ: '💹 經濟', other: '💬 其他'
     };
 
-    // 學科分類 Tab 列由以前逐科逐科（數學／中文／英文…）改為「必修
-    // 科目／選修科目／其他」三大分類。呢個 map 負責將每個提問實際
-    // 揀嘅學科（p.subject）歸類做邊個分類，先至畀 Tab 篩選用：
-    // - 舊制提問（math/chi/eng/sci/econ/other）：中英數跟返 HKDSE
-    //   必修科（中國語文／英國語文／數學（必修部分）／公民與社會
-    //   發展）歸做「必修」，科學／經濟呢啲選修科歸做「選修」，其他
-    //   就係「其他」。
-    // - 如果日後「發起提問」個學科揀擇改用返 window.TUTOR_DSE_SUBJECTS
-    //   嗰份完整清單，呢個 map 亦都要跟住加返新科目嘅分類。
-    const QA_CATEGORY_MAP = {
+    // HKDSE 必修科（中國語文／英國語文／數學（必修部分）／公民與
+    // 社會發展），用嚟將「發起提問」揀嘅實際科目歸類做「必修科目」
+    // Tab；冇喺呢個清單、但又喺 window.TUTOR_DSE_SUBJECTS 固定清單
+    // 入面嘅，就歸做「選修科目」；兩個清單都搵唔到（即係自行輸入嘅
+    // 科目，或者舊制嘅 'other'）就歸做「其他」。
+    const QA_CORE_SUBJECTS = ['中國語文', '英國語文', '數學（必修部分）', '公民與社會發展'];
+
+    // 舊制提問（math/chi/eng/sci/econ/other）嘅分類兼容表：中英數
+    // 歸做「必修」，科學／經濟歸做「選修」，其他歸做「其他」。
+    const QA_LEGACY_CATEGORY_MAP = {
       math: 'core', chi: 'core', eng: 'core',
       sci: 'elective', econ: 'elective',
       other: 'other',
     };
+
+    function getQAElectiveSubjects() {
+      return (window.TUTOR_DSE_SUBJECTS || [])
+        .filter((s) => s !== '其他（自行輸入）' && !QA_CORE_SUBJECTS.includes(s));
+    }
+
     function getQACategory(subject) {
-      return QA_CATEGORY_MAP[subject] || 'other';
+      if (Object.prototype.hasOwnProperty.call(QA_LEGACY_CATEGORY_MAP, subject)) {
+        return QA_LEGACY_CATEGORY_MAP[subject];
+      }
+      if (QA_CORE_SUBJECTS.includes(subject)) return 'core';
+      if (getQAElectiveSubjects().includes(subject)) return 'elective';
+      return 'other';
     }
     window.getQACategory = getQACategory;
 
-    let qaCurrentSubject = 'all';
+    let qaCurrentSubject = 'all'; // 'all' | 'core' | 'elective' | 'other'——即係而家揀緊邊個分類 Tab
+    let qaCurrentSubjectDetail = ''; // 喺某個分類入面再篩多一層嘅實際科目名；空白就係睇成個分類
     let qaUnsubscribe = null;
     let qaPostsCache = [];
     let qaCurrentPostId = null;
@@ -1790,16 +1807,52 @@
     // 閃幾多下 loading，用戶體驗好差，而且完全冇必要。
     function switchQASubject(subject, btn) {
       qaCurrentSubject = subject;
+      qaCurrentSubjectDetail = ''; // 換咗分類就重置返「揀邊一科」嘅細篩選
       document.querySelectorAll('.qa-subject-btn').forEach(b => b.classList.remove('active'));
       if (btn) btn.classList.add('active');
+      renderQASubjectDetailSelect();
       renderQAPostsList();
     }
     window.switchQASubject = switchQASubject;
 
+    // 揀咗「必修科目」或「選修科目」呢兩個分類之後，畫多一個下拉
+    // 選單畀學生可以再篩多一層去某一科實際科目（例如喺「必修科目」
+    // 入面淨係揀「英國語文」）。「其他」分類科目冇固定清單（學生
+    // 自行輸入），所以冇呢個下拉選單；「全部」都唔使。
+    function renderQASubjectDetailSelect() {
+      const wrap = document.getElementById('qa-subject-detail-wrap');
+      const select = document.getElementById('qa-subject-detail-select');
+      if (!wrap || !select) return;
+      if (qaCurrentSubject !== 'core' && qaCurrentSubject !== 'elective') {
+        wrap.style.display = 'none';
+        select.innerHTML = '';
+        return;
+      }
+      const subjects = qaCurrentSubject === 'core' ? QA_CORE_SUBJECTS : getQAElectiveSubjects();
+      const categoryLabel = qaCurrentSubject === 'core' ? '必修科目' : '選修科目';
+      const escAttr = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+      const optionsHtml = subjects.map((s) => `<option value="${escAttr(s)}">${s}</option>`).join('');
+      select.innerHTML = `<option value="">全部${categoryLabel}</option>${optionsHtml}`;
+      select.value = qaCurrentSubjectDetail || '';
+      wrap.style.display = 'block';
+    }
+
+    // 揀咗下拉選單入面某一科（或者揀返「全部＊＊科目」）之後，再篩
+    // 多一次提問列表。
+    window.handleQASubjectDetailChange = function() {
+      const select = document.getElementById('qa-subject-detail-select');
+      qaCurrentSubjectDetail = select ? select.value : '';
+      renderQAPostsList();
+    };
+
     function renderQAPostsList() {
       const list = document.getElementById('qa-post-list');
       if (!list) return;
-      let posts = qaPostsCache.filter(p => qaCurrentSubject === 'all' || getQACategory(p.subject) === qaCurrentSubject);
+      let posts = qaPostsCache.filter((p) => {
+        if (qaCurrentSubject === 'all') return true;
+        if (qaCurrentSubjectDetail) return p.subject === qaCurrentSubjectDetail;
+        return getQACategory(p.subject) === qaCurrentSubject;
+      });
       posts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
       if (posts.length === 0) {
@@ -1855,6 +1908,15 @@
       document.getElementById('qa-body').value = '';
       document.getElementById('qa-photos').value = '';
       document.getElementById('qa-photo-preview').innerHTML = '';
+      // 「學科」欄位改用返同「喜愛學科」一樣嘅剔選 chip 選擇器（單選
+      // 版本，見 app-core.js 嘅 window.renderSingleSubjectChipPicker()），
+      // 每次打開視窗都清空返，等學生每次發起提問都要重新揀一次學科，
+      // 唔會誤用返上一條問題揀開嘅科目。
+      const subjectHiddenInput = document.getElementById('qa-subject-select');
+      if (subjectHiddenInput) subjectHiddenInput.value = '';
+      if (typeof window.renderSingleSubjectChipPicker === 'function') {
+        window.renderSingleSubjectChipPicker('qa-subject-picker', 'qa-subject-select');
+      }
       openModal('modal-qa-post');
     };
 
@@ -1887,7 +1949,8 @@
       if (!window.currentUser || !window.db || !window.fs) return;
       const title = document.getElementById('qa-title').value.trim();
       const body = document.getElementById('qa-body').value.trim();
-      const subject = document.getElementById('qa-subject-select').value;
+      const subject = document.getElementById('qa-subject-select').value.trim();
+      if (!subject) { window.showToast('請選擇學科', '⚠️'); return; }
       if (!title) { window.showToast('請填寫問題標題', '⚠️'); return; }
 
       const submitBtn = document.querySelector('#modal-qa-post .btn-primary');
@@ -1927,10 +1990,14 @@
         window.showToast('提問已發布！', '✅');
         // Tab 列而家係跟「必修／選修／其他」分類嚟揀，唔再係跟實際
         // 學科（subject）本身，所以要用 getQACategory() 轉一轉，先至
-        // 揾到啱嘅分類 Tab 撳落去、跳去顯示啱嘅分類。
+        // 揾到啱嘅分類 Tab 撳落去、跳去顯示啱嘅分類；跟住再揀埋個
+        // 細分類下拉選單去返啱嗰一科，等啱啱發布嗰條問題即刻見到。
         const category = getQACategory(subject);
         const btn = document.querySelector(`.qa-subject-btn[onclick*="'${category}'"]`);
         switchQASubject(category, btn);
+        qaCurrentSubjectDetail = subject;
+        renderQASubjectDetailSelect();
+        renderQAPostsList();
       } catch(e) {
         console.error('發布提問失敗:', e);
         window.showToast('發布失敗：' + (e.message || '請稍後再試'), '❌');
