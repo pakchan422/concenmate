@@ -1015,14 +1015,17 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       sync();
     };
 
-    // ===================== 學生「喜愛學科」勾選式選擇器（最多揀 4 科） =====================
+    // ===================== 學生「喜愛學科」／「討厭學科」勾選式選擇器（最多揀 4 科） =====================
     // 同上面導師嗰個 renderTutorSubjectChipPicker() 用同一套 UI 風格、
     // 亦都借用返同一份 window.TUTOR_DSE_SUBJECTS 固定科目清單（喺
     // tutor-panel.js 定義），令成個 app 入面「科目」呢個概念全部用同
     // 一份分類，方便日後按學生「喜愛學科」推送對應導師嘅廣告。同導師
     // 嗰個唔同嘅係呢度多咗一個上限（預設 4 科），揀夠上限之後其餘
     // 未揀嘅 chip 會變成灰色唔畀再撳，敇止學生亂咁揀晒成個清單，令
-    // 「喜愛學科」呢個資料失去篩選意義。
+    // 「喜愛學科」呢個資料失去篩選意義。呢個函數本身淨係「畀一個
+    // hidden input 用剔選 chip 揀最多 N 科」，冚唔到「喜愛」定「討厭」
+    // 呢啲語意，所以「討厭學科」欄位都直接借用返呢個函數（唔使另外
+    // 寫多次一模一樣嘅邏輯），淨係傳唔同嘅 pickerId／hiddenInputId。
     window.renderStudentFavSubjectChipPicker = function(pickerId, hiddenInputId, maxSelect) {
       const picker = document.getElementById(pickerId);
       const hiddenInput = document.getElementById(hiddenInputId);
@@ -1227,15 +1230,17 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       }
 
       // 揀「我是學生」就填好「地區／學校」兩級選單，同埋畫返「喜愛
-      // 學科」嘅剔選器（最多 4 科）——道理同上面導師嗰段一樣，都係
-      // 由對應嘅 hidden input／select 現有 value 讀返之前揀開嘅嘢，
-      // 唔會因為切換返學生／導師嚟嚟去去而清空咗之前填嘅資料。
+      // 學科」／「討厭學科」嘅剔選器（各自最多 4 科）——道理同上面
+      // 導師嗰段一樣，都係由對應嘅 hidden input／select 現有 value
+      // 讀返之前揀開嘅嘢，唔會因為切換返學生／導師嚟嚟去去而清空咗
+      // 之前填嘅資料。
       if (!isTutor) {
         if (typeof window.populateRegSchoolDistrictOptions === 'function') {
           window.populateRegSchoolDistrictOptions();
         }
         if (typeof window.renderStudentFavSubjectChipPicker === 'function') {
           window.renderStudentFavSubjectChipPicker('reg-fav-picker', 'reg-fav', 4);
+          window.renderStudentFavSubjectChipPicker('reg-dislike-picker', 'reg-dislike', 4);
         }
       }
     };

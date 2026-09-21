@@ -47,7 +47,7 @@
        🔧 版本號 — 每次推送 GitHub 前改呢度
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.140.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.140.1"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- ========================================
@@ -2796,14 +2796,13 @@
         </div>
 
         <div>
-          <label style="font-size:13px; font-weight:bold; color:#555;">帳號 ID（登入用）*</label>
+          <label style="font-size:13px; font-weight:bold; color:#555;">帳號 ID（登入用）* <span style="font-weight:normal; color:#999; font-size:12px;">設定了就要用來登入，請選擇一個容易記住的</span></label>
           <input type="text" id="reg-account-id" class="input-field" required placeholder="例如：alex_wong2026" pattern="[A-Za-z0-9_]{3,20}" maxlength="20">
-          <p style="font-size:13px; color:#999; margin-top:4px;">3-20 個英文字母／數字／底線，設定了就要用來登入，請選擇一個容易記住的</p>
         </div>
 
         <div>
-          <label style="font-size:13px; font-weight:bold; color:#555;">設定密碼 *</label>
-          <input type="password" id="reg-password" class="input-field" required placeholder="請輸入 6 位或以上的密碼" oninput="window.checkRegisterPasswordMatch && window.checkRegisterPasswordMatch()">
+          <label style="font-size:13px; font-weight:bold; color:#555;">設定密碼 * <span style="font-weight:normal; color:#999; font-size:12px;">（至少 6 位）</span></label>
+          <input type="password" id="reg-password" class="input-field" required placeholder="請輸入密碼" oninput="window.checkRegisterPasswordMatch && window.checkRegisterPasswordMatch()">
         </div>
 
         <div>
@@ -2852,8 +2851,9 @@
           </div>
 
           <div style="margin-top:10px;">
-            <label style="font-size:13px; font-weight:bold; color:#555;">討厭學科 (可留白)</label>
-            <input type="text" id="reg-dislike" class="input-field" placeholder="例如：中文範文">
+            <label style="font-size:13px; font-weight:bold; color:#555;">討厭學科（可留白，最多揀 4 科）</label>
+            <div id="reg-dislike-picker"></div>
+            <input type="hidden" id="reg-dislike">
           </div>
         </div>
 
