@@ -287,13 +287,24 @@
       }
     };
 
-    function renderLeaderboardRow(rank, primaryText, secondaryText, isMe) {
+    // uid 有值先會顯示頭像同令個名可以撳（撳落去開 viewUserProfile() 嗰個
+    // 資料卡）——學校總排行榜嗰行係「一間學校」唔係「一個人」，冇 uid
+    // 可以傳，就會維持返舊有冇頭像／唔可以撳嘅顯示方式。
+    function renderLeaderboardRow(rank, primaryText, secondaryText, isMe, avatarBase64, uid) {
       const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
+      const clickable = !!uid;
+      const clickAttr = clickable ? ` onclick="viewUserProfile('${uid}')" style="cursor:pointer;"` : '';
+      const avatarHtml = clickable ? `
+            <div style="width:32px; height:32px; border-radius:50%; background:var(--brand-100); color:var(--brand-800); display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:bold; flex-shrink:0; overflow:hidden;">
+              ${avatarBase64 ? `<img src="${avatarBase64}" style="width:100%; height:100%; object-fit:cover;" alt="頭像">` : escapeHtml((primaryText || '同').charAt(0).toUpperCase())}
+            </div>
+      ` : '';
       return `
         <div class="card" style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; ${isMe ? 'border:2px solid var(--brand-500); background:var(--brand-50);' : ''}">
           <div style="display:flex; align-items:center; gap:10px; min-width:0;">
             <div style="font-size:15px; font-weight:bold; color:var(--brand-800); width:34px; flex-shrink:0; text-align:center;">${medal}</div>
-            <div style="font-size:14px; font-weight:bold; color:var(--brand-800); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(primaryText)}${isMe ? ' <span style="font-size:12px; color:var(--brand-600); font-weight:normal;">（你）</span>' : ''}</div>
+            ${avatarHtml}
+            <div${clickAttr} style="font-size:14px; font-weight:bold; color:var(--brand-800); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(primaryText)}${isMe ? ' <span style="font-size:12px; color:var(--brand-600); font-weight:normal;">（你）</span>' : ''}</div>
           </div>
           <div style="font-size:13px; color:#3E7A8A; font-weight:700; white-space:nowrap; flex-shrink:0;">${escapeHtml(secondaryText)}</div>
         </div>
@@ -336,7 +347,7 @@
           listEl.innerHTML = `<p style="text-align:center; color:#999; padding:20px;">這個地區暫時未有同學上榜，開始溫習就可以成為第一位！</p>`;
         } else {
           listEl.innerHTML = entries.map((e, i) =>
-            renderLeaderboardRow(i + 1, e.username || '同學', formatHoursMinutes(e[hoursField]), e.uid === window.currentUser.uid)
+            renderLeaderboardRow(i + 1, e.username || '同學', formatHoursMinutes(e[hoursField]), e.uid === window.currentUser.uid, e.avatarBase64, e.uid)
           ).join('');
         }
 
@@ -360,7 +371,7 @@
           const myRank = countSnap.data().count + 1;
           if (ownRankWrap) {
             ownRankWrap.style.display = 'block';
-            ownRankWrap.innerHTML = renderLeaderboardRow(myRank, window.currentUser.username || '你', formatHoursMinutes(myHours), true);
+            ownRankWrap.innerHTML = renderLeaderboardRow(myRank, window.currentUser.username || '你', formatHoursMinutes(myHours), true, window.currentUser.avatarBase64, window.currentUser.uid);
           }
         } else if (!meInList && ownRankWrap) {
           // 自己個帳戶就讀地區同揀緊嘅地區唔同（睇緊第二區嘅榜），冇
@@ -412,7 +423,7 @@
           listEl.innerHTML = `<p style="text-align:center; color:#999; padding:20px;">你的學校暫時未有同學上榜，開始溫習就可以成為第一位！</p>`;
         } else {
           listEl.innerHTML = entries.map((e, i) =>
-            renderLeaderboardRow(i + 1, e.username || '同學', formatHoursMinutes(e[hoursField]), e.uid === window.currentUser.uid)
+            renderLeaderboardRow(i + 1, e.username || '同學', formatHoursMinutes(e[hoursField]), e.uid === window.currentUser.uid, e.avatarBase64, e.uid)
           ).join('');
         }
 
@@ -429,7 +440,7 @@
           const myRank = countSnap.data().count + 1;
           if (ownRankWrap) {
             ownRankWrap.style.display = 'block';
-            ownRankWrap.innerHTML = renderLeaderboardRow(myRank, window.currentUser.username || '你', formatHoursMinutes(myHours), true);
+            ownRankWrap.innerHTML = renderLeaderboardRow(myRank, window.currentUser.username || '你', formatHoursMinutes(myHours), true, window.currentUser.avatarBase64, window.currentUser.uid);
           }
         }
       } catch (err) {
