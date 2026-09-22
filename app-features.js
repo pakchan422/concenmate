@@ -108,9 +108,6 @@
         if (targetBtn) targetBtn.classList.add('active');
       }
 
-      // 「學科溫習卡」分頁一開就即刻攞返最新卡片（同用家自己嘅複習進度）
-      if (tabId === 'study' && typeof loadFlashcards === 'function') loadFlashcards();
-
       // 「夥伴與讀書會」分頁一開就即刻載入好友名單同收到嘅好友邀請
       if (tabId === 'social') {
         if (typeof window.loadFriendsList === 'function') window.loadFriendsList();

@@ -6,7 +6,7 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.150.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.151.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <meta charset="UTF-8">
@@ -23,14 +23,14 @@
        sitemap.xml）。目標受眾：泛香港中學生（唔限 DSE），所以標題／
        描述用返比較闊嘅字眼，唔淨係扣住 DSE 呢個詞。
        ======================================== -->
-  <meta name="description" content="ConcenMate 書伴是專為香港中學生而設的線上溫習平台，提供視訊溫習室、專注計時器、溫習卡及溫習夥伴配對，助你保持專注、遠離分心，與同學一起高效溫習。">
+  <meta name="description" content="ConcenMate 書伴是專為香港中學生而設的線上溫習平台，提供視訊溫習室、專注計時器及溫習夥伴配對，助你保持專注、遠離分心，與同學一起高效溫習。">
   <link rel="canonical" href="https://concenmate.com/">
 
   <!-- Open Graph（Facebook／WhatsApp／Telegram 等分享連結時顯示嘅卡片） -->
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="ConcenMate 書伴">
   <meta property="og:title" content="ConcenMate 書伴 - 香港中學生線上溫習空間">
-  <meta property="og:description" content="視訊溫習室、專注計時器、溫習卡及溫習夥伴配對，助你保持專注、遠離分心，與同學一起高效溫習。">
+  <meta property="og:description" content="視訊溫習室、專注計時器及溫習夥伴配對，助你保持專注、遠離分心，與同學一起高效溫習。">
   <meta property="og:url" content="https://concenmate.com/">
   <meta property="og:image" content="https://concenmate.com/og-image.png">
   <meta property="og:image:width" content="1200">
@@ -40,7 +40,7 @@
   <!-- Twitter/X 分享卡片 -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="ConcenMate 書伴 - 香港中學生線上溫習空間">
-  <meta name="twitter:description" content="視訊溫習室、專注計時器、溫習卡及溫習夥伴配對，助你保持專注、遠離分心，與同學一起高效溫習。">
+  <meta name="twitter:description" content="視訊溫習室、專注計時器及溫習夥伴配對，助你保持專注、遠離分心，與同學一起高效溫習。">
   <meta name="twitter:image" content="https://concenmate.com/og-image.png">
 
   <!-- Favicon／瀏覽器分頁圖示、手機主畫面圖示 -->
@@ -816,18 +816,9 @@
     .qa-subject-btn.active, .qa-subject-btn:hover {
       background: var(--brand-500); color: white; border-color: var(--brand-500);
     }
-    /* 學科溫習卡：學科 Tab 未有內容時 disable（顯示咗個 tab 出嚟，但暫時撳唔到） */
-    .qa-subject-btn.disabled, .flashcard-category-btn.disabled {
+    /* 疑難解答區學科 Tab：未有內容時 disable（顯示咗個 tab 出嚟，但暫時撳唔到） */
+    .qa-subject-btn.disabled {
       opacity: .4; cursor: not-allowed; background: white; color: var(--brand-700); border-color: var(--brand-200);
-    }
-    /* 學科溫習卡：英文專屬嘅「範疇」次一級 Tab，樣式同學科 Tab 一致但細一級 */
-    .flashcard-category-btn {
-      padding: 5px 10px; border-radius: 16px; border: 1.5px solid var(--brand-200);
-      background: white; color: var(--brand-700); font-size: 13px; font-weight: 600;
-      cursor: pointer; transition: .15s;
-    }
-    .flashcard-category-btn.active, .flashcard-category-btn:hover:not(.disabled) {
-      background: var(--brand-500); color: white; border-color: var(--brand-500);
     }
     .qa-post-card {
       background: white; border: 1px solid var(--brand-200); border-radius: 14px;
@@ -1661,10 +1652,9 @@
         <!-- 以下呢一批係「學生／Admin」帳戶先見到嘅功能，導師帳戶登入
              之後會由 applyRoleBasedSidebar()（tutor-panel.js）將佢哋全部
              隱藏，淨係留低「主頁」＋「管理教材」兩項——導師介面同學生
-             介面要完全分開，唔應該見到溫習卡／扭蛋機呢類學生專屬功能。
+             介面要完全分開，唔應該見到扭蛋機呢類學生專屬功能。
              加咗 class="student-only-nav" 方便嗰個 function 一次過搵晒。 -->
         <button class="nav-btn student-only-nav" id="nav-btn-room" type="button" onclick="switchTab('room', this)"><span class="nav-icon" id="nav-icon-room">📹</span> <span class="nav-text">視訊溫習室</span></button>
-        <button class="nav-btn student-only-nav" id="nav-btn-study" type="button" onclick="switchTab('study', this)"><span class="nav-icon" id="nav-icon-study">🗂</span> <span class="nav-text">學科溫習卡</span></button>
         <button class="nav-btn student-only-nav" id="nav-btn-qa" type="button" onclick="switchTab('qa', this)"><span class="nav-icon" id="nav-icon-qa">❓</span> <span class="nav-text">疑難解答區</span></button>
         <button class="nav-btn student-only-nav" id="nav-btn-vip" type="button" onclick="switchTab('vip', this)"><span class="nav-icon" id="nav-icon-vip">👑</span> <span class="nav-text">溫習資源</span></button>
         <button class="nav-btn student-only-nav" id="nav-btn-store" type="button" onclick="switchTab('store', this)"><span class="nav-icon" id="nav-icon-store">🎁</span> <span class="nav-text">時數扭蛋機</span></button>
@@ -2136,61 +2126,6 @@
               </div>
             </div>
 
-
-          </div>
-
-        </section>
-
-        <section id="tab-study" class="tab-content">
-
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
-            <div>
-              <h2 style="font-size:18px; font-weight:bold; color:var(--brand-800);">🗂 學科溫習卡</h2>
-              <p style="font-size:13px; color:#666;">用間隔重複記憶法溫習，複習完都可以賺取積分同經驗值！</p>
-            </div>
-          </div>
-
-          <!-- ── 溫習卡（間隔重複記憶） ── -->
-          <div id="study-sub-flashcards">
-
-            <div id="flashcards-manage-view">
-              <p style="font-size:13px; color:#999; margin-bottom:10px;">這些溫習卡由老師／管理員準備，你只需要負責複習即可！</p>
-
-              <!-- 學科 Tab 列，格局同「疑難解答區」一致：左對齊、唔限寬，未有內容嘅學科
-                   都會顯示個 tab 出嚟，但暫時撳唔到，等學生知道呢科將來會有溫習卡 -->
-              <div id="flashcards-subject-tabs" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;"></div>
-              <!-- 英文專屬：範疇 Tab 列，淨係揀咗「英文」先會顯示 -->
-              <div id="flashcards-category-tabs" style="display:none; gap:6px; flex-wrap:wrap; margin-bottom:14px;"></div>
-
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
-                <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800);">🗂 溫習卡（<span id="flashcards-total-count">0</span>）</h3>
-                <button class="btn btn-primary" type="button" onclick="startFlashcardReview()">🚀 開始複習（<span id="flashcards-due-count">0</span> 張待複習）</button>
-              </div>
-
-              <div id="flashcards-list-container">
-                <p style="text-align:center; color:#999; font-size:13px; padding:20px;">🔄 載入中溫習卡...</p>
-              </div>
-            </div>
-
-            <div id="flashcards-review-view" style="display:none;">
-              <div class="card" style="max-width:460px; margin:0 auto; text-align:center;">
-                <div style="display:flex; justify-content:space-between; font-size:13px; color:#999; margin-bottom:10px;">
-                  <span id="flashcard-review-progress">1 / 5</span>
-                  <span id="flashcard-review-subject" class="tag"></span>
-                </div>
-                <div id="flashcard-review-card" style="background:var(--brand-50); border:1px solid var(--brand-200); border-radius:14px; padding:24px 16px; min-height:120px; display:flex; align-items:center; justify-content:center; font-size:17px; font-weight:600; color:var(--brand-800); margin-bottom:14px; white-space:pre-wrap;">
-                  卡片內容
-                </div>
-                <div id="flashcard-review-actions-front">
-                  <button class="btn btn-primary" type="button" onclick="flipFlashcard()">👀 顯示答案</button>
-                </div>
-                <div id="flashcard-review-actions-back" style="display:none; gap:10px; justify-content:center;">
-                  <button class="btn btn-red" type="button" onclick="gradeFlashcard(false)">😵 忘記</button>
-                  <button class="btn btn-primary" type="button" onclick="gradeFlashcard(true)">😎 記得！</button>
-                </div>
-                <button class="btn btn-outline" type="button" style="margin-top:14px;" onclick="endFlashcardReview()">⏹️ 結束複習</button>
-              </div>
-            </div>
 
           </div>
 
@@ -2973,7 +2908,7 @@
         <p>閣下一經註冊帳戶，或以任何方式使用本服務之任何功能，即視為閣下已閱讀、理解並同意接受本條款所載之全部內容，並同意受其約束。倘若閣下未滿十八歲，閣下確認已取得閣下之家長或監護人就使用本服務一事之同意。倘若閣下不同意本條款之任何部分，請立即停止使用本服務。</p>
 
         <p style="font-weight:bold; margin-top:14px;">第一條　服務內容</p>
-        <p>本服務提供線上溫習室（包括視訊及語音功能）、學習進度追蹤（等級、經驗值、貼紙收藏）、詞卡溫習、好友及即時通訊功能、疑難解答討論區等功能。本公司保留隨時新增、修改、暫停或終止本服務任何功能之權利，毋須事先通知使用者。</p>
+        <p>本服務提供線上溫習室（包括視訊及語音功能）、學習進度追蹤（等級、經驗值、貼紙收藏）、好友及即時通訊功能、疑難解答討論區等功能。本公司保留隨時新增、修改、暫停或終止本服務任何功能之權利，毋須事先通知使用者。</p>
 
         <p style="font-weight:bold; margin-top:14px;">第二條　帳戶註冊及使用者責任</p>
         <p>（一）使用者於註冊帳戶時所提供之資料（包括登入識別碼、電郵地址等），須真實、準確及完整；<br>
@@ -3034,7 +2969,7 @@
         <p>本政策適用於閣下透過 concenmate.com 及其任何相關子網域使用本服務之情況。倘若閣下未滿十八歲，本公司建議由閣下之家長或監護人陪同閱讀本政策，並就使用本服務一事給予同意。</p>
 
         <p style="font-weight:bold; margin-top:14px;">第二條　本公司所收集之資料類別</p>
-        <p>本公司因提供本服務之需要，可能收集以下類別之資料：帳戶資料（登入識別碼、電郵地址、顯示暱稱、頭像選項，於帳戶註冊時收集）；學習記錄（累積溫習時數、經驗值、等級、貼紙收藏紀錄、詞卡溫習進度，於使用服務過程中自動記錄）；社交互動資料（好友名單、即時通訊內容、討論區發帖及留言，於使用者主動使用相關功能時收集）；溫習室及視訊相關資料（房間設定、加入及離開時間、建立視像連線所需之協調訊息，於使用視訊溫習室功能時收集）；舉報資料（舉報內容及相關佐證，於使用者提交舉報時收集）；技術資料（瀏覽器類型、裝置資訊、網際網路協定（IP）位址，於連接本服務時由基礎設施自動記錄）。</p>
+        <p>本公司因提供本服務之需要，可能收集以下類別之資料：帳戶資料（登入識別碼、電郵地址、顯示暱稱、頭像選項，於帳戶註冊時收集）；學習記錄（累積溫習時數、經驗值、等級、貼紙收藏紀錄，於使用服務過程中自動記錄）；社交互動資料（好友名單、即時通訊內容、討論區發帖及留言，於使用者主動使用相關功能時收集）；溫習室及視訊相關資料（房間設定、加入及離開時間、建立視像連線所需之協調訊息，於使用視訊溫習室功能時收集）；舉報資料（舉報內容及相關佐證，於使用者提交舉報時收集）；技術資料（瀏覽器類型、裝置資訊、網際網路協定（IP）位址，於連接本服務時由基礎設施自動記錄）。</p>
         <p><strong>關於視訊及語音資料之特別聲明：</strong>本服務之視訊溫習室功能採用點對點即時通訊技術（WebRTC），使用者之鏡頭及咪高風畫面乃於瀏覽器之間直接傳輸，並不經由本公司之伺服器儲存或錄製。本公司之資料庫僅用作交換建立該連線所需之協調（signaling）訊息，並不接觸實際之影像或聲音內容。</p>
         <p>本公司不會收集閣下之身份證明文件號碼、住址、電話號碼，或信用卡及其他付款工具資料；本服務於現階段並不涉及任何收費功能。</p>
 
@@ -3339,7 +3274,6 @@
         <div style="font-size:14px; font-weight:bold; color:var(--brand-800); margin-bottom:6px;">🪙 PTS（積分）</div>
         <ul style="font-size:13px; color:#555; line-height:1.7; margin:0; padding-left:18px;">
           <li>視訊溫習室內每專注溫習 1 分鐘：+1 PTS</li>
-          <li>學科溫習卡每複習 5 張：+1 PTS</li>
           <li>視訊溫習室確認「你仍在學習嗎？」：+2 PTS</li>
         </ul>
         <div style="font-size:13px; color:#999; margin-top:6px;">PTS 可用於「時數扭蛋機」抽獎。</div>
@@ -3541,7 +3475,7 @@
         <button class="btn btn-outline admin-tab-btn" data-tab="qa" onclick="switchAdminTab('qa')">❓ 疑難解答區</button>
         <button class="btn btn-outline admin-tab-btn" data-tab="users" onclick="switchAdminTab('users')">👤 用戶管理</button>
         <button class="btn btn-outline admin-tab-btn" data-tab="level" onclick="switchAdminTab('level')">🎮 等級系統</button>
-        <button class="btn btn-outline admin-tab-btn" data-tab="flashcards" onclick="switchAdminTab('flashcards')">🗂 溫習卡管理</button>
+        <button class="btn btn-outline admin-tab-btn" data-tab="purge-flashcards" onclick="switchAdminTab('purge-flashcards')">🗑️ 清理舊溫習卡資料</button>
         <button class="btn btn-outline admin-tab-btn" data-tab="reports" onclick="switchAdminTab('reports')">🚩 舉報處理 <span id="admin-reports-badge" style="display:none; background:#C0524A; color:#fff; border-radius:99px; font-size:13px; padding:1px 6px; margin-left:3px;">0</span></button>
         <button class="btn btn-outline admin-tab-btn" data-tab="icons" onclick="switchAdminTab('icons')">🖼 功能圖示</button>
         <button class="btn btn-outline admin-tab-btn" data-tab="tutors" onclick="switchAdminTab('tutors')">🎓 導師申請 <span id="admin-tutors-badge" style="display:none; background:#C0524A; color:#fff; border-radius:99px; font-size:13px; padding:1px 6px; margin-left:3px;">0</span></button>
@@ -3552,7 +3486,7 @@
       <div id="admin-tab-qa" class="admin-tab-panel" style="display:none;"></div>
       <div id="admin-tab-users" class="admin-tab-panel" style="display:none;"></div>
       <div id="admin-tab-level" class="admin-tab-panel" style="display:none;"></div>
-      <div id="admin-tab-flashcards" class="admin-tab-panel" style="display:none;"></div>
+      <div id="admin-tab-purge-flashcards" class="admin-tab-panel" style="display:none;"></div>
       <div id="admin-tab-reports" class="admin-tab-panel" style="display:none;"></div>
       <div id="admin-tab-icons" class="admin-tab-panel" style="display:none;"></div>
       <div id="admin-tab-tutors" class="admin-tab-panel" style="display:none;"></div>

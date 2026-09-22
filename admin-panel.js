@@ -8,8 +8,8 @@
 // 行時機同全域可見度完全冇變。
 //
 // 內容包括：成個管理後台（Admin Panel）——管理員身份判斷、扭蛋機獎
-// 品／扭蛋機外觀圖片設定、等級／經驗值設定、詞卡管理、QA 管理、問
-// 題回報處理、房間管理、用戶管理（停權／改分）等所有後台分頁邏輯。
+// 品／扭蛋機外觀圖片設定、等級／經驗值設定、QA 管理、問題回報處理、
+// 房間管理、用戶管理（停權／改分）等所有後台分頁邏輯。
 //
 // 載入次序好緊要：呢個檔案要留喺 index.html 原本嘅位置（app-core.js
 // ／room-video.js 之後），因為前面已經載入好嘅 db／fs／storage 等
@@ -71,7 +71,6 @@
     let adminRoomsUnsubscribe = null;
     let adminQaUnsubscribe = null;
     let adminUsersUnsubscribe = null;
-    let adminFlashcardsUnsubscribe = null;
     let adminReportsUnsubscribe = null;
     let adminReportsBadgeUnsubscribe = null;
     let currentAdminTab = 'gacha';
@@ -107,7 +106,6 @@
         if (adminRoomsUnsubscribe) { adminRoomsUnsubscribe(); adminRoomsUnsubscribe = null; }
         if (adminQaUnsubscribe) { adminQaUnsubscribe(); adminQaUnsubscribe = null; }
         if (adminUsersUnsubscribe) { adminUsersUnsubscribe(); adminUsersUnsubscribe = null; }
-        if (adminFlashcardsUnsubscribe) { adminFlashcardsUnsubscribe(); adminFlashcardsUnsubscribe = null; }
         if (adminReportsUnsubscribe) { adminReportsUnsubscribe(); adminReportsUnsubscribe = null; }
         if (adminReportsBadgeUnsubscribe) { adminReportsBadgeUnsubscribe(); adminReportsBadgeUnsubscribe = null; }
         setHeaderAdminBtnMode(false);
@@ -161,7 +159,7 @@
       else if (tab === 'qa') renderAdminQaTab();
       else if (tab === 'users') renderAdminUsersTab();
       else if (tab === 'level') renderAdminLevelTab();
-      else if (tab === 'flashcards') renderAdminFlashcardsTab();
+      else if (tab === 'purge-flashcards') renderAdminPurgeFlashcardsTab();
       else if (tab === 'reports') renderAdminReportsTab();
       else if (tab === 'icons') renderAdminNavIconsTab();
       else if (tab === 'tutors') renderAdminTutorsTab();
@@ -915,345 +913,45 @@
       }
     };
 
-    // ---------- 溫習卡管理 ----------
-    // 溫習卡內容統一由管理員喺呢度新增/編輯/刪除，存喺 Firestore 頂層
-    // 「flashcards」集合，所有已登入用戶得（read-only）睇到內容，但淨係
-    // 管理員先可以寫入（要記得喺 Firestore 安全規則加返對應嘅權限）。
-    let adminFlashcardsAllDocs = []; // 快取最新一次 onSnapshot 嘅全部溫習卡，畀篩選下拉選單即時重新渲染用，唔使再拉一次 Firestore
-
-    function renderAdminFlashcardsTab() {
-      const container = document.getElementById('admin-tab-flashcards');
-      if (!container || !window.db || !window.fs) return;
-
-      const categoryOptions = window.ENGLISH_VOCAB_CATEGORIES.map(cat => `<option value="${escapeHtml(cat.label)}">${escapeHtml(cat.label)}</option>`).join('');
-
+    // ---------- 🗑️ 清理舊溫習卡資料（一次性維護工具） ----------
+    // 「學科溫習卡」功能已經因為同補習導師教材銷售功能有衝突而完全移除
+    // （index.html／app-features.js／room-video.js 嘅相關程式碼已刪
+    // 走，firestore.rules 嘅 flashcards／flashcardProgress 規則亦已
+    // 移除）。呢度淨低嘅係一個一次性嘅資料清理工具，用嚟清走 Firestore
+    // 入面舊留低嘅 flashcards 集合（管理員之前新增嘅溫習卡內容）同全部
+    // 學生嘅 users/*/flashcardProgress 複習進度——呢啲資料本身冇規則
+    // 保護都用唔到，留喺度純粹佔位。撳一次掣確認清走之後，呢個分頁同
+    // 對應嘅 purgeFlashcardData Cloud Function 就可以喺下一次更新度
+    // 一併移除。
+    function renderAdminPurgeFlashcardsTab() {
+      const container = document.getElementById('admin-tab-purge-flashcards');
+      if (!container) return;
       container.innerHTML = `
         <div class="admin-card">
-          <h3 style="font-size:15px; font-weight:bold; margin-bottom:8px; color:var(--brand-800);">➕ 新增溫習卡</h3>
-
-          <label style="font-size:13px; font-weight:600; color:#555;">科目</label>
-          <select id="admin-flashcard-subject-select" class="input-field" onchange="toggleFlashcardSubjectMode()">
-            <option value="english">🔤 英文（DSE 議題詞彙）</option>
-            <option value="other">📚 其他科目（自訂問答）</option>
-          </select>
-
-          <div id="admin-flashcard-english-fields" style="margin-top:8px;">
-            <label style="font-size:13px; font-weight:600; color:#555;">範疇</label>
-            <select id="admin-flashcard-category-select" class="input-field">${categoryOptions}</select>
-            <label style="font-size:13px; font-weight:600; color:#555; margin-top:8px; display:block;">英文詞語</label>
-            <input type="text" id="admin-flashcard-word-input" class="input-field" placeholder="例如：Introduce">
-            <label style="font-size:13px; font-weight:600; color:#555; margin-top:8px; display:block;">詞性</label>
-            <select id="admin-flashcard-pos-select" class="input-field">
-              <option>Verb</option><option>Noun</option><option>Adjective</option><option>Adverb</option><option>Noun Phrase</option><option>Phrase</option>
-            </select>
-            <label style="font-size:13px; font-weight:600; color:#555; margin-top:8px; display:block;">中文意思</label>
-            <input type="text" id="admin-flashcard-meaning-input" class="input-field" placeholder="例如：介紹">
-            <label style="font-size:13px; font-weight:600; color:#555; margin-top:8px; display:block;">例句</label>
-            <textarea id="admin-flashcard-example-input" class="input-field" rows="2" placeholder="例如：Let me introduce myself to the team."></textarea>
-            <label style="font-size:13px; font-weight:600; color:#555; margin-top:8px; display:block;">例句中文翻譯</label>
-            <textarea id="admin-flashcard-exampletranslation-input" class="input-field" rows="2" placeholder="例如：讓我向團隊自我介紹。"></textarea>
-          </div>
-
-          <div id="admin-flashcard-generic-fields" style="display:none; margin-top:8px;">
-            <label style="font-size:13px; font-weight:600; color:#555;">問題（正面）</label>
-            <textarea id="admin-flashcard-front-input" class="input-field" rows="2" placeholder="例如：牛頓第二定律是什麼？"></textarea>
-            <label style="font-size:13px; font-weight:600; color:#555; margin-top:8px; display:block;">答案（背面）</label>
-            <textarea id="admin-flashcard-back-input" class="input-field" rows="2" placeholder="例如：F = ma"></textarea>
-            <label style="font-size:13px; font-weight:600; color:#555; margin-top:8px; display:block;">科目（可選）</label>
-            <input type="text" id="admin-flashcard-generic-subject-input" class="input-field" placeholder="例如：物理">
-          </div>
-
-          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
-            <button class="btn btn-primary" type="button" onclick="adminAddFlashcard()">💾 新增溫習卡</button>
-          </div>
-        </div>
-
-        <div class="admin-card" style="margin-top:12px;">
-          <h3 style="font-size:15px; font-weight:bold; margin-bottom:6px; color:var(--brand-800);">📋 批量貼上匯入（英文詞彙）</h3>
-          <p style="font-size:13px; color:#888; margin-bottom:8px;">日後有大量新詞語想加，不用一個個手動填：每行一張卡，格式是「<code>英文詞語 | 詞性 | 中文意思 | 例句 | 例句中文翻譯</code>」（例句／翻譯可以留空），成段貼低就得。想要現成內容的話，可以叫 Claude 幫手按這個格式準備一批新詞彙，複製貼落來就即刻匯入，不用再改程式碼或者重新部署。</p>
-          <label style="font-size:13px; font-weight:600; color:#555;">範疇</label>
-          <select id="admin-flashcard-bulk-category-select" class="input-field">${categoryOptions}</select>
-          <label style="font-size:13px; font-weight:600; color:#555; margin-top:8px; display:block;">貼上內容（每行一張卡）</label>
-          <textarea id="admin-flashcard-bulk-input" class="input-field" rows="8" placeholder="Negotiate | Verb | 談判 | Employees should learn how to negotiate for a fair salary. | 僱員應該學習如何為合理的薪金進行談判。
-Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve the dispute. | 雙方需要作出妥協，才能解決爭議。"></textarea>
-          <button class="btn btn-primary" type="button" id="btn-bulk-import-flashcards" style="margin-top:10px;" onclick="adminBulkImportFlashcards()">📥 解析並匯入</button>
-        </div>
-
-        <div class="admin-card" style="margin-top:12px;">
-          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
-            <select id="admin-flashcard-filter-subject" class="input-field" style="flex:1; min-width:120px;" onchange="renderAdminFlashcardsTable()">
-              <option value="all">📚 全部科目</option>
-            </select>
-            <select id="admin-flashcard-filter-category" class="input-field" style="flex:1; min-width:160px; display:none;" onchange="renderAdminFlashcardsTable()">
-              <option value="all">🗂 全部範疇</option>
-            </select>
-          </div>
-          <div id="admin-flashcards-list-container"><p style="text-align:center; color:#999; padding:20px;">載入中溫習卡...</p></div>
-        </div>
-      `;
-      toggleFlashcardSubjectMode();
-
-      if (adminFlashcardsUnsubscribe) adminFlashcardsUnsubscribe();
-      adminFlashcardsUnsubscribe = window.fs.onSnapshot(window.fs.collection(window.db, 'flashcards'), (snapshot) => {
-        adminFlashcardsAllDocs = snapshot.docs.slice();
-        renderAdminFlashcardsTable();
-      }, (err) => {
-        const listContainer = document.getElementById('admin-flashcards-list-container');
-        if (listContainer) listContainer.innerHTML = `<div class="admin-card" style="color:#c0392b;">載入失敗：${err.message || err}</div>`;
-      });
-    }
-    window.renderAdminFlashcardsTab = renderAdminFlashcardsTab;
-
-    // 英文詞彙需要「範疇」呢一層額外分類，其他科目就用返原本自由填寫嘅問答格式，
-    // 呢個掣負責喺兩種輸入模式之間切換
-    window.toggleFlashcardSubjectMode = function() {
-      const modeEl = document.getElementById('admin-flashcard-subject-select');
-      const mode = modeEl ? modeEl.value : 'english';
-      const engFields = document.getElementById('admin-flashcard-english-fields');
-      const genFields = document.getElementById('admin-flashcard-generic-fields');
-      if (engFields) engFields.style.display = mode === 'english' ? '' : 'none';
-      if (genFields) genFields.style.display = mode === 'english' ? 'none' : '';
-    };
-
-    // 根據目前快取嘅 adminFlashcardsAllDocs + 篩選下拉選單，重新渲染管理員嘅溫習卡列表
-    // （純本地重新渲染，唔使再打 Firestore，切換篩選即時反應）
-    function renderAdminFlashcardsTable() {
-      const listContainer = document.getElementById('admin-flashcards-list-container');
-      if (!listContainer) return;
-
-      const subjectFilterEl = document.getElementById('admin-flashcard-filter-subject');
-      const categoryFilterEl = document.getElementById('admin-flashcard-filter-category');
-      if (subjectFilterEl) {
-        const allData = adminFlashcardsAllDocs.map(d => d.data());
-        const subjects = Array.from(new Set(allData.map(c => c.subject).filter(Boolean))).sort();
-        const prevSubject = subjectFilterEl.value || 'all';
-        subjectFilterEl.innerHTML = '<option value="all">📚 全部科目</option>' +
-          subjects.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
-        subjectFilterEl.value = subjects.includes(prevSubject) ? prevSubject : 'all';
-
-        if (categoryFilterEl) {
-          categoryFilterEl.style.display = subjectFilterEl.value === '英文' ? '' : 'none';
-          const categories = Array.from(new Set(allData.filter(c => c.subject === '英文').map(c => c.category).filter(Boolean))).sort();
-          const prevCategory = categoryFilterEl.value || 'all';
-          categoryFilterEl.innerHTML = '<option value="all">🗂 全部範疇</option>' +
-            categories.map(cat => `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`).join('');
-          categoryFilterEl.value = categories.includes(prevCategory) ? prevCategory : 'all';
-        }
-      }
-
-      if (adminFlashcardsAllDocs.length === 0) {
-        listContainer.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">目前沒有任何溫習卡，請在上面新增第一張</div>';
-        return;
-      }
-
-      const subjectFilter = subjectFilterEl ? subjectFilterEl.value : 'all';
-      const categoryFilter = categoryFilterEl ? categoryFilterEl.value : 'all';
-      let docs = adminFlashcardsAllDocs.filter(docSnap => {
-        const c = docSnap.data();
-        if (subjectFilter !== 'all' && (c.subject || '') !== subjectFilter) return false;
-        if (subjectFilter === '英文' && categoryFilter !== 'all' && (c.category || '') !== categoryFilter) return false;
-        return true;
-      });
-
-      if (docs.length === 0) {
-        listContainer.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">這個篩選範圍暫時未有溫習卡</div>';
-        return;
-      }
-
-      // 按「科目 → 範疇」分組顯示（唔再淨係一條長 list），方便一眼睇晒每個範疇
-      // 有咩詞語。英文嘅 8 大範疇跟返原本嘅次序排；其他科目／未分類嘅就排喺後面。
-      const groups = new Map(); // key: "科目__範疇" → { subject, category, docs: [] }
-      docs.forEach(docSnap => {
-        const c = docSnap.data();
-        const subject = c.subject || '（未設科目）';
-        const category = c.category || '';
-        const key = subject + '__' + category;
-        if (!groups.has(key)) groups.set(key, { subject, category, docs: [] });
-        groups.get(key).docs.push(docSnap);
-      });
-      groups.forEach(g => g.docs.sort((a, b) => (a.data().word || a.data().front || '').localeCompare(b.data().word || b.data().front || '')));
-
-      const englishCategoryOrder = window.ENGLISH_VOCAB_CATEGORIES.map(cat => cat.label);
-      const groupKeys = Array.from(groups.keys()).sort((keyA, keyB) => {
-        const a = groups.get(keyA), b = groups.get(keyB);
-        if (a.subject !== b.subject) return a.subject.localeCompare(b.subject);
-        const idxA = englishCategoryOrder.indexOf(a.category);
-        const idxB = englishCategoryOrder.indexOf(b.category);
-        if (idxA !== -1 || idxB !== -1) return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
-        return a.category.localeCompare(b.category);
-      });
-
-      const sections = groupKeys.map(key => {
-        const g = groups.get(key);
-        const headerLabel = g.category ? `${g.subject} · ${g.category}` : g.subject;
-        const rows = g.docs.map(docSnap => {
-          const c = docSnap.data();
-          return `
-            <tr>
-              <td><input class="admin-input-sm" value="${escapeHtml(c.front || '')}" onchange="adminUpdateFlashcardField('${docSnap.id}','front',this.value)"></td>
-              <td><input class="admin-input-sm" value="${escapeHtml(c.back || '')}" onchange="adminUpdateFlashcardField('${docSnap.id}','back',this.value)"></td>
-              <td><input class="admin-input-sm" style="width:90px;" value="${escapeHtml(c.subject || '')}" onchange="adminUpdateFlashcardField('${docSnap.id}','subject',this.value)"></td>
-              <td><input class="admin-input-sm" style="width:140px;" value="${escapeHtml(c.category || '')}" onchange="adminUpdateFlashcardField('${docSnap.id}','category',this.value)"></td>
-              <td><button class="btn btn-red" style="font-size:13px; padding:3px 8px;" onclick="adminDeleteFlashcard('${docSnap.id}')">🗑️ 刪除</button></td>
-            </tr>
-          `;
-        }).join('');
-        return `
-          <tr style="background:#F0E9DF;"><td colspan="5" style="font-weight:bold; padding:8px 10px; color:var(--brand-800);">🗂 ${escapeHtml(headerLabel)}（${g.docs.length} 張）</td></tr>
-          ${rows}
-        `;
-      }).join('');
-
-      listContainer.innerHTML = `
-        <p style="font-size:13px; color:#888; margin-bottom:10px;">共 ${adminFlashcardsAllDocs.length} 張溫習卡（篩選後顯示 ${docs.length} 張），全部學生都會看到（下面直接改欄位會即時儲存）</p>
-        <div style="overflow-x:auto;">
-          <table class="admin-table">
-            <thead><tr><th>問題（正面）</th><th>答案（背面）</th><th>科目</th><th>範疇</th><th></th></tr></thead>
-            <tbody>${sections}</tbody>
-          </table>
+          <h3 style="font-size:15px; font-weight:bold; margin-bottom:8px; color:var(--brand-800);">🗑️ 清理舊溫習卡資料</h3>
+          <p style="font-size:13px; color:#666; line-height:1.6;">「學科溫習卡」功能已經完全移除。撳下面呢粒掣會永久刪除 Firestore 入面所有仍然殘留嘅舊溫習卡內容，同全部學生嘅複習進度紀錄，刪除之後無法復原。</p>
+          <p style="font-size:13px; color:#999; margin-top:6px;">呢個係一次性嘅清理工具，成功清理一次之後就唔使再撳。</p>
+          <button class="btn btn-red" type="button" style="margin-top:12px;" id="btn-purge-flashcard-data" onclick="adminPurgeFlashcardData()">🗑️ 永久刪除舊溫習卡資料</button>
+          <div id="admin-purge-flashcard-result" style="margin-top:10px; font-size:13px; color:#666;"></div>
         </div>
       `;
     }
-    window.renderAdminFlashcardsTable = renderAdminFlashcardsTable;
+    window.renderAdminPurgeFlashcardsTab = renderAdminPurgeFlashcardsTab;
 
-    window.adminAddFlashcard = async function() {
-      const modeEl = document.getElementById('admin-flashcard-subject-select');
-      const mode = modeEl ? modeEl.value : 'english';
-
-      if (mode === 'english') {
-        const categoryEl = document.getElementById('admin-flashcard-category-select');
-        const wordEl = document.getElementById('admin-flashcard-word-input');
-        const posEl = document.getElementById('admin-flashcard-pos-select');
-        const meaningEl = document.getElementById('admin-flashcard-meaning-input');
-        const exampleEl = document.getElementById('admin-flashcard-example-input');
-        const exampleTrEl = document.getElementById('admin-flashcard-exampletranslation-input');
-        const category = categoryEl ? categoryEl.value : '';
-        const word = wordEl ? wordEl.value.trim() : '';
-        const pos = posEl ? posEl.value : '';
-        const meaning = meaningEl ? meaningEl.value.trim() : '';
-        const example = exampleEl ? exampleEl.value.trim() : '';
-        const exampleTranslation = exampleTrEl ? exampleTrEl.value.trim() : '';
-        if (!word || !meaning) { window.showToast('英文詞語及中文意思均須填寫', '⚠️'); return; }
-
-        const front = pos ? `${word} (${pos})` : word;
-        let back = meaning;
-        if (example) back += `\n\n例句：${example}`;
-        if (exampleTranslation) back += `\n中文翻譯：${exampleTranslation}`;
-
-        try {
-          await window.fs.addDoc(window.fs.collection(window.db, 'flashcards'), {
-            subject: '英文', category, word, partOfSpeech: pos, meaning, example, exampleTranslation,
-            front, back, createdAt: Date.now()
-          });
-          [wordEl, meaningEl, exampleEl, exampleTrEl].forEach(el => { if (el) el.value = ''; });
-          window.showToast('✅ 已新增英文詞彙卡，所有學生即時見到', '🗂');
-        } catch (err) {
-          window.showToast('新增失敗：' + (err.message || err), '❌');
-        }
-        return;
-      }
-
-      const frontEl = document.getElementById('admin-flashcard-front-input');
-      const backEl = document.getElementById('admin-flashcard-back-input');
-      const subjectEl = document.getElementById('admin-flashcard-generic-subject-input');
-      const front = frontEl ? frontEl.value.trim() : '';
-      const back = backEl ? backEl.value.trim() : '';
-      const subject = subjectEl ? subjectEl.value.trim() : '';
-      if (!front || !back) { window.showToast('問題及答案均須填寫', '⚠️'); return; }
+    window.adminPurgeFlashcardData = async function() {
+      if (!confirm('確定要永久刪除所有舊溫習卡內容同學生複習進度嗎？此操作無法復原。')) return;
+      const btn = document.getElementById('btn-purge-flashcard-data');
+      const resultEl = document.getElementById('admin-purge-flashcard-result');
+      if (btn) { btn.disabled = true; btn.innerText = '⏳ 清理中…'; }
       try {
-        await window.fs.addDoc(window.fs.collection(window.db, 'flashcards'), {
-          front, back, subject, createdAt: Date.now()
-        });
-        if (frontEl) frontEl.value = '';
-        if (backEl) backEl.value = '';
-        if (subjectEl) subjectEl.value = '';
-        window.showToast('✅ 已新增溫習卡，所有學生即時見到', '🗂');
+        const result = await window.callCloudFunction('purgeFlashcardData', {});
+        if (resultEl) resultEl.innerText = `✅ 清理完成：已刪除 ${result.flashcardsDeleted} 張溫習卡內容、${result.progressDeleted} 筆學生複習進度紀錄。`;
+        window.showToast('✅ 舊溫習卡資料已清理完成', '🗑️');
       } catch (err) {
-        window.showToast('新增失敗：' + (err.message || err), '❌');
-      }
-    };
-
-    // 共用嘅匯入邏輯：畀定一個範疇同一批詞彙項目，跳過已經存在嘅（用「科目＋範疇＋
-    // 英文詞語」做 key 比對），將淨低嘅寫入 Firestore。existingKeys 會直接喺呢度
-    // 更新（mutate），等同一次操作入面匯入多個範疇都唔會撞埋/ 漏檢查。
-    async function importEnglishVocabItems(existingKeys, categoryLabel, items) {
-      const toAdd = items.filter(item => item.word && !existingKeys.has(`英文__${categoryLabel}__${item.word.toLowerCase()}`));
-      await Promise.all(toAdd.map(item => {
-        const front = item.pos ? `${item.word} (${item.pos})` : item.word;
-        let back = item.meaning || '';
-        if (item.example) back += `\n\n例句：${item.example}`;
-        if (item.exampleTranslation) back += `\n中文翻譯：${item.exampleTranslation}`;
-        existingKeys.add(`英文__${categoryLabel}__${item.word.toLowerCase()}`);
-        return window.fs.addDoc(window.fs.collection(window.db, 'flashcards'), {
-          subject: '英文', category: categoryLabel, word: item.word, partOfSpeech: item.pos || '',
-          meaning: item.meaning || '', example: item.example || '', exampleTranslation: item.exampleTranslation || '',
-          front, back, createdAt: Date.now()
-        });
-      }));
-      return { added: toAdd.length, skipped: items.length - toAdd.length };
-    }
-
-    // 批量貼上匯入：admin 日後有大量新詞彙，唔使逐個手動填表，亦唔使叫我再改
-    // index.html 重新部署——直接喺呢度貼上「英文詞語 | 詞性 | 中文意思 | 例句 |
-    // 例句中文翻譯」格式嘅文字（每行一張卡），揀返範疇就可以一次過匯入。
-    window.adminBulkImportFlashcards = async function() {
-      const categoryEl = document.getElementById('admin-flashcard-bulk-category-select');
-      const textEl = document.getElementById('admin-flashcard-bulk-input');
-      const category = categoryEl ? categoryEl.value : '';
-      const raw = textEl ? textEl.value : '';
-      const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
-      if (lines.length === 0) { window.showToast('尚未貼上任何內容，請先貼上詞卡內容', '⚠️'); return; }
-
-      const items = [];
-      let badLineCount = 0;
-      lines.forEach(line => {
-        const parts = line.split('|').map(p => p.trim());
-        const word = parts[0] || '';
-        const pos = parts[1] || '';
-        const meaning = parts[2] || '';
-        const example = parts[3] || '';
-        const exampleTranslation = parts[4] || '';
-        if (!word || !meaning) { badLineCount++; return; }
-        items.push({ word, pos, meaning, example, exampleTranslation });
-      });
-
-      if (items.length === 0) { window.showToast('沒有解析到任何有效的詞卡，請檢查每行是否用「 | 」分隔', '⚠️'); return; }
-      if (!confirm(`將會匯入 ${items.length} 張詞卡（範疇：${category}）${badLineCount ? '，另外有 ' + badLineCount + ' 行格式不正確將被跳過' : ''}，確定嗎？`)) return;
-
-      const btn = document.getElementById('btn-bulk-import-flashcards');
-      const originalText = btn ? btn.innerText : '';
-      if (btn) { btn.disabled = true; btn.innerText = '⏳ 匯入中…'; }
-      try {
-        const existingSnap = await window.fs.getDocs(window.fs.collection(window.db, 'flashcards'));
-        const existingKeys = new Set(existingSnap.docs.map(d => {
-          const c = d.data();
-          return `${c.subject || ''}__${c.category || ''}__${(c.word || c.front || '').toLowerCase()}`;
-        }));
-        const result = await importEnglishVocabItems(existingKeys, category, items);
-        window.showToast(`✅ 匯入完成！新增 ${result.added} 張，跳過 ${result.skipped} 張已存在${badLineCount ? `，${badLineCount} 行格式錯誤已跳過` : ''}`, '📥');
-        if (textEl) textEl.value = '';
-      } catch (err) {
-        window.showToast('匯入失敗：' + (err.message || err), '❌');
+        if (resultEl) resultEl.innerText = `❌ 清理失敗：${err.message || err}`;
+        window.showToast('清理失敗：' + (err.message || err), '❌');
       } finally {
-        if (btn) { btn.disabled = false; btn.innerText = originalText || '📥 解析並匯入'; }
-      }
-    };
-
-    window.adminUpdateFlashcardField = async function(cardId, field, value) {
-      try {
-        await window.fs.updateDoc(window.fs.doc(window.db, 'flashcards', cardId), { [field]: value });
-      } catch (err) {
-        window.showToast('更新失敗：' + (err.message || err), '❌');
-      }
-    };
-
-    window.adminDeleteFlashcard = async function(cardId) {
-      if (!confirm('確定要刪除這張溫習卡？刪除之後所有學生都不會再見到這張卡。')) return;
-      try {
-        await window.fs.deleteDoc(window.fs.doc(window.db, 'flashcards', cardId));
-        window.showToast('🗑️ 已刪除溫習卡', '🗑️');
-      } catch (err) {
-        window.showToast('刪除失敗：' + (err.message || err), '❌');
+        if (btn) { btn.disabled = false; btn.innerText = '🗑️ 永久刪除舊溫習卡資料'; }
       }
     };
 
@@ -1539,7 +1237,7 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
     };
 
     // ---------- 側邊功能表圖示管理 ----------
-    // 側邊欄「主頁／視訊溫習室／學科溫習卡」等 8 粒分頁掣，原本淨係
+    // 側邊欄「主頁／視訊溫習室／疑難解答區」等分頁掣，原本淨係
     // 寫死一個 emoji 做圖示。而家改為由 Firestore（admin_config/navIcons
     // 文件）讀取，管理員可以喺呢個分頁上傳自訂圖片取代個 emoji，冇上傳
     // 過（或者撳咗「還原做預設圖示」）嘅掣就繼續顯示返原本嘅 emoji。
@@ -1556,7 +1254,6 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
     const NAV_ICON_ITEMS = [
       { key: 'home', label: '主頁', emoji: '🏠' },
       { key: 'room', label: '視訊溫習室', emoji: '📹' },
-      { key: 'study', label: '學科溫習卡', emoji: '🗂' },
       { key: 'qa', label: '疑難解答區', emoji: '❓' },
       { key: 'vip', label: '溫習資源', emoji: '👑' },
       { key: 'store', label: '時數扭蛋機', emoji: '🎁' },

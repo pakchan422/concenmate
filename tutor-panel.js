@@ -103,7 +103,7 @@ window.applyRoleBasedSidebar = function() {
   // 舊嘅監聽器，再重新訂閱一次——即係每次揭返呢個分頁都要重新問一次
   // 伺服器攞晒 100 位導師嘅資料，先會顯示到內容，呢個就係「Loading 好
   // 耐」嘅主因。而家跟返 app-features.js 嘅 loadQAPosts()／
-  // loadFriendsList()／room-video.js 嘅 loadFlashcards() 同一套做法：
+  // loadFriendsList() 同一套做法：
   // 監聽器一登入／一開始訂閱就持續運作，唔理你而家揭緊邊個分頁，已經
   // 訂閱緊嘅話就直接用返 cache 即時畫返出嚟，唔使再問多次伺服器。
   window.renderTutorDirectoryTab = function() {
