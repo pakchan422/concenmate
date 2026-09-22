@@ -20,7 +20,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app-check.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, deleteUser, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs, increment, query, where, orderBy, limit, arrayUnion, arrayRemove, documentId, startAfter, runTransaction } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs, increment, query, where, orderBy, limit, arrayUnion, arrayRemove, documentId, startAfter, runTransaction, getCountFromServer } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
     import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
     import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-functions.js";
 
@@ -77,7 +77,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
     const cloudFunctions = getFunctions(app, "asia-east1");
 
     window.db = db;
-    window.fs = { doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs, increment, query, where, orderBy, limit, arrayUnion, arrayRemove, documentId, startAfter, runTransaction };
+    window.fs = { doc, setDoc, getDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, getDocs, increment, query, where, orderBy, limit, arrayUnion, arrayRemove, documentId, startAfter, runTransaction, getCountFromServer };
     window.storage = storage;
     window.storageApi = { ref: storageRef, uploadBytes, getDownloadURL, deleteObject };
 
@@ -244,6 +244,26 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
           const userDoc = await getDoc(userDocRef);
           if (userDoc.exists()) {
             window.currentUser = userDoc.data();
+
+            // 「分區溫習排行榜」補漏：喺呢個 district 欄位推出之前已經
+            // 註冊咗嘅舊帳戶，users/{uid} 文件冇呢個欄位，唔會出現喺任
+            // 何分區排行榜。呢度靜靜雞喺登入嗰陣試下用返 school 呢個
+            // 已有欄位喺清單度反查一次（見 lookupDistrictBySchoolName），
+            // 撞啱就自動幫佢哋補返個 district，唔使等佢哋自己去「我的
+            // 帳戶」重新按一次儲存。反查唔到（自行輸入或者清單冇）嘅
+            // 話就乜都唔做，冇 district 純粹代表暫時唔會出現喺分區榜，
+            // 但唔會影響學校榜（學校榜淨係靠 school 呢個欄位）。特登唔
+            // await——呢個純粹背景補漏，唔應該累到登入流程等埋佢寫完
+            // 先繼續。
+            if (window.currentUser && !window.currentUser.district && window.currentUser.school && typeof window.lookupDistrictBySchoolName === 'function') {
+              const backfillDistrict = window.lookupDistrictBySchoolName(window.currentUser.school);
+              if (backfillDistrict) {
+                window.currentUser.district = backfillDistrict;
+                updateDoc(userDocRef, { district: backfillDistrict }).catch((e) => {
+                  console.warn('補寫學校地區失敗（唔影響使用）:', e);
+                });
+              }
+            }
           } else {
             window.currentUser = {
               uid: user.uid,
@@ -808,6 +828,12 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
           emailVerifyToken: verifyToken,
           username: profileData.username,
           school: profileData.school || '',
+          // 「學校所在地區」——排行榜功能（分區溫習排行榜）用嚟將同學
+          // 歸類落 18 區其中一區。呢個值嚟自註冊表格「先揀地區、再揀
+          // 學校」個兩級選單嘅第一級（reg-school-district），就算揀咗
+          // 「其他（自行輸入學校名稱）」，都一樣已經揀咗地區，所以呢度
+          // 一定攞得到（導師帳號冇呢個欄位，留空就得）。
+          district: profileData.district || '',
           grade: profileData.grade || '',
           favSubjects: profileData.favSubjects || '無',
           dislikeSubjects: profileData.dislikeSubjects || '無',
@@ -1208,6 +1234,23 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       { region: '新界', districts: ['葵青區', '荃灣區', '屯門區', '元朗區', '北區', '大埔區', '沙田區', '西貢區', '離島區'] },
     ];
 
+    // 根據學校名稱（精確比對）反查返佢屬於邊一區，畀「我的帳戶」改學校
+    // 名稱嗰陣自動補返個 district 欄位用（「分區溫習排行榜」要靠呢個
+    // 欄位分組）。註冊表格本身已經係「先揀地區、再揀學校」，唔使呢個
+    // 反查；但「我的帳戶」入面個學校名稱一直都係自由輸入格，冇連住地
+    // 區選單，所以淨係可以事後咁樣盡量幫手對返。清單入面搵唔到（自行
+    // 輸入嘅學校名、清單有錯漏、或者打嘅字同清單唔完全一樣）就會攞
+    // null，呢種情況會保留返用戶原本已經有嘅 district（唔會因為呢次對
+    // 唔到就清走咗之前啱啱好對到嗰個）。
+    window.lookupDistrictBySchoolName = function(schoolName) {
+      const trimmed = (schoolName || '').trim();
+      if (!trimmed || !window.HK_SECONDARY_SCHOOLS_BY_DISTRICT) return null;
+      for (const district in window.HK_SECONDARY_SCHOOLS_BY_DISTRICT) {
+        if (window.HK_SECONDARY_SCHOOLS_BY_DISTRICT[district].includes(trimmed)) return district;
+      }
+      return null;
+    };
+
     // 註冊表格「學校名稱」欄位改為「先揀地區、再揀學校」兩級選單：
     // 揀咗地區先至畀揀學校（第二個 <select> 響第一次都會顯示提示字，
     // 唔會一開波就得個空嘅選單）。呢個函數負責填第一級（地區）嘅
@@ -1372,11 +1415,15 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
           window.showToast('請選擇學校所在地區同學校名稱', '⚠️');
           return;
         }
+        // 「地區」揀第一級嗰陣已經填低，唔理第二級最終揀咗清單入面邊間
+        // 學校定係「其他」自行輸入，呢個地區值都一定會有——「分區溫習
+        // 排行榜」就係靠呢個欄位嚟分組。
+        const district = document.getElementById('reg-school-district').value.trim();
         const grade = document.getElementById('reg-grade').value;
         const favSubjects = document.getElementById('reg-fav').value.trim();
         const dislikeSubjects = document.getElementById('reg-dislike').value.trim();
         window.registerWithFirebase(loginId, password, {
-          accountType, username, school, grade, favSubjects, dislikeSubjects, contactEmail
+          accountType, username, school, district, grade, favSubjects, dislikeSubjects, contactEmail
         });
       } else {
         const tutorBio = document.getElementById('reg-tutor-bio').value.trim();
@@ -1438,9 +1485,19 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       // 重新整過 token 兼寄多次驗證電郵；淨係打多打少個空格唔算改咗
       const emailChanged = contactEmail !== (window.currentUser.contactEmail || '');
 
+      // 學校名稱改咗嘅話，盡量喺清單度反查返新嘅地區（見
+      // lookupDistrictBySchoolName）；查唔到（自行輸入或者清單冇）就保
+      // 留返用戶原本已經有嘅 district，唔會因為呢次改資料而清走。
+      const schoolChanged = school !== (window.currentUser.school || '');
+      let district = window.currentUser.district || '';
+      if (schoolChanged) {
+        const matched = window.lookupDistrictBySchoolName(school);
+        if (matched) district = matched;
+      }
+
       try {
         const userDocRef = doc(db, "users", auth.currentUser.uid);
-        const updates = { username, school, grade, favSubjects, dislikeSubjects, contactEmail };
+        const updates = { username, school, district, grade, favSubjects, dislikeSubjects, contactEmail };
         let newToken = null;
         if (emailChanged) {
           newToken = contactEmail ? generateVerifyToken() : null;
@@ -1450,6 +1507,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
         await updateDoc(userDocRef, updates);
         window.currentUser.username = username;
         window.currentUser.school = school;
+        window.currentUser.district = district;
         window.currentUser.grade = grade;
         window.currentUser.favSubjects = favSubjects;
         window.currentUser.dislikeSubjects = dislikeSubjects;

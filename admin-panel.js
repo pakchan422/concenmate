@@ -1339,7 +1339,11 @@ Compromise | Verb | 妥協 | Both sides need to compromise in order to resolve t
       const hoursEl = document.getElementById('admin-user-hours-' + uid);
       const expEl = document.getElementById('admin-user-exp-' + uid);
       const points = parseInt(ptsEl && ptsEl.value, 10) || 0;
-      const hours = (hoursEl && hoursEl.value) || '0.0';
+      // ⚠️ 呢度一定要用 parseFloat 將輸入格嘅文字轉做數字先可以寫入 Firestore；
+      // 之前直接攞 .value（永遠係文字）寫落去，會令 hours 呢個欄位由數字變咗
+      // 文字，後續 Cloud Function 用 "+" 累加嗰陣就會變成文字併接（例如
+      // "0.0" + 0.0166666 = "0.00.0166666..."），排行榜同時數就會永久錯亂。
+      const hours = parseFloat(hoursEl && hoursEl.value) || 0;
       const exp = parseInt(expEl && expEl.value, 10) || 0;
       try {
         await window.fs.updateDoc(window.fs.doc(window.db, 'users', uid), { points, hours, exp });

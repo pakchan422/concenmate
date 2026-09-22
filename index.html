@@ -1,6 +1,14 @@
 <!DOCTYPE html>
 <html lang="zh-HK">
 <head>
+  <!-- ========================================
+       🔧 版本號 — 每次推送 GitHub 前改呢度（刻意擺喺 <head> 最頂，
+       打開檔案唔使拉就見到，方便快速核對版本）
+       ======================================== -->
+  <script>
+    window.APP_VERSION = "v1.148.0"; // 每次推送 GitHub 前，喺呢度改版號
+  </script>
+
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>ConcenMate 書伴 - 香港中學生線上溫習空間</title>
@@ -42,13 +50,6 @@
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
   <meta name="theme-color" content="#4A8FA0">
-
-  <!-- ========================================
-       🔧 版本號 — 每次推送 GitHub 前改呢度
-       ======================================== -->
-  <script>
-    window.APP_VERSION = "v1.143.0"; // 每次推送 GitHub 前，喺呢度改版號
-  </script>
 
   <!-- ========================================
        🧪 環境判斷（正式站 vs 開發／測試站）
@@ -1667,6 +1668,7 @@
         <button class="nav-btn student-only-nav" id="nav-btn-qa" type="button" onclick="switchTab('qa', this)"><span class="nav-icon" id="nav-icon-qa">❓</span> <span class="nav-text">疑難解答區</span></button>
         <button class="nav-btn student-only-nav" id="nav-btn-vip" type="button" onclick="switchTab('vip', this)"><span class="nav-icon" id="nav-icon-vip">👑</span> <span class="nav-text">溫習資源</span></button>
         <button class="nav-btn student-only-nav" id="nav-btn-store" type="button" onclick="switchTab('store', this)"><span class="nav-icon" id="nav-icon-store">🎁</span> <span class="nav-text">時數扭蛋機</span></button>
+        <button class="nav-btn student-only-nav" id="nav-btn-leaderboard" type="button" onclick="switchTab('leaderboard', this)"><span class="nav-icon" id="nav-icon-leaderboard">🏆</span> <span class="nav-text">溫習排行榜</span></button>
         <button class="nav-btn student-only-nav" id="nav-btn-social" type="button" onclick="switchTab('social', this)"><span class="nav-icon" id="nav-icon-social">👥</span> <span class="nav-text">夥伴與讀書會</span> <span class="home-sec-badge" id="nav-social-badge" style="display:none; margin-left:auto;"></span></button>
         <button class="nav-btn student-only-nav" id="nav-btn-diary" type="button" onclick="switchTab('diary', this)"><span class="nav-icon" id="nav-icon-diary">📔</span> <span class="nav-text">溫習日記</span></button>
         <button class="nav-btn student-only-nav" id="nav-btn-verification" type="button" onclick="switchTab('verification', this)"><span class="nav-icon" id="nav-icon-verification">🎓</span> <span class="nav-text">學生身份驗證</span></button>
@@ -2422,6 +2424,50 @@
           </div>
           <div id="tutor-directory-tabs" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:12px;"></div>
           <div id="tutor-directory-list" style="display:flex; flex-direction:column; gap:10px; margin-top:10px;"></div>
+        </section>
+
+        <!-- 🏆 溫習排行榜：分區個人排行榜（以就讀學校所在地區分組，
+             以累積溫習時數排名，只顯示首 50 名，自己名次會喺清單最底
+             另外顯示）／學校排行榜（將同校所有學生嘅時數加埋一齊排
+             名）。資料嚟自 leaderboardEntries／schoolLeaderboard 呢兩個
+             公開精簡 collection（由 functions/index.js 嘅
+             syncLeaderboardOnUserWrite 自動同步，唔會直接查 users，
+             見 firestore.rules），只有學生帳戶先見到（導師冇溫習時數）。
+             內容全部由 app-features.js 嘅 window.loadLeaderboardTab()
+             動態產生，呢度淨係擺容器。 -->
+        <section id="tab-leaderboard" class="tab-content">
+          <div class="card" style="background: linear-gradient(135deg, #D9EBEF, #D9C9B5); color:#1E4550;">
+            <h2 style="font-size:18px; font-weight:bold;">🏆 溫習排行榜</h2>
+            <p style="font-size:13px; color:#3E5A63; margin-top:4px;">可切換「本月」或「累積」時數排名，只顯示首 50 名，你的名次會在清單最底另外顯示；每個月 1 號「本月排行榜」會自動重新計算</p>
+          </div>
+
+          <div class="card" style="margin-top:12px;">
+            <div style="display:flex; gap:8px; margin-bottom:10px;">
+              <button class="qa-subject-btn active" type="button" id="lb-period-month-btn" onclick="window.switchLeaderboardPeriod('month')" style="flex:1; justify-content:center;">📅 本月排行榜</button>
+              <button class="qa-subject-btn" type="button" id="lb-period-alltime-btn" onclick="window.switchLeaderboardPeriod('alltime')" style="flex:1; justify-content:center;">🏆 累積排行榜</button>
+            </div>
+
+            <div style="display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap;">
+              <button class="qa-subject-btn active" type="button" id="lb-mode-district-btn" onclick="window.switchLeaderboardMode('district')" style="flex:1; justify-content:center; min-width:120px;">📍 分區個人排行榜</button>
+              <button class="qa-subject-btn" type="button" id="lb-mode-schoolInternal-btn" onclick="window.switchLeaderboardMode('schoolInternal')" style="flex:1; justify-content:center; min-width:120px;">🏫 校內排行榜</button>
+              <button class="qa-subject-btn" type="button" id="lb-mode-school-btn" onclick="window.switchLeaderboardMode('school')" style="flex:1; justify-content:center; min-width:120px;">🏛️ 學校總排行榜</button>
+            </div>
+
+            <div id="lb-district-picker-wrap" style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+              <label for="lb-district-select" style="font-size:13px; font-weight:bold; color:#555; white-space:nowrap;">📍 地區：</label>
+              <select id="lb-district-select" class="input-field" style="flex:1;" onchange="window.loadLeaderboardTab()"></select>
+            </div>
+
+            <div id="lb-school-internal-label-wrap" style="display:none; margin-bottom:10px; font-size:13px; color:#555;">
+              🏫 你的學校：<strong id="lb-school-internal-name" style="color:var(--brand-800);">未設定</strong>
+            </div>
+
+            <div id="lb-list-container" style="display:flex; flex-direction:column; gap:6px;">
+              <p style="text-align:center; color:#999; padding:20px;">載入排行榜中…</p>
+            </div>
+
+            <div id="lb-own-rank-wrap" style="display:none; margin-top:10px; padding-top:10px; border-top:1px dashed var(--brand-200);"></div>
+          </div>
         </section>
 
         <!-- 🎓 導師專用：管理教材（科目／課題／PDF 筆記）。內容全部由

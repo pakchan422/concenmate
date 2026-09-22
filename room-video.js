@@ -1469,6 +1469,41 @@
       }, 1000);
     }
 
+    // 積分／時數寫入 Firestore 失敗（例如視訊房頻寬緊張）嗰陣，唔再靜雞雞
+    // 掉咗嗰次請求：排入呢個隊，留返轉頭重試。因為伺服器嗰邊每次淨係識
+    // 加返「呢一格」嘅固定增量（1 PTS／1/60 小時，見 ALLOWED_AWARD_POINTS／
+    // ALLOWED_AWARD_HOURS_INCREMENTS 白名單），唔係話畫面樂觀更新到幾多
+    // 就補返差額嗰種「追落後」，所以一定要保住每一次冇寫成功嘅請求本身，
+    // 逐個重試，先至真係追得返（唔係淨係等「下次」新嗰次順利就當數）。
+    let awardSyncQueue = [];
+    let awardSyncInFlight = false;
+    let awardSyncRetryTimer = null;
+
+    async function flushAwardSyncQueue() {
+      if (awardSyncInFlight || awardSyncQueue.length === 0) return;
+      awardSyncInFlight = true;
+      try {
+        while (awardSyncQueue.length > 0) {
+          const payload = awardSyncQueue[0];
+          try {
+            await window.callCloudFunction('awardStudyPoints', payload);
+            awardSyncQueue.shift();
+          } catch (e) {
+            console.warn('積分／時數補寫仍然失敗，遲啲再試（畫面已經顯示緊最新狀態，唔影響使用）:', e);
+            break; // 呢次都仲係唔得，唔使再逐個試落去，等下個重試週期先再嚟
+          }
+        }
+      } finally {
+        awardSyncInFlight = false;
+      }
+    }
+
+    // 每 20 秒check 一次隊入面仲有冇未補寫成功嘅請求，全個 session 淨係
+    // 起一次呢個計時器就夠（唔使跟住個別房間開／關）。
+    if (!awardSyncRetryTimer) {
+      awardSyncRetryTimer = setInterval(flushAwardSyncQueue, 20000);
+    }
+
     // hoursIncrement：呢次要累加幾多小時到「累積溫習時數」（users.hours），
     // 淨係房入面實際專注嘅每一分鐘先會傳呢個值（1/60），其他獎勵（例如溫習卡
     // 複習、「仲喺度嗎」確認嘅額外 PTS）唔代表真正流逝咗嘅專注時間，所以預設
@@ -1533,6 +1568,18 @@
           window.currentUser.todayMinutes = (window.currentUser.todayMinutes || 0) + 1;
         }
         updateGoalBarDisplay();
+
+        // 「本月排行榜」本機樂觀更新：真正決定月份歸零嘅係伺服器（見
+        // functions/index.js 嘅 awardStudyPoints，用伺服器時間判斷，唔
+        // 信任前端），呢度純粹即時更新返本機顯示／自己名次計算用，等
+        // 「本月」own-rank 都可以喺未攞新資料之前都準確返。
+        const curMonthStr = getCurrentMonthStr();
+        if (window.currentUser.monthlyPeriod !== curMonthStr) {
+          window.currentUser.monthlyHours = hoursIncrement;
+          window.currentUser.monthlyPeriod = curMonthStr;
+        } else {
+          window.currentUser.monthlyHours = (parseFloat(window.currentUser.monthlyHours) || 0) + hoursIncrement;
+        }
       }
 
       // 寫入伺服器：而家改用 Cloud Function（awardStudyPoints）做，用
@@ -1540,16 +1587,20 @@
       // 攞幾多分」鎖死喺伺服器嘅白名單入面，唔再單靠前端話寫幾多就幾
       // 多——同扭蛋扣分（spendGachaPoints）一樣嘅硬化模式。呢度純粹係
       // 背景持久化，就算失敗都唔會影響用家而家見到嘅畫面（本機已經即
-      // 時更新咗）。
+      // 時更新咗）；如果失敗就排入 awardSyncQueue 等遲啲重試（唔可以淨係
+      // 拋棄咗就算，唔係嘅話「累積時數」／排行榜會永遠追唔返呢一格）。
+      const payload = {
+        points: pointsAmount,
+        hoursIncrement,
+        isNewDay,
+        todayDateStr: hoursIncrement > 0 ? getTodayDateStr() : undefined
+      };
       try {
-        await window.callCloudFunction('awardStudyPoints', {
-          points: pointsAmount,
-          hoursIncrement,
-          isNewDay,
-          todayDateStr: hoursIncrement > 0 ? getTodayDateStr() : undefined
-        });
+        await flushAwardSyncQueue(); // 先追返之前排隊緊嘅（保住次序），先寄呢次新嘅
+        await window.callCloudFunction('awardStudyPoints', payload);
       } catch (e) {
-        console.warn("積分同步到 Firestore 失敗（畫面已經即時更新，唔影響使用；下次成功寫入時會追返）:", e);
+        console.warn("積分同步到 Firestore 失敗，已排隊等遲啲重試（畫面已經即時更新，唔影響使用）:", e);
+        awardSyncQueue.push(payload);
       }
     }
 
