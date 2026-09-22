@@ -1135,47 +1135,58 @@
       try {
         const roomCheckSnap = await window.fs.getDoc(window.fs.doc(window.db, 'rooms', roomId));
         roomCheckData = roomCheckSnap.exists() ? roomCheckSnap.data() : null;
-        if (roomCheckData && Array.isArray(roomCheckData.bannedUids) && roomCheckData.bannedUids.includes(window.currentUser.uid)) {
-          window.showToast('你已經被房主移出過這間房，不可以再加入', '🚫');
-          return false;
-        }
 
-        // 密碼鎖檢查：房主本人（isMyRoom）唔使輸入自己岩岩設定嘅密碼；
+        // 密碼輸入框：房主本人（isMyRoom）唔使輸入自己岩岩設定嘅密碼；
         // 其他人（包括透過分享連結或者大廳撳「加入房間」）如果房間有
-        // hasPassword，就要彈窗輸入啱先真正入到房。取消／輸入錯誤都
-        // 直接擋住，唔會扣住房間座位（joinRoomParticipants 仲未叫）。
-        // ⚠️ 真正嘅密碼核對而家搬咗去 Cloud Function（verifyRoomPassword）
-        // 度做，呢度嘅 roomCheckData 已經冇 roomPassword 呢個欄位（見
-        // firestore.rules，主文件唔會再存真正密碼），前端淨係傳個
-        // roomId + 輸入值畀伺服器核對，攞返 { ok: true/false }。
+        // hasPassword，就要彈窗輸入啱先真正入到房。取消都直接擋住，
+        // 唔會扣住房間座位（joinRoomParticipants 仲未叫）。
+        let enteredPassword = '';
         if (roomCheckData && roomCheckData.hasPassword && !isMyRoom) {
           const entered = await promptRoomPassword();
           if (entered === null) {
             return false; // 用戶自己撳咗「取消」，唔使額外提示錯誤
           }
-          let verifyResult;
-          try {
-            verifyResult = await window.callCloudFunction('verifyRoomPassword', { roomId, password: entered });
-          } catch (verifyErr) {
-            // 伺服器而家加咗速率限制（見 functions/index.js 嘅
-            // checkRateLimit），短時間內試太多次密碼會拋
-            // resource-exhausted，呢種情況要話畀用戶知係「試得太密」，
-            // 唔係網絡問題，唔好誤導佢去檢查網絡連線
-            const code = verifyErr && (verifyErr.code || '');
-            if (typeof code === 'string' && code.indexOf('resource-exhausted') !== -1) {
-              window.showToast(verifyErr.message || '嘗試次數過多，請稍後再試', '⏳');
-            } else {
-              window.showToast('驗證密碼失敗，請檢查網絡連線後再試', '❌');
-            }
-            return false;
+          enteredPassword = entered;
+        }
+
+        // ⚠️ 安全修補（見 docs/PROGRESS.md）：呢個 Cloud Function 而家一律
+        // 要呼叫——唔理間房有冇密碼鎖。密碼核對、bannedUids 核對，全部
+        // 改喺伺服器端一次過做晒，通過先會簽發一張短效「入場證」，
+        // firestore.rules 之後會要求 participants／signals／candidates
+        // 嘅寫入一定要先有呢張入場證（或者已經係合法 participants）先
+        // 得——即係話密碼、踢人名單而家喺 WebRTC 訊令呢一層都真正有約
+        // 束力，唔再可以靠 devtools 直接打 Firestore SDK 完全繞過。
+        let verifyResult;
+        try {
+          verifyResult = await window.callCloudFunction('verifyRoomPassword', { roomId, password: enteredPassword });
+        } catch (verifyErr) {
+          // 伺服器而家加咗速率限制（見 functions/index.js 嘅
+          // checkRateLimit），短時間內試太多次密碼會拋
+          // resource-exhausted，呢種情況要話畀用戶知係「試得太密」，
+          // 唔係網絡問題，唔好誤導佢去檢查網絡連線
+          const code = verifyErr && (verifyErr.code || '');
+          if (typeof code === 'string' && code.indexOf('resource-exhausted') !== -1) {
+            window.showToast(verifyErr.message || '嘗試次數過多，請稍後再試', '⏳');
+          } else if (typeof code === 'string' && code.indexOf('permission-denied') !== -1) {
+            window.showToast(verifyErr.message || '你已經被移出這間房，不可以再加入', '🚫');
+          } else {
+            window.showToast('驗證入房資格失敗，請檢查網絡連線後再試', '❌');
           }
-          if (!verifyResult || !verifyResult.ok) {
-            window.showToast('密碼錯誤，未能加入這個溫習室', '🚫');
-            return false;
-          }
+          return false;
+        }
+        if (!verifyResult || !verifyResult.ok) {
+          window.showToast('密碼錯誤，未能加入這個溫習室', '🚫');
+          return false;
         }
       } catch (e) {
-        console.error('檢查房間封鎖名單／密碼鎖失敗:', e);
+        // ⚠️ 呢度之前靜靜哋 catch 咗就照樣行落去（fail-open）——而家改
+        // 成擋住入房：入房驗證呢步係唯一嘅安全防線，攞唔到入場證嘅話
+        // 之後 joinRoomParticipants() 一樣會俾 firestore.rules 擋返
+        // 出嚟，不如喺呢度就清楚話畀用戶知，唔好等到後面先見到一個
+        // 冇解釋嘅失敗。
+        console.error('入房驗證失敗:', e);
+        window.showToast('入房驗證失敗，請檢查網絡連線後再試', '❌');
+        return false;
       }
 
       // 記低呢間房係咪有密碼鎖（畀房內嗰粒🔒「查看密碼」掣決定顯唔顯示
