@@ -159,7 +159,6 @@
       else if (tab === 'qa') renderAdminQaTab();
       else if (tab === 'users') renderAdminUsersTab();
       else if (tab === 'level') renderAdminLevelTab();
-      else if (tab === 'purge-flashcards') renderAdminPurgeFlashcardsTab();
       else if (tab === 'reports') renderAdminReportsTab();
       else if (tab === 'icons') renderAdminNavIconsTab();
       else if (tab === 'tutors') renderAdminTutorsTab();
@@ -910,48 +909,6 @@
         window.showToast('提問已刪除', '🗑️');
       } catch (err) {
         window.showToast('刪除失敗：' + (err.message || err), '❌');
-      }
-    };
-
-    // ---------- 🗑️ 清理舊溫習卡資料（一次性維護工具） ----------
-    // 「學科溫習卡」功能已經因為同補習導師教材銷售功能有衝突而完全移除
-    // （index.html／app-features.js／room-video.js 嘅相關程式碼已刪
-    // 走，firestore.rules 嘅 flashcards／flashcardProgress 規則亦已
-    // 移除）。呢度淨低嘅係一個一次性嘅資料清理工具，用嚟清走 Firestore
-    // 入面舊留低嘅 flashcards 集合（管理員之前新增嘅溫習卡內容）同全部
-    // 學生嘅 users/*/flashcardProgress 複習進度——呢啲資料本身冇規則
-    // 保護都用唔到，留喺度純粹佔位。撳一次掣確認清走之後，呢個分頁同
-    // 對應嘅 purgeFlashcardData Cloud Function 就可以喺下一次更新度
-    // 一併移除。
-    function renderAdminPurgeFlashcardsTab() {
-      const container = document.getElementById('admin-tab-purge-flashcards');
-      if (!container) return;
-      container.innerHTML = `
-        <div class="admin-card">
-          <h3 style="font-size:15px; font-weight:bold; margin-bottom:8px; color:var(--brand-800);">🗑️ 清理舊溫習卡資料</h3>
-          <p style="font-size:13px; color:#666; line-height:1.6;">「學科溫習卡」功能已經完全移除。撳下面呢粒掣會永久刪除 Firestore 入面所有仍然殘留嘅舊溫習卡內容，同全部學生嘅複習進度紀錄，刪除之後無法復原。</p>
-          <p style="font-size:13px; color:#999; margin-top:6px;">呢個係一次性嘅清理工具，成功清理一次之後就唔使再撳。</p>
-          <button class="btn btn-red" type="button" style="margin-top:12px;" id="btn-purge-flashcard-data" onclick="adminPurgeFlashcardData()">🗑️ 永久刪除舊溫習卡資料</button>
-          <div id="admin-purge-flashcard-result" style="margin-top:10px; font-size:13px; color:#666;"></div>
-        </div>
-      `;
-    }
-    window.renderAdminPurgeFlashcardsTab = renderAdminPurgeFlashcardsTab;
-
-    window.adminPurgeFlashcardData = async function() {
-      if (!confirm('確定要永久刪除所有舊溫習卡內容同學生複習進度嗎？此操作無法復原。')) return;
-      const btn = document.getElementById('btn-purge-flashcard-data');
-      const resultEl = document.getElementById('admin-purge-flashcard-result');
-      if (btn) { btn.disabled = true; btn.innerText = '⏳ 清理中…'; }
-      try {
-        const result = await window.callCloudFunction('purgeFlashcardData', {});
-        if (resultEl) resultEl.innerText = `✅ 清理完成：已刪除 ${result.flashcardsDeleted} 張溫習卡內容、${result.progressDeleted} 筆學生複習進度紀錄。`;
-        window.showToast('✅ 舊溫習卡資料已清理完成', '🗑️');
-      } catch (err) {
-        if (resultEl) resultEl.innerText = `❌ 清理失敗：${err.message || err}`;
-        window.showToast('清理失敗：' + (err.message || err), '❌');
-      } finally {
-        if (btn) { btn.disabled = false; btn.innerText = '🗑️ 永久刪除舊溫習卡資料'; }
       }
     };
 
