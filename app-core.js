@@ -208,10 +208,87 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       }, 400);
     }
 
+    // 兩池溫習室（「中學溫習室」／「公開溫習室」）：判斷返而家登入緊
+    // 嘅用戶自己屬於邊一池——淨係註冊嗰陣揀咗「本人確認現時為中學
+    // 生」（isSecondaryStudent === true）先算「中學溫習室」池，其他
+    // 一律當「公開溫習室」池（大專生、自修生、成年人、同埋呢個欄位
+    // 推出之前註冊、未填過嘅舊帳戶）。呢個判斷要同 firestore.rules 嘅
+    // viewerRoomPool() 完全一致（見嗰邊嘅註解解釋點解「未知」預設當
+    // 公開池唔當中學池），唔可以兩邊各自寫一套、之後改壞咗一邊。
+    window.getViewerRoomPool = function() {
+      return (window.currentUser && window.currentUser.isSecondaryStudent === true) ? 'secondary' : 'public';
+    };
+
+    // 管理員專用：撳「🛠️ 轉換溫習室」掣之後暫存嘅覆寫值。null 代表跟返
+    // 管理員自己帳戶實際所屬嗰池（同一般用戶一樣嘅行為）。呢個淨係
+    // 影響管理員「而家喺大廳睇緊邊個池」，唔會影響管理員自己建房嗰陣
+    // 所屬嘅池（建房嗰邊 room-video.js 一直都係直接用
+    // window.getViewerRoomPool()，冇受呢個覆寫影響）。
+    let adminRoomPoolOverride = null;
+
+    // 大廳實際攞緊嚟顯示嘅池：管理員如果揀咗覆寫，就用返個覆寫值；
+    // 其他情況（包括非管理員用戶）一律用返自己帳戶實際所屬嗰池。
+    function getLobbyViewPool() {
+      if (adminRoomPoolOverride && typeof window.isCurrentUserAdmin === 'function' && window.isCurrentUserAdmin()) {
+        return adminRoomPoolOverride;
+      }
+      return window.getViewerRoomPool();
+    }
+
+    // 管理員撳「🛠️ 轉換溫習室」掣嗰陣叫呢個 function：喺兩個池之間切換
+    // （唔理而家係咪跟緊自己帳戶嘅池，撳一下就切去另一個），重新訂閱
+    // 大廳（即時生效），同埋刷新標題。
+    window.toggleAdminRoomPool = function() {
+      adminRoomPoolOverride = (getLobbyViewPool() === 'secondary') ? 'public' : 'secondary';
+      listenToPublicRooms();
+    };
+
+    // 更新「公開溫習大廳」標題，喺後面加返「（中學溫習室）」／「（公開
+    // 溫習室）」，等用戶一眼睇到自己而家喺邊一個池，唔使撳「！」先知。
+    // 管理員專用嘅「🛠️ 轉換溫習室」掣，都喺呢度同步顯示／隱藏。
+    window.updateRoomLobbyTitle = function() {
+      const titleEl = document.getElementById('room-lobby-title');
+      const adminToggleBtn = document.getElementById('admin-room-pool-toggle-btn');
+      const isAdmin = typeof window.isCurrentUserAdmin === 'function' && window.isCurrentUserAdmin();
+      if (adminToggleBtn) adminToggleBtn.style.display = isAdmin ? 'inline-block' : 'none';
+      if (!titleEl) return;
+      const isSecondary = getLobbyViewPool() === 'secondary';
+      let title = isSecondary ? '🌐 公開溫習大廳（中學溫習室）' : '🌐 公開溫習大廳（公開溫習室）';
+      if (isAdmin && adminRoomPoolOverride) title += ' 🛠️';
+      titleEl.innerText = title;
+    };
+
+    // 分類說明彈窗（見 index.html #modal-room-pool-info）：彈出之前先
+    // 填返「你現時所屬」嗰句提示，等用戶睇解釋嗰陣可以即刻對應返自己。
+    window.openRoomPoolInfoModal = function() {
+      const hintEl = document.getElementById('room-lobby-you-are-in-hint');
+      if (hintEl) {
+        const isSecondary = getLobbyViewPool() === 'secondary';
+        hintEl.innerText = isSecondary ? '你目前屬於：中學溫習室' : '你目前屬於：公開溫習室';
+      }
+      if (typeof window.openModal === 'function') window.openModal('modal-room-pool-info');
+    };
+
     function listenToPublicRooms() {
       if (unsubscribeRooms) unsubscribeRooms();
 
-      const roomsRef = query(collection(db, "rooms"), orderBy("lastActiveAt", "desc"), limit(ROOMS_LISTEN_LIMIT));
+      // ⚠️ 呢度特登唔用 orderBy('lastActiveAt')：加咗 where('roomPool', ...)
+      // 之後，再加一個唔同欄位嘅 orderBy 會使 Firestore 要求一個複合
+      // index（要喺 Firebase Console 手動建，對唔熟技術嘅用戶嚟講係
+      // 額外一重障礙）。所以呢度淨係用單一欄位嘅 where + limit（唔使
+      // index），排序改為喺下面攞到資料之後喺前端做（見
+      // latestRoomsData.sort()），效果一樣，用戶睇唔出分別。
+      //
+      // 另外要留意：呢個 where 篩選會令「呢個功能推出之前建立、文件
+      // 入面完全冇 roomPool 呢個欄位」嘅舊房間，喺呢個新 listener 入面
+      // 一定攞唔返嚟（Firestore 嘅 == 篩選本身就唔會撞中冇呢個欄位嘅
+      // 文件）。因為房間本身係短命嘅直播 session（有心跳過期自動清走
+      // 機制，見 gcStaleRooms／allow delete 嗰 5 分鐘規則），呢個影響
+      // 淨係一次性、好短暫（deploy 嗰刻仲生存緊嘅舊房間，等佢過期或者
+      // 房主重新開房就會用返新格式），唔使特登另外寫遷移邏輯。
+      const viewerPool = getLobbyViewPool();
+      window.updateRoomLobbyTitle();
+      const roomsRef = query(collection(db, "rooms"), where("roomPool", "==", viewerPool), limit(ROOMS_LISTEN_LIMIT));
       unsubscribeRooms = onSnapshot(roomsRef, (snapshot) => {
         // 順手掃一次有冇幽靈房（心跳過期），唔使阻住畫面渲染
         gcStaleRooms(snapshot.docs.map(d => ({ id: d.id, data: d.data() })));
@@ -230,12 +307,36 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
           }
           return { id: roomId, room, createdAtMs, isMyRoom };
         });
+        // orderBy 冇喺 Firestore 查詢度做（見上面註解），呢度喺前端補返
+        // 「最新活動優先」嘅排序，等大廳畫面睇落同以前一樣。
+        latestRoomsData.sort((a, b) => {
+          const aTime = (typeof a.room.lastActiveAt === 'number') ? a.room.lastActiveAt : a.createdAtMs;
+          const bTime = (typeof b.room.lastActiveAt === 'number') ? b.room.lastActiveAt : b.createdAtMs;
+          return bTime - aTime;
+        });
 
         scheduleRenderPublicRoomsList();
       }, (error) => {
         console.error("監聽公開房間失敗:", error);
+        // ⚠️ 之前呢度淨係 console.error，冇更新返畫面——一旦查詢失敗
+        // （例如權限規則評估出錯、離線），大廳就會一直卡死喺「正在
+        // 透過 Firebase 加載公開溫習房列表…」呢句初始畫面，用戶完全
+        // 唔知發生咗咩事、亦冇辦法重試，睇落好似個功能壞咗噉。而家
+        // 改為明確顯示錯誤同「重新載入」按鈕。
+        const roomsListEl = document.getElementById('public-rooms-container');
+        if (roomsListEl) {
+          roomsListEl.innerHTML = `
+            <div style="grid-column: 1 / -1; text-align:center; padding: 40px; background: white; border-radius: 16px; border: 1px solid var(--brand-200);">
+              <div style="font-size:36px; margin-bottom:8px;">🦦⚠️</div>
+              <p style="font-size:13px; font-weight:bold; color:var(--brand-800);">暫時未能載入公開溫習房列表</p>
+              <p style="font-size:13px; color:#666; margin-top:4px;">請檢查網絡連線，或稍後再試。</p>
+              <button class="btn btn-primary" type="button" style="margin-top:10px;" onclick="window.retryListenToPublicRooms && window.retryListenToPublicRooms()">🔄 重新載入</button>
+            </div>
+          `;
+        }
       });
     }
+    window.retryListenToPublicRooms = listenToPublicRooms;
 
     onAuthStateChanged(auth, async (user) => {
       if (user) {
@@ -837,6 +938,12 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
           grade: profileData.grade || '',
           favSubjects: profileData.favSubjects || '無',
           dislikeSubjects: profileData.dislikeSubjects || '無',
+          // 出生年月（冇「日」）：純粹自我申報，唔即時用嚟限制任何功能，
+          // 留為日後身份驗證／溫習室分流用途。isSecondaryStudent 同樣係
+          // 自我申報，用戶剔咗都唔代表已經通過身份驗證。
+          birthYear: profileData.birthYear || null,
+          birthMonth: profileData.birthMonth || null,
+          isSecondaryStudent: !!profileData.isSecondaryStudent,
           // accountType 喺呢度就已經寫死（唔使等下面嗰個 applyTutorRole
           // 呼叫完成先有），等揀咗「🎓 我是導師」嗰邊嘅用戶一註冊完成，
           // 側邊欄即刻就顯示導師殼＋審批中提示，唔使畀佢哋先見到一
@@ -1234,6 +1341,39 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       { region: '新界', districts: ['葵青區', '荃灣區', '屯門區', '元朗區', '北區', '大埔區', '沙田區', '西貢區', '離島區'] },
     ];
 
+    // ===================== 香港大專／大學名單（按地區分組，註冊表格用） =====================
+    // 資料來源：大學教育資助委員會（UGC）資助院校，加埋主要自資／
+    // 私營專上院校嘅本部／主校區所在地（2026-09 整理），只供學生註冊
+    // 嗰陣「現時年級」揀咗「大專/大學」之後，喺「院校名稱」揀返自己
+    // 間院校用。院校如果有多個校園分佈唔同區，只歸類去主校區嗰一區。
+    // 呢份清單唔可能涵蓋所有院校（例如部分細小自資院校、職業訓練局
+    // 轄下個別分校），搵唔到都可以用「其他」自行輸入，唔會因為清單
+    // 未夠齊全而卡住學生註冊唔到。
+    window.HK_TERTIARY_INSTITUTIONS_BY_DISTRICT = {
+      "中西區": ["香港大學"],
+      "灣仔區": ["香港演藝學院"],
+      "東區": ["香港樹仁大學"],
+      "油尖旺區": ["香港理工大學", "東華學院"],
+      "九龍城區": ["香港城市大學", "香港浸會大學", "香港都會大學"],
+      "觀塘區": ["明愛專上學院"],
+      "葵青區": ["香港高等教育科技學院（THEi）"],
+      "荃灣區": ["香港能仁專上學院"],
+      "屯門區": ["嶺南大學", "珠海學院"],
+      "大埔區": ["香港教育大學"],
+      "沙田區": ["香港中文大學", "香港恒生大學"],
+      "西貢區": ["香港科技大學"],
+    };
+
+    // 揀「大專/大學」嗰陣未必記得自己間院校主校區喺邊區，所以呢份
+    // 「常見院校」清單唔分地區，喺 updateRegSchoolOptions() 入面，無論
+    // 揀咗邊個地區，都會加喺該地區專屬清單之後，等搵漏咗都容易搵到。
+    window.HK_TERTIARY_INSTITUTIONS_COMMON = [
+      "香港大學", "香港中文大學", "香港科技大學", "香港城市大學", "香港理工大學",
+      "香港浸會大學", "嶺南大學", "香港教育大學", "香港都會大學", "香港樹仁大學",
+      "香港恒生大學", "東華學院", "明愛專上學院", "珠海學院", "香港能仁專上學院",
+      "香港高等教育科技學院（THEi）", "香港專業教育學院（IVE）", "香港演藝學院",
+    ];
+
     // 根據學校名稱（精確比對）反查返佢屬於邊一區，畀「我的帳戶」改學校
     // 名稱嗰陣自動補返個 district 欄位用（「分區溫習排行榜」要靠呢個
     // 欄位分組）。註冊表格本身已經係「先揀地區、再揀學校」，唔使呢個
@@ -1268,29 +1408,113 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       districtSelect.dataset.populated = '1';
     };
 
-    // 揀完地區之後，根據所揀嘅地區填第二級（學校）嘅選單。如果學校
-    // 唔喺清單入面（例如新開嘅學校，或者清單有錯漏），揀「其他（自行
-    // 輸入學校名稱）」會彈出一個文字輸入格畀自己打，唔會因為資料庫
-    // 未夠齊全而卡住學生註冊唔到。
+    // 「學校所在地區」／「學校名稱」呢兩個欄位，顯唔顯示、使唔使填、
+    // 用邊份資料，全部跟返「現時年級」揀咗乜嘢嚟決定：
+    //   - 中一至中六：兩個都顯示、都必填，「先揀地區、再揀學校」兩級
+    //     選單（同以前一樣）。
+    //   - 大專/大學：唔使揀地區（好多院校都唔止一個校園，分區意義唔
+    //     大），淨係顯示一個「院校名稱」，內容係全港主要大專院校合埋
+    //     一份清單（去重）畀你直接揀。
+    //   - 其他/自修生：兩個都唔顯示、都唔使填——冇對應學校可揀。
+    // 揀唔到嘅（清單唔齊全、自行輸入學校）可以揀「其他」跳出文字
+    // 輸入格，唔會因為清單未夠齊全而卡住註冊唔到。
     window.updateRegSchoolOptions = function() {
+      const gradeSelect = document.getElementById('reg-grade');
+      const districtWrap = document.getElementById('reg-school-district-wrap');
+      const schoolWrap = document.getElementById('reg-school-wrap');
       const districtSelect = document.getElementById('reg-school-district');
       const schoolSelect = document.getElementById('reg-school');
       const customWrap = document.getElementById('reg-school-custom-wrap');
       const customInput = document.getElementById('reg-school-custom');
+      const schoolLabel = document.getElementById('reg-school-label');
       if (!districtSelect || !schoolSelect) return;
-      const district = districtSelect.value;
-      const schools = (window.HK_SECONDARY_SCHOOLS_BY_DISTRICT && window.HK_SECONDARY_SCHOOLS_BY_DISTRICT[district]) || [];
+
+      const grade = gradeSelect ? gradeSelect.value : '';
+      const gradeChosen = !!grade;
+      const isTertiary = grade === '大專/大學';
+      const isOtherSelfStudy = grade === '其他自修生';
+      // 未揀「現時年級」之前，都未知係中學、大專定自修生，「學校所在
+      // 地區」／「學校名稱」兩個欄位一律先 disable，等揀咗年級先至可
+      // 以填，避免有人喺未揀年級嗰陣就亂咁揀個地區。
+      const showDistrict = gradeChosen && !isTertiary && !isOtherSelfStudy; // 淨係中學先要揀地區
+      const showSchool = gradeChosen && !isOtherSelfStudy; // 自修生完全冇對應學校要揀
+
+      if (districtWrap) districtWrap.style.display = showDistrict ? 'block' : 'none';
+      districtSelect.required = showDistrict;
+      districtSelect.disabled = !showDistrict;
+      if (!showDistrict) districtSelect.value = '';
+
+      if (schoolWrap) schoolWrap.style.display = showSchool ? 'block' : 'none';
+      schoolSelect.required = showSchool;
+      if (schoolLabel) schoolLabel.innerText = isTertiary ? '院校名稱 *' : '學校名稱 *';
+
+      // 「喜愛學科」／「討厭學科」跟中學課程科目設計，淨係揀咗中一至
+      // 中六（showDistrict 已經等於「揀咗嘅係中學年級」）先會顯示；
+      // 大專/大學／其他自修生／未揀年級就隱藏埋，並且清空之前揀低嘅
+      // 選擇（連埋 chip picker 嘅內部揀選狀態一齊重畫過，避免個 picker
+      // 記住咗舊選擇，之後暗中將佢寫返落 hidden input）。
+      const favWrap = document.getElementById('reg-fav-wrap');
+      const dislikeWrap = document.getElementById('reg-dislike-wrap');
+      const favInput = document.getElementById('reg-fav');
+      const dislikeInput = document.getElementById('reg-dislike');
+      const isSecondaryGrade = showDistrict;
+      if (favWrap) favWrap.style.display = isSecondaryGrade ? 'block' : 'none';
+      if (dislikeWrap) dislikeWrap.style.display = isSecondaryGrade ? 'block' : 'none';
+      if (!isSecondaryGrade) {
+        if (favInput) favInput.value = '';
+        if (dislikeInput) dislikeInput.value = '';
+        if (typeof window.renderStudentFavSubjectChipPicker === 'function') {
+          window.renderStudentFavSubjectChipPicker('reg-fav-picker', 'reg-fav', 4);
+          window.renderStudentFavSubjectChipPicker('reg-dislike-picker', 'reg-dislike', 4);
+        }
+      }
+
       const escAttr = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-      if (!district) {
-        schoolSelect.innerHTML = `<option value="">請先選擇地區</option>`;
+
+      if (!showSchool) {
+        // 其他/自修生：學校選單清空兼 disable，唔會殘留返之前選咗嘅值。
+        schoolSelect.innerHTML = `<option value="">-</option>`;
         schoolSelect.disabled = true;
-      } else {
-        const optionsHtml = schools.map((s) => `<option value="${escAttr(s)}">${s}</option>`).join('');
-        schoolSelect.innerHTML = `<option value="">請選擇學校</option>${optionsHtml}<option value="__other__">其他（自行輸入學校名稱）</option>`;
+        if (customWrap) customWrap.style.display = 'none';
+        if (customInput) customInput.value = '';
+        return;
+      }
+
+      if (isTertiary) {
+        // 大專/大學：唔跟地區，將全部地區嘅院校加埋「常見院校」清單
+        // 合埋一份（去重），畀你直接揀，唔使先揀地區。
+        const seen = new Set();
+        const combined = [];
+        const byDistrict = window.HK_TERTIARY_INSTITUTIONS_BY_DISTRICT || {};
+        Object.keys(byDistrict).forEach((d) => {
+          (byDistrict[d] || []).forEach((name) => {
+            if (!seen.has(name)) { seen.add(name); combined.push(name); }
+          });
+        });
+        (window.HK_TERTIARY_INSTITUTIONS_COMMON || []).forEach((name) => {
+          if (!seen.has(name)) { seen.add(name); combined.push(name); }
+        });
+        const optionsHtml = combined.map((s) => `<option value="${escAttr(s)}">${s}</option>`).join('');
+        schoolSelect.innerHTML = `<option value="">請選擇院校</option>${optionsHtml}<option value="__other__">其他（自行輸入院校名稱）</option>`;
         schoolSelect.disabled = false;
+      } else {
+        // 中學：維持「先揀地區、再揀學校」。
+        const district = districtSelect.value;
+        if (!district) {
+          schoolSelect.innerHTML = `<option value="">請先選擇地區</option>`;
+          schoolSelect.disabled = true;
+        } else {
+          const schools = (window.HK_SECONDARY_SCHOOLS_BY_DISTRICT && window.HK_SECONDARY_SCHOOLS_BY_DISTRICT[district]) || [];
+          const optionsHtml = schools.map((s) => `<option value="${escAttr(s)}">${s}</option>`).join('');
+          schoolSelect.innerHTML = `<option value="">請選擇學校</option>${optionsHtml}<option value="__other__">其他（自行輸入學校名稱）</option>`;
+          schoolSelect.disabled = false;
+        }
       }
       if (customWrap) customWrap.style.display = 'none';
-      if (customInput) customInput.value = '';
+      if (customInput) {
+        customInput.value = '';
+        customInput.placeholder = isTertiary ? '請輸入院校名稱' : '請輸入學校名稱';
+      }
     };
 
     // 揀咗「其他（自行輸入學校名稱）」先顯示文字輸入格；一旦打字，
@@ -1302,6 +1526,121 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       const customWrap = document.getElementById('reg-school-custom-wrap');
       if (!schoolSelect || !customWrap) return;
       customWrap.style.display = (schoolSelect.value === '__other__') ? 'block' : 'none';
+    };
+
+    // 填註冊表格嘅「出生年月」兩級選單（年／月，冇「日」）。淨係填一次
+    // 就夠，喺 app-features.js 嘅 openModal() 一打開「註冊」視窗就會叫。
+    // 年份範圍由（今年 - 8）到（今年 - 90），即係大約涵蓋 8 歲到 90 歲，
+    // 已經足夠寬鬆畀絕大部分會用呢個平台嘅人選擇（中學生、大專生、
+    // 成年人），亦唔使因為範圍太窄而逼住有人揀唔到自己出生年份。
+    window.populateRegBirthDateOptions = function() {
+      const yearSelect = document.getElementById('reg-birth-year');
+      const monthSelect = document.getElementById('reg-birth-month');
+      if (!yearSelect || !monthSelect) return;
+      if (yearSelect.dataset.populated === '1') return;
+      const currentYear = new Date().getFullYear();
+      let yearOptions = '<option value="">年</option>';
+      for (let y = currentYear - 8; y >= currentYear - 90; y--) {
+        yearOptions += `<option value="${y}">${y}</option>`;
+      }
+      yearSelect.innerHTML = yearOptions;
+      let monthOptions = '<option value="">月</option>';
+      for (let m = 1; m <= 12; m++) {
+        monthOptions += `<option value="${m}">${m} 月</option>`;
+      }
+      monthSelect.innerHTML = monthOptions;
+      yearSelect.dataset.populated = '1';
+    };
+
+    // 揀完出生年／月之後，喺隔籬即時顯示返約數年齡（純粹畀學生自己
+    // 核對填啱冇，呢個唔記錄「日」，所以年齡係約數），同埋順便根據呢個
+    // 約數年齡，決定「本人確認現時為中學生」呢個剔選格可唔可以剔——
+    // 約數年齡去到 20 歲或以上就自動 disable 並取消剔選（20 歲已經
+    // 遠超中六 DSE 學生嘅一般年齡範圍，就算計埋留班／遲入學嘅情況都
+    // 好少見），減少擺明係成年人嘅帳戶都剔到呢個選項嘅情況；用返「約
+    // 數年齡」判斷已經足夠，唔使因為冇記錄「日」而糾結精確到日嘅年齡。
+    const REG_SECONDARY_STUDENT_MAX_AGE = 19; // 約數年齡 19 或以下先可以剔選／揀中一至中六，20 歲或以上一律唔畀
+    // 「現時年級」入面邊幾個 value 屬於中學年級，年齡去到 20 歲或以上
+    // 就會將呢幾個 disable 埋（連埋上面「本人確認現時為中學生」嗰個
+    // 剔選格），道理一樣：20 歲已經遠超中六 DSE 學生嘅一般年齡範圍。
+    const REG_SECONDARY_GRADE_VALUES = ['中一 (S1)', '中二 (S2)', '中三 (S3)', '中四 (S4)', '中五 (S5)', '中六 (S6 DSE)'];
+    window.updateRegBirthAgeDisplay = function() {
+      const yearEl = document.getElementById('reg-birth-year');
+      const monthEl = document.getElementById('reg-birth-month');
+      const displayEl = document.getElementById('reg-birth-age-display');
+      const secondaryCheckbox = document.getElementById('reg-is-secondary-student');
+      const ageHint = document.getElementById('reg-is-secondary-student-age-hint');
+      const gradeSelect = document.getElementById('reg-grade');
+      const gradeAgeHint = document.getElementById('reg-grade-age-hint');
+      if (!yearEl || !monthEl || !displayEl) return;
+      const year = parseInt(yearEl.value, 10);
+      const month = parseInt(monthEl.value, 10);
+      if (!year || !month) {
+        displayEl.innerText = '';
+        if (secondaryCheckbox) secondaryCheckbox.disabled = false;
+        if (ageHint) ageHint.style.display = 'none';
+        if (gradeSelect) {
+          Array.from(gradeSelect.options).forEach((opt) => {
+            if (REG_SECONDARY_GRADE_VALUES.includes(opt.value)) opt.disabled = false;
+          });
+        }
+        if (gradeAgeHint) gradeAgeHint.style.display = 'none';
+        return;
+      }
+      const now = new Date();
+      let age = now.getFullYear() - year;
+      if ((now.getMonth() + 1) < month) age -= 1;
+      displayEl.innerText = (age >= 0 && age <= 120) ? `（現年約 ${age} 歲）` : '';
+
+      const tooOld = age > REG_SECONDARY_STUDENT_MAX_AGE;
+
+      if (secondaryCheckbox) {
+        secondaryCheckbox.disabled = tooOld;
+        if (tooOld) secondaryCheckbox.checked = false;
+        if (ageHint) ageHint.style.display = tooOld ? 'block' : 'none';
+      }
+
+      if (gradeSelect) {
+        Array.from(gradeSelect.options).forEach((opt) => {
+          if (REG_SECONDARY_GRADE_VALUES.includes(opt.value)) opt.disabled = tooOld;
+        });
+        // 如果之前已經揀咗中一至中六，而家先變成 20 歲或以上：清走返
+        // 個已揀嘅中學年級，並且叫一次 updateRegSchoolOptions() 令下面
+        // 「學校所在地區／學校名稱」跟住收返（未揀年級就唔會顯示）。
+        if (tooOld && REG_SECONDARY_GRADE_VALUES.includes(gradeSelect.value)) {
+          gradeSelect.value = '';
+          if (typeof window.updateRegSchoolOptions === 'function') window.updateRegSchoolOptions();
+        }
+      }
+      if (gradeAgeHint) gradeAgeHint.style.display = tooOld ? 'block' : 'none';
+    };
+
+    // 「我的帳戶」入面嘅「本人確認現時為中學生」剔選格，都要跟返註冊
+    // 表格同一套「約數年齡 20 歲或以上就唔畀剔」邏輯（見上面
+    // REG_SECONDARY_STUDENT_MAX_AGE）。呢度冇「出生年月」呢兩個選單
+    // 好揀（呢個表格淨係顯示，唔畀改出生年月），直接讀
+    // window.currentUser.birthYear／birthMonth 嚟計算——如果係呢個
+    // 欄位推出之前註冊嘅好舊帳戶，連 birthYear 都冇填過，就冇年齡
+    // 資料可以判斷，呢種情況唔會強行 disable（畀返用戶自己憑良心
+    // 剔選，總好過完全冇辦法補回呢個聲明）。
+    window.updateProfileSecondaryStudentAgeGate = function() {
+      const checkbox = document.getElementById('prof-is-secondary-student');
+      const ageHint = document.getElementById('prof-is-secondary-student-age-hint');
+      if (!checkbox) return;
+      const year = window.currentUser && parseInt(window.currentUser.birthYear, 10);
+      const month = window.currentUser && parseInt(window.currentUser.birthMonth, 10);
+      if (!year || !month) {
+        checkbox.disabled = false;
+        if (ageHint) ageHint.style.display = 'none';
+        return;
+      }
+      const now = new Date();
+      let age = now.getFullYear() - year;
+      if ((now.getMonth() + 1) < month) age -= 1;
+      const tooOld = age > REG_SECONDARY_STUDENT_MAX_AGE;
+      checkbox.disabled = tooOld;
+      if (tooOld) checkbox.checked = false;
+      if (ageHint) ageHint.style.display = tooOld ? 'block' : 'none';
     };
 
     // 註冊表格嘅「🎒 我是學生」／「🎓 我是導師」切換：揀導師嗰邊會顯示
@@ -1350,6 +1689,12 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
         if (typeof window.populateRegSchoolDistrictOptions === 'function') {
           window.populateRegSchoolDistrictOptions();
         }
+        // 重新同步返「學校所在地區／學校名稱」嘅顯示同 disable 狀態，
+        // 跟返現時「現時年級」揀咗乜嘢（例如由導師切返學生嗰陣，年級
+        // 可能之前已經揀咗，唔應該仍然當做未揀年級噉樣 disable 晒）。
+        if (typeof window.updateRegSchoolOptions === 'function') {
+          window.updateRegSchoolOptions();
+        }
         if (typeof window.renderStudentFavSubjectChipPicker === 'function') {
           window.renderStudentFavSubjectChipPicker('reg-fav-picker', 'reg-fav', 4);
           window.renderStudentFavSubjectChipPicker('reg-dislike-picker', 'reg-dislike', 4);
@@ -1396,34 +1741,63 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
         return;
       }
 
+      // 出生年月：學生／導師帳號都要填（唔跟住下面嗰兩組會顯隱切換
+      // 嘅欄位），純粹用嚟顯示約數年齡同留為日後身份驗證用途，唔即時
+      // 影響任何功能。
+      const birthYearRaw = document.getElementById('reg-birth-year').value;
+      const birthMonthRaw = document.getElementById('reg-birth-month').value;
+      if (!birthYearRaw || !birthMonthRaw) {
+        window.showToast('請選擇出生年份及月份', '⚠️');
+        return;
+      }
+      const birthYear = parseInt(birthYearRaw, 10);
+      const birthMonth = parseInt(birthMonthRaw, 10);
+      const isSecondaryStudent = !!document.getElementById('reg-is-secondary-student').checked;
+
       if (accountType === 'student') {
-        // 「學校名稱」而家係「先揀地區、再揀學校」嘅兩級選單：一般
-        // 情況下 #reg-school 個 select 嘅 value 就係學校名（同以前純
-        // 文字輸入格一樣，直接讀 .value 就得）；但揀咗「其他（自行
-        // 輸入學校名稱）」（value 係特殊值 __other__）就要改讀隔籬嗰個
-        // 自訂文字輸入格。
-        const schoolSelectValue = document.getElementById('reg-school').value.trim();
-        let school = schoolSelectValue;
-        if (schoolSelectValue === '__other__') {
-          const customSchoolInput = document.getElementById('reg-school-custom');
-          school = customSchoolInput ? customSchoolInput.value.trim() : '';
-          if (!school) {
-            window.showToast('請輸入學校名稱', '⚠️');
-            return;
-          }
-        } else if (!schoolSelectValue) {
-          window.showToast('請選擇學校所在地區同學校名稱', '⚠️');
+        const grade = document.getElementById('reg-grade').value;
+        if (!grade) {
+          window.showToast('請選擇現時年級', '⚠️');
           return;
         }
-        // 「地區」揀第一級嗰陣已經填低，唔理第二級最終揀咗清單入面邊間
-        // 學校定係「其他」自行輸入，呢個地區值都一定會有——「分區溫習
-        // 排行榜」就係靠呢個欄位嚟分組。
-        const district = document.getElementById('reg-school-district').value.trim();
-        const grade = document.getElementById('reg-grade').value;
+        const isTertiary = grade === '大專/大學';
+        const isOtherSelfStudy = grade === '其他自修生';
+
+        // 「學校名稱」／「院校名稱」係咪要填、用邊個選單，跟返
+        // updateRegSchoolOptions() 嗰套邏輯：中學（先揀地區、再揀學
+        // 校）要兩個都填；大專/大學淨係要揀院校，唔使揀地區；其他/
+        // 自修生兩個都唔使填，直接留空。
+        let school = '';
+        let district = '';
+        if (!isOtherSelfStudy) {
+          const schoolSelectValue = document.getElementById('reg-school').value.trim();
+          school = schoolSelectValue;
+          if (schoolSelectValue === '__other__') {
+            const customSchoolInput = document.getElementById('reg-school-custom');
+            school = customSchoolInput ? customSchoolInput.value.trim() : '';
+            if (!school) {
+              window.showToast(isTertiary ? '請輸入院校名稱' : '請輸入學校名稱', '⚠️');
+              return;
+            }
+          } else if (!schoolSelectValue) {
+            window.showToast(isTertiary ? '請選擇院校名稱' : '請選擇學校所在地區同學校名稱', '⚠️');
+            return;
+          }
+          if (!isTertiary) {
+            // 「地區」淨係中學先要揀——「分區溫習排行榜」就係靠呢個
+            // 欄位嚟分組；大專/大學／其他自修生冇對應地區，留空。
+            district = document.getElementById('reg-school-district').value.trim();
+            if (!district) {
+              window.showToast('請選擇學校所在地區', '⚠️');
+              return;
+            }
+          }
+        }
         const favSubjects = document.getElementById('reg-fav').value.trim();
         const dislikeSubjects = document.getElementById('reg-dislike').value.trim();
         window.registerWithFirebase(loginId, password, {
-          accountType, username, school, district, grade, favSubjects, dislikeSubjects, contactEmail
+          accountType, username, school, district, grade, favSubjects, dislikeSubjects, contactEmail,
+          birthYear, birthMonth, isSecondaryStudent
         });
       } else {
         const tutorBio = document.getElementById('reg-tutor-bio').value.trim();
@@ -1434,7 +1808,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
           return;
         }
         window.registerWithFirebase(loginId, password, {
-          accountType, username, contactEmail, tutorBio, tutorSubjects
+          accountType, username, contactEmail, tutorBio, tutorSubjects,
+          birthYear, birthMonth, isSecondaryStudent
         });
       }
     };
@@ -1473,6 +1848,11 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       const favSubjects = document.getElementById('prof-fav').value.trim();
       const dislikeSubjects = document.getElementById('prof-dislike').value.trim();
       const username = document.getElementById('prof-username').value.trim();
+      const secondaryCheckboxEl = document.getElementById('prof-is-secondary-student');
+      // disabled（年齡已達 20 歲或以上）嗰陣一律當 false，防止有人用
+      // devtools 手動撳走 disabled 屬性再剔選嚟繞過呢重年齡限制——就算
+      // 真係咁做，呢度都會強制覆蓋返做 false，唔會寫得入去。
+      const isSecondaryStudent = !!(secondaryCheckboxEl && !secondaryCheckboxEl.disabled && secondaryCheckboxEl.checked);
       const contactEmailInput = document.getElementById('prof-contact-email');
       const contactEmail = contactEmailInput ? contactEmailInput.value.trim() : (window.currentUser.contactEmail || '');
 
@@ -1495,9 +1875,14 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
         if (matched) district = matched;
       }
 
+      // 「是否中學生」呢個聲明改咗（例如舊帳戶而家先補剔），會直接影響
+      // 「公開溫習大廳」睇到邊一個池嘅房（見 window.getViewerRoomPool()），
+      // 所以要記低改咗未，等下面儲存成功之後可以即時重新訂閱返啱嘅池。
+      const secondaryStudentChanged = isSecondaryStudent !== !!window.currentUser.isSecondaryStudent;
+
       try {
         const userDocRef = doc(db, "users", auth.currentUser.uid);
-        const updates = { username, school, district, grade, favSubjects, dislikeSubjects, contactEmail };
+        const updates = { username, school, district, grade, favSubjects, dislikeSubjects, contactEmail, isSecondaryStudent };
         let newToken = null;
         if (emailChanged) {
           newToken = contactEmail ? generateVerifyToken() : null;
@@ -1512,6 +1897,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
         window.currentUser.favSubjects = favSubjects;
         window.currentUser.dislikeSubjects = dislikeSubjects;
         window.currentUser.contactEmail = contactEmail;
+        window.currentUser.isSecondaryStudent = isSecondaryStudent;
         if (emailChanged) {
           window.currentUser.emailVerified = false;
           window.currentUser.emailVerifyToken = newToken;
@@ -1521,6 +1907,12 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
         }
 
         window.updateUserAuthUI();
+        // 「是否中學生」有改過，即刻重新訂閱一次「公開溫習大廳」（見
+        // listenToPublicRooms()），等大廳畫面即時轉去啱嘅池，唔使用戶
+        // 自己手動重新整頁先見到效果。
+        if (secondaryStudentChanged && typeof listenToPublicRooms === 'function') {
+          listenToPublicRooms();
+        }
         window.showToast(emailChanged && contactEmail ? "💾 已更新資料，並寄出新的驗證電郵" : "💾 個人檔案已同步更新至 Firebase！", "✅");
       } catch (err) {
         window.showToast("更新失敗: " + err.message, "❌");

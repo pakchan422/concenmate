@@ -6,7 +6,7 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.152.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.161.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <meta charset="UTF-8">
@@ -1939,8 +1939,19 @@
 
           <div id="room-lobby">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
-              <div>
-                <h2 style="font-size:18px; font-weight:bold; color:var(--brand-800);">🌐 公開溫習大廳</h2>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <h2 style="font-size:18px; font-weight:bold; color:var(--brand-800);" id="room-lobby-title">🌐 公開溫習大廳</h2>
+                <!-- 撳呢粒「！」會彈出解釋大廳分咗「中學溫習室」／「公開溫習室」
+                     兩池嘅彈窗（見 window.openRoomPoolInfoModal，同下面
+                     #modal-room-pool-info）。 -->
+                <button type="button" onclick="window.openRoomPoolInfoModal && window.openRoomPoolInfoModal()" title="了解公開溫習大廳的分類方式" style="display:flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:50%; border:none; background:var(--brand-200); color:var(--brand-800); font-size:13px; font-weight:bold; cursor:pointer; padding:0;">!</button>
+                <!-- 淨係管理員先見到：管理員本身唔受兩池隔離（見
+                     firestore.rules 嘅 isAdmin(database) 豁免），撳呢粒掣
+                     可以喺兩個池之間切換緊睇邊一個池嘅大廳，方便巡查／
+                     測試兩邊嘅房間，唔使開多個帳戶。呢個切換淨係影響
+                     「而家睇緊邊個池」，唔會影響管理員自己建房嗰陣所屬
+                     嘅池（見 window.toggleAdminRoomPool）。 -->
+                <button type="button" id="admin-room-pool-toggle-btn" style="display:none; font-size:12px; padding:4px 10px; border-radius:8px; border:1px solid var(--brand-200); background:#fff; color:var(--brand-800); cursor:pointer; white-space:nowrap;" onclick="window.toggleAdminRoomPool && window.toggleAdminRoomPool()">🛠️ 轉換溫習室</button>
               </div>
               <button class="btn btn-primary" type="button" onclick="openModal('modal-create-room')">
                 🚀 + 建立新溫習房
@@ -2288,6 +2299,23 @@
                     <option value="大專/大學">大專 / 大學</option>
                     <option value="其他自修生">其他 / 自修生</option>
                   </select>
+                </div>
+
+                <!-- 「本人確認現時為中學生」：主要畀註冊呢個功能推出之前已經
+                     註冊咗嘅舊帳戶（呢個欄位當時仲未存在，一律預設當佢哋
+                     未表明），可以喺呢度補回呢個聲明。純粹自我申報，唔係
+                     身份驗證；除咗排行榜資格之外，而家亦都會影響「公開
+                     溫習大廳」入面睇到邊一邊嘅公開房（中學溫習室／公開
+                     溫習室，見 window.getViewerRoomPool()）。 -->
+                <div style="display:flex; align-items:flex-start; gap:8px; background:#F5F7F8; border-radius:10px; padding:10px 12px;">
+                  <input type="checkbox" id="prof-is-secondary-student" style="margin-top:3px; flex-shrink:0; width:16px; height:16px;">
+                  <label for="prof-is-secondary-student" style="font-size:13px; color:#555; line-height:1.6;">
+                    本人確認現時為中學生
+                    <br>
+                    <span style="font-size:12px; color:#888;">請如實填寫。本平台部分功能及資源日後可能僅開放予中學生使用，並可能要求核實學生身份；如發現虛報，帳戶可能會被暫停或終止使用資格。</span>
+                    <br>
+                    <span id="prof-is-secondary-student-age-hint" style="display:none; font-size:12px; color:#c0392b; margin-top:4px;">⚠️ 根據帳戶已登記的出生年月，此項現時不能剔選。</span>
+                  </label>
                 </div>
 
                 <div>
@@ -2804,28 +2832,33 @@
           <p id="reg-password-mismatch-hint" style="display:none; font-size:13px; color:#c0392b; margin-top:4px;">⚠️ 兩次輸入的密碼不一致，請重新確認</p>
         </div>
 
+        <!-- 出生年月：唔記錄「日」，純粹用嚟計返約數年齡顯示，畀學生
+             參考。呢個欄位唔會即時用嚟限制邊個可以用邊種溫習室（因為
+             有學生可能留班／遲入學，中五、中六都可能已經 18 歲），純粹
+             留為日後身份驗證用途。學生／導師帳號都要填，唔跟住
+             #register-student-fields／#register-tutor-fields 嗰兩組
+             顯隱切換。 -->
+        <div>
+          <label style="font-size:13px; font-weight:bold; color:#555;">出生年月 *</label>
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <select id="reg-birth-year" class="input-field" required style="flex:1; min-width:90px;" onchange="window.updateRegBirthAgeDisplay && window.updateRegBirthAgeDisplay()">
+              <option value="">年</option>
+            </select>
+            <select id="reg-birth-month" class="input-field" required style="flex:1; min-width:80px;" onchange="window.updateRegBirthAgeDisplay && window.updateRegBirthAgeDisplay()">
+              <option value="">月</option>
+            </select>
+            <span id="reg-birth-age-display" style="font-size:13px; color:#999; white-space:nowrap;"></span>
+          </div>
+        </div>
+
         <!-- 學生專用欄位：揀「導師」嗰陣會隱藏並取消 required -->
         <div id="register-student-fields">
+          <!-- 「現時年級」擺喺最先，因為下面「學校所在地區／學校名稱」
+               會根據呢度揀嘅係中學定係大專／大學，去決定用邊一份院校
+               清單（見 window.updateRegSchoolOptions()）。 -->
           <div>
-            <label style="font-size:13px; font-weight:bold; color:#555;">學校所在地區 *</label>
-            <select id="reg-school-district" class="input-field" required onchange="window.updateRegSchoolOptions && window.updateRegSchoolOptions()">
-              <option value="">請先選擇地區</option>
-            </select>
-          </div>
-
-          <div style="margin-top:10px;">
-            <label style="font-size:13px; font-weight:bold; color:#555;">學校名稱 *</label>
-            <select id="reg-school" class="input-field" required disabled onchange="window.handleRegSchoolSelectChange && window.handleRegSchoolSelectChange()">
-              <option value="">請先選擇地區</option>
-            </select>
-            <div id="reg-school-custom-wrap" style="display:none; margin-top:6px;">
-              <input type="text" id="reg-school-custom" class="input-field" placeholder="請輸入學校名稱">
-            </div>
-          </div>
-
-          <div style="margin-top:10px;">
             <label style="font-size:13px; font-weight:bold; color:#555;">現時年級 *</label>
-            <select id="reg-grade" class="input-field" required>
+            <select id="reg-grade" class="input-field" required onchange="window.updateRegSchoolOptions && window.updateRegSchoolOptions()">
               <option value="" selected disabled>請選擇年級</option>
               <option value="中一 (S1)">中一 (S1)</option>
               <option value="中二 (S2)">中二 (S2)</option>
@@ -2836,15 +2869,62 @@
               <option value="大專/大學">大專 / 大學</option>
               <option value="其他自修生">其他 / 自修生</option>
             </select>
+            <span id="reg-grade-age-hint" style="display:none; font-size:12px; color:#c0392b; margin-top:4px;">⚠️ 根據所填出生年月，中一至中六已不可選擇。</span>
           </div>
 
-          <div style="margin-top:10px;">
+          <!-- 「本人確認現時為中學生」剔選格：純粹自我申報，唔係身份
+               驗證，亦都唔會擋住任何功能（唔剔一樣可以正常使用溫習室
+               等所有功能）。備注文字刻意冇講明將來嘅驗證同咩具體用途
+               掛鈎（例如扭蛋機優惠券），淨係含糊咁提到「日後可能要求
+               核實」，一嚟避免透露太多實作細節，二嚟令有心人唔知道講
+               大話嘅實際代價係咩，減低講大話嘅誘因。出生年月計出嚟
+               嘅約數年齡如果去到 20 歲或以上，呢個剔選格會自動變成
+               不能剔選（見 window.updateRegBirthAgeDisplay()），減少
+               擺明係成年人嘅帳戶都剔到呢個選項嘅情況。 -->
+          <div style="margin-top:10px; display:flex; align-items:flex-start; gap:8px; background:#F5F7F8; border-radius:10px; padding:10px 12px;">
+            <input type="checkbox" id="reg-is-secondary-student" style="margin-top:3px; flex-shrink:0; width:16px; height:16px;">
+            <label for="reg-is-secondary-student" style="font-size:13px; color:#555; line-height:1.6;">
+              本人確認現時為中學生
+              <br>
+              <span style="font-size:12px; color:#888;">請如實填寫。本平台部分功能及資源日後可能僅開放予中學生使用，並可能要求核實學生身份；如發現虛報，帳戶可能會被暫停或終止使用資格。</span>
+              <br>
+              <span id="reg-is-secondary-student-age-hint" style="display:none; font-size:12px; color:#c0392b; margin-top:4px;">⚠️ 根據所填出生年月，此項現時不能剔選。</span>
+            </label>
+          </div>
+
+          <!-- 「學校所在地區」／「學校名稱」係咪顯示、係咪必填，都要跟
+               返「現時年級」嚟決定（見 window.updateRegSchoolOptions()）：
+               中學年級——兩個都顯示、兩個都必填；大專/大學——淨係顯示
+               「院校名稱」（唔使先揀地區，直接揀院校），地區欄隱藏埋唔
+               使填；其他/自修生——兩個都隱藏埋唔使填。 -->
+          <div id="reg-school-district-wrap" style="margin-top:10px;">
+            <label id="reg-school-district-label" style="font-size:13px; font-weight:bold; color:#555;">學校所在地區 *</label>
+            <select id="reg-school-district" class="input-field" required disabled onchange="window.updateRegSchoolOptions && window.updateRegSchoolOptions()">
+              <option value="">請先選擇現時年級</option>
+            </select>
+          </div>
+
+          <div id="reg-school-wrap" style="margin-top:10px;">
+            <label id="reg-school-label" style="font-size:13px; font-weight:bold; color:#555;">學校名稱 *</label>
+            <select id="reg-school" class="input-field" required disabled onchange="window.handleRegSchoolSelectChange && window.handleRegSchoolSelectChange()">
+              <option value="">請先選擇地區</option>
+            </select>
+            <div id="reg-school-custom-wrap" style="display:none; margin-top:6px;">
+              <input type="text" id="reg-school-custom" class="input-field" placeholder="請輸入學校名稱">
+            </div>
+          </div>
+
+          <!-- 「喜愛學科」／「討厭學科」都係跟中學課程（中一至中六）
+               嘅科目嚟設計，大專/大學／其他自修生冇固定嘅中學科目可
+               揀，所以呢兩組淨係揀咗中一至中六先會顯示（見
+               window.updateRegSchoolOptions()）。 -->
+          <div id="reg-fav-wrap" style="margin-top:10px; display:none;">
             <label style="font-size:13px; font-weight:bold; color:#555;">喜愛學科（可留白，最多揀 4 科）</label>
             <div id="reg-fav-picker"></div>
             <input type="hidden" id="reg-fav">
           </div>
 
-          <div style="margin-top:10px;">
+          <div id="reg-dislike-wrap" style="margin-top:10px; display:none;">
             <label style="font-size:13px; font-weight:bold; color:#555;">討厭學科（可留白，最多揀 4 科）</label>
             <div id="reg-dislike-picker"></div>
             <input type="hidden" id="reg-dislike">
@@ -3004,6 +3084,33 @@
     </div>
   </div>
 
+
+  <!-- 「公開溫習大廳」分類說明彈窗：解釋大廳按用戶帳戶類型分成「中學
+       溫習室」與「公開溫習室」兩個部分，各自獨立顯示。由
+       window.openRoomPoolInfoModal() 開啟（見上面大廳標題旁邊嗰粒
+       「！」掣）。 -->
+  <div class="modal-backdrop" id="modal-room-pool-info" style="display:none;">
+    <div class="modal-box">
+      <div style="text-align:center; margin-bottom:12px;">
+        <div style="font-size:32px;">🦦🔖</div>
+        <h3 style="font-size:18px; font-weight:bold; color:var(--brand-800);">公開溫習大廳的分類方式</h3>
+      </div>
+      <div style="font-size:13px; color:#444; line-height:1.7;">
+        <p>為保障未成年使用者的安全，「公開溫習大廳」會根據帳戶類型，分成以下兩個獨立顯示的部分：</p>
+        <ul style="margin:10px 0 10px 20px; padding:0;">
+          <li><strong>中學溫習室：</strong>供已於帳戶內確認「本人現時為中學生」的使用者瀏覽及建立房間。</li>
+          <li><strong>公開溫習室：</strong>供其他使用者（包括大專生、自修生、成年人等）瀏覽及建立房間。</li>
+        </ul>
+        <p id="room-lobby-you-are-in-hint" style="font-weight:bold; color:var(--brand-800);"></p>
+        <ul style="margin:10px 0 10px 20px; padding:0;">
+          <li>兩個部分互相獨立，使用者只能在大廳中瀏覽及加入與自己同一分類的公開房間。</li>
+          <li>設有密碼鎖的房間，或透過好友邀請加入的房間，均不受此分類限制。</li>
+          <li>此分類以帳戶註冊時（或於「我的帳戶」補充）填寫的「本人現時為中學生」聲明為依據，屬使用者自行申報，如發現虛報，帳戶可能會被暫停或終止使用資格。</li>
+        </ul>
+      </div>
+      <button class="btn btn-primary" type="button" onclick="closeModal('modal-room-pool-info')" style="width:100%; margin-top:8px;">知道了</button>
+    </div>
+  </div>
 
   <div class="modal-backdrop" id="modal-create-room" style="display:none;">
     <div class="modal-box">

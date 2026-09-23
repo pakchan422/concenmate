@@ -1081,7 +1081,13 @@
           hostName: window.currentUser.username || '匿名同學',
           participantCount: 0,
           createdAt: createdAt,
-          lastActiveAt: createdAt // 心跳時間戳，畀幽靈房自動清理機制用（見 gcStaleRooms）
+          lastActiveAt: createdAt, // 心跳時間戳，畀幽靈房自動清理機制用（見 gcStaleRooms）
+          // 兩池公開溫習室：房間一開始建立就跟房主自己所屬嗰池（「中學
+          // 溫習室」／「公開溫習室」）標記死，之後唔會再改（見
+          // firestore.rules 嘅 allow update 規則），令公開大廳嘅瀏覽同
+          // 加入都自動限制喺同一個池入面——見 window.getViewerRoomPool()
+          // 同 firestore.rules 嘅 viewerRoomPool()，兩邊判斷邏輯要一致。
+          roomPool: (typeof window.getViewerRoomPool === 'function') ? window.getViewerRoomPool() : 'public'
         };
         // ⚠️ 真正嘅密碼值而家唔再存落主文件（rooms/{roomId}）度——嗰份
         // 文件人人讀得到，放密碼落去等於冇鎖。主文件淨係記低 hasPassword

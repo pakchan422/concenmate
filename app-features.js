@@ -67,6 +67,12 @@
       if (id === 'modal-register' && typeof window.setRegisterAccountType === 'function') {
         window.setRegisterAccountType('student');
       }
+      // 出生年月選單同「本人現為中學生」剔選格唔跟住學生／導師嗰兩組
+      // 欄位嘅顯隱切換（見 index.html 註解），所以要喺呢度獨立填一次，
+      // 唔可以淨係靠 setRegisterAccountType() 入面嗰段。
+      if (id === 'modal-register' && typeof window.populateRegBirthDateOptions === 'function') {
+        window.populateRegBirthDateOptions();
+      }
     }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
@@ -1865,6 +1871,11 @@
         document.getElementById('prof-grade').value = window.currentUser.grade || '中六 (S6 DSE)';
         document.getElementById('prof-fav').value = window.currentUser.favSubjects || '';
         document.getElementById('prof-dislike').value = window.currentUser.dislikeSubjects || '';
+        const profIsSecondaryCheckbox = document.getElementById('prof-is-secondary-student');
+        if (profIsSecondaryCheckbox) profIsSecondaryCheckbox.checked = !!window.currentUser.isSecondaryStudent;
+        if (typeof window.updateProfileSecondaryStudentAgeGate === 'function') {
+          window.updateProfileSecondaryStudentAgeGate();
+        }
         if (typeof window.updateProfileEmailVerifyUI === 'function') window.updateProfileEmailVerifyUI();
         if (typeof window.renderUserAvatar === 'function') window.renderUserAvatar();
 
@@ -4474,6 +4485,16 @@
           status: 'pending',
           createdAt: now,
           expiresAt: now + ROOM_INVITE_VALID_MS
+        });
+        // 兩池溫習室（中學溫習室／公開溫習室）隔離之下，如果受邀請嗰位
+        // 朋友同呢間房唔屬於同一個池，佢會冇辦法讀到 rooms/{roomId} 主
+        // 文件（見 firestore.rules），連埋入房都做唔到——所以呢度額外
+        // 寫多一份「已邀請名單」記錄（rooms/{roomId}/invitedUids/{uid}），
+        // 令 firestore.rules 嘅 allow read 可以憑呢份記錄嘅存在，畀呢位
+        // 受邀請嘅朋友照樣讀到房間資料、順利加入，唔會因為分池而撳唔入。
+        await window.fs.setDoc(window.fs.doc(window.db, 'rooms', state.currentRoomId, 'invitedUids', friendUid), {
+          invitedAt: now,
+          fromUid: window.currentUser.uid
         });
         window.showToast(`✅ 已經邀請 ${friendUsername} 入房，等待他回應`, '📨');
         window.closeModal('modal-invite-friend');

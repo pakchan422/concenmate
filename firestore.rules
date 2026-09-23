@@ -17,10 +17,28 @@ rules_version = '2';
 // 用 get() 讀返請求者自己嘅 users/{uid} 文件嚟攞佢個 loginId、同埋讀返
 // admin_config/adminIds 攞返成份名單：兩個都係 rules 入面內部嘅讀取，
 // 唔使受返各自 collection 嘅 allow read 規則限制。
+// ⚠️ 呢個 function 本身淨係要求「已登入」就試住 get() 用戶自己嗰份
+// users/{uid} 文件、同埋 admin_config/adminIds 嗰份名單文件嚟核對——
+// 但兩個 get() 之前都冇加 exists() 護欄。理論上兩份文件對任何一個
+// 已經完成註冊嘅帳戶嚟講都應該存在，但如果因為任何原因（例如帳戶
+// 資料仲未寫完就斷咗線、又或者第二個裝置/分頁嗰陣個 auth session
+// 狀態同 Firestore 文件唔同步）令其中一份讀唔到，get() 就會拋錯，
+// 令成條用到 isAdmin() 嘅 rule（包括 rooms 嘅 list 查詢）評估失敗，
+// Firestore 會將呢種評估錯誤當做拒絕存取處理——前端見到嘅就係成個
+// 大廳查詢都攞唔到，同 viewerRoomPool() 之前冇 exists() 護欄嗰個
+// bug 一模一樣。而家兩個 get() 之前都加返 exists() 檢查，文件唔
+// 存在就當「唔係管理員」處理（保守、安全嘅預設值），唔會再拖累
+// 成條 query。
 function isAdmin(database) {
+  let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
+  let adminIdsPath = /databases/$(database)/documents/admin_config/adminIds;
+  // ⚠️ 同 viewerRoomPool() 果邊一樣嘅補鑊：淨係 exists() 唔夠，仲要
+  // 確認 loginId／ids 呢兩個具體欄位本身存在先可以讀，唔係遇到舊
+  // 帳戶或者未初始化好嘅 admin_config 文件就會評估拋錯。
   return request.auth != null &&
-    get(/databases/$(database)/documents/users/$(request.auth.uid)).data.loginId
-      in get(/databases/$(database)/documents/admin_config/adminIds).data.ids;
+    exists(userPath) && ('loginId' in get(userPath).data) &&
+    exists(adminIdsPath) && ('ids' in get(adminIdsPath).data) &&
+    get(userPath).data.loginId in get(adminIdsPath).data.ids;
 }
 
 // Phase B（導師後台：科目／課題／教材管理）用嘅輔助 function——判斷
@@ -29,8 +47,40 @@ function isAdmin(database) {
 // 被拒、或者已經停權都唔算），防止已被停權嘅導師繼續用前端直接
 // 新增科目／課題／教材。
 function isActiveTutor(database) {
+  let tutorPath = /databases/$(database)/documents/tutors/$(request.auth.uid);
+  // ⚠️ 同上面兩個 function 一樣嘅補鑊：一定要先確認文件、同埋
+  // status 呢個欄位本身都存在先可以讀，唔係遇到未寫齊嘅 tutors
+  // 文件就會評估拋錯，連累用到呢個 function 嘅 create 規則。
   return request.auth != null &&
-    get(/databases/$(database)/documents/tutors/$(request.auth.uid)).data.status == 'active';
+    exists(tutorPath) && ('status' in get(tutorPath).data) &&
+    get(tutorPath).data.status == 'active';
+}
+
+// ⚠️ 兩池公開溫習室（「中學溫習室」／「公開溫習室」）安全隔離用：
+// 判斷返請求者自己屬於邊一池。淨係註冊嗰陣揀咗「本人確認現時為
+// 中學生」（isSecondaryStudent === true）先算「中學溫習室」池，其他
+// 一律當「公開溫習室」池（包括大專生、自修生、成年人、同埋呢個
+// 欄位推出之前註冊、未填過呢個欄位嘅舊帳戶）——呢度特登揀「未填過
+// 就當公開池」而唔係「當中學池」，因為呢個分池嘅目的係保護未成年
+// 學生唔畀陌生成年人喺大廳度見到／揀中佢哋嘅公開房，「未知」嘅
+// 帳戶如果預設當佢係中學生，就會令任何未填過呢個欄位嘅成年人帳戶
+// 都自動混得入中學池，完全失去保護作用。
+function viewerRoomPool(database) {
+  let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
+  // ⚠️ 真正嘅 bug 出處（Phase 補鑊）：淨係 exists(userPath) 唔夠！
+  // Firestore 規則入面，讀取一份「文件本身存在、但入面冇呢一個
+  // 欄位」嘅欄位（例如呢個功能推出之前註冊嘅舊帳戶，users/{uid}
+  // 文件根本冇寫過 isSecondaryStudent 呢個 key），一樣會令規則評估
+  // 直接拋錯——唔係好似 JS 咁樣安全噉當佢係 undefined。呢個先係
+  // admin_main（同其他舊帳戶）睇「公開溫習大廳」一直「暫時未能
+  // 載入」嘅真正成因：exists() 只係確認咗份文件存在，冇確認到
+  // isSecondaryStudent 呢個 key 存在。而家加多一重 'isSecondaryStudent'
+  // in get(userPath).data 呢個檢查，冇呢個 key 就當「未知」處理，
+  // 同上面已經講嘅道理一樣，預設歸做公開池。
+  return exists(userPath) &&
+    ('isSecondaryStudent' in get(userPath).data) &&
+    get(userPath).data.isSecondaryStudent == true
+    ? 'secondary' : 'public';
 }
 
 // ⚠️ 安全修補（見 docs/PROGRESS.md）：視訊溫習房嘅「入場證」檢查。
@@ -151,10 +201,6 @@ service cloud.firestore {
         (request.auth.uid == uid && selfUserUpdateOk()) || isAdmin(database)
       );
       allow delete: if false;
-      // 抽認卡（學科溫習卡）複習進度：淨係自己睇到/改到自己嘅進度
-      match /flashcardProgress/{cardId} {
-        allow read, write: if request.auth != null && request.auth.uid == uid;
-      }
       // 好友名單：淨係自己睇到自己嘅好友名單；新增嗰陣，一係寫入自己個名單
       // （uid==自己），一係將自己加落第二方個名單（friendUid==自己）——
       // 兩種情況先會喺「互加好友」嗰下同時出現，缺一唔可但又唔可以撞第三方。
@@ -250,10 +296,39 @@ service cloud.firestore {
     // 欄位（踢人、轉移房主、改設定等）——一定要係現任房主（用改動前
     // 嘅 resource.data.hostUid 核實）先得。
     match /rooms/{roomId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null && request.resource.data.hostUid == request.auth.uid;
-      allow update: if request.auth != null && (
+      // ⚠️ 兩池隔離（見上面 viewerRoomPool()）：舊房間（呢個功能推出
+      // 之前建立、文件入面冇 roomPool 呢個欄位）維持舊行為人人讀得
+      // 到；新房間就要 roomPool 同請求者自己個池一致，或者請求者本身
+      // 就係房主先讀得到——單靠前端 UI 嘅 where() 查詢篩選唔夠，識用
+      // Firestore SDK／REST 直接查嘅人可以繞過前端，所以呢一層規則要
+      // 再驗多一次先算數。
+      // 管理員（isAdmin）唔受呢個分池限制——後台「用戶管理／房間管理」
+      // 要睇齊兩個池嘅房先做得到管理／巡查工作。設咗密碼鎖嘅房間
+      // （hasPassword）都豁免呢個限制：呢種房已經要求對方預先知道
+      // 4 位數密碼先入得（真正密碼核對喺 verifyRoomPassword Cloud
+      // Function 做，呢度淨係畀直接分享咗連結／房號嘅人讀到房間名等
+      // 基本資料），密碼本身已經係一重「事先有聯繫」嘅門檻，唔應該
+      // 因為分池而連累到正常嘅（例如）大專生同中學生手足之間互相分享
+      // 密碼房都撳唔入。
+      // 朋友邀請入房（見下面 invitedUids 子集合）都豁免兩池隔離：受邀
+      // 請者本身已經有人（房入面嘅合法參加者）主動搵佢入嚟，屬於「事先
+      // 有聯繫」，唔應該因為分池而撳唔入。
+      allow read: if request.auth != null && (
+        !('roomPool' in resource.data) ||
         resource.data.hostUid == request.auth.uid ||
+        resource.data.roomPool == viewerRoomPool(database) ||
+        resource.data.hasPassword == true ||
+        exists(/databases/$(database)/documents/rooms/$(roomId)/invitedUids/$(request.auth.uid)) ||
+        isAdmin(database)
+      );
+      // create 嗰陣如果有帶 roomPool 落嚟，一定要同請求者自己個池一致，
+      // 防止有人特登將房間標成另一個池嘅 tag，令唔應該見到嘅人都見到。
+      allow create: if request.auth != null && request.resource.data.hostUid == request.auth.uid &&
+        (!('roomPool' in request.resource.data) || request.resource.data.roomPool == viewerRoomPool(database));
+      allow update: if request.auth != null && (
+        (resource.data.hostUid == request.auth.uid &&
+         (!('roomPool' in resource.data) || !('roomPool' in request.resource.data) ||
+          request.resource.data.roomPool == resource.data.roomPool)) ||
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['participantCount', 'lastActiveAt'])
       );
       allow delete: if request.auth != null && (
@@ -292,6 +367,23 @@ service cloud.firestore {
       match /private/{docId} {
         allow read: if false;
         allow create: if request.auth != null && request.auth.uid == request.resource.data.hostUid;
+        allow update, delete: if false;
+      }
+      // ===================== 朋友邀請入房嘅「已邀請名單」 =====================
+      // 純粹畀上面主文件 allow read 規則入面嘅 exists() 檢查用，前端
+      // 完全唔需要直接讀呢個 collection。房入面已經有嘅合法參加者
+      // （window.inviteFriendToRoom）邀請朋友入房嗰陣，除咗原本嗰份
+      // 負責彈出接受/拒絕通知卡嘅 roomInvites 之外，會喺呢度多寫一份
+      // 「呢位朋友已經被邀請入呢間房」嘅記錄——令主房間讀取規則就算
+      // 受邀請者所屬嘅池同房間唔同，都畀佢讀到房間資料先入得（密碼
+      // 房、朋友邀請房本身已經要求「事先有聯繫」，唔應該受兩池隔離
+      // 規則所限）。
+      // 建立者一定要係呢間房已經喺度嘅合法參加者（isRoomParticipant）
+      // 先寫得低，防止陌生人自己搵條 roomId 就寫呢份文件嚟繞過兩池
+      // 隔離、強行讀到唔屬於自己個池嘅房間。
+      match /invitedUids/{uid} {
+        allow read: if false;
+        allow create: if isRoomParticipant(database, roomId);
         allow update, delete: if false;
       }
       // ⚠️ 之前呢兩個 collection 淨係要求 request.auth != null（任何已
@@ -360,12 +452,6 @@ service cloud.firestore {
         allow update: if false;
         allow delete: if request.auth != null && request.auth.uid in chatId.split('_');
       }
-    }
-    // ===================== 學科溫習卡（抽認卡） =====================
-    // 內容由管理員後台統一管理，學生淨係讀，唔可以自己新增/改/刪
-    match /flashcards/{cardId} {
-      allow read: if request.auth != null;
-      allow write: if isAdmin(database);
     }
     // ===================== 疑難解答區 =====================
     match /qa_posts/{postId} {

@@ -52,6 +52,10 @@
       // 要補顯示返）。
       if (typeof window.updateAdminEntryButton === 'function') window.updateAdminEntryButton();
       if (typeof window.checkAdminHashRoute === 'function') window.checkAdminHashRoute();
+      // 管理員名單啱啱攞到／更新，順便刷新一次大廳標題，等「🛠️ 查看
+      // 邊個池」嗰個管理員專用選單可以喺呢一刻先顯示出嚟（見
+      // window.updateRoomLobbyTitle，定義喺 app-core.js）。
+      if (typeof window.updateRoomLobbyTitle === 'function') window.updateRoomLobbyTitle();
     }
     window.loadAdminIdsFromFirestore = loadAdminIdsFromFirestore;
 
