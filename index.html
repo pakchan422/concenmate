@@ -6,7 +6,7 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.161.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.162.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <meta charset="UTF-8">
@@ -1474,8 +1474,8 @@
           </div>
         </div>
         <div class="landing-nav-actions">
-          <button type="button" class="landing-nav-login landing-nav-login-header" onclick="openModal('modal-login')">登入</button>
-          <button type="button" class="landing-btn landing-btn-primary" style="padding:11px 22px; font-size:15px;" onclick="openModal('modal-register')">註冊帳號</button>
+          <button type="button" class="landing-nav-login landing-nav-login-header" onclick="typeof window.openModal==='function' && window.openModal('modal-login')">登入</button>
+          <button type="button" class="landing-btn landing-btn-primary" style="padding:11px 22px; font-size:15px;" onclick="typeof window.openModal==='function' && window.openModal('modal-register')">註冊帳號</button>
         </div>
       </div>
     </nav>
@@ -1488,7 +1488,7 @@
           <p class="landing-hero-slogan">Always By Your Side</p>
           <p class="landing-hero-sub">ConcenMate 書伴是專為學生設計的線上溫習室，讓你尋找志同道合的夥伴，結合專注力計時、溫習社群與成長獎勵機制，陪伴你建立持續而穩定的學習習慣。</p>
           <div class="landing-hero-ctas">
-            <button type="button" class="landing-btn landing-btn-primary" onclick="openModal('modal-register')">註冊帳號</button>
+            <button type="button" class="landing-btn landing-btn-primary" onclick="typeof window.openModal==='function' && window.openModal('modal-register')">註冊帳號</button>
           </div>
         </div>
         <div class="landing-hero-art">
@@ -1539,7 +1539,7 @@
       <div class="landing-container">
         <h2 class="landing-cta-h2">由今天開始，讓書伴陪你溫習</h2>
         <p class="landing-cta-sub">免費註冊帳戶，開始你的專注溫習旅程。</p>
-        <button type="button" class="landing-btn landing-btn-primary" style="padding:16px 36px; font-size:18px;" onclick="openModal('modal-register')">註冊帳號</button>
+        <button type="button" class="landing-btn landing-btn-primary" style="padding:16px 36px; font-size:18px;" onclick="typeof window.openModal==='function' && window.openModal('modal-register')">註冊帳號</button>
       </div>
     </section>
 
@@ -1552,9 +1552,9 @@
       <div style="font-size:13px; color:#777; display:flex; flex-wrap:wrap; gap:6px 16px; justify-content:center; align-items:center;">
         <span>© 2026 ConcenMate 書伴</span>
         <span style="color:#ccc;">|</span>
-        <span style="cursor:pointer; text-decoration:underline;" onclick="openModal('modal-terms')">服務條款</span>
+        <span style="cursor:pointer; text-decoration:underline;" onclick="typeof window.openModal==='function' && window.openModal('modal-terms')">服務條款</span>
         <span style="color:#ccc;">|</span>
-        <span style="cursor:pointer; text-decoration:underline;" onclick="openModal('modal-privacy-policy')">私隱政策</span>
+        <span style="cursor:pointer; text-decoration:underline;" onclick="typeof window.openModal==='function' && window.openModal('modal-privacy-policy')">私隱政策</span>
         <span style="color:#ccc;">|</span>
         <span>support@concenmate.com</span>
       </div>
@@ -1678,8 +1678,8 @@
         </p>
 
         <div style="display:flex; justify-content:center; gap:12px; margin-top:20px; flex-wrap:wrap;">
-          <button class="btn btn-primary" style="padding:10px 20px; font-size:16px;" onclick="openModal('modal-login')">🔑 會員登入</button>
-          <button class="btn btn-amber" style="padding:10px 20px; font-size:16px;" onclick="openModal('modal-register')">📝 新用戶註冊</button>
+          <button class="btn btn-primary" style="padding:10px 20px; font-size:16px;" onclick="typeof window.openModal==='function' && window.openModal('modal-login')">🔑 會員登入</button>
+          <button class="btn btn-amber" style="padding:10px 20px; font-size:16px;" onclick="typeof window.openModal==='function' && window.openModal('modal-register')">📝 新用戶註冊</button>
         </div>
       </div>
 
@@ -1953,7 +1953,7 @@
                      嘅池（見 window.toggleAdminRoomPool）。 -->
                 <button type="button" id="admin-room-pool-toggle-btn" style="display:none; font-size:12px; padding:4px 10px; border-radius:8px; border:1px solid var(--brand-200); background:#fff; color:var(--brand-800); cursor:pointer; white-space:nowrap;" onclick="window.toggleAdminRoomPool && window.toggleAdminRoomPool()">🛠️ 轉換溫習室</button>
               </div>
-              <button class="btn btn-primary" type="button" onclick="openModal('modal-create-room')">
+              <button class="btn btn-primary" type="button" onclick="typeof window.openModal==='function' && window.openModal('modal-create-room')">
                 🚀 + 建立新溫習房
               </button>
             </div>
@@ -2742,10 +2742,10 @@
           <input type="password" id="login-password" class="input-field" required placeholder="請輸入密碼">
         </div>
         <div style="text-align:right;">
-          <span style="font-size:12px; color:#888; cursor:pointer; text-decoration:underline;" onclick="closeModal('modal-login'); openModal('modal-forgot-password');">忘記密碼？</span>
+          <span style="font-size:12px; color:#888; cursor:pointer; text-decoration:underline;" onclick="typeof window.closeModal==='function' && window.closeModal('modal-login'); typeof window.openModal==='function' && window.openModal('modal-forgot-password');">忘記密碼？</span>
         </div>
         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
-          <span style="font-size:13px; color:#3E7A8A; cursor:pointer;" onclick="closeModal('modal-login'); openModal('modal-register');">還沒有帳號？點此註冊</span>
+          <span style="font-size:13px; color:#3E7A8A; cursor:pointer;" onclick="typeof window.closeModal==='function' && window.closeModal('modal-login'); typeof window.openModal==='function' && window.openModal('modal-register');">還沒有帳號？點此註冊</span>
           <div style="display:flex; gap:6px;">
             <button class="btn btn-outline" type="button" id="login-cancel-btn" onclick="closeModal('modal-login')">取消</button>
             <button class="btn btn-primary" type="submit" id="login-submit-btn">登入</button>
@@ -2960,15 +2960,15 @@
           <input type="checkbox" id="reg-agree-terms" required style="margin-top:3px; flex-shrink:0; width:16px; height:16px;">
           <label for="reg-agree-terms" style="font-size:13px; color:#555; line-height:1.6;">
             我已閱讀並同意
-            <span style="color:#3E7A8A; text-decoration:underline; cursor:pointer;" onclick="event.preventDefault(); openModal('modal-terms');">《服務條款》</span>
+            <span style="color:#3E7A8A; text-decoration:underline; cursor:pointer;" onclick="event.preventDefault(); typeof window.openModal==='function' && window.openModal('modal-terms');">《服務條款》</span>
             及
-            <span style="color:#3E7A8A; text-decoration:underline; cursor:pointer;" onclick="event.preventDefault(); openModal('modal-privacy-policy');">《私隱政策》</span>
+            <span style="color:#3E7A8A; text-decoration:underline; cursor:pointer;" onclick="event.preventDefault(); typeof window.openModal==='function' && window.openModal('modal-privacy-policy');">《私隱政策》</span>
             *
           </label>
         </div>
 
         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-          <span style="font-size:13px; color:#3E7A8A; cursor:pointer;" onclick="closeModal('modal-register'); openModal('modal-login');">已有帳號？點此登入</span>
+          <span style="font-size:13px; color:#3E7A8A; cursor:pointer;" onclick="typeof window.closeModal==='function' && window.closeModal('modal-register'); typeof window.openModal==='function' && window.openModal('modal-login');">已有帳號？點此登入</span>
           <div style="display:flex; gap:6px;">
             <button class="btn btn-outline" type="button" onclick="closeModal('modal-register')">取消</button>
             <button class="btn btn-primary" type="submit">完成註冊並登入</button>
