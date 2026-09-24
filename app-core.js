@@ -288,7 +288,33 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       // 房主重新開房就會用返新格式），唔使特登另外寫遷移邏輯。
       const viewerPool = getLobbyViewPool();
       window.updateRoomLobbyTitle();
-      const roomsRef = query(collection(db, "rooms"), where("roomPool", "==", viewerPool), limit(ROOMS_LISTEN_LIMIT));
+
+      // ⚠️ 管理員撳「🛠️ 轉換溫習室」睇緊唔屬於自己個池嗰邊（例如管理員
+      // 本身屬於「公開溫習室」池，但撳咗轉去睇「中學溫習室」）嗰陣，
+      // 下面呢條 where('roomPool','==',viewerPool) 查詢會出事：Firestore
+      // 對 list／query 操作嘅權限驗證，係靜態噉睇「呢條 query 嘅篩選
+      // 條件，結構上係咪同 rules 入面其中一個 OR 分支吻合」，唔係真係
+      // 逐份文件走一次規則。firestore.rules 嘅 allow read 入面雖然有
+      // isAdmin() 呢個完全唔睇 resource.data、淨係睇請求者身份嘅分
+      // 支，理論上管理員應該兩個池都睇得晒，但一旦 query 嘅篩選值
+      // （viewerPool）同「淨係睇 resource.data」嗰個分支
+      // （roomPool==viewerRoomPool(database)，即管理員自己實際所屬嗰
+      // 池）對唔上，Firestore 就會判定成條 query「有機會攞到冇權限
+      // 睇嘅文件」，直接連成個 list 都拒絕晒（"Missing or insufficient
+      // permissions"），即使管理員本身其實靠 isAdmin() 已經有權睇。
+      //
+      // 修補：管理員睇緊唔屬於自己個池嗰一邊嗰陣，唔加 roomPool 呢個
+      // 篩選（純粹靠 isAdmin() 呢個唔涉及 resource.data 嘅分支通過驗
+      // 證），攞返嚟之後先喺前端揀返啱嗰個池嘅房間先顯示——用戶睇落
+      // 嘅效果一樣，淨係查詢方式唔同。一般用戶／管理員睇自己所屬嗰
+      // 池嗰陣完全冇改變，繼續用返原本嘅 where 篩選。
+      const isAdminViewer = typeof window.isCurrentUserAdmin === 'function' && window.isCurrentUserAdmin();
+      const viewingOwnPool = viewerPool === window.getViewerRoomPool();
+      const useUnfilteredAdminQuery = isAdminViewer && !viewingOwnPool;
+
+      const roomsRef = useUnfilteredAdminQuery
+        ? query(collection(db, "rooms"), limit(ROOMS_LISTEN_LIMIT))
+        : query(collection(db, "rooms"), where("roomPool", "==", viewerPool), limit(ROOMS_LISTEN_LIMIT));
       unsubscribeRooms = onSnapshot(roomsRef, (snapshot) => {
         // 順手掃一次有冇幽靈房（心跳過期），唔使阻住畫面渲染
         gcStaleRooms(snapshot.docs.map(d => ({ id: d.id, data: d.data() })));
@@ -306,7 +332,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
             createdAtMs = isNaN(parsed) ? 0 : parsed;
           }
           return { id: roomId, room, createdAtMs, isMyRoom };
-        });
+        }).filter((entry) => !useUnfilteredAdminQuery || entry.room.roomPool === viewerPool);
         // orderBy 冇喺 Firestore 查詢度做（見上面註解），呢度喺前端補返
         // 「最新活動優先」嘅排序，等大廳畫面睇落同以前一樣。
         latestRoomsData.sort((a, b) => {
