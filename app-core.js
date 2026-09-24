@@ -1073,6 +1073,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       // 登出之後要停止好友相關嘅即時監聽，唔係已經冇權限讀但仍然掛住個 listener
       if (typeof window.stopFriendListeners === 'function') window.stopFriendListeners();
       if (typeof window.stopRoomInvitesListener === 'function') window.stopRoomInvitesListener();
+      if (typeof window.stopBuddyWallListeners === 'function') window.stopBuddyWallListeners();
     };
 
     // ===================== 導師「想教的科目」勾選式選擇器 =====================

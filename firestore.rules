@@ -576,5 +576,51 @@ service cloud.firestore {
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'description', 'priceCents', 'updatedAt']);
       allow delete: if false;
     }
+
+    // ===================== 書伴廣場：書伴留言牆 =====================
+    // 貼文（buddyPosts）：任何已登入用戶都讀得到（公開留言牆）。create
+    // 一定要 authorUid 同請求者一致（防止假扮第二人發帖），並且對
+    // role／content／subjects 加返伺服器端護欄，防止有人繞過前端直接
+    // 用 SDK 寫入唔合規格嘅資料（例如過長內容、超過 3 個科目標籤、唔
+    // 存在嘅身份標籤）。
+    // ⚠️ update 淨係開放 commentCount 呢一個由留言 create 順帶更新嘅
+    // 計數欄位——其餘欄位（內容、科目、身份標籤）一律唔畀事後亂改，
+    // 避免「發帖時睇落合規、事後偷偷換成違規內容」呢種漏洞。特登冇再
+    // 要求「一定要係擁有者本人」先改得到呢個計數：留言嘅可以係任何
+    // 已登入用戶（唔止貼文作者自己），佢哋留言之後都要更新到呢個貼文
+    // 嘅 commentCount，如果淨係畀作者本人改，第二個人留言完個數字就
+    // 會更新唔到（權限被拒）。呢度改為淨係要求「淨係改緊 commentCount
+    // 呢一個欄位、而且每次淨係加或者減 1」，唔理係邊個已登入用戶做，
+    // 安全性一樣有保障（唔可以順便改埋內容／科目等其他欄位）。
+    // delete 開放俾擁有者自己刪走自己嘅貼文，或者 admin 巡查刪除違規
+    // 貼文。
+    // ⚠️ 呢度暫時未加發帖頻率限制（rate limit）——留返第三步一齊做。
+    match /buddyPosts/{postId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null &&
+        request.resource.data.authorUid == request.auth.uid &&
+        request.resource.data.role in ['want_taught', 'can_teach', 'study_together'] &&
+        request.resource.data.content is string &&
+        request.resource.data.content.size() > 0 && request.resource.data.content.size() <= 150 &&
+        request.resource.data.subjects is list && request.resource.data.subjects.size() <= 3;
+      allow update: if request.auth != null &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['commentCount']) &&
+        (request.resource.data.commentCount == resource.data.commentCount + 1 ||
+         request.resource.data.commentCount == resource.data.commentCount - 1);
+      allow delete: if request.auth != null &&
+        (resource.data.authorUid == request.auth.uid || isAdmin(database));
+
+      // 留言：一樣任何已登入用戶讀得到；create 一定要 authorUid 係自己
+      // 本人，內容都加長度護欄。留言一經留低就唔可以再改／刪（同
+      // qa_posts 唔同，呢度暫時未有編輯／刪除留言嘅功能，保持簡單）。
+      match /comments/{commentId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null &&
+          request.resource.data.authorUid == request.auth.uid &&
+          request.resource.data.text is string &&
+          request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 150;
+        allow update, delete: if false;
+      }
+    }
   }
 }

@@ -6,7 +6,7 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.162.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.165.2"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <meta charset="UTF-8">
@@ -1455,7 +1455,7 @@
   <div id="chat-dock-panel">
     <div class="chat-dock-panel-header">💬 即時對話</div>
     <div class="chat-dock-panel-list" id="chat-dock-panel-list">
-      <p style="text-align:center; color:#999; font-size:13px; padding:16px;">尚未有好友，請先到「夥伴與讀書會」新增幾位！</p>
+      <p style="text-align:center; color:#999; font-size:13px; padding:16px;">尚未有好友，請先到「書伴廣場」新增幾位！</p>
     </div>
   </div>
   <div id="chat-windows-bar"></div>
@@ -1659,7 +1659,7 @@
         <button class="nav-btn student-only-nav" id="nav-btn-vip" type="button" onclick="switchTab('vip', this)"><span class="nav-icon" id="nav-icon-vip">👑</span> <span class="nav-text">溫習資源</span></button>
         <button class="nav-btn student-only-nav" id="nav-btn-store" type="button" onclick="switchTab('store', this)"><span class="nav-icon" id="nav-icon-store">🎁</span> <span class="nav-text">時數扭蛋機</span></button>
         <button class="nav-btn student-only-nav" id="nav-btn-leaderboard" type="button" onclick="switchTab('leaderboard', this)"><span class="nav-icon" id="nav-icon-leaderboard">🏆</span> <span class="nav-text">溫習排行榜</span></button>
-        <button class="nav-btn student-only-nav" id="nav-btn-social" type="button" onclick="switchTab('social', this)"><span class="nav-icon" id="nav-icon-social">👥</span> <span class="nav-text">夥伴與讀書會</span> <span class="home-sec-badge" id="nav-social-badge" style="display:none; margin-left:auto;"></span></button>
+        <button class="nav-btn student-only-nav" id="nav-btn-social" type="button" onclick="switchTab('social', this)"><span class="nav-icon" id="nav-icon-social">👥</span> <span class="nav-text">書伴廣場</span> <span class="home-sec-badge" id="nav-social-badge" style="display:none; margin-left:auto;"></span></button>
         <button class="nav-btn student-only-nav" id="nav-btn-diary" type="button" onclick="switchTab('diary', this)"><span class="nav-icon" id="nav-icon-diary">📔</span> <span class="nav-text">溫習日記</span></button>
         <button class="nav-btn student-only-nav" id="nav-btn-verification" type="button" onclick="switchTab('verification', this)"><span class="nav-icon" id="nav-icon-verification">🎓</span> <span class="nav-text">學生身份驗證</span></button>
         <!-- 導師帳戶專用：淨係批核通過（role==='tutor'）先會顯示，見
@@ -2616,27 +2616,65 @@
         </div>
 
 
+        <!-- 書伴廣場：原本叫「夥伴與讀書會」，2026-09 改名並拆做兩個
+             子分頁（見 window.setSocialSubTab()）：
+             1. 我的好友——原有嘅搜尋／好友名單／好友邀請功能，原封不動。
+             2. 書伴留言牆——新功能，畀學生貼文講自己想搵咩類型嘅書伴
+                （想被教／可以教人／想搵人一齊溫書），其他人可以按科目
+                篩選、留言、直接加好友。第二步已經駁通真正嘅 Firestore
+                （buddyPosts collection + comments 子 collection，見
+                app-features.js 同 firestore.rules）——第三步先會加返
+                防濫用嘅發帖／留言頻率限制（rate limit）。 -->
         <section id="tab-social" class="tab-content">
 
-          <div class="card" style="margin-bottom:12px;">
-            <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:8px;">🔍 用帳號 ID 搜尋朋友</h3>
-            <div style="display:flex; gap:8px;">
-              <input type="text" id="friend-search-input" class="input-field" style="flex:1;" placeholder="輸入完整帳號 ID，例如：student001" onkeydown="if(event.key==='Enter'){event.preventDefault(); searchAccountById();}">
-              <button class="btn btn-primary" type="button" onclick="searchAccountById()">搜尋</button>
-            </div>
-            <div id="friend-search-result" style="margin-top:10px;"></div>
+          <div id="social-sub-tabs" style="display:flex; gap:6px; margin-bottom:12px;">
+            <button type="button" class="room-subject-tab-btn active" id="social-subtab-btn-friends" onclick="window.setSocialSubTab && window.setSocialSubTab('friends')" style="flex:1; text-align:center;">👥 我的好友</button>
+            <button type="button" class="room-subject-tab-btn" id="social-subtab-btn-wall" onclick="window.setSocialSubTab && window.setSocialSubTab('wall')" style="flex:1; text-align:center;">📝 書伴留言牆</button>
           </div>
 
-          <div class="card" id="friend-requests-card" style="margin-bottom:12px; display:none;">
-            <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:8px;">📨 收到的好友邀請</h3>
-            <div id="friend-requests-list"></div>
+          <div id="social-friends-panel">
+
+            <div class="card" style="margin-bottom:12px;">
+              <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:8px;">🔍 用帳號 ID 搜尋朋友</h3>
+              <div style="display:flex; gap:8px;">
+                <input type="text" id="friend-search-input" class="input-field" style="flex:1;" placeholder="輸入完整帳號 ID，例如：student001" onkeydown="if(event.key==='Enter'){event.preventDefault(); searchAccountById();}">
+                <button class="btn btn-primary" type="button" onclick="searchAccountById()">搜尋</button>
+              </div>
+              <div id="friend-search-result" style="margin-top:10px;"></div>
+            </div>
+
+            <div class="card" id="friend-requests-card" style="margin-bottom:12px; display:none;">
+              <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:8px;">📨 收到的好友邀請</h3>
+              <div id="friend-requests-list"></div>
+            </div>
+
+            <div class="card">
+              <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:8px;">👥 我的好友（<span id="friends-count">0</span>）</h3>
+              <div id="friends-list-container">
+                <p style="text-align:center; color:#999; font-size:13px; padding:20px;">🔄 載入中好友名單...</p>
+              </div>
+            </div>
+
           </div>
 
-          <div class="card">
-            <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:8px;">👥 我的好友（<span id="friends-count">0</span>）</h3>
-            <div id="friends-list-container">
-              <p style="text-align:center; color:#999; font-size:13px; padding:20px;">🔄 載入中好友名單...</p>
+          <div id="social-wall-panel" style="display:none;">
+
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; gap:8px; flex-wrap:wrap;">
+              <h2 style="font-size:17px; font-weight:bold; color:var(--brand-800);">📝 書伴留言牆</h2>
+              <button class="btn btn-primary" type="button" onclick="typeof window.openModal==='function' && window.openModal('modal-buddy-post')">✏️ 發佈徵求書伴貼文</button>
             </div>
+            <p style="font-size:12px; color:#999; margin-bottom:10px;">請注意：所有已登入用戶都可以看到你的貼文及留言，請勿透露個人聯絡方式或其他敏感資料。</p>
+
+            <div id="buddy-wall-subject-tabs" style="display:flex; gap:6px; overflow-x:auto; margin-bottom:10px; padding-bottom:2px;">
+              <button type="button" class="room-subject-tab-btn active" data-subject="全部" onclick="window.setWallSubjectFilter && window.setWallSubjectFilter('全部')">全部</button>
+              <button type="button" class="room-subject-tab-btn" data-subject="中國語文" onclick="window.setWallSubjectFilter && window.setWallSubjectFilter('中國語文')">中國語文</button>
+              <button type="button" class="room-subject-tab-btn" data-subject="英國語文" onclick="window.setWallSubjectFilter && window.setWallSubjectFilter('英國語文')">英國語文</button>
+              <button type="button" class="room-subject-tab-btn" data-subject="數學（必修部分）" onclick="window.setWallSubjectFilter && window.setWallSubjectFilter('數學（必修部分）')">數學（必修部分）</button>
+              <button type="button" class="room-subject-tab-btn" id="buddy-wall-more-btn" data-subject="" onclick="window.openWallSubjectMoreModal && window.openWallSubjectMoreModal()">其他科目 ▾</button>
+            </div>
+
+            <div id="buddy-wall-list"></div>
+
           </div>
 
         </section>
@@ -3163,6 +3201,56 @@
     </div>
   </div>
 
+  <!-- 書伴留言牆：發佈搵書伴貼文（第二步已經駁通真正 Firestore，見
+       window.submitBuddyPost()）。「身份標籤」單選 chip 同「科目
+       標籤」chip picker 都借用返 room-subject-tab-btn／
+       renderStudentFavSubjectChipPicker 呢啲現成元件，唔重新寫一套。 -->
+  <div class="modal-backdrop" id="modal-buddy-post" style="display:none;">
+    <div class="modal-box">
+      <h3 style="font-size:18px; font-weight:bold; color:var(--brand-800); text-align:center;">✏️ 發佈徵求書伴貼文</h3>
+
+      <form onsubmit="window.submitBuddyPost && window.submitBuddyPost(event)" style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">
+        <div>
+          <label style="font-size:13px; font-weight:bold; color:#555; display:block; margin-bottom:6px;">身份標籤 *</label>
+          <div id="buddy-post-role-picker" style="display:flex; flex-wrap:wrap; gap:6px;">
+            <button type="button" class="tag buddy-role-chip" data-role="want_taught" style="cursor:pointer; border:1px solid #ddd; background:#F5F7F8; color:#555; border-radius:99px; padding:6px 12px; font-size:13px;">🙋 想找人教我</button>
+            <button type="button" class="tag buddy-role-chip" data-role="can_teach" style="cursor:pointer; border:1px solid #ddd; background:#F5F7F8; color:#555; border-radius:99px; padding:6px 12px; font-size:13px;">🎓 我可以教人</button>
+            <button type="button" class="tag buddy-role-chip" data-role="study_together" style="cursor:pointer; border:1px solid #ddd; background:#F5F7F8; color:#555; border-radius:99px; padding:6px 12px; font-size:13px;">👥 想找人一齊溫書</button>
+          </div>
+          <input type="hidden" id="buddy-post-role" required>
+        </div>
+
+        <div>
+          <label style="font-size:13px; font-weight:bold; color:#555; display:block; margin-bottom:6px;">科目標籤（可選多科，最多 3 科）</label>
+          <div id="buddy-post-subject-picker"></div>
+          <input type="hidden" id="buddy-post-subjects">
+        </div>
+
+        <div>
+          <label style="font-size:13px; font-weight:bold; color:#555; display:block;">內容 *</label>
+          <textarea id="buddy-post-content" class="input-field" rows="4" maxlength="150" required placeholder="例如：DSE 數學卷一經常不及格，想找一位成績較好的同學一齊溫習，互相督促！" style="width:100%; resize:vertical;" oninput="window.updateBuddyPostCharCount && window.updateBuddyPostCharCount()"></textarea>
+          <p id="buddy-post-char-count" style="font-size:12px; color:#999; text-align:right; margin-top:2px;">0 / 150</p>
+        </div>
+
+        <div style="display:flex; gap:8px; margin-top:6px; justify-content:flex-end;">
+          <button class="btn btn-outline" type="button" onclick="typeof window.closeModal==='function' && window.closeModal('modal-buddy-post')">取消</button>
+          <button class="btn btn-primary" type="submit">📮 發佈</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 書伴留言牆：科目分頁「其他科目」彈出視窗，列出完整 DSE 科目清單
+       （window.TUTOR_DSE_SUBJECTS，扣除已常駐嘅 3 科），撳一科即揀該科
+       做篩選（見 window.openWallSubjectMoreModal() / selectWallSubjectFromMore()）。 -->
+  <div class="modal-backdrop" id="modal-wall-subject-more" style="display:none;">
+    <div class="modal-box">
+      <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;">選擇其他科目</h3>
+      <div id="wall-subject-more-list" style="display:flex; flex-wrap:wrap; gap:8px; max-height:60vh; overflow-y:auto; margin-bottom:12px;"></div>
+      <button class="btn btn-outline" type="button" style="width:100%; justify-content:center;" onclick="typeof window.closeModal==='function' && window.closeModal('modal-wall-subject-more')">關閉</button>
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="modal-view-profile" style="display:none;">
     <div class="modal-box" style="text-align:center;">
       <div class="avatar-circle" style="margin:0 auto 10px; width:64px; height:64px; font-size:26px; background:var(--brand-500); border-color:var(--brand-200);" id="pop-user-avatar">A</div>
@@ -3184,7 +3272,7 @@
            （見 tab-diary 同 openDiaryView()）。 -->
       <div style="display:flex; align-items:center; justify-content:center; gap:18px; margin-bottom:10px; font-size:13px; color:#555;">
         <div><strong id="pop-photo-count" style="font-size:15px; color:var(--brand-800);">0</strong><br>相片</div>
-        <div style="cursor:pointer;" onclick="openFollowListModal(getCurrentPopUid(), 'followers')"><strong id="pop-follower-count" style="font-size:15px; color:var(--brand-800);">0</strong><br>粉絲</div>
+        <div style="cursor:pointer;" onclick="window.getCurrentPopUid && window.getCurrentPopUid() && openFollowListModal(getCurrentPopUid(), 'followers')"><strong id="pop-follower-count" style="font-size:15px; color:var(--brand-800);">0</strong><br>粉絲</div>
       </div>
       <div id="pop-follow-btn-wrap" style="margin-bottom:8px;"></div>
       <div id="pop-diary-btn-wrap" style="margin-bottom:12px;"></div>

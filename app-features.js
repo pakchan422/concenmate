@@ -73,6 +73,14 @@
       if (id === 'modal-register' && typeof window.populateRegBirthDateOptions === 'function') {
         window.populateRegBirthDateOptions();
       }
+      // 書伴留言牆嘅「發佈搵書伴貼文」表格：每次打開都重設返一個乾淨
+      // 嘅表格（清空上次揀低嘅身份標籤／科目／內容），並且喺呢一刻
+      // 先至畫科目 chip picker——呢陣時 tutor-panel.js 一定已經載入
+      // 完（成個頁面都載入晒用戶先撳得到掣打開呢個 modal），
+      // window.TUTOR_DSE_SUBJECTS 已經存在，唔使擔心 script 載入次序。
+      if (id === 'modal-buddy-post' && typeof window.resetBuddyPostForm === 'function') {
+        window.resetBuddyPostForm();
+      }
     }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
@@ -3408,6 +3416,397 @@
         if (typeof window.loadFriendsList === 'function') window.loadFriendsList();
       } catch (e) {
         window.showToast('移除失敗：' + (e.message || e), '❌');
+      }
+    };
+
+    // ===================== 書伴廣場．書伴留言牆（第一步：介面 + 假資料） =====================
+    // 呢一整段係 2026-09 新增嘅「書伴留言牆」功能，第一步淨係做緊介面
+    // 「書伴廣場」留言牆已經駁通真正嘅 Firestore（buddyPosts collection，
+    // 連埋 comments 子 collection）——第二步完成，貼文同留言一經發佈就
+    // 真係寫入資料庫，所有已登入用戶都會睇到同一批真實資料；「加好友」
+    // 亦都改用返同「用帳號 ID 搜尋朋友」共用嘅真正好友邀請機制
+    // （window.sendFriendRequest()）。第三步先會去 firestore.rules 加埋
+    // 發帖／留言嘅頻率限制（rate limit）防止濫發。
+
+    window.BUDDY_ROLE_META = {
+      want_taught:    { emoji: '🙋', label: '想找人教我' },
+      can_teach:      { emoji: '🎓', label: '我可以教人' },
+      study_together: { emoji: '👥', label: '想找人一齊溫書' },
+    };
+
+    // 貼文列表：真正資料嚟自 Firestore 嘅 buddyPosts collection，用
+    // onSnapshot 實時監聽（同疑難解答區 qaPostsCache 嘅寫法一致）——
+    // 監聽器一開咗就會維持住成個 session，唔會因為反覆切換分頁又拆
+    // 又裝。科目篩選（含「全部」／3 個常駐分頁／彈出視窗揀嘅其他科
+    // 目）一律喺前端對 buddyWallPostsCache 做，唔喺 query 層面加
+    // where('subjects','array-contains',...)，避免要為兩個 Firebase
+    // 專案（concenmate-dev／concenmate-app）分別建立多一個複合索引。
+    let buddyWallUnsubscribe = null;
+    window.buddyWallPostsCache = [];
+    // 留言：每一則貼文自己一個 onSnapshot 監聽器，撳「留言」展開先開始
+    // 監聽（唔一次過幫成頁貼文都裝晒監聽器），收埋個 unsubscribe
+    // function 喺呢個 map 度，等離開「書伴廣場」分頁（或登出）嗰陣可以
+    // 一次過拆晒（見 window.stopBuddyWallListeners()）。
+    let buddyCommentUnsubs = {};
+    // 留言內容本身嘅 cache（postId -> 留言陣列）同「而家邊幾則貼文嘅
+    // 留言區係展開緊」嘅記錄（postId 集合）。因為每次留言之後貼文本身
+    // 嘅 commentCount 改變都會令成個貼文列表（window.renderBuddyWallList）
+    // 重新畫一次畫面，將舊嘅留言區 DOM 整個換走，如果淨係靠 onSnapshot
+    // 監聽器嗰陣先至填內容，就會出現「留咗言但睇唔番、永遠卡住喺
+    // 『載入留言中』」嘅問題——因為 Firestore 資料本身冇再變，監聽器
+    // 唔會為咗一次純粹嘅畫面重畫而重新送多一次消息。而家改為每次重畫
+    // 都直接用返呢個 cache 即刻填內容（唔使再等監聽器），監聽器淨係
+    // 負責喺資料真正有變嗰陣更新 cache 同重畫。
+    let buddyCommentsCache = {};
+    let buddyOpenPanels = new Set();
+
+    function buddyRenderCommentsHtml(comments) {
+      return comments.length
+        ? comments.map((c) =>
+            `<div style="padding:6px 0; border-top:1px solid #F0F0F0; font-size:13px;"><strong style="cursor:pointer;" onclick="window.viewUserProfile && window.viewUserProfile('${c.authorUid || ''}')">${escapeHtml(c.authorName || '同學')}</strong>：${escapeHtml(c.text || '')}</div>`
+          ).join('')
+        : '<p style="font-size:12px; color:#999; padding:6px 0;">尚未有留言，做第一個留言的人吧！</p>';
+    }
+
+    window.wallSubjectFilter = '全部';
+
+    // 常駐科目分頁：只固定顯示呢 3 科（同 window.TUTOR_DSE_SUBJECTS 入
+    // 面嘅寫法一致），其餘科目一律歸入「其他科目」彈出視窗選擇，避免
+    // 分頁列太長。
+    window.WALL_SUBJECT_PINNED = ['中國語文', '英國語文', '數學（必修部分）'];
+
+    window.setSocialSubTab = function(tab) {
+      const friendsPanel = document.getElementById('social-friends-panel');
+      const wallPanel = document.getElementById('social-wall-panel');
+      const friendsBtn = document.getElementById('social-subtab-btn-friends');
+      const wallBtn = document.getElementById('social-subtab-btn-wall');
+      if (!friendsPanel || !wallPanel || !friendsBtn || !wallBtn) return;
+      const showWall = tab === 'wall';
+      friendsPanel.style.display = showWall ? 'none' : 'block';
+      wallPanel.style.display = showWall ? 'block' : 'none';
+      friendsBtn.classList.toggle('active', !showWall);
+      wallBtn.classList.toggle('active', showWall);
+      if (showWall) window.loadBuddyWallPosts();
+    };
+
+    // 開始／沿用返個 buddyPosts 監聽器。已經訂閱緊嘅話，淨係即刻用返
+    // cache 重畫一次（冇網絡來回、唔會再閃「載入中」），同 loadQAPosts()
+    // 嘅寫法一致。
+    window.loadBuddyWallPosts = function() {
+      if (!window.db || !window.fs) return;
+      if (buddyWallUnsubscribe) { window.renderBuddyWallList(); return; }
+
+      const listEl = document.getElementById('buddy-wall-list');
+      if (listEl) listEl.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:24px;">🔄 載入中...</p>';
+
+      const q = window.fs.query(
+        window.fs.collection(window.db, 'buddyPosts'),
+        window.fs.orderBy('createdAt', 'desc'),
+        window.fs.limit(50)
+      );
+      buddyWallUnsubscribe = window.fs.onSnapshot(q, (snapshot) => {
+        window.buddyWallPostsCache = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+        window.renderBuddyWallList();
+      }, (e) => {
+        console.error('讀取書伴留言牆失敗:', e);
+        if (listEl) listEl.innerHTML = '<p style="text-align:center; color:#D9764A; font-size:13px; padding:24px;">載入失敗，請稍後再試</p>';
+      });
+    };
+
+    window.setWallSubjectFilter = function(subject) {
+      window.wallSubjectFilter = subject;
+      document.querySelectorAll('#buddy-wall-subject-tabs .room-subject-tab-btn').forEach((btn) => {
+        btn.classList.toggle('active', btn.getAttribute('data-subject') === subject);
+      });
+      // 揀返常駐分頁嘅話，「其他科目」掣要還原返預設字樣同未選中狀態
+      const moreBtn = document.getElementById('buddy-wall-more-btn');
+      if (moreBtn) moreBtn.textContent = '其他科目 ▾';
+      window.renderBuddyWallList();
+    };
+
+    // 「其他科目」彈出視窗：列出 window.TUTOR_DSE_SUBJECTS 入面扣除 3
+    // 科常駐分頁、同「其他（自行輸入）」之後嘅所有科目，撳邊科就篩選
+    // 邊科（見 window.selectWallSubjectFromMore()）。
+    window.openWallSubjectMoreModal = function() {
+      const listEl = document.getElementById('wall-subject-more-list');
+      if (listEl) {
+        const pinned = window.WALL_SUBJECT_PINNED || [];
+        const moreSubjects = (window.TUTOR_DSE_SUBJECTS || []).filter((s) => !pinned.includes(s) && s !== '其他（自行輸入）');
+        listEl.innerHTML = moreSubjects.map((s) => {
+          const active = window.wallSubjectFilter === s;
+          const safeS = s.replace(/'/g, "\\'");
+          return `<button type="button" class="room-subject-tab-btn${active ? ' active' : ''}" onclick="window.selectWallSubjectFromMore && window.selectWallSubjectFromMore('${safeS}')">${escapeHtml(s)}</button>`;
+        }).join('');
+      }
+      if (typeof window.openModal === 'function') window.openModal('modal-wall-subject-more');
+    };
+
+    window.selectWallSubjectFromMore = function(subject) {
+      window.wallSubjectFilter = subject;
+      document.querySelectorAll('#buddy-wall-subject-tabs .room-subject-tab-btn[data-subject]').forEach((btn) => {
+        btn.classList.remove('active');
+      });
+      const moreBtn = document.getElementById('buddy-wall-more-btn');
+      if (moreBtn) {
+        moreBtn.classList.add('active');
+        moreBtn.textContent = `${subject} ▾`;
+      }
+      if (typeof window.closeModal === 'function') window.closeModal('modal-wall-subject-more');
+      window.renderBuddyWallList();
+    };
+
+    window.renderBuddyWallList = function() {
+      const listEl = document.getElementById('buddy-wall-list');
+      if (!listEl) return;
+      const filter = window.wallSubjectFilter || '全部';
+      const posts = (window.buddyWallPostsCache || []).filter((p) => filter === '全部' || (p.subjects || []).includes(filter));
+
+      if (posts.length === 0) {
+        listEl.innerHTML = `<p style="text-align:center; color:#999; font-size:13px; padding:24px;">目前「${escapeHtml(filter)}」分類沒有貼文，換個分類看看，或者做第一個發帖的人！</p>`;
+        return;
+      }
+
+      listEl.innerHTML = posts.map((post) => {
+        const roleMeta = window.BUDDY_ROLE_META[post.role] || { emoji: '📝', label: '書伴' };
+        const subjectTagsHtml = (post.subjects || []).map((s) =>
+          `<span class="tag" style="background:#F0F6F8; color:#1E4550; margin-right:4px;">${escapeHtml(s)}</span>`
+        ).join('');
+        const isOwn = window.currentUser && post.authorUid === window.currentUser.uid;
+        const secondBtnHtml = isOwn
+          ? `<button class="btn btn-red" type="button" style="flex:1; font-size:13px; padding:6px;" onclick="window.deleteBuddyPost && window.deleteBuddyPost('${post.id}')">🗑️ 刪除</button>`
+          : `<button class="btn btn-outline" type="button" style="flex:1; font-size:13px; padding:6px;" onclick="window.addFriendFromWallPost && window.addFriendFromWallPost('${post.id}')">➕ 加好友</button>`;
+        const isOpen = buddyOpenPanels.has(post.id);
+        const cachedComments = buddyCommentsCache[post.id];
+        const commentsListHtml = cachedComments
+          ? buddyRenderCommentsHtml(cachedComments)
+          : '<p style="font-size:12px; color:#999; padding:6px 0;">載入留言中…</p>';
+        return `
+          <div class="card" style="margin-bottom:10px;">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+              <div class="avatar-circle" style="width:36px; height:36px; font-size:15px; background:var(--brand-500); border-color:var(--brand-200); cursor:pointer;" onclick="window.viewUserProfile && window.viewUserProfile('${post.authorUid}')">${escapeHtml((post.authorName || '?').charAt(0))}</div>
+              <div style="flex:1;">
+                <strong style="font-size:14px; color:var(--brand-800); cursor:pointer;" onclick="window.viewUserProfile && window.viewUserProfile('${post.authorUid}')">${escapeHtml(post.authorName || '同學')}</strong>
+                <span style="font-size:12px; color:#999; margin-left:4px;">${formatTime(post.createdAt)}</span>
+              </div>
+              <span class="tag" style="background:var(--brand-100); color:var(--brand-800);">${roleMeta.emoji} ${roleMeta.label}</span>
+            </div>
+            <div style="margin-bottom:6px;">${subjectTagsHtml}</div>
+            <p style="font-size:14px; color:#333; line-height:1.6; margin-bottom:10px;">${escapeHtml(post.content)}</p>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-outline" type="button" style="flex:1; font-size:13px; padding:6px;" onclick="window.toggleBuddyPostComments && window.toggleBuddyPostComments('${post.id}')">💬 留言（${post.commentCount || 0}）</button>
+              ${secondBtnHtml}
+            </div>
+            <div id="buddy-comments-${post.id}" style="display:${isOpen ? 'block' : 'none'}; margin-top:8px;">
+              <div id="buddy-comments-list-${post.id}">${commentsListHtml}</div>
+              <div style="display:flex; gap:6px; margin-top:8px;">
+                <input type="text" id="buddy-comment-input-${post.id}" class="input-field" style="flex:1; font-size:13px;" placeholder="回覆這則貼文…" onkeydown="if(event.key==='Enter'){event.preventDefault(); window.addBuddyWallComment('${post.id}');}">
+                <button class="btn btn-primary" type="button" style="font-size:13px; padding:6px 10px;" onclick="window.addBuddyWallComment('${post.id}')">傳送</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // 對已經展開緊嘅貼文，順手確保個留言監聽器仲喺度運作（未訂閱過
+      // 先會真正裝一個新嘅；上面個 HTML 已經即刻用返 cache 畫低咗最新
+      // 內容，唔使等呢個 function 先有嘢睇）。
+      buddyOpenPanels.forEach((postId) => window.subscribeBuddyPostComments(postId));
+    };
+
+    window.toggleBuddyPostComments = function(postId) {
+      const el = document.getElementById('buddy-comments-' + postId);
+      if (!el) return;
+      const showing = el.style.display !== 'none';
+      if (showing) {
+        buddyOpenPanels.delete(postId);
+        el.style.display = 'none';
+      } else {
+        buddyOpenPanels.add(postId);
+        el.style.display = 'block';
+        window.subscribeBuddyPostComments(postId);
+      }
+    };
+
+    // 重新（或第一次）用 cache 嘅內容畫返某一則貼文嘅留言區——貼文列表
+    // 每次重畫（window.renderBuddyWallList）都會叫呢個，確保個留言區
+    // 唔會因為 DOM 整個換走咗而卡住喺舊嘅內容或者「載入中」。
+    window.renderBuddyPostCommentsFromCache = function(postId) {
+      const listEl = document.getElementById('buddy-comments-list-' + postId);
+      if (!listEl) return;
+      const comments = buddyCommentsCache[postId];
+      listEl.innerHTML = comments
+        ? buddyRenderCommentsHtml(comments)
+        : '<p style="font-size:12px; color:#999; padding:6px 0;">載入留言中…</p>';
+    };
+
+    // 開始監聽某一則貼文嘅留言（第一次展開先裝，之後保持住監聽，收埋
+    // 分頁唔會即刻拆，下次再展開唔使再等網絡來回；真正拆晒全部監聽器
+    // 係喺 window.stopBuddyWallListeners()，切走「書伴廣場」分頁或者
+    // 登出嗰陣先叫）。
+    window.subscribeBuddyPostComments = function(postId) {
+      if (buddyCommentUnsubs[postId] || !window.db || !window.fs) return;
+      const ref = window.fs.collection(window.db, 'buddyPosts', postId, 'comments');
+      const q = window.fs.query(ref, window.fs.orderBy('createdAt', 'asc'), window.fs.limit(100));
+      buddyCommentUnsubs[postId] = window.fs.onSnapshot(q, (snap) => {
+        buddyCommentsCache[postId] = snap.docs.map((d) => d.data());
+        window.renderBuddyPostCommentsFromCache(postId);
+      }, (e) => {
+        console.error('讀取留言失敗:', e);
+        const listEl = document.getElementById('buddy-comments-list-' + postId);
+        if (listEl) listEl.innerHTML = '<p style="font-size:12px; color:#D9764A; padding:6px 0;">讀取留言失敗，請稍後再試</p>';
+      });
+    };
+
+    window.addBuddyWallComment = async function(postId) {
+      if (!window.currentUser) { window.showToast && window.showToast('請先登入', '⚠️'); return; }
+      const input = document.getElementById('buddy-comment-input-' + postId);
+      if (!input) return;
+      const text = input.value.trim();
+      if (!text) return;
+      if (!window.db || !window.fs) return;
+      input.disabled = true;
+      try {
+        await window.fs.addDoc(window.fs.collection(window.db, 'buddyPosts', postId, 'comments'), {
+          authorUid: window.currentUser.uid,
+          authorName: window.currentUser.username || '同學',
+          text: text.slice(0, 150),
+          createdAt: Date.now(),
+        });
+        await window.fs.updateDoc(window.fs.doc(window.db, 'buddyPosts', postId), {
+          commentCount: window.fs.increment(1),
+        });
+        input.value = '';
+      } catch (e) {
+        console.error('留言失敗:', e);
+        window.showToast && window.showToast('留言失敗，請稍後再試', '❌');
+      } finally {
+        input.disabled = false;
+      }
+    };
+
+    // 撳「加好友」：貼文嘅作者係一個真實帳戶（authorUid），直接重用
+    // 「用帳號 ID 搜尋朋友」嗰套真正好友邀請機制
+    // （window.sendFriendRequest()），唔再係第一步嗰個純粹顯示示範訊息
+    // 嘅假掣。
+    window.addFriendFromWallPost = function(postId) {
+      if (!window.currentUser) { window.showToast && window.showToast('請先登入', '⚠️'); return; }
+      const post = (window.buddyWallPostsCache || []).find((p) => p.id === postId);
+      if (!post) return;
+      if (post.authorUid === window.currentUser.uid) {
+        window.showToast && window.showToast('不可以將自己加為好友', '😅');
+        return;
+      }
+      window.sendFriendRequest(post.authorUid, post.authorLoginId || '', post.authorName || '');
+    };
+
+    window.deleteBuddyPost = async function(postId) {
+      if (!window.currentUser || !window.db || !window.fs) return;
+      if (!confirm('確定刪除這則貼文？')) return;
+      try {
+        await window.fs.deleteDoc(window.fs.doc(window.db, 'buddyPosts', postId));
+        window.showToast && window.showToast('貼文已刪除', '🗑️');
+      } catch (e) {
+        console.error('刪除貼文失敗:', e);
+        window.showToast && window.showToast('刪除失敗，請稍後再試', '❌');
+      }
+    };
+
+    // 離開「書伴廣場」分頁（登出）嗰陣拆晒所有監聽器，避免冇需要都繼續
+    // 收 Firestore 更新（見 app-core.js 嘅 window.logoutWithFirebase()）。
+    window.stopBuddyWallListeners = function() {
+      if (typeof buddyWallUnsubscribe === 'function') { buddyWallUnsubscribe(); buddyWallUnsubscribe = null; }
+      Object.keys(buddyCommentUnsubs).forEach((postId) => {
+        if (typeof buddyCommentUnsubs[postId] === 'function') buddyCommentUnsubs[postId]();
+      });
+      buddyCommentUnsubs = {};
+      buddyCommentsCache = {};
+      buddyOpenPanels = new Set();
+    };
+
+    window.updateBuddyPostCharCount = function() {
+      const textarea = document.getElementById('buddy-post-content');
+      const counter = document.getElementById('buddy-post-char-count');
+      if (!textarea || !counter) return;
+      counter.textContent = `${textarea.value.length} / 150`;
+    };
+
+    window.resetBuddyPostForm = function() {
+      const form = document.getElementById('buddy-post-content');
+      if (form) form.value = '';
+      window.updateBuddyPostCharCount();
+      const roleInput = document.getElementById('buddy-post-role');
+      if (roleInput) roleInput.value = '';
+      document.querySelectorAll('.buddy-role-chip').forEach((btn) => {
+        btn.style.border = '1px solid #ddd';
+        btn.style.background = '#F5F7F8';
+        btn.style.color = '#555';
+      });
+      const subjectsInput = document.getElementById('buddy-post-subjects');
+      if (subjectsInput) subjectsInput.value = '';
+      if (typeof window.renderStudentFavSubjectChipPicker === 'function') {
+        window.renderStudentFavSubjectChipPicker('buddy-post-subject-picker', 'buddy-post-subjects', 3);
+      }
+    };
+
+    // 身份標籤單選 chip：撳落去就揀返呢一個、其餘打返灰（同 chip
+    // picker 唔同，呢度淨係可以揀一個，所以獨立寫一小段，唔借用
+    // renderStudentFavSubjectChipPicker）。
+    document.querySelectorAll('.buddy-role-chip').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.buddy-role-chip').forEach((b) => {
+          b.style.border = '1px solid #ddd';
+          b.style.background = '#F5F7F8';
+          b.style.color = '#555';
+        });
+        btn.style.border = '1px solid var(--brand-500)';
+        btn.style.background = 'var(--brand-500)';
+        btn.style.color = '#fff';
+        const roleInput = document.getElementById('buddy-post-role');
+        if (roleInput) roleInput.value = btn.getAttribute('data-role');
+      });
+    });
+
+    window.submitBuddyPost = async function(event) {
+      event.preventDefault();
+      if (!window.currentUser) { window.showToast && window.showToast('請先登入', '⚠️'); closeModal('modal-buddy-post'); openModal('modal-login'); return; }
+      if (!window.db || !window.fs) return;
+      const roleInput = document.getElementById('buddy-post-role');
+      const contentInput = document.getElementById('buddy-post-content');
+      const subjectsInput = document.getElementById('buddy-post-subjects');
+      if (!roleInput || !roleInput.value) {
+        window.showToast && window.showToast('請先揀一個身份標籤', '⚠️');
+        return;
+      }
+      const content = (contentInput && contentInput.value.trim()) || '';
+      if (!content) {
+        window.showToast && window.showToast('請輸入貼文內容', '⚠️');
+        return;
+      }
+      const subjects = ((subjectsInput && subjectsInput.value) || '').split(/[,，、]/).map((s) => s.trim()).filter(Boolean).slice(0, 3);
+
+      const submitBtn = document.querySelector('#modal-buddy-post .btn-primary');
+      const origText = submitBtn ? submitBtn.innerText : '';
+      if (submitBtn) { submitBtn.innerText = '⏳ 發佈中…'; submitBtn.disabled = true; }
+
+      try {
+        await window.fs.addDoc(window.fs.collection(window.db, 'buddyPosts'), {
+          authorUid: window.currentUser.uid,
+          authorName: window.currentUser.username || '同學',
+          authorLoginId: window.currentUser.loginId || '',
+          role: roleInput.value,
+          subjects,
+          content: content.slice(0, 150),
+          commentCount: 0,
+          createdAt: Date.now(),
+        });
+        window.resetBuddyPostForm();
+        closeModal('modal-buddy-post');
+        window.showToast && window.showToast('📮 貼文已發佈！', '✨');
+      } catch (e) {
+        console.error('發佈貼文失敗:', e);
+        window.showToast && window.showToast('發佈失敗，請稍後再試', '❌');
+      } finally {
+        if (submitBtn) { submitBtn.innerText = origText; submitBtn.disabled = false; }
       }
     };
 
