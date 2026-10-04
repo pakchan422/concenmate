@@ -90,6 +90,21 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       return result.data;
     };
 
+    // 側邊選單喺窄螢幕（≤900px，見 index.html 嘅 CSS）變成撳☰先滑出嚟
+    // 嘅浮層選單。forceOpen 冇傳就當「切換」；傳 true/false 就強制開／關
+    // （揀咗某個分頁之後要強制關返，見 switchTab）。加/減 body 嘅捲動
+    // 鎖定，係因為選單開住嗰陣如果個背景版面都仲郁得，會令人以為個
+    // 選單冇真正蓋住成個畫面、好易誤觸背後嘅按鈕。
+    window.toggleMobileNav = function(forceOpen) {
+      const asideEl = document.querySelector('aside');
+      const backdropEl = document.getElementById('mobile-nav-backdrop');
+      if (!asideEl) return;
+      const shouldOpen = typeof forceOpen === 'boolean' ? forceOpen : !asideEl.classList.contains('mobile-nav-open');
+      asideEl.classList.toggle('mobile-nav-open', shouldOpen);
+      if (backdropEl) backdropEl.classList.toggle('show', shouldOpen);
+      document.body.style.overflow = shouldOpen ? 'hidden' : '';
+    };
+
     // 幽靈房自動清理：房間冇人心跳（見 updateRoomHeartbeat）超過呢個時間，
     // 就當佢係冇人打理嘅幽靈房（例如房主手機突然關機、瀏覽器崩潰，嚟唔切
     // 觸發正常嘅退房流程），下次有人打開大廳就會順手刪走，唔使等房主親自嚟關。
@@ -129,16 +144,29 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       }
     }
 
-    // 大廳嘅學科分類 Tab：淨係揀「全部」或者其中一個學科（中文/英文/數學/公民/選修）。
-    // 房間資料本身淨係靠 Firestore 一條 listener 攞（見 listenToPublicRooms），
-    // 撳唔同 Tab 淨係喺已經攞落嚟嘅資料度做本機篩選，唔使開多條連線。
+    // 大廳嘅學科分類 Tab：揀「全部」或者「必修科目／選修科目／其他」
+    // 呢三個分類（跟疑難解答區一致嘅分法，見 app-features.js 嘅
+    // getRoomSubjectCategory()）——建立房間嗰個下拉選單已經改用晒完整
+    // HKDSE 科目清單（見 index.html 嘅 modal-room-subject），逐科做
+    // Tab 唔切實際，所以改用分類篩選。房間資料本身淨係靠 Firestore
+    // 一條 listener 攞（見 listenToPublicRooms），撳唔同 Tab 淨係喺
+    // 已經攞落嚟嘅資料度做本機篩選，唔使開多條連線。
     let latestRoomsData = [];
     let roomSubjectFilter = '全部';
+    // roomSubjectFilter 存嘅係英文分類代碼（'core'／'elective'／
+    // 'other'，同 getRoomSubjectCategory() 回傳嘅值一致），畫面顯示
+    // 一定要轉返做中文，唔可以將個代碼直接印出嚟畀用戶睇到（見用家
+    // 反映「目前『core』分類沒有公開的溫習房」呢句嘢）。
+    const ROOM_SUBJECT_FILTER_LABELS = { core: '必修科目', elective: '選修科目', other: '其他' };
 
-    window.setRoomSubjectFilter = function(subject) {
-      roomSubjectFilter = subject;
-      document.querySelectorAll('.room-subject-tab-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.subject === subject);
+    window.setRoomSubjectFilter = function(category) {
+      roomSubjectFilter = category;
+      // 特登淨係揀 #room-subject-tabs 入面嗰幾粒掣（唔係成頁所有
+      // .room-subject-tab-btn）——呢個 class 仲有喺「書伴廣場」嗰邊
+      // 重用緊（見 index.html 嘅註解），淨係揀返自己嗰組先唔會撞埋
+      // 兩邊個 active 狀態。
+      document.querySelectorAll('#room-subject-tabs .room-subject-tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.subject === category);
       });
       renderPublicRoomsList();
     };
@@ -149,14 +177,17 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 
       const filtered = roomSubjectFilter === '全部'
         ? latestRoomsData
-        : latestRoomsData.filter(r => r.room.subject === roomSubjectFilter);
+        : latestRoomsData.filter(r => (typeof window.getRoomSubjectCategory === 'function' ? window.getRoomSubjectCategory(r.room.subject) : 'other') === roomSubjectFilter);
 
       if (filtered.length === 0) {
+        const categoryLabel = ROOM_SUBJECT_FILTER_LABELS[roomSubjectFilter]
+          ? window.t(`room.filter${roomSubjectFilter.charAt(0).toUpperCase()}${roomSubjectFilter.slice(1)}`, ROOM_SUBJECT_FILTER_LABELS[roomSubjectFilter])
+          : roomSubjectFilter;
         roomsListEl.innerHTML = `
           <div style="grid-column: 1 / -1; text-align:center; padding: 40px; background: white; border-radius: 16px; border: 1px solid var(--brand-200);">
-            <div style="font-size:36px; margin-bottom:8px;">🦦📭</div>
-            <p style="font-size:13px; font-weight:bold; color:var(--brand-800);">${roomSubjectFilter === '全部' ? '目前大廳沒有公開的溫習房' : `目前「${window.escapeHtml(roomSubjectFilter)}」分類沒有公開的溫習房`}</p>
-            <p style="font-size:13px; color:#666; margin-top:4px;">點擊上方「+ 建立新溫習房」來開立第一個房間吧！</p>
+            <div style="font-size:36px; margin-bottom:8px;"></div>
+            <p style="font-size:13px; font-weight:bold; color:var(--brand-800);">${roomSubjectFilter === '全部' ? window.t('room.emptyLobbyAll', '目前大廳沒有公開的溫習房') : window.t('room.emptyLobbyCategoryTemplate', `目前「${window.escapeHtml(categoryLabel)}」分類沒有公開的溫習房`).replace('{category}', window.escapeHtml(categoryLabel))}</p>
+            <p style="font-size:13px; color:#666; margin-top:4px;">${window.t('room.emptyLobbyHint', '點擊上方「+ 建立新溫習房」來開立第一個房間吧！')}</p>
           </div>
         `;
         return;
@@ -166,19 +197,19 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
         <div class="room-item-card">
           <div>
             <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
-              <span class="tag" style="background:#F0F6F8; color:#1E4550;">${window.escapeHtml(room.subject || '數學')}</span>
-              <span style="font-size:13px; color:#3E7A8A; font-weight:bold;">🟢 直播中</span>
+              <span class="tag" style="background:#F0F6F8; color:#1E4550;">${window.escapeHtml(window.translateSubjectName ? window.translateSubjectName(room.subject || '數學') : (room.subject || '數學'))}</span>
+              <span style="font-size:13px; color:#3E7A8A; font-weight:bold;">${window.t('room.liveNow', '直播中')}</span>
             </div>
             <h4 style="font-size:14px; font-weight:bold; color:var(--brand-800); margin-bottom:4px;">${room.hasPassword ? '🔒 ' : ''}${window.escapeHtml(room.name)}</h4>
-            <p style="font-size:13px; color:#666;">房主：<strong>${window.escapeHtml(room.hostName || '匿名同學')}</strong></p>
-            <p style="font-size:13px; color:#888; margin-top:2px;">👥 ${room.participantCount || 0}/${window.ROOM_CAPACITY || 4} 人 · 🍅 每輪專注：${room.duration || 30} 分鐘</p>
+            <p style="font-size:13px; color:#666;">${window.t('room.hostPrefix', '房主：')}<strong>${window.escapeHtml(room.hostName || window.t('room.anonymousStudent', '匿名同學'))}</strong></p>
+            <p style="font-size:13px; color:#888; margin-top:2px;">${window.t('room.capacityInfoTemplate', '{count}/{max} 人 · 每輪專注：{duration} 分鐘').replace('{count}', room.participantCount || 0).replace('{max}', (typeof window.resolveRoomCapacity === 'function') ? window.resolveRoomCapacity(room) : (window.ROOM_CAPACITY || 4)).replace('{duration}', room.duration || 30)}</p>
           </div>
 
           <div style="display:flex; gap:6px; margin-top:12px;">
-            <button class="btn btn-primary" style="flex:1; justify-content:center; font-size:13px; padding:6px;" onclick="joinPublicRoom('${roomId}', '${room.name.replace(/'/g, "\\'")}', '${room.subject}', ${room.duration}, '${room.hostName}', ${isMyRoom}, ${createdAtMs}, '${room.hostUid || ''}')">
-              🚪 加入房間
+            <button class="btn btn-primary" style="flex:1; justify-content:center; font-size:13px; padding:6px;" onclick="joinPublicRoom('${roomId}', '${room.name.replace(/'/g, "\\'")}', '${room.subject}', ${room.duration}, '${room.hostName}', ${isMyRoom}, ${createdAtMs}, '${room.hostUid || ''}', this)">
+              ${window.t('room.joinRoom', '加入房間')}
             </button>
-            ${isMyRoom ? `<button class="btn btn-red" style="font-size:13px; padding:6px;" onclick="deleteRoomQuick('${roomId}')">刪除</button>` : ''}
+            ${isMyRoom ? `<button class="btn btn-red" style="font-size:13px; padding:6px;" onclick="deleteRoomQuick('${roomId}')">${window.t('room.deleteRoom', '刪除')}</button>` : ''}
           </div>
         </div>
       `).join('');
@@ -253,8 +284,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       if (adminToggleBtn) adminToggleBtn.style.display = isAdmin ? 'inline-block' : 'none';
       if (!titleEl) return;
       const isSecondary = getLobbyViewPool() === 'secondary';
-      let title = isSecondary ? '🌐 公開溫習大廳（中學溫習室）' : '🌐 公開溫習大廳（公開溫習室）';
-      if (isAdmin && adminRoomPoolOverride) title += ' 🛠️';
+      let title = isSecondary ? window.t('room.lobbyTitleSecondary', '公開溫習大廳（中學溫習室）') : window.t('room.lobbyTitlePublic', '公開溫習大廳（公開溫習室）');
+      if (isAdmin && adminRoomPoolOverride) title += window.t('room.adminViewSuffix', '（管理員檢視）');
       titleEl.innerText = title;
     };
 
@@ -264,7 +295,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       const hintEl = document.getElementById('room-lobby-you-are-in-hint');
       if (hintEl) {
         const isSecondary = getLobbyViewPool() === 'secondary';
-        hintEl.innerText = isSecondary ? '你目前屬於：中學溫習室' : '你目前屬於：公開溫習室';
+        hintEl.innerText = isSecondary ? window.t('room.youAreInSecondary', '你目前屬於：中學溫習室') : window.t('room.youAreInPublic', '你目前屬於：公開溫習室');
       }
       if (typeof window.openModal === 'function') window.openModal('modal-room-pool-info');
     };
@@ -353,10 +384,10 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
         if (roomsListEl) {
           roomsListEl.innerHTML = `
             <div style="grid-column: 1 / -1; text-align:center; padding: 40px; background: white; border-radius: 16px; border: 1px solid var(--brand-200);">
-              <div style="font-size:36px; margin-bottom:8px;">🦦⚠️</div>
-              <p style="font-size:13px; font-weight:bold; color:var(--brand-800);">暫時未能載入公開溫習房列表</p>
-              <p style="font-size:13px; color:#666; margin-top:4px;">請檢查網絡連線，或稍後再試。</p>
-              <button class="btn btn-primary" type="button" style="margin-top:10px;" onclick="window.retryListenToPublicRooms && window.retryListenToPublicRooms()">🔄 重新載入</button>
+              <div style="font-size:36px; margin-bottom:8px;"></div>
+              <p style="font-size:13px; font-weight:bold; color:var(--brand-800);">${window.t('room.loadErrorTitle', '暫時未能載入公開溫習房列表')}</p>
+              <p style="font-size:13px; color:#666; margin-top:4px;">${window.t('room.loadErrorHint', '請檢查網絡連線，或稍後再試。')}</p>
+              <button class="btn btn-primary" type="button" style="margin-top:10px;" onclick="window.retryListenToPublicRooms && window.retryListenToPublicRooms()">${window.t('room.reload', '重新載入')}</button>
             </div>
           `;
         }
@@ -474,9 +505,32 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
         if (typeof window.loadAdminIdsFromFirestore === 'function') {
           window.loadAdminIdsFromFirestore();
         }
+        if (typeof window.loadScoringRulesFromFirestore === 'function') {
+          window.loadScoringRulesFromFirestore();
+        }
       } else {
         window.currentUser = null;
         if (suspensionListenerUnsubscribe) { suspensionListenerUnsubscribe(); suspensionListenerUnsubscribe = null; }
+      }
+      // Landing page（未登入主頁）嘅文案／圖片設定特登放喺 if/else
+      // 之外、兩種情況都會叫——同埋冇登入都要套用，先叫得過淨係喺
+      // if (user) 入面嗰堆 loadXxxFromFirestore()（admin_config/
+      // landingContent 喺 firestore.rules 入面已經特登開放俾未登入
+      // 用戶讀取，見 admin-panel.js 嘅 loadLandingContentFromFirestore
+      // 定義處嘅說明）。放喺呢度（而唔係成個檔案最頂、Firebase 岩岩
+      // init 完嗰陣）係因為呢度係 onAuthStateChanged 嘅 callback，
+      // 保證成個頁面所有 <script> 都已經載入執行完（包括
+      // admin-panel.js），window.loadLandingContentFromFirestore 先
+      // 實際存在，唔會因為載入順序問題而靜靜雞冧咗。
+      if (typeof window.loadLandingContentFromFirestore === 'function') {
+        window.loadLandingContentFromFirestore();
+      }
+      // 登入／登出狀態一改變，「目前語言」嘅判斷依據都可能跟住變（已
+      // 登入睇 users/{uid}.language，登出返又退返去睇 localStorage——
+      // 見 i18n.js 嘅 window.getAppLanguage），所以要即刻重新套用一次，
+      // 等 header 嗰個語言掣文字、側邊選單都同步跟到。
+      if (typeof window.applyAppLanguage === 'function') {
+        window.applyAppLanguage();
       }
       if (typeof window.updateUserAuthUI === 'function') {
         window.updateUserAuthUI();
@@ -578,7 +632,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
         if (result && result.alreadyVerified) {
           window.showToast('這個電郵地址已經驗證過了', 'ℹ️');
         } else {
-          window.showToast('🎉 電郵驗證成功！', '✅');
+          window.showToast('電郵驗證成功！', '✅');
         }
         // 如果撳連結嗰部裝置岩岩好登入緊就係嗰個帳戶本人，即刻更新返
         // 本機狀態，唔使用戶自己再撳多次「重新整理」先解鎖到個 app
@@ -677,7 +731,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       if (!loginId) return;
 
       const btn = document.getElementById('forgot-password-submit-btn');
-      if (btn) { btn.disabled = true; btn.innerText = '⏳ 處理中...'; }
+      if (btn) { btn.disabled = true; btn.innerText = '處理中...'; }
 
       try {
         const result = await window.callCloudFunction('requestPasswordReset', { loginId });
@@ -693,7 +747,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       } catch (error) {
         window.showToast('處理失敗：' + (error.message || error), '❌');
       } finally {
-        if (btn) { btn.disabled = false; btn.innerText = '📧 寄出重設密碼連結'; }
+        if (btn) { btn.disabled = false; btn.innerText = '寄出重設密碼連結'; }
       }
     };
 
@@ -728,7 +782,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       }
 
       const btn = document.getElementById('reset-password-submit-btn');
-      if (btn) { btn.disabled = true; btn.innerText = '⏳ 更改中...'; }
+      if (btn) { btn.disabled = true; btn.innerText = '更改中...'; }
 
       try {
         await window.callCloudFunction('confirmPasswordReset', { token, newPassword: newPwd });
@@ -736,7 +790,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
         const form = document.getElementById('reset-password-form');
         if (form) form.reset();
         window.closeModal('modal-reset-password');
-        window.showToast('🎉 密碼已成功重設！現在可以使用新密碼登入', '✅');
+        window.showToast('密碼已成功重設！現在可以使用新密碼登入', '✅');
         window.openModal('modal-login');
       } catch (error) {
         if (error.code === 'functions/not-found' || error.code === 'not-found') {
@@ -747,7 +801,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
           window.showToast('重設密碼失敗：' + (error.message || error), '❌');
         }
       } finally {
-        if (btn) { btn.disabled = false; btn.innerText = '🔑 確認重設密碼'; }
+        if (btn) { btn.disabled = false; btn.innerText = '確認重設密碼'; }
       }
     };
 
@@ -758,7 +812,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       const toEmail = window.currentUser.contactEmail;
       if (!toEmail) { window.showToast('請先在上面填寫電郵地址，再按「儲存修改資料」', '⚠️'); return; }
       const btn = document.getElementById('resend-verify-email-btn');
-      if (btn) { btn.disabled = true; btn.innerText = '⏳ 發送中...'; }
+      if (btn) { btn.disabled = true; btn.innerText = '發送中...'; }
       try {
         const token = generateVerifyToken();
         await updateDoc(doc(db, 'users', auth.currentUser.uid), { emailVerifyToken: token, emailVerified: false });
@@ -770,7 +824,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       } catch (e) {
         window.showToast('發送失敗：' + (e.message || e), '❌');
       } finally {
-        if (btn) { btn.disabled = false; btn.innerText = '📧 重新發送驗證電郵'; }
+        if (btn) { btn.disabled = false; btn.innerText = '重新發送驗證電郵'; }
       }
     };
 
@@ -785,7 +839,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
           window.currentUser = snap.data();
         }
         if (window.currentUser.emailVerified) {
-          window.showToast('🎉 電郵已驗證，歡迎使用 ConcenMate！', '✅');
+          window.showToast('電郵已驗證，歡迎使用 ConcenMate！', '✅');
         } else {
           window.showToast('尚未完成驗證，請檢查郵件並點擊當中的連結', '📧');
         }
@@ -810,12 +864,12 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
         badge.style.background = 'transparent';
         resendBtn.style.display = 'none';
       } else if (window.currentUser.emailVerified) {
-        badge.innerText = '✅ 已驗證';
+        badge.innerText = '已驗證';
         badge.style.background = '#DFF3E3';
         badge.style.color = '#2A7A46';
         resendBtn.style.display = 'none';
       } else {
-        badge.innerText = '⚠️ 未驗證';
+        badge.innerText = '未驗證';
         badge.style.background = '#FDECEA';
         badge.style.color = '#C0392B';
         resendBtn.style.display = 'inline-block';
@@ -879,7 +933,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       }
 
       const btn = document.getElementById('change-password-submit-btn');
-      if (btn) { btn.disabled = true; btn.innerText = '⏳ 更改中...'; }
+      if (btn) { btn.disabled = true; btn.innerText = '更改中...'; }
 
       try {
         const credential = EmailAuthProvider.credential(window.currentUser.email, currentPwd);
@@ -887,7 +941,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
         await updatePassword(auth.currentUser, newPwd);
         const form = document.getElementById('change-password-form');
         if (form) form.reset();
-        window.showToast('🎉 密碼已成功更改！下次登入請使用新密碼', '✅');
+        window.showToast('密碼已成功更改！下次登入請使用新密碼', '✅');
       } catch (error) {
         if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
           window.showToast('目前密碼輸入錯誤，請再試一次', '❌');
@@ -899,7 +953,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
           window.showToast('更改密碼失敗：' + (error.message || error), '❌');
         }
       } finally {
-        if (btn) { btn.disabled = false; btn.innerText = '🔑 更改密碼'; }
+        if (btn) { btn.disabled = false; btn.innerText = '更改密碼'; }
       }
     };
 
@@ -1016,14 +1070,14 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
         window.updateUserAuthUI();
         if (profileData.accountType === 'tutor') {
           if (tutorApplySucceeded) {
-            window.showToast(`🎉 註冊成功！您的帳號 ID 是「${loginId}」。導師身份申請已經一併送出，請等候管理員審批，審批結果會在「我的帳戶」顯示`, "🎓");
+            window.showToast(`註冊成功！您的帳號 ID 是「${loginId}」。導師身份申請已經一併送出，請等候管理員審批，審批結果會在「我的帳戶」顯示`, "🎓");
           } else {
-            window.showToast(`🎉 註冊成功！您的帳號 ID 是「${loginId}」。不過導師申請未能送出，請登入後在「我的帳戶」重新申請`, "⚠️");
+            window.showToast(`註冊成功！您的帳號 ID 是「${loginId}」。不過導師申請未能送出，請登入後在「我的帳戶」重新申請`, "⚠️");
           }
         } else if (newProfile.contactEmail) {
-          window.showToast(`🎉 註冊成功！你的帳號 ID 是「${loginId}」，請記住以用作登入。另外請點擊已寄至你電郵的驗證連結，才能正式開始使用`, "✨");
+          window.showToast(`註冊成功！你的帳號 ID 是「${loginId}」，請記住以用作登入。另外請點擊已寄至你電郵的驗證連結，才能正式開始使用`, "✨");
         } else {
-          window.showToast(`🎉 註冊成功！你的帳號 ID 是「${loginId}」，記住他來登入`, "✨");
+          window.showToast(`註冊成功！你的帳號 ID 是「${loginId}」，記住他來登入`, "✨");
         }
         window.switchTab('home');
       } catch (error) {
@@ -1133,17 +1187,17 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
           return `<button type="button" class="tag" data-subject="${escAttr(s)}"
             style="cursor:pointer; border:1px solid ${active ? 'var(--brand-500)' : '#ddd'};
             background:${active ? 'var(--brand-500)' : '#F5F7F8'}; color:${active ? '#fff' : '#555'};
-            border-radius:99px; padding:4px 10px; font-size:13px; margin:0 6px 6px 0;">${active ? '✓ ' : ''}${s}</button>`;
+            border-radius:99px; padding:4px 10px; font-size:13px; margin:0 6px 6px 0;">${active ? '✓ ' : ''}${window.escapeHtml(window.translateSubjectName ? window.translateSubjectName(s) : s)}</button>`;
         }).join('');
         const customSelected = Array.from(selected).filter((s) => !fixedSubjects.includes(s));
         const customChipsHtml = customSelected.map((s) => `
           <button type="button" class="tag" data-custom-subject="${escAttr(s)}"
             style="cursor:pointer; border:1px solid var(--brand-500); background:var(--brand-500);
-            color:#fff; border-radius:99px; padding:4px 10px; font-size:13px; margin:0 6px 6px 0;">✓ ${s} ✕</button>
+            color:#fff; border-radius:99px; padding:4px 10px; font-size:13px; margin:0 6px 6px 0;">✓ ${window.escapeHtml(s)} ✕</button>
         `).join('');
         picker.innerHTML = `
           <div style="display:flex; flex-wrap:wrap;">${chipsHtml}${customChipsHtml}</div>
-          <input type="text" id="${pickerId}-custom" class="input-field" placeholder="其他科目（自行輸入，按 Enter 新增）" style="width:100%; margin-top:4px;">
+          <input type="text" id="${pickerId}-custom" class="input-field" placeholder="${window.t('subject.customPlaceholderAdd', '其他科目（自行輸入，按 Enter 新增）')}" style="width:100%; margin-top:4px;">
         `;
         picker.querySelectorAll('button[data-subject]').forEach((btn) => {
           btn.onclick = () => {
@@ -1208,18 +1262,18 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
           return `<button type="button" class="tag" data-subject="${escAttr(s)}" ${disabled ? 'disabled' : ''}
             style="cursor:${disabled ? 'not-allowed' : 'pointer'}; border:1px solid ${active ? 'var(--brand-500)' : '#ddd'};
             background:${active ? 'var(--brand-500)' : (disabled ? '#eee' : '#F5F7F8')}; color:${active ? '#fff' : (disabled ? '#bbb' : '#555')};
-            border-radius:99px; padding:4px 10px; font-size:13px; margin:0 6px 6px 0;">${active ? '✓ ' : ''}${s}</button>`;
+            border-radius:99px; padding:4px 10px; font-size:13px; margin:0 6px 6px 0;">${active ? '✓ ' : ''}${window.escapeHtml(window.translateSubjectName ? window.translateSubjectName(s) : s)}</button>`;
         }).join('');
         const customSelected = Array.from(selected).filter((s) => !fixedSubjects.includes(s));
         const customChipsHtml = customSelected.map((s) => `
           <button type="button" class="tag" data-custom-subject="${escAttr(s)}"
             style="cursor:pointer; border:1px solid var(--brand-500); background:var(--brand-500);
-            color:#fff; border-radius:99px; padding:4px 10px; font-size:13px; margin:0 6px 6px 0;">✓ ${s} ✕</button>
+            color:#fff; border-radius:99px; padding:4px 10px; font-size:13px; margin:0 6px 6px 0;">✓ ${window.escapeHtml(s)} ✕</button>
         `).join('');
         picker.innerHTML = `
           <div style="display:flex; flex-wrap:wrap;">${chipsHtml}${customChipsHtml}</div>
-          <input type="text" id="${pickerId}-custom" class="input-field" placeholder="${atMax ? `最多可揀 ${max} 科` : '其他科目（自行輸入，按 Enter 新增）'}" style="width:100%; margin-top:4px;" ${atMax ? 'disabled' : ''}>
-          <p style="font-size:12px; color:#999; margin-top:4px;">已選 ${selected.size} / ${max} 科</p>
+          <input type="text" id="${pickerId}-custom" class="input-field" placeholder="${atMax ? window.t('subject.maxReachedPlaceholderTemplate', `最多可揀 ${max} 科`).replace('{max}', max) : window.t('subject.customPlaceholderAdd', '其他科目（自行輸入，按 Enter 新增）')}" style="width:100%; margin-top:4px;" ${atMax ? 'disabled' : ''}>
+          <p style="font-size:12px; color:#999; margin-top:4px;">${window.t('subject.selectedCountTemplate', `已選 ${selected.size} / ${max} 科`).replace('{n}', selected.size).replace('{max}', max)}</p>
         `;
         picker.querySelectorAll('button[data-subject]').forEach((btn) => {
           btn.onclick = () => {
@@ -1228,7 +1282,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
               selected.delete(subj);
             } else {
               if (selected.size >= max) {
-                window.showToast && window.showToast(`最多只可以揀 ${max} 個喜愛學科`, '⚠️');
+                window.showToast && window.showToast(window.t('subject.maxFavToastTemplate', `最多只可以揀 ${max} 個喜愛學科`).replace('{max}', max), '⚠️');
                 return;
               }
               selected.add(subj);
@@ -1252,7 +1306,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
             const v = customInput.value.trim();
             if (!v) return;
             if (selected.size >= max) {
-              window.showToast && window.showToast(`最多只可以揀 ${max} 個喜愛學科`, '⚠️');
+              window.showToast && window.showToast(window.t('subject.maxFavToastTemplate', `最多只可以揀 ${max} 個喜愛學科`).replace('{max}', max), '⚠️');
               return;
             }
             selected.add(v);
@@ -1291,17 +1345,17 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
           return `<button type="button" class="tag" data-subject="${escAttr(s)}"
             style="cursor:pointer; border:1px solid ${active ? 'var(--brand-500)' : '#ddd'};
             background:${active ? 'var(--brand-500)' : '#F5F7F8'}; color:${active ? '#fff' : '#555'};
-            border-radius:99px; padding:4px 10px; font-size:13px; margin:0 6px 6px 0;">${active ? '✓ ' : ''}${s}</button>`;
+            border-radius:99px; padding:4px 10px; font-size:13px; margin:0 6px 6px 0;">${active ? '✓ ' : ''}${window.escapeHtml(window.translateSubjectName ? window.translateSubjectName(s) : s)}</button>`;
         }).join('');
         const isCustomSelected = selected && !fixedSubjects.includes(selected);
         const customChipHtml = isCustomSelected ? `
           <button type="button" class="tag" data-custom-subject="${escAttr(selected)}"
             style="cursor:pointer; border:1px solid var(--brand-500); background:var(--brand-500);
-            color:#fff; border-radius:99px; padding:4px 10px; font-size:13px; margin:0 6px 6px 0;">✓ ${selected} ✕</button>
+            color:#fff; border-radius:99px; padding:4px 10px; font-size:13px; margin:0 6px 6px 0;">✓ ${window.escapeHtml(selected)} ✕</button>
         ` : '';
         picker.innerHTML = `
           <div style="display:flex; flex-wrap:wrap;">${chipsHtml}${customChipHtml}</div>
-          <input type="text" id="${pickerId}-custom" class="input-field" placeholder="其他科目（自行輸入，按 Enter 選定）" style="width:100%; margin-top:4px;">
+          <input type="text" id="${pickerId}-custom" class="input-field" placeholder="${window.t('subject.customPlaceholderSelect', '其他科目（自行輸入，按 Enter 選定）')}" style="width:100%; margin-top:4px;">
         `;
         picker.querySelectorAll('button[data-subject]').forEach((btn) => {
           btn.onclick = () => {
@@ -1427,11 +1481,12 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       if (!districtSelect || !window.HK_DISTRICT_REGION_GROUPS) return;
       if (districtSelect.dataset.populated === '1') return; // 淨係填一次，唔使重複填
       const escAttr = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+      const translateDist = window.translateDistrictName || ((n) => n);
       const groupsHtml = window.HK_DISTRICT_REGION_GROUPS.map((g) => {
-        const optionsHtml = g.districts.map((d) => `<option value="${escAttr(d)}">${d}</option>`).join('');
-        return `<optgroup label="${escAttr(g.region)}">${optionsHtml}</optgroup>`;
+        const optionsHtml = g.districts.map((d) => `<option value="${escAttr(d)}" data-district="${escAttr(d)}">${window.escapeHtml(translateDist(d))}</option>`).join('');
+        return `<optgroup label="${window.escapeHtml(translateDist(g.region))}" data-district-label="${escAttr(g.region)}">${optionsHtml}</optgroup>`;
       }).join('');
-      districtSelect.innerHTML = `<option value="">請先選擇地區</option>${groupsHtml}`;
+      districtSelect.innerHTML = `<option value="" data-i18n="reg.chooseDistrictFirst">請先選擇地區</option>${groupsHtml}`;
       districtSelect.dataset.populated = '1';
     };
 
@@ -1591,11 +1646,31 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
     // 就會將呢幾個 disable 埋（連埋上面「本人確認現時為中學生」嗰個
     // 剔選格），道理一樣：20 歲已經遠超中六 DSE 學生嘅一般年齡範圍。
     const REG_SECONDARY_GRADE_VALUES = ['中一 (S1)', '中二 (S2)', '中三 (S3)', '中四 (S4)', '中五 (S5)', '中六 (S6 DSE)'];
+
+    // 「本人現時是否中學生？」由剔選格（容易漏剔，令真正中學生誤入
+    // 「公開溫習室」池而唔係「中學溫習室」池，見 window.getViewerRoomPool()）
+    // 改做強制揀「是」／「否」嘅按鈕對，用一個隱藏 input（#{prefix}-
+    // is-secondary-student）存返 'yes'／'no'／''（未揀）呢個值，等提交
+    // 表格嗰陣可以照 .value 讀，同時提交前可以檢查有冇漏揀。prefix 係
+    // 'reg'（註冊表格）或者 'prof'（我的帳戶）。
+    window.setSecondaryStudentToggle = function(prefix, value) {
+      const hiddenInput = document.getElementById(prefix + '-is-secondary-student');
+      const yesBtn = document.getElementById(prefix + '-is-secondary-student-yes-btn');
+      const noBtn = document.getElementById(prefix + '-is-secondary-student-no-btn');
+      if (yesBtn && yesBtn.disabled && value === 'yes') return; // 年齡已經唔畀揀「是」
+      if (hiddenInput) hiddenInput.value = value;
+      if (yesBtn) yesBtn.classList.toggle('btn-primary', value === 'yes');
+      if (yesBtn) yesBtn.classList.toggle('btn-outline', value !== 'yes');
+      if (noBtn) noBtn.classList.toggle('btn-primary', value === 'no');
+      if (noBtn) noBtn.classList.toggle('btn-outline', value !== 'no');
+    };
+
     window.updateRegBirthAgeDisplay = function() {
       const yearEl = document.getElementById('reg-birth-year');
       const monthEl = document.getElementById('reg-birth-month');
       const displayEl = document.getElementById('reg-birth-age-display');
-      const secondaryCheckbox = document.getElementById('reg-is-secondary-student');
+      const secondaryYesBtn = document.getElementById('reg-is-secondary-student-yes-btn');
+      const secondaryHidden = document.getElementById('reg-is-secondary-student');
       const ageHint = document.getElementById('reg-is-secondary-student-age-hint');
       const gradeSelect = document.getElementById('reg-grade');
       const gradeAgeHint = document.getElementById('reg-grade-age-hint');
@@ -1604,7 +1679,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       const month = parseInt(monthEl.value, 10);
       if (!year || !month) {
         displayEl.innerText = '';
-        if (secondaryCheckbox) secondaryCheckbox.disabled = false;
+        if (secondaryYesBtn) secondaryYesBtn.disabled = false;
         if (ageHint) ageHint.style.display = 'none';
         if (gradeSelect) {
           Array.from(gradeSelect.options).forEach((opt) => {
@@ -1621,9 +1696,11 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 
       const tooOld = age > REG_SECONDARY_STUDENT_MAX_AGE;
 
-      if (secondaryCheckbox) {
-        secondaryCheckbox.disabled = tooOld;
-        if (tooOld) secondaryCheckbox.checked = false;
+      if (secondaryYesBtn) {
+        secondaryYesBtn.disabled = tooOld;
+        if (tooOld && secondaryHidden && secondaryHidden.value === 'yes') {
+          window.setSecondaryStudentToggle('reg', 'no');
+        }
         if (ageHint) ageHint.style.display = tooOld ? 'block' : 'none';
       }
 
@@ -1651,13 +1728,14 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
     // 資料可以判斷，呢種情況唔會強行 disable（畀返用戶自己憑良心
     // 剔選，總好過完全冇辦法補回呢個聲明）。
     window.updateProfileSecondaryStudentAgeGate = function() {
-      const checkbox = document.getElementById('prof-is-secondary-student');
+      const yesBtn = document.getElementById('prof-is-secondary-student-yes-btn');
+      const hiddenInput = document.getElementById('prof-is-secondary-student');
       const ageHint = document.getElementById('prof-is-secondary-student-age-hint');
-      if (!checkbox) return;
+      if (!yesBtn) return;
       const year = window.currentUser && parseInt(window.currentUser.birthYear, 10);
       const month = window.currentUser && parseInt(window.currentUser.birthMonth, 10);
       if (!year || !month) {
-        checkbox.disabled = false;
+        yesBtn.disabled = false;
         if (ageHint) ageHint.style.display = 'none';
         return;
       }
@@ -1665,8 +1743,10 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       let age = now.getFullYear() - year;
       if ((now.getMonth() + 1) < month) age -= 1;
       const tooOld = age > REG_SECONDARY_STUDENT_MAX_AGE;
-      checkbox.disabled = tooOld;
-      if (tooOld) checkbox.checked = false;
+      yesBtn.disabled = tooOld;
+      if (tooOld && hiddenInput && hiddenInput.value === 'yes') {
+        window.setSecondaryStudentToggle('prof', 'no');
+      }
       if (ageHint) ageHint.style.display = tooOld ? 'block' : 'none';
     };
 
@@ -1779,7 +1859,17 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       }
       const birthYear = parseInt(birthYearRaw, 10);
       const birthMonth = parseInt(birthMonthRaw, 10);
-      const isSecondaryStudent = !!document.getElementById('reg-is-secondary-student').checked;
+      // 由剔選格改做強制揀「是」／「否」之後，呢度要額外檢查有冇漏揀
+      // （hidden input 嘅值一定要係 'yes' 或者 'no'，唔可以係空字串），
+      // 否則就好似冇填「出生年月」咁樣擋住唔畀交表——呢個正正係呢次
+      // 改動想解決嘅問題：之前用剔選格，好多真係中學生嘅用戶漏剔咗都
+      // 照樣交得表，之後就誤入「公開溫習室」池，變相入錯咗視訊室。
+      const secondaryStudentAnswer = document.getElementById('reg-is-secondary-student').value;
+      if (secondaryStudentAnswer !== 'yes' && secondaryStudentAnswer !== 'no') {
+        window.showToast('請選擇你現時是否中學生', '⚠️');
+        return;
+      }
+      const isSecondaryStudent = secondaryStudentAnswer === 'yes';
 
       if (accountType === 'student') {
         const grade = document.getElementById('reg-grade').value;
@@ -1856,7 +1946,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       const submitBtn = document.getElementById('login-submit-btn');
       const cancelBtn = document.getElementById('login-cancel-btn');
       const originalText = submitBtn ? submitBtn.innerText : '登入';
-      if (submitBtn) { submitBtn.disabled = true; submitBtn.innerText = '⏳ 登入中...'; }
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.innerText = '登入中...'; }
       if (cancelBtn) cancelBtn.disabled = true;
       try {
         await window.loginWithFirebase(email, password);
@@ -1870,31 +1960,32 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       e.preventDefault();
       if (!window.currentUser || !auth.currentUser) return;
 
-      const school = document.getElementById('prof-school').value.trim();
-      const grade = document.getElementById('prof-grade').value;
+      // 聯絡電郵／學校名稱／現時年級呢三個欄位已經喺畫面上改做唯讀
+      // （disabled，唔可以由用戶自己修改，如需更改須電郵聯絡本公司），
+      // 所以呢度一律強制沿用 window.currentUser 現存嘅值，完全唔理會
+      // 表格入面嘅 DOM 值——就算有人用 devtools 手動撳走 disabled 屬性
+      // 再打新值，呢度都會強制覆蓋返做原本嘅值，唔會寫得入去（同時
+      // firestore.rules 嘅 selfUserUpdateOk() 亦都已經封鎖咗呢三個
+      // 欄位，雙重把關）。
+      const school = window.currentUser.school || '';
+      const grade = window.currentUser.grade || '';
       const favSubjects = document.getElementById('prof-fav').value.trim();
       const dislikeSubjects = document.getElementById('prof-dislike').value.trim();
       const username = document.getElementById('prof-username').value.trim();
-      const secondaryCheckboxEl = document.getElementById('prof-is-secondary-student');
-      // disabled（年齡已達 20 歲或以上）嗰陣一律當 false，防止有人用
-      // devtools 手動撳走 disabled 屬性再剔選嚟繞過呢重年齡限制——就算
-      // 真係咁做，呢度都會強制覆蓋返做 false，唔會寫得入去。
-      const isSecondaryStudent = !!(secondaryCheckboxEl && !secondaryCheckboxEl.disabled && secondaryCheckboxEl.checked);
-      const contactEmailInput = document.getElementById('prof-contact-email');
-      const contactEmail = contactEmailInput ? contactEmailInput.value.trim() : (window.currentUser.contactEmail || '');
+      const secondaryHiddenEl = document.getElementById('prof-is-secondary-student');
+      const secondaryYesBtnEl = document.getElementById('prof-is-secondary-student-yes-btn');
+      // 「是」個掣 disabled（年齡已達 20 歲或以上）嗰陣一律當 false，
+      // 防止有人用 devtools 手動撳走 disabled 屬性再揀「是」嚟繞過呢
+      // 重年齡限制——就算真係咁做，呢度都會強制覆蓋返做 false，唔會
+      // 寫得入去。
+      const isSecondaryStudent = !!(secondaryHiddenEl && secondaryYesBtnEl && !secondaryYesBtnEl.disabled && secondaryHiddenEl.value === 'yes');
+      const contactEmail = window.currentUser.contactEmail || '';
 
-      if (contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
-        window.showToast('聯絡電郵格式不正確，請檢查後再試', '⚠️');
-        return;
-      }
-
-      // 電郵改咗（同之前存落 Firestore 嗰個唔一樣），就當作未驗證過，要
-      // 重新整過 token 兼寄多次驗證電郵；淨係打多打少個空格唔算改咗
+      // 電郵、學校、年級三個欄位而家一律唯讀，理論上唔會改動，所以
+      // emailChanged／schoolChanged 恆為 false；保留呢兩個變數同下面
+      // 嘅邏輯分支，係為咗日後如果經管理後台或者客服流程重新開放編輯
+      // 時，唔使再重新接返呢段驗證電郵／地區反查嘅邏輯。
       const emailChanged = contactEmail !== (window.currentUser.contactEmail || '');
-
-      // 學校名稱改咗嘅話，盡量喺清單度反查返新嘅地區（見
-      // lookupDistrictBySchoolName）；查唔到（自行輸入或者清單冇）就保
-      // 留返用戶原本已經有嘅 district，唔會因為呢次改資料而清走。
       const schoolChanged = school !== (window.currentUser.school || '');
       let district = window.currentUser.district || '';
       if (schoolChanged) {
@@ -1940,7 +2031,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
         if (secondaryStudentChanged && typeof listenToPublicRooms === 'function') {
           listenToPublicRooms();
         }
-        window.showToast(emailChanged && contactEmail ? "💾 已更新資料，並寄出新的驗證電郵" : "💾 個人檔案已同步更新至 Firebase！", "✅");
+        window.showToast(emailChanged && contactEmail ? "已更新資料，並寄出新的驗證電郵" : "個人檔案已同步更新至 Firebase！", "✅");
       } catch (err) {
         window.showToast("更新失敗: " + err.message, "❌");
       }

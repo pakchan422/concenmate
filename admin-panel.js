@@ -89,10 +89,10 @@
       if (!btn) return;
       if (isOnAdminPage) {
         btn.setAttribute('onclick', "window.location.hash=''");
-        btn.innerHTML = `🏠 <span class="header-admin-text">返回主頁</span>`;
+        btn.innerHTML = `<span class="header-admin-text">返回主頁</span>`;
       } else {
         btn.setAttribute('onclick', "window.location.hash='admin'");
-        btn.innerHTML = `⚙️ <span class="header-admin-text">管理後台</span>`;
+        btn.innerHTML = `<span class="header-admin-text">管理後台</span>`;
       }
     }
     window.setHeaderAdminBtnMode = setHeaderAdminBtnMode;
@@ -166,6 +166,8 @@
       else if (tab === 'reports') renderAdminReportsTab();
       else if (tab === 'icons') renderAdminNavIconsTab();
       else if (tab === 'tutors') renderAdminTutorsTab();
+      else if (tab === 'landing') renderAdminLandingTab();
+      else if (tab === 'scoring') renderAdminScoringTab();
     };
 
     // ---------- 扭蛋機貼紙管理 ----------
@@ -209,14 +211,14 @@
           : `<img src="gacha-machine.png" style="width:100%; height:100%; object-fit:contain;">`;
         return `
           <div class="admin-card">
-            <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;">🎰 扭蛋機外觀圖片</h3>
+            <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;">扭蛋機外觀圖片</h3>
             <p style="font-size:13px; color:#888; margin-bottom:10px;">這張是扭蛋機本身的外殼圖（不是貼紙），顯示在學生點擊扭蛋的頁面。上傳新圖會即時取代畫面上顯示的圖案，不上傳則繼續使用程式碼內建的預設圖。</p>
             <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
               <div id="admin-gacha-machine-thumb" onclick="document.getElementById('admin-gacha-machine-input').click()" title="點擊這裡上傳圖片" style="width:80px; height:80px; border-radius:10px; background:#F0F6F8; border:1px dashed #B3D6DE; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden;">${previewInner}</div>
               <input type="file" accept="image/*" id="admin-gacha-machine-input" style="display:none;" onchange="adminUploadGachaMachineImage(this)">
               <div style="display:flex; flex-direction:column; gap:6px;">
-                <button type="button" class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="document.getElementById('admin-gacha-machine-input').click()">📤 上傳新圖片</button>
-                ${url ? `<button type="button" class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="adminRemoveGachaMachineImage()">↩️ 還原做預設圖</button>` : ''}
+                <button type="button" class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="document.getElementById('admin-gacha-machine-input').click()">上傳新圖片</button>
+                ${url ? `<button type="button" class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="adminRemoveGachaMachineImage()">還原做預設圖</button>` : ''}
               </div>
             </div>
           </div>
@@ -257,14 +259,14 @@
         return `
           <div class="admin-card">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
-              <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800);">🦦 Ottiee 貼紙圖鑑（共 ${pool.length} 隻）</h3>
+              <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800);">Ottiee 貼紙圖鑑（共 ${pool.length} 隻）</h3>
               <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                <button class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="adminNormalizeGachaWeights()">⚖️ 調整為剛好 100</button>
-                <button class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="adminRenumberGachaStickers()">🔢 重新排序編號</button>
-                <button class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="adminAddGachaPrize()">➕ 新增貼紙</button>
+                <button class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="adminNormalizeGachaWeights()">調整為剛好 100</button>
+                <button class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="adminRenumberGachaStickers()">重新排序編號</button>
+                <button class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="adminAddGachaPrize()">新增貼紙</button>
               </div>
             </div>
-            <p style="font-size:13px; color:#888; margin-bottom:8px;">貼紙編號（#id）對應用戶收集圖鑑的位置，刪除貼紙之後編號會留下缺口（例如刪除 #13~#17 之後就由 #12 跳到 #18），這不影響扭蛋／收集功能，純粹是畫面上不美觀。如果想整理，點擊「🔢 重新排序編號」會將現存貼紙由上到下重新編為 1、2、3...連續號碼——但要留意：如果已經有真實學生扭過蛋、收藏了某幾張貼紙，重新編號會令他們原有的收藏對應不上新編號（貼紙會「變成另一張」），所以這個按鈕只適合在未有學生正式使用過、或者您願意接受重整所有人收藏記錄的情況下才點擊。</p>
+            <p style="font-size:13px; color:#888; margin-bottom:8px;">貼紙編號（#id）對應用戶收集圖鑑的位置，刪除貼紙之後編號會留下缺口（例如刪除 #13~#17 之後就由 #12 跳到 #18），這不影響扭蛋／收集功能，純粹是畫面上不美觀。如果想整理，點擊「重新排序編號」會將現存貼紙由上到下重新編為 1、2、3...連續號碼——但要留意：如果已經有真實學生扭過蛋、收藏了某幾張貼紙，重新編號會令他們原有的收藏對應不上新編號（貼紙會「變成另一張」），所以這個按鈕只適合在未有學生正式使用過、或者您願意接受重整所有人收藏記錄的情況下才點擊。</p>
             <div style="overflow-x:auto;">
               <table class="admin-table">
                 <thead><tr><th>#</th><th>圖片</th><th>貼紙名稱</th><th>機率權重</th><th></th></tr></thead>
@@ -278,7 +280,7 @@
 
       container.innerHTML = `
         <div class="admin-card">
-          <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;">💰 扭蛋收費</h3>
+          <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;">扭蛋收費</h3>
           <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:center;">
             <label style="font-size:13px; color:#555; display:flex; align-items:center; gap:6px;">抽一次 (PTS)：<input class="admin-input-sm" type="number" min="0" style="width:80px;" value="${adminGachaDraft.costNormal}" onchange="adminGachaDraft.costNormal = parseInt(this.value)||0"></label>
             <label style="font-size:13px; color:#555; display:flex; align-items:center; gap:6px;">連續抽十次 (PTS，一次過 10 抽的總費用)：<input class="admin-input-sm" type="number" min="0" style="width:80px;" value="${adminGachaDraft.costLucky}" onchange="adminGachaDraft.costLucky = parseInt(this.value)||0"></label>
@@ -290,8 +292,8 @@
         ${renderStickerTable()}
 
         <div style="display:flex; gap:8px; justify-content:flex-end;">
-          <button class="btn btn-outline" type="button" onclick="adminResetGachaDraft()">↩️ 還原未儲存的改動</button>
-          <button class="btn btn-primary" type="button" id="btn-admin-save-gacha" onclick="adminSaveGachaConfig()">💾 儲存全部改動</button>
+          <button class="btn btn-outline" type="button" onclick="adminResetGachaDraft()">還原未儲存的改動</button>
+          <button class="btn btn-primary" type="button" id="btn-admin-save-gacha" onclick="adminSaveGachaConfig()">儲存全部改動</button>
         </div>
       `;
     }
@@ -385,7 +387,7 @@
       }
       const sticker = adminGachaDraft.stickers[idx];
       const oldPhoto = sticker.photo;
-      window.showToast('⏳ 上傳中相片…', '📤');
+      window.showToast('上傳中相片…', '📤');
       try {
         const { blob, mimeType } = await compressImageFileToBlob(file, 300, 0.75);
         const ext = mimeType === 'image/png' ? 'png' : 'jpg';
@@ -395,7 +397,7 @@
         const downloadUrl = await window.storageApi.getDownloadURL(fileRef);
         adminGachaDraft.stickers[idx].photo = downloadUrl;
         renderAdminGachaTab();
-        window.showToast('✅ 相片上傳成功，請點擊「儲存全部改動」才會正式生效', '🎉');
+        window.showToast('相片上傳成功，請點擊「儲存全部改動」才會正式生效', '🎉');
         tryDeleteOldGachaStoragePhoto(oldPhoto); // best-effort，唔使等佢完成
       } catch (err) {
         window.showToast('圖片上傳失敗：' + (err.message || err), '❌');
@@ -426,7 +428,7 @@
         return;
       }
       const oldUrl = adminGachaDraft.machineImageUrl;
-      window.showToast('⏳ 上傳中圖片…', '📤');
+      window.showToast('上傳中圖片…', '📤');
       try {
         const { blob, mimeType } = await compressImageFileToBlob(file, 400, 0.85);
         const ext = mimeType === 'image/png' ? 'png' : 'jpg';
@@ -436,7 +438,7 @@
         const downloadUrl = await window.storageApi.getDownloadURL(fileRef);
         adminGachaDraft.machineImageUrl = downloadUrl;
         renderAdminGachaTab();
-        window.showToast('✅ 圖片上傳成功，請點擊「儲存全部改動」才會正式生效', '🎉');
+        window.showToast('圖片上傳成功，請點擊「儲存全部改動」才會正式生效', '🎉');
         tryDeleteOldGachaStoragePhoto(oldUrl); // best-effort，唔使等佢完成
       } catch (err) {
         window.showToast('圖片上傳失敗：' + (err.message || err), '❌');
@@ -503,7 +505,7 @@
     // 未有學生正式扭過蛋）先撳。
     window.adminRenumberGachaStickers = function() {
       if (!adminGachaDraft || !adminGachaDraft.stickers.length) return;
-      if (!confirm('重新排序編號會將貼紙 id 由 1 開始重新連續編號。\n\n⚠️ 如果已經有真實學生使用這個扭蛋機扭過蛋、收藏了某幾隻貼紙，他們原有的收藏會因為編號改變而對應不上（貼紙會「變成另一隻」）。如果尚未有學生正式使用過，或者你願意接受洗牌整批收藏記錄，才繼續。\n\n確定要重新編號？')) return;
+      if (!confirm('重新排序編號會將貼紙 id 由 1 開始重新連續編號。\n\n如果已經有真實學生使用這個扭蛋機扭過蛋、收藏了某幾隻貼紙，他們原有的收藏會因為編號改變而對應不上（貼紙會「變成另一隻」）。如果尚未有學生正式使用過，或者你願意接受洗牌整批收藏記錄，才繼續。\n\n確定要重新編號？')) return;
       adminGachaDraft.stickers.forEach((p, i) => { p.id = i + 1; });
       renderAdminGachaTab();
       window.showToast('已重新排序編號，請點擊「儲存全部改動」才會正式生效', '🔢');
@@ -544,14 +546,14 @@
       }
 
       const btn = document.getElementById('btn-admin-save-gacha');
-      if (btn) { btn.disabled = true; btn.innerText = '⏳ 儲存中…'; }
+      if (btn) { btn.disabled = true; btn.innerText = '儲存中…'; }
       try {
         await window.fs.setDoc(window.fs.doc(window.db, 'admin_config', 'gacha'), payload);
-        window.showToast('✅ 扭蛋機設定已儲存，即時對所有用戶生效！', '🎉');
+        window.showToast('扭蛋機設定已儲存，即時對所有用戶生效！', '🎉');
       } catch (err) {
         window.showToast('儲存失敗：' + (err.message || err), '❌');
       } finally {
-        if (btn) { btn.disabled = false; btn.innerText = '💾 儲存全部改動'; }
+        if (btn) { btn.disabled = false; btn.innerText = '儲存全部改動'; }
       }
     };
 
@@ -631,14 +633,11 @@
               ? `<img src="${r.photo}" style="width:64px; height:64px; object-fit:cover; border-radius:50%; border:2px solid #C08B57;">`
               : `<div style="width:64px; height:64px; border-radius:50%; background:#eee; display:flex; align-items:center; justify-content:center; font-size:13px; color:#999; text-align:center;">預設插畫</div>`}
             <input type="file" accept="image/*" style="font-size:13px; margin-top:4px; max-width:100px;" onchange="adminUploadRankPhoto(${idx}, this)">
-            ${r.photo ? `<button class="btn btn-outline" style="font-size:13px; padding:2px 6px; margin-top:2px;" onclick="adminRemoveRankPhoto(${idx})">🗑移除</button>` : ''}
+            ${r.photo ? `<button class="btn btn-outline" style="font-size:13px; padding:2px 6px; margin-top:2px;" onclick="adminRemoveRankPhoto(${idx})">移除</button>` : ''}
           </div>
           <div style="flex:1; min-width:240px; display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
             <label style="font-size:13px; color:#555; display:flex; align-items:center; gap:4px;">等級門檻
               <input class="admin-input-sm" type="number" min="1" style="width:55px;" value="${r.minLevel}" onchange="adminLevelDraft.ranks[${idx}].minLevel = parseInt(this.value)||1">
-            </label>
-            <label style="font-size:13px; color:#555; display:flex; align-items:center; gap:4px;">Emoji
-              <input class="admin-input-sm" style="width:44px; text-align:center;" value="${escapeHtml(r.emoji || '')}" onchange="adminLevelDraft.ranks[${idx}].emoji = this.value">
             </label>
             <label style="font-size:13px; color:#555; display:flex; align-items:center; gap:4px;">稱號(中)
               <input class="admin-input-sm" style="width:90px;" value="${escapeHtml(r.title || '')}" onchange="adminLevelDraft.ranks[${idx}].title = this.value">
@@ -653,13 +652,13 @@
               <textarea class="admin-input-sm" rows="2" style="flex:1; min-width:200px; resize:vertical;" oninput="adminLevelDraft.ranks[${idx}].desc = this.value">${escapeHtml(r.desc || '')}</textarea>
             </label>
           </div>
-          <button class="btn btn-red" style="font-size:13px; padding:3px 8px; flex-shrink:0;" onclick="adminRemoveLevelRank(${idx})">🗑 刪除段位</button>
+          <button class="btn btn-red" style="font-size:13px; padding:3px 8px; flex-shrink:0;" onclick="adminRemoveLevelRank(${idx})">刪除段位</button>
         </div>
       `).join('');
 
       container.innerHTML = `
         <div class="admin-card">
-          <h3 style="font-size:14px; font-weight:bold; margin-bottom:8px;">⚙️ 基本設定</h3>
+          <h3 style="font-size:14px; font-weight:bold; margin-bottom:8px;">基本設定</h3>
           <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:10px;">
             <label style="font-size:13px; color:#555; display:flex; align-items:center; gap:6px;">
               每溫習 1 分鐘可得 EXP：
@@ -675,15 +674,15 @@
         </div>
 
         <div class="admin-card" style="margin-top:12px;">
-          <h3 style="font-size:14px; font-weight:bold; margin-bottom:4px;">🏅 段位稱號 + 水獺造型（由低到高，建議第一行等級門檻＝1）</h3>
+          <h3 style="font-size:14px; font-weight:bold; margin-bottom:4px;">段位稱號 + 水獺造型（由低到高，建議第一行等級門檻＝1）</h3>
           <p style="font-size:13px; color:#888; margin-bottom:10px;">每個段位可以上傳專屬水獺相片，用家升到那個等級，主頁「我的水獺」就會自動換成那張相；不上傳則使用共用的預設插畫（有心情表情變化）。</p>
           <div>${ranksCards}</div>
-          <button class="btn btn-outline" style="margin-top:4px; font-size:13px;" onclick="adminAddLevelRank()">➕ 新增段位</button>
+          <button class="btn btn-outline" style="margin-top:4px; font-size:13px;" onclick="adminAddLevelRank()">新增段位</button>
         </div>
 
         <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">
-          <button class="btn btn-primary" onclick="adminSaveLevelConfig()">💾 儲存全部改動</button>
-          <button class="btn btn-outline" onclick="adminResetLevelDraft()">↩️ 還原未儲存的改動</button>
+          <button class="btn btn-primary" onclick="adminSaveLevelConfig()">儲存全部改動</button>
+          <button class="btn btn-outline" onclick="adminResetLevelDraft()">還原未儲存的改動</button>
         </div>
       `;
       adminRefreshLevelPreview();
@@ -760,7 +759,7 @@
       }
       try {
         await window.fs.setDoc(window.fs.doc(window.db, 'admin_config', 'levelSystem'), payload);
-        window.showToast('✅ 已儲存等級系統設定', '✅');
+        window.showToast('已儲存等級系統設定', '✅');
       } catch (err) {
         window.showToast('儲存失敗：' + (err.message || err), '❌');
       }
@@ -827,10 +826,10 @@
               <td>${escapeHtml(r.name || '')}</td>
               <td>${escapeHtml(r.subject || '')}</td>
               <td>${escapeHtml(r.hostName || '匿名')}</td>
-              <td>${r.participantCount || 0}/${window.ROOM_CAPACITY || 4}</td>
+              <td>${r.participantCount || 0}/${(typeof window.resolveRoomCapacity === 'function') ? window.resolveRoomCapacity(r) : (window.ROOM_CAPACITY || 4)}</td>
               <td>${r.duration || 30} 分鐘</td>
               <td>${created}</td>
-              <td><button class="btn btn-red" style="font-size:13px; padding:3px 8px;" onclick="adminDeleteRoom('${docSnap.id}', '${(r.name || '').replace(/'/g, "\\'")}')">🗑️ 強制關閉</button></td>
+              <td><button class="btn btn-red" style="font-size:13px; padding:3px 8px;" onclick="adminDeleteRoom('${docSnap.id}', '${(r.name || '').replace(/'/g, "\\'")}')">強制關閉</button></td>
             </tr>
           `;
         }).join('');
@@ -881,7 +880,7 @@
               <td style="max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(p.title || '')}</td>
               <td>${escapeHtml(p.authorName || '匿名')}</td>
               <td>${formatTime(p.createdAt)}</td>
-              <td><button class="btn btn-red" style="font-size:13px; padding:3px 8px;" onclick="adminDeleteQaPost('${docSnap.id}')">🗑️ 刪除</button></td>
+              <td><button class="btn btn-red" style="font-size:13px; padding:3px 8px;" onclick="adminDeleteQaPost('${docSnap.id}')">刪除</button></td>
             </tr>
           `;
         }).join('');
@@ -931,6 +930,83 @@
       return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
     }
 
+    // 「用戶管理」分頁而家分兩個分頁列表：(1) 中學／大專／大學——即
+    // grade 唔係「其他自修生」嘅帳戶（包括舊帳戶未設定 grade 嘅情況，
+    // 一律歸呢一邊）；(2) 其他／自修生——grade 剛好等於「其他自修生」
+    // 嘅帳戶。兩邊各自獨立一個表格，唔使成頁一齊顯示，方便管理員搵人。
+    let adminUsersGradeGroup = 'school'; // 'school' | 'other'
+    // 最新一次 onSnapshot 返嚟嘅用戶清單，快取喺度，等切換分頁嗰陣可以
+    // 即刻用返呢份資料重新畫table，唔使重新監聽一次 collection。
+    let adminUsersLastSortedDocs = null;
+
+    window.switchAdminUsersGradeGroup = function(group) {
+      adminUsersGradeGroup = (group === 'other') ? 'other' : 'school';
+      renderAdminUsersTable();
+    };
+
+    function renderAdminUsersTable() {
+      const container = document.getElementById('admin-tab-users');
+      if (!container) return;
+      if (!adminUsersLastSortedDocs) return;
+
+      if (adminUsersLastSortedDocs.length === 0) {
+        container.innerHTML = '<div class="admin-card" style="text-align:center; color:#999;">目前沒有任何用戶</div>';
+        return;
+      }
+
+      const filteredDocs = adminUsersLastSortedDocs.filter((docSnap) => {
+        const grade = docSnap.data().grade || '';
+        const isOther = grade === '其他自修生';
+        return adminUsersGradeGroup === 'other' ? isOther : !isOther;
+      });
+
+      const rows = filteredDocs.map(docSnap => {
+        const u = docSnap.data();
+        const uid = docSnap.id;
+        const suspended = !!u.suspended;
+        // Email 欄顯示用戶註冊時真正填嘅聯絡電郵（contactEmail）；呢個先係
+        // 佢哋自己打嗰個地址。u.email 其實係內部合成嘅登入用電郵
+        // （{帳號ID}@concenmate.local，唔係真實可送達嘅地址），舊帳號冇
+        // contactEmail 先 fallback 用返佢
+        const displayEmail = u.contactEmail || u.email || '—';
+        return `
+          <tr style="${suspended ? 'opacity:.55;' : ''}">
+            <td>${escapeHtml(u.username || '—')}${suspended ? ' <span style="color:#c0392b; font-size:13px;">(已停權)</span>' : ''}</td>
+            <td>${u.loginId ? escapeHtml(u.loginId) : '<span style="color:#c99; font-size:13px;">未設定</span>'}</td>
+            <td>${escapeHtml(displayEmail)}</td>
+            <td>${escapeHtml(u.school || '—')}</td>
+            <td>${escapeHtml(u.grade || '—')}</td>
+            <td style="white-space:nowrap;">${formatLastLoginDisplay(u.lastLoginAt)}</td>
+            <td><input class="admin-input-sm" type="number" style="width:70px;" value="${u.points || 0}" id="admin-user-points-${uid}"></td>
+            <td><input class="admin-input-sm" style="width:60px;" value="${(parseFloat(u.hours) || 0).toFixed(1)}" id="admin-user-hours-${uid}"></td>
+            <td><input class="admin-input-sm" type="number" style="width:70px;" value="${u.exp || 0}" id="admin-user-exp-${uid}"></td>
+            <td style="display:flex; gap:4px; flex-wrap:wrap;">
+              <button class="btn btn-outline" style="font-size:13px; padding:3px 8px;" onclick="adminSaveUserStats('${uid}')">儲存</button>
+              <button class="btn ${suspended ? 'btn-primary' : 'btn-red'}" style="font-size:13px; padding:3px 8px;" onclick="adminToggleSuspendUser('${uid}', ${!suspended})">${suspended ? '解除停權' : '停權'}</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      const emptyGroupMsg = '<tr><td colspan="9" style="text-align:center; color:#999; padding:16px;">此分類目前沒有用戶</td></tr>';
+
+      container.innerHTML = `
+        <div class="admin-card">
+          <p style="font-size:13px; color:#888; margin-bottom:10px;">修改積分／時數／EXP 後，請記得逐行點擊「儲存」；EXP 決定用戶的溫習等級與段位，一般毋須人手修改，只有在特殊情況（例如補發）才使用。「停權」會令該用戶下次登入時被強制登出。</p>
+          <div style="display:flex; gap:8px; margin-bottom:12px;">
+            <button type="button" class="btn ${adminUsersGradeGroup === 'school' ? 'btn-primary' : 'btn-outline'}" style="font-size:13px; padding:5px 12px;" onclick="switchAdminUsersGradeGroup('school')">中學／大專／大學</button>
+            <button type="button" class="btn ${adminUsersGradeGroup === 'other' ? 'btn-primary' : 'btn-outline'}" style="font-size:13px; padding:5px 12px;" onclick="switchAdminUsersGradeGroup('other')">其他／自修生</button>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="admin-table">
+              <thead><tr><th>用戶名</th><th>帳號 ID</th><th>Email</th><th>學校</th><th>年級</th><th>最後上線</th><th>積分</th><th>時數</th><th>EXP</th><th></th></tr></thead>
+              <tbody>${rows || emptyGroupMsg}</tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
     function renderAdminUsersTab() {
       const container = document.getElementById('admin-tab-users');
       if (!container || !window.db || !window.fs) return;
@@ -938,55 +1014,15 @@
 
       if (adminUsersUnsubscribe) adminUsersUnsubscribe();
       adminUsersUnsubscribe = window.fs.onSnapshot(window.fs.collection(window.db, 'users'), (snapshot) => {
-        if (snapshot.empty) {
-          container.innerHTML = '<div class="admin-card" style="text-align:center; color:#999;">目前沒有任何用戶</div>';
-          return;
-        }
         // 按建立時間由舊到新排（唔靠 Firestore 讀出嚟嗰個順序，實測唔一定係
         // 建立順序）；createdAt 舊帳號可能冇呢個欄位，冇嘅當做「最舊」排最前，
         // 唔會搞亂晒個排序
-        const sortedDocs = [...snapshot.docs].sort((a, b) => {
+        adminUsersLastSortedDocs = [...snapshot.docs].sort((a, b) => {
           const ta = new Date(a.data().createdAt || 0).getTime() || 0;
           const tb = new Date(b.data().createdAt || 0).getTime() || 0;
           return ta - tb;
         });
-        const rows = sortedDocs.map(docSnap => {
-          const u = docSnap.data();
-          const uid = docSnap.id;
-          const suspended = !!u.suspended;
-          // Email 欄顯示用戶註冊時真正填嘅聯絡電郵（contactEmail）；呢個先係
-          // 佢哋自己打嗰個地址。u.email 其實係內部合成嘅登入用電郵
-          // （{帳號ID}@concenmate.local，唔係真實可送達嘅地址），舊帳號冇
-          // contactEmail 先 fallback 用返佢
-          const displayEmail = u.contactEmail || u.email || '—';
-          return `
-            <tr style="${suspended ? 'opacity:.55;' : ''}">
-              <td>${escapeHtml(u.username || '—')}${suspended ? ' <span style="color:#c0392b; font-size:13px;">(已停權)</span>' : ''}</td>
-              <td>${u.loginId ? '🆔 ' + escapeHtml(u.loginId) : '<span style="color:#c99; font-size:13px;">未設定</span>'}</td>
-              <td>${escapeHtml(displayEmail)}</td>
-              <td>${escapeHtml(u.school || '—')}</td>
-              <td style="white-space:nowrap;">${formatLastLoginDisplay(u.lastLoginAt)}</td>
-              <td><input class="admin-input-sm" type="number" style="width:70px;" value="${u.points || 0}" id="admin-user-points-${uid}"></td>
-              <td><input class="admin-input-sm" style="width:60px;" value="${(parseFloat(u.hours) || 0).toFixed(1)}" id="admin-user-hours-${uid}"></td>
-              <td><input class="admin-input-sm" type="number" style="width:70px;" value="${u.exp || 0}" id="admin-user-exp-${uid}"></td>
-              <td style="display:flex; gap:4px; flex-wrap:wrap;">
-                <button class="btn btn-outline" style="font-size:13px; padding:3px 8px;" onclick="adminSaveUserStats('${uid}')">💾 儲存</button>
-                <button class="btn ${suspended ? 'btn-primary' : 'btn-red'}" style="font-size:13px; padding:3px 8px;" onclick="adminToggleSuspendUser('${uid}', ${!suspended})">${suspended ? '✅ 解除停權' : '🚫 停權'}</button>
-              </td>
-            </tr>
-          `;
-        }).join('');
-        container.innerHTML = `
-          <div class="admin-card">
-            <p style="font-size:13px; color:#888; margin-bottom:10px;">修改積分／時數／EXP 後，請記得逐行點擊「💾 儲存」；EXP 決定用戶的溫習等級與段位，一般毋須人手修改，只有在特殊情況（例如補發）才使用。「停權」會令該用戶下次登入時被強制登出。</p>
-            <div style="overflow-x:auto;">
-              <table class="admin-table">
-                <thead><tr><th>用戶名</th><th>帳號 ID</th><th>Email</th><th>學校</th><th>最後上線</th><th>積分</th><th>時數</th><th>EXP</th><th></th></tr></thead>
-                <tbody>${rows}</tbody>
-              </table>
-            </div>
-          </div>
-        `;
+        renderAdminUsersTable();
       }, (err) => {
         container.innerHTML = `<div class="admin-card" style="color:#c0392b;">載入失敗：${err.message || err}</div>`;
       });
@@ -1063,30 +1099,30 @@
       const r = docSnap.data();
       const reportId = docSnap.id;
       const status = r.status || 'pending';
-      const statusLabel = status === 'pending' ? '⏳ 待處理' : (status === 'dismissed' ? '已駁回' : '已處理');
+      const statusLabel = status === 'pending' ? '待處理' : (status === 'dismissed' ? '已駁回' : '已處理');
       const statusColor = status === 'pending' ? '#C0524A' : '#999';
       const when = r.createdAt ? new Date(r.createdAt).toLocaleString('zh-HK') : '—';
       const screenshotHtml = r.screenshot
         ? `<img src="${r.screenshot}" style="width:100%; max-width:280px; border-radius:8px; border:1px solid #ddd; margin-top:6px; display:block; cursor:pointer;" onclick="window.open(this.src, '_blank')">`
-        : `<p style="font-size:13px; color:#c99; margin-top:6px;">⚠️ 當時無法取得截圖</p>`;
+        : `<p style="font-size:13px; color:#c99; margin-top:6px;">當時無法取得截圖</p>`;
       return `
         <div class="admin-card" style="${status !== 'pending' ? 'opacity:.6;' : ''}">
           <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
             <span style="font-weight:700; color:${statusColor}; font-size:13px;">${statusLabel}</span>
             <span style="font-size:13px; color:#999;">${escapeHtml(when)}</span>
           </div>
-          <p style="font-size:13px; margin-bottom:3px;"><b>被舉報：</b>${escapeHtml(r.reportedName || '—')} ${r.reportedLoginId ? '（🆔 ' + escapeHtml(r.reportedLoginId) + '）' : ''}</p>
+          <p style="font-size:13px; margin-bottom:3px;"><b>被舉報：</b>${escapeHtml(r.reportedName || '—')} ${r.reportedLoginId ? '（' + escapeHtml(r.reportedLoginId) + '）' : ''}</p>
           <p style="font-size:13px; color:#888; margin-bottom:3px;">${r.reportedEmail ? escapeHtml(r.reportedEmail) : ''}</p>
-          <p style="font-size:13px; margin-bottom:3px;"><b>舉報人：</b>${escapeHtml(r.reporterName || '—')} ${r.reporterLoginId ? '（🆔 ' + escapeHtml(r.reporterLoginId) + '）' : ''}</p>
+          <p style="font-size:13px; margin-bottom:3px;"><b>舉報人：</b>${escapeHtml(r.reporterName || '—')} ${r.reporterLoginId ? '（' + escapeHtml(r.reporterLoginId) + '）' : ''}</p>
           <p style="font-size:13px; margin-bottom:3px;"><b>房間：</b>${escapeHtml(r.roomName || r.roomId || '—')}</p>
           <p style="font-size:13px; margin-bottom:3px;"><b>原因：</b>${escapeHtml(r.reason || '—')}</p>
           ${r.notes ? `<p style="font-size:13px; color:#666; background:#F7F5F2; border-radius:6px; padding:6px 8px; margin-bottom:3px;">${escapeHtml(r.notes)}</p>` : ''}
           ${screenshotHtml}
           <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:10px;">
-            ${status === 'pending' ? `<button class="btn btn-outline" style="font-size:13px; padding:4px 9px;" onclick="window.adminMarkReportStatus('${reportId}', 'dismissed')">🗂️ 駁回（沒問題）</button>` : ''}
-            ${status === 'pending' ? `<button class="btn btn-outline" style="font-size:13px; padding:4px 9px;" onclick="window.adminMarkReportStatus('${reportId}', 'reviewed')">✅ 標記已處理</button>` : ''}
-            ${r.reportedUid ? `<button class="btn btn-red" style="font-size:13px; padding:4px 9px;" onclick="window.adminSuspendFromReport('${reportId}', '${r.reportedUid}')">🚫 停權此帳戶</button>` : ''}
-            ${status !== 'pending' ? `<button class="btn btn-outline" style="font-size:13px; padding:4px 9px; color:#999; border-color:#ccc;" onclick="window.adminDeleteReport('${reportId}')">🗑️ 刪除紀錄</button>` : ''}
+            ${status === 'pending' ? `<button class="btn btn-outline" style="font-size:13px; padding:4px 9px;" onclick="window.adminMarkReportStatus('${reportId}', 'dismissed')">駁回（沒問題）</button>` : ''}
+            ${status === 'pending' ? `<button class="btn btn-outline" style="font-size:13px; padding:4px 9px;" onclick="window.adminMarkReportStatus('${reportId}', 'reviewed')">標記已處理</button>` : ''}
+            ${r.reportedUid ? `<button class="btn btn-red" style="font-size:13px; padding:4px 9px;" onclick="window.adminSuspendFromReport('${reportId}', '${r.reportedUid}')">停權此帳戶</button>` : ''}
+            ${status !== 'pending' ? `<button class="btn btn-outline" style="font-size:13px; padding:4px 9px; color:#999; border-color:#ccc;" onclick="window.adminDeleteReport('${reportId}')">刪除紀錄</button>` : ''}
           </div>
         </div>
       `;
@@ -1103,11 +1139,11 @@
       const loadMoreHtml = adminReportsAllLoaded
         ? ''
         : `<div style="text-align:center; margin-top:12px;">
-             <button class="btn btn-outline" id="admin-reports-load-more-btn" type="button" onclick="window.adminLoadMoreReports()">📜 載入更多（已顯示 ${adminReportsLoadedDocs.length} 則）</button>
+             <button class="btn btn-outline" id="admin-reports-load-more-btn" type="button" onclick="window.adminLoadMoreReports()">載入更多（已顯示 ${adminReportsLoadedDocs.length} 則）</button>
            </div>`;
       container.innerHTML = `
         <div style="margin-bottom:10px; background:#FFF7E6; border:1px solid #F0D9A0; border-radius:8px; padding:8px 10px; font-size:13px; color:#8a6d1f;">
-          ⚠️ 技術上的重要提醒：這個網站沒有獨立伺服器，只是使用 Firebase，所以這裡看不到、也無法做到真正的「IP 封鎖」（因為 Firestore 規則看不到用戶的真實 IP）。「停權」這個功能就確實有效——會即刻令該帳戶下次登入被強制登出，亦令他完全無法使用這個平台。
+          技術上的重要提醒：這個網站沒有獨立伺服器，只是使用 Firebase，所以這裡看不到、也無法做到真正的「IP 封鎖」（因為 Firestore 規則看不到用戶的真實 IP）。「停權」這個功能就確實有效——會即刻令該帳戶下次登入被強制登出，亦令他完全無法使用這個平台。
         </div>
         ${cards}
         ${loadMoreHtml}
@@ -1161,7 +1197,7 @@
         renderAdminReportsListUI();
       } catch (e) {
         window.showToast('載入更多舉報失敗：' + (e.message || e), '❌');
-        if (btn) { btn.disabled = false; btn.innerText = '📜 載入更多'; }
+        if (btn) { btn.disabled = false; btn.innerText = '載入更多'; }
       }
     };
 
@@ -1270,8 +1306,8 @@
             <input type="file" accept="image/*" id="${inputId}" style="display:none;" onchange="adminUploadNavIcon('${item.key}',this)">
             <div style="flex:1; font-size:14px; font-weight:600; color:#333;">${escapeHtml(item.label)}</div>
             <div style="display:flex; gap:6px;">
-              <button type="button" class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="document.getElementById('${inputId}').click()">📤 上傳圖片</button>
-              ${url ? `<button type="button" class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="adminRemoveNavIcon('${item.key}')">↩️ 還原做預設圖示</button>` : ''}
+              <button type="button" class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="document.getElementById('${inputId}').click()">上傳圖片</button>
+              ${url ? `<button type="button" class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="adminRemoveNavIcon('${item.key}')">還原做預設圖示</button>` : ''}
             </div>
           </div>
         `;
@@ -1279,12 +1315,12 @@
 
       container.innerHTML = `
         <div class="admin-card">
-          <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:6px;">🖼 側邊欄功能圖示</h3>
+          <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:6px;">側邊欄功能圖示</h3>
           <p style="font-size:13px; color:#888; margin-bottom:6px;">將側邊欄「主頁、視訊溫習室」等 8 個分頁按鈕原本的 emoji 圖示，換成自訂上傳的圖片。上傳新圖會即時取代畫面上顯示的圖示，未上傳過的項目則繼續使用預設 emoji。</p>
           ${rows}
           <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:14px;">
-            <button class="btn btn-outline" type="button" onclick="adminResetNavIconsDraft()">↩️ 還原未儲存的改動</button>
-            <button class="btn btn-primary" type="button" onclick="adminSaveNavIconsConfig()">💾 儲存全部改動</button>
+            <button class="btn btn-outline" type="button" onclick="adminResetNavIconsDraft()">還原未儲存的改動</button>
+            <button class="btn btn-primary" type="button" onclick="adminSaveNavIconsConfig()">儲存全部改動</button>
           </div>
         </div>
       `;
@@ -1304,7 +1340,7 @@
         return;
       }
       const oldUrl = adminNavIconsDraft[key];
-      window.showToast('⏳ 上傳中圖片…', '📤');
+      window.showToast('上傳中圖片…', '📤');
       try {
         const { blob, mimeType } = await compressImageFileToBlob(file, 128, 0.85);
         const ext = mimeType === 'image/png' ? 'png' : 'jpg';
@@ -1314,7 +1350,7 @@
         const downloadUrl = await window.storageApi.getDownloadURL(fileRef);
         adminNavIconsDraft[key] = downloadUrl;
         renderAdminNavIconsTab();
-        window.showToast('✅ 圖片上傳成功，請點擊「儲存全部改動」才會正式生效', '🎉');
+        window.showToast('圖片上傳成功，請點擊「儲存全部改動」才會正式生效', '🎉');
         tryDeleteOldGachaStoragePhoto(oldUrl); // best-effort，唔使等佢完成（呢個函式其實通用，唔止扭蛋貼紙先用得）
       } catch (err) {
         window.showToast('圖片上傳失敗：' + (err.message || err), '❌');
@@ -1338,7 +1374,7 @@
       if (!adminNavIconsDraft) return;
       try {
         await window.fs.setDoc(window.fs.doc(window.db, 'admin_config', 'navIcons'), adminNavIconsDraft);
-        window.showToast('✅ 圖示設定已儲存，全站即時生效', '🎉');
+        window.showToast('圖示設定已儲存，全站即時生效', '🎉');
       } catch (err) {
         window.showToast('儲存失敗：' + (err.message || err), '❌');
       }
@@ -1417,7 +1453,7 @@
       const a = docSnap.data();
       const uid = docSnap.id;
       const status = a.status || 'pending';
-      const statusLabel = status === 'pending' ? '⏳ 待審批' : (status === 'approved' ? '✅ 已批准' : '❌ 已駁回');
+      const statusLabel = status === 'pending' ? '待審批' : (status === 'approved' ? '已批准' : '已駁回');
       const statusColor = status === 'pending' ? '#C0524A' : (status === 'approved' ? '#2F6B3A' : '#999');
       const when = a.submittedAt ? new Date(a.submittedAt).toLocaleString('zh-HK') : '—';
       const subjectsHtml = (a.subjectsIntended || [])
@@ -1433,12 +1469,12 @@
           <p style="font-size:13px; color:#666; margin-bottom:3px;">${escapeHtml(a.bio || '（未填寫自我介紹）')}</p>
           <p style="font-size:13px; margin-bottom:3px;">${subjectsHtml || '（未填寫科目）'}</p>
           <p style="font-size:13px; color:#888; margin-bottom:3px;"><b>聯絡方式：</b>${escapeHtml(a.contactInfo || '—')}</p>
-          <p style="font-size:12px; color:#aaa; margin-bottom:3px;">🆔 ${escapeHtml(uid)}</p>
+          <p style="font-size:12px; color:#aaa; margin-bottom:3px;">${escapeHtml(uid)}</p>
           ${status === 'rejected' && a.rejectionReason ? `<p style="font-size:13px; color:#8a2f2f; background:#FBEAEA; border-radius:6px; padding:6px 8px; margin-bottom:3px;">駁回原因：${escapeHtml(a.rejectionReason)}</p>` : ''}
           ${status === 'pending' ? `
             <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:10px;">
-              <button class="btn btn-primary" style="font-size:13px; padding:4px 9px;" onclick="window.adminApproveTutorApp('${uid}')">✅ 批准</button>
-              <button class="btn btn-outline" style="font-size:13px; padding:4px 9px;" onclick="window.adminRejectTutorApp('${uid}')">❌ 駁回</button>
+              <button class="btn btn-primary" style="font-size:13px; padding:4px 9px;" onclick="window.adminApproveTutorApp('${uid}')">批准</button>
+              <button class="btn btn-outline" style="font-size:13px; padding:4px 9px;" onclick="window.adminRejectTutorApp('${uid}')">駁回</button>
             </div>
           ` : ''}
         </div>
@@ -1449,7 +1485,7 @@
       const t = docSnap.data();
       const uid = docSnap.id;
       const status = t.status || 'active';
-      const statusLabel = status === 'active' ? '🟢 正常' : '🚫 已停權';
+      const statusLabel = status === 'active' ? '正常' : '已停權';
       const statusColor = status === 'active' ? '#2F6B3A' : '#C0524A';
       const subjectsHtml = (t.subjectsIntended || [])
         .map(s => `<span class="tag" style="background:#F0F6F8; color:#1E4550; margin-right:4px;">${escapeHtml(s)}</span>`)
@@ -1458,15 +1494,15 @@
         <div class="admin-card">
           <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
             <span style="font-weight:700; color:${statusColor}; font-size:13px;">${statusLabel}</span>
-            <span style="font-size:12px; color:#aaa;">🆔 ${escapeHtml(uid)}</span>
+            <span style="font-size:12px; color:#aaa;">${escapeHtml(uid)}</span>
           </div>
           <p style="font-size:13px; margin-bottom:3px;"><b>${escapeHtml(t.displayName || '—')}</b></p>
           <p style="font-size:13px; color:#666; margin-bottom:3px;">${escapeHtml(t.bio || '')}</p>
           <p style="font-size:13px; margin-bottom:3px;">${subjectsHtml}</p>
           <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:10px;">
             ${status === 'active'
-              ? `<button class="btn btn-red" style="font-size:13px; padding:4px 9px;" onclick="window.adminSuspendTutor('${uid}')">🚫 停權</button>`
-              : `<button class="btn btn-outline" style="font-size:13px; padding:4px 9px;" onclick="window.adminReinstateTutor('${uid}')">♻️ 解除停權</button>`}
+              ? `<button class="btn btn-red" style="font-size:13px; padding:4px 9px;" onclick="window.adminSuspendTutor('${uid}')">停權</button>`
+              : `<button class="btn btn-outline" style="font-size:13px; padding:4px 9px;" onclick="window.adminReinstateTutor('${uid}')">解除停權</button>`}
           </div>
         </div>
       `;
@@ -1490,11 +1526,11 @@
       const historyHtml = otherApps.length ? otherApps.map(buildAdminTutorAppCardHtml).join('') : '';
 
       container.innerHTML = `
-        <h4 style="font-size:14px; font-weight:bold; color:var(--brand-800); margin:4px 0 8px;">⏳ 待審批申請</h4>
+        <h4 style="font-size:14px; font-weight:bold; color:var(--brand-800); margin:4px 0 8px;">待審批申請</h4>
         ${pendingHtml}
-        <h4 style="font-size:14px; font-weight:bold; color:var(--brand-800); margin:18px 0 8px;">🎓 導師名單</h4>
+        <h4 style="font-size:14px; font-weight:bold; color:var(--brand-800); margin:18px 0 8px;">導師名單</h4>
         ${tutorsHtml}
-        ${historyHtml ? `<h4 style="font-size:14px; font-weight:bold; color:var(--brand-800); margin:18px 0 8px;">📜 申請歷史（已批准／已駁回）</h4>${historyHtml}` : ''}
+        ${historyHtml ? `<h4 style="font-size:14px; font-weight:bold; color:var(--brand-800); margin:18px 0 8px;">申請歷史（已批准／已駁回）</h4>${historyHtml}` : ''}
       `;
     }
 
@@ -1573,6 +1609,395 @@
         window.showToast('解除停權失敗：' + (err.message || err), '❌');
       }
     };
+
+    // ---------- Landing page（未登入主頁）文案／圖片管理 ----------
+    // 做法同扭蛋機／等級系統／功能圖示嗰幾個分頁一致：資料存喺 Firestore
+    // 嘅 admin_config/landingContent 文件，管理員喺呢度改完撳「儲存」，
+    // 全站（包括未登入訪客）即時生效，唔使再改 code、推 GitHub。
+    // 同其他幾個分頁唯一唔同嘅地方：呢份文件嘅讀取權限特登喺
+    // firestore.rules 開放俾未登入用戶（見 admin_config/landingContent
+    // 嗰條獨立規則），因為 Landing page 本身就係畀未登入嘅訪客睇。
+    //
+    // 文字部分直接存返 i18n.js 入面 'landing.*' 嗰 24 組 key 嘅三語
+    // 內容（zh-Hant／en／yue），管理員改嘅其實就係 window.I18N_DICT
+    // 入面呢幾組字嘅值；圖片部分（Nav Logo／主橫幅吉祥物圖）存返兩條
+    // Firebase Storage 下載連結，冇自訂圖片嗰陣就維持用返 index.html
+    // 寫死嘅預設檔案（logo-hero.png／ottie-wave.png）。
+
+    // 分組顯示用：每個分組底下嘅 key 清單＋中文標籤，純粹為咗令管理員
+    // 睇得明呢個欄位對應緊個網站邊一句字，唔影響實際儲存結構。
+    const LANDING_FIELD_GROUPS = [
+      {
+        title: '導覽列',
+        fields: [
+          { key: 'landing.navLogin', label: '「登入」按鈕文字' },
+          { key: 'landing.registerBtn', label: '「註冊帳號」按鈕文字（頂部導覽／主橫幅／底部行動呼籲共用同一句，改一次三處一齊變）' },
+          { key: 'landing.slogan', label: '品牌標語（Logo 右邊嗰句）' }
+        ]
+      },
+      {
+        title: '主橫幅',
+        fields: [
+          { key: 'landing.eyebrow', label: '小標籤' },
+          { key: 'landing.heroH1Line1', label: '主標題　第一行' },
+          { key: 'landing.heroH1Line2', label: '主標題　第二行' },
+          { key: 'landing.heroSub', label: '說明文字' },
+          { key: 'landing.subjectChinese', label: '科目裝飾格：中文' },
+          { key: 'landing.subjectEnglish', label: '科目裝飾格：英文' },
+          { key: 'landing.subjectMath', label: '科目裝飾格：數學' }
+        ]
+      },
+      {
+        title: '「三個核心」介紹區',
+        fields: [
+          { key: 'landing.stepsEyebrow', label: '小標籤' },
+          { key: 'landing.stepsH2', label: '大標題' },
+          { key: 'landing.stepsSub', label: '說明文字' },
+          { key: 'landing.step1Title', label: '第一步　標題' },
+          { key: 'landing.step1Desc', label: '第一步　說明' },
+          { key: 'landing.step2Title', label: '第二步　標題' },
+          { key: 'landing.step2Desc', label: '第二步　說明' },
+          { key: 'landing.step3Title', label: '第三步　標題' },
+          { key: 'landing.step3Desc', label: '第三步　說明' }
+        ]
+      },
+      {
+        title: '行動呼籲區',
+        fields: [
+          { key: 'landing.ctaH2', label: '大標題' },
+          { key: 'landing.ctaSub', label: '說明文字' }
+        ]
+      },
+      {
+        title: '頁尾',
+        fields: [
+          { key: 'landing.footerCopyright', label: '版權文字' },
+          { key: 'landing.footerTerms', label: '「服務條款」連結文字' },
+          { key: 'landing.footerPrivacy', label: '「私隱政策」連結文字' }
+        ]
+      }
+    ];
+
+    let adminLandingDraft = null;
+    let landingConfigLoaded = false;
+
+    function renderAdminLandingImageCard(imgKey, title, desc, defaultFile) {
+      const url = adminLandingDraft.images[imgKey];
+      const previewInner = url
+        ? `<img src="${url}" style="width:100%; height:100%; object-fit:contain;">`
+        : `<img src="${defaultFile}" style="width:100%; height:100%; object-fit:contain;">`;
+      return `
+        <div class="admin-card">
+          <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;">${title}</h3>
+          <p style="font-size:13px; color:#888; margin-bottom:10px;">${desc}</p>
+          <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            <div id="admin-landing-${imgKey}-thumb" onclick="document.getElementById('admin-landing-${imgKey}-input').click()" title="點擊這裡上傳圖片" style="width:80px; height:80px; border-radius:10px; background:#F0F6F8; border:1px dashed #B3D6DE; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden;">${previewInner}</div>
+            <input type="file" accept="image/*" id="admin-landing-${imgKey}-input" style="display:none;" onchange="adminUploadLandingImage('${imgKey}', this)">
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              <button type="button" class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="document.getElementById('admin-landing-${imgKey}-input').click()">上傳新圖片</button>
+              ${url ? `<button type="button" class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="adminRemoveLandingImage('${imgKey}')">還原做預設圖</button>` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderAdminLandingTab() {
+      const container = document.getElementById('admin-tab-landing');
+      if (!container) return;
+
+      if (!adminLandingDraft) {
+        if (!landingConfigLoaded) {
+          container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入中 Landing page 設定...</p>';
+          return; // Firestore 資料一到，loadLandingContentFromFirestore() 會自動再 render 多次
+        }
+        const texts = {};
+        LANDING_FIELD_GROUPS.forEach(group => {
+          group.fields.forEach(f => {
+            const entry = (window.I18N_DICT && window.I18N_DICT[f.key]) || {};
+            texts[f.key] = {
+              'zh-Hant': entry['zh-Hant'] || '',
+              'en': entry['en'] || '',
+              'yue': entry['yue'] || ''
+            };
+          });
+        });
+        adminLandingDraft = {
+          texts,
+          images: {
+            navLogoUrl: window.LANDING_IMAGE_OVERRIDES ? (window.LANDING_IMAGE_OVERRIDES.navLogoUrl || null) : null,
+            heroImageUrl: window.LANDING_IMAGE_OVERRIDES ? (window.LANDING_IMAGE_OVERRIDES.heroImageUrl || null) : null
+          }
+        };
+      }
+
+      const groupsHtml = LANDING_FIELD_GROUPS.map(group => {
+        const fieldsHtml = group.fields.map(f => {
+          const v = adminLandingDraft.texts[f.key];
+          return `
+            <div style="margin-bottom:16px; padding-bottom:14px; border-bottom:1px solid #EEF3F4;">
+              <p style="font-size:13px; font-weight:bold; color:var(--brand-700); margin-bottom:6px;">${f.label}</p>
+              <div style="display:grid; grid-template-columns:1fr; gap:6px;">
+                <label style="font-size:12px; color:#999;">繁體中文
+                  <textarea rows="1" style="width:100%; font-size:14px; padding:6px 8px; border:1px solid #DDE7E9; border-radius:6px; font-family:inherit; resize:vertical;" oninput="adminUpdateLandingText('${f.key}','zh-Hant',this.value)">${v['zh-Hant']}</textarea>
+                </label>
+                <label style="font-size:12px; color:#999;">English
+                  <textarea rows="1" style="width:100%; font-size:14px; padding:6px 8px; border:1px solid #DDE7E9; border-radius:6px; font-family:inherit; resize:vertical;" oninput="adminUpdateLandingText('${f.key}','en',this.value)">${v['en']}</textarea>
+                </label>
+                <label style="font-size:12px; color:#999;">廣東話
+                  <textarea rows="1" style="width:100%; font-size:14px; padding:6px 8px; border:1px solid #DDE7E9; border-radius:6px; font-family:inherit; resize:vertical;" oninput="adminUpdateLandingText('${f.key}','yue',this.value)">${v['yue']}</textarea>
+                </label>
+              </div>
+            </div>
+          `;
+        }).join('');
+        return `
+          <div class="admin-card" style="margin-bottom:16px;">
+            <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); margin-bottom:14px;">${group.title}</h3>
+            ${fieldsHtml}
+          </div>
+        `;
+      }).join('');
+
+      container.innerHTML = `
+        <p style="font-size:13px; color:#888; margin-bottom:14px;">呢度改嘅文字就係未登入訪客打開網站第一眼見到嘅 Landing page 內容，三種語言可以分開改，改完撳最底「儲存全部改動」就會即時全站生效（包括未登入嘅訪客），唔使搵開發者改 code。</p>
+        ${renderAdminLandingImageCard('navLogoUrl', '導覽列 Logo', '顯示喺 Landing page 頂部導覽列嘅 Logo 圖案。', 'logo-hero.png')}
+        ${renderAdminLandingImageCard('heroImageUrl', '主橫幅吉祥物圖', '顯示喺主橫幅中間嘅 Ottiee 吉祥物圖案。', 'ottie-wave.png')}
+        ${groupsHtml}
+        <div style="text-align:center; margin-top:10px;">
+          <button type="button" class="btn btn-primary" id="btn-admin-save-landing" style="padding:12px 32px; font-size:15px;" onclick="adminSaveLandingContent()">儲存全部改動</button>
+        </div>
+      `;
+    }
+    window.renderAdminLandingTab = renderAdminLandingTab;
+
+    window.adminUpdateLandingText = function(key, lang, value) {
+      if (!adminLandingDraft || !adminLandingDraft.texts[key]) return;
+      adminLandingDraft.texts[key][lang] = value;
+    };
+
+    window.adminUploadLandingImage = async function(imgKey, inputEl) {
+      if (!adminLandingDraft) return;
+      const file = inputEl.files && inputEl.files[0];
+      if (!file) return;
+      if (!file.type.startsWith('image/')) {
+        window.showToast('請選擇圖片檔案', '⚠️');
+        return;
+      }
+      if (!window.storage || !window.storageApi) {
+        window.showToast('Storage 未初始化，請重新整理頁面再試', '⚠️');
+        return;
+      }
+      const oldUrl = adminLandingDraft.images[imgKey];
+      window.showToast('上傳中圖片…', '📤');
+      try {
+        const { blob, mimeType } = await compressImageFileToBlob(file, 600, 0.9);
+        const ext = mimeType === 'image/png' ? 'png' : 'jpg';
+        const path = `landing_assets/${imgKey}_${Date.now()}.${ext}`;
+        const fileRef = window.storageApi.ref(window.storage, path);
+        await window.storageApi.uploadBytes(fileRef, blob, { contentType: mimeType });
+        const downloadUrl = await window.storageApi.getDownloadURL(fileRef);
+        adminLandingDraft.images[imgKey] = downloadUrl;
+        renderAdminLandingTab();
+        window.showToast('圖片上傳成功，請點擊「儲存全部改動」才會正式生效', '🎉');
+        tryDeleteOldGachaStoragePhoto(oldUrl); // best-effort，呢個函式其實通用，唔止扭蛋貼紙先用得
+      } catch (err) {
+        window.showToast('圖片上傳失敗：' + (err.message || err), '❌');
+      }
+    };
+
+    window.adminRemoveLandingImage = function(imgKey) {
+      if (!adminLandingDraft) return;
+      const oldUrl = adminLandingDraft.images[imgKey];
+      tryDeleteOldGachaStoragePhoto(oldUrl); // best-effort
+      adminLandingDraft.images[imgKey] = null;
+      renderAdminLandingTab();
+    };
+
+    window.adminSaveLandingContent = async function() {
+      if (!adminLandingDraft) return;
+      const payload = {
+        texts: adminLandingDraft.texts,
+        images: adminLandingDraft.images,
+        updatedAt: Date.now(),
+        updatedBy: window.currentUser ? window.currentUser.email : null
+      };
+      const btn = document.getElementById('btn-admin-save-landing');
+      if (btn) { btn.disabled = true; btn.innerText = '儲存中…'; }
+      try {
+        await window.fs.setDoc(window.fs.doc(window.db, 'admin_config', 'landingContent'), payload);
+        window.showToast('Landing page 設定已儲存，即時對所有訪客生效！', '🎉');
+      } catch (err) {
+        window.showToast('儲存失敗：' + (err.message || err), '❌');
+      } finally {
+        if (btn) { btn.disabled = false; btn.innerText = '儲存全部改動'; }
+      }
+    };
+
+    // 讀取 Firestore 度嘅 Landing page 設定，覆蓋返 window.I18N_DICT 入面
+    // 'landing.*' 嗰幾組字、同埋 Nav Logo／主橫幅吉祥物圖嘅顯示。呢個
+    // 特登唔經 onAuthStateChanged 嗰邊叫（同 loadGachaConfigFromFirestore
+    // 等幾個唔同），而係一有 window.db／window.fs 就即刻叫（見
+    // app-core.js），因為 Landing page 係畀未登入嘅訪客睇，唔可以等
+    // 用戶登入咗先至套用翻譯／圖片。
+    //
+    // 合併規則：管理員喺某個語言留空＝「冇改動」，唔會用空字串覆蓋走
+    // 原本寫死喺 i18n.js 嘅預設翻譯（唔係咁嘅話，萬一得意管理員淨係
+    // 填咗中文、冚晒英文／廣東話留空，English／廣東話版就會由「冇翻
+    // 譯、自動退返用中文」變成「真係顯示緊一舊空白」，用戶體驗反而變差）。
+    let landingConfigUnsubscribe = null;
+    function loadLandingContentFromFirestore() {
+      if (!window.db || !window.fs) return;
+      if (landingConfigUnsubscribe) landingConfigUnsubscribe();
+      const ref = window.fs.doc(window.db, 'admin_config', 'landingContent');
+      landingConfigUnsubscribe = window.fs.onSnapshot(ref, (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          if (data.texts && typeof data.texts === 'object' && window.I18N_DICT) {
+            Object.keys(data.texts).forEach((key) => {
+              if (!window.I18N_DICT[key]) return;
+              const override = data.texts[key];
+              ['zh-Hant', 'en', 'yue'].forEach((lang) => {
+                if (override && typeof override[lang] === 'string' && override[lang]) {
+                  window.I18N_DICT[key][lang] = override[lang];
+                }
+              });
+            });
+          }
+          window.LANDING_IMAGE_OVERRIDES = data.images || {};
+          const navLogoEl = document.getElementById('landing-nav-logo-img');
+          if (navLogoEl) navLogoEl.src = (data.images && data.images.navLogoUrl) ? data.images.navLogoUrl : 'logo-hero.png';
+          const heroImgEl = document.getElementById('landing-hero-mascot-img');
+          if (heroImgEl) heroImgEl.src = (data.images && data.images.heroImageUrl) ? data.images.heroImageUrl : 'ottie-wave.png';
+        }
+        landingConfigLoaded = true;
+        if (typeof window.applyAppLanguage === 'function') window.applyAppLanguage();
+        // 如果管理員岩岩好打開緊「Landing page文案」呢個分頁、又仲未開始
+        // 編輯（adminLandingDraft 仲係 null，卡喺「載入中...」畫面），
+        // 而家攞到資料喇，即刻幫佢重新 render 一次。
+        if (currentAdminTab === 'landing' && !adminLandingDraft) {
+          const adminPanelEl = document.getElementById('admin-panel-container');
+          if (adminPanelEl && adminPanelEl.style.display !== 'none') {
+            renderAdminLandingTab();
+          }
+        }
+      }, (err) => {
+        console.error('讀取 Landing page 設定失敗:', err);
+        landingConfigLoaded = true; // 唔好卡死喺「載入中...」畫面，起碼俾程式碼入面寫死嘅預設值可以用
+        if (typeof window.isCurrentUserAdmin === 'function' && window.isCurrentUserAdmin()) {
+          window.showToast('讀取 Landing page 設定失敗（可能是 Firestore 規則未生效）：' + (err.message || err), '⚠️');
+        }
+      });
+    }
+    window.loadLandingContentFromFirestore = loadLandingContentFromFirestore;
+
+    // ---------- 計分規則設定 ----------
+    // 每分鐘PTS、確認仍在學習嘅獎勵PTS——做法同其他幾個分頁一致，存喺
+    // Firestore（admin_config/scoringRules 文件），管理員喺呢度改完撳
+    // 「儲存」，全站即時生效。
+    //
+    // ⚠️ 同扭蛋／等級系統/Landing page嗰幾個分頁唯一唔同嘅地方：呢組
+    // 設定除咗前端讀（room-video.js 嘅 window.SCORING_RULES，用嚟顯示
+    // 畫面同決定要畀幾多分），仲有伺服器端（functions/index.js 嘅
+    // awardStudyPoints Cloud Function）會讀同一份文件做「呢個分數啱唔
+    // 啱」嘅安全驗證——如果淨係改前端、伺服器嗰邊個白名單對唔上，
+    // 寫入會被拒絕（學生會見到「無效的積分數量」錯誤）。前端呢度已經
+    // 自動跟返Firestore入面嘅最新數值，唔使擔心手動同步問題。
+    let adminScoringDraft = null;
+    let scoringConfigLoaded = false;
+
+    function renderAdminScoringTab() {
+      const container = document.getElementById('admin-tab-scoring');
+      if (!container) return;
+
+      if (!adminScoringDraft) {
+        if (!scoringConfigLoaded) {
+          container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入中計分規則設定...</p>';
+          return; // Firestore 資料一到，loadScoringRulesFromFirestore() 會自動再 render 多次
+        }
+        adminScoringDraft = {
+          ptsPerMinute: window.SCORING_RULES ? window.SCORING_RULES.ptsPerMinute : 1,
+          presenceCheckBonus: window.SCORING_RULES ? window.SCORING_RULES.presenceCheckBonus : 2
+        };
+      }
+
+      container.innerHTML = `
+        <div class="admin-card">
+          <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); margin-bottom:14px;">視訊溫習室計分規則</h3>
+          <p style="font-size:13px; color:#888; margin-bottom:16px;">呢度嘅數值會即時影響全站學生喺視訊溫習室可以賺到幾多PTS，改完記得核實清楚先撳儲存。</p>
+          <div style="margin-bottom:18px;">
+            <label style="font-size:13px; font-weight:bold; color:var(--brand-700); display:block; margin-bottom:6px;">每專注溫習 1 分鐘，可獲得幾多 PTS</label>
+            <input type="number" min="1" step="1" value="${adminScoringDraft.ptsPerMinute}" style="width:120px; font-size:15px; padding:8px 10px; border:1px solid #DDE7E9; border-radius:6px;" oninput="adminUpdateScoringDraft('ptsPerMinute', this.value)">
+          </div>
+          <div style="margin-bottom:10px;">
+            <label style="font-size:13px; font-weight:bold; color:var(--brand-700); display:block; margin-bottom:6px;">確認「仍在學習」彈窗，額外可獲得幾多 PTS</label>
+            <input type="number" min="1" step="1" value="${adminScoringDraft.presenceCheckBonus}" style="width:120px; font-size:15px; padding:8px 10px; border:1px solid #DDE7E9; border-radius:6px;" oninput="adminUpdateScoringDraft('presenceCheckBonus', this.value)">
+          </div>
+        </div>
+        <div style="text-align:center; margin-top:16px;">
+          <button type="button" class="btn btn-primary" id="btn-admin-save-scoring" style="padding:12px 32px; font-size:15px;" onclick="adminSaveScoringRules()">儲存全部改動</button>
+        </div>
+      `;
+    }
+    window.renderAdminScoringTab = renderAdminScoringTab;
+
+    window.adminUpdateScoringDraft = function(key, value) {
+      if (!adminScoringDraft) return;
+      const n = parseInt(value, 10);
+      adminScoringDraft[key] = (Number.isFinite(n) && n > 0) ? n : adminScoringDraft[key];
+    };
+
+    window.adminSaveScoringRules = async function() {
+      if (!adminScoringDraft) return;
+      if (!(adminScoringDraft.ptsPerMinute > 0) || !(adminScoringDraft.presenceCheckBonus > 0)) {
+        window.showToast('兩個數值都要大於 0', '⚠️');
+        return;
+      }
+      const payload = {
+        ptsPerMinute: adminScoringDraft.ptsPerMinute,
+        presenceCheckBonus: adminScoringDraft.presenceCheckBonus,
+        updatedAt: Date.now(),
+        updatedBy: window.currentUser ? window.currentUser.email : null
+      };
+      const btn = document.getElementById('btn-admin-save-scoring');
+      if (btn) { btn.disabled = true; btn.innerText = '儲存中…'; }
+      try {
+        await window.fs.setDoc(window.fs.doc(window.db, 'admin_config', 'scoringRules'), payload);
+        window.showToast('計分規則已儲存，即時對所有用戶生效！（伺服器端最多需要30秒追上最新設定）', '🎉');
+      } catch (err) {
+        window.showToast('儲存失敗：' + (err.message || err), '❌');
+      } finally {
+        if (btn) { btn.disabled = false; btn.innerText = '儲存全部改動'; }
+      }
+    };
+
+    let scoringConfigUnsubscribe = null;
+    function loadScoringRulesFromFirestore() {
+      if (!window.db || !window.fs) return;
+      if (scoringConfigUnsubscribe) scoringConfigUnsubscribe();
+      const ref = window.fs.doc(window.db, 'admin_config', 'scoringRules');
+      scoringConfigUnsubscribe = window.fs.onSnapshot(ref, (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          if (typeof data.ptsPerMinute === 'number' && data.ptsPerMinute > 0) window.SCORING_RULES.ptsPerMinute = data.ptsPerMinute;
+          if (typeof data.presenceCheckBonus === 'number' && data.presenceCheckBonus > 0) window.SCORING_RULES.presenceCheckBonus = data.presenceCheckBonus;
+        }
+        scoringConfigLoaded = true;
+        if (currentAdminTab === 'scoring' && !adminScoringDraft) {
+          const adminPanelEl = document.getElementById('admin-panel-container');
+          if (adminPanelEl && adminPanelEl.style.display !== 'none') {
+            renderAdminScoringTab();
+          }
+        }
+      }, (err) => {
+        console.error('讀取計分規則設定失敗:', err);
+        scoringConfigLoaded = true;
+        if (typeof window.isCurrentUserAdmin === 'function' && window.isCurrentUserAdmin()) {
+          window.showToast('讀取計分規則設定失敗（可能是 Firestore 規則未生效）：' + (err.message || err), '⚠️');
+        }
+      });
+    }
+    window.loadScoringRulesFromFirestore = loadScoringRulesFromFirestore;
 
     // 頁面一載入就檢查一次（處理直接開 #admin 網址嘅情況）
     checkAdminHashRoute();

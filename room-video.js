@@ -21,6 +21,7 @@
       roomTotalSeconds: 0, // 呢次入房到而家嘅「總溫習時間」（順時計），閒置暫停計分期間唔會累積
       renderFrameId: null,
       currentRoomId: null,
+      currentRoomCapacity: 4, // 現時所在房間嘅人數上限（2 或 4，見 window.ROOM_CAPACITY_OPTIONS）；未入房或者離房之後預設返 4，等視訊格顯示邏輯有個安全嘅預設值可以跟
       // 呢間房係咪有設密碼鎖（true/false）——真正密碼值而家已經唔再存喺前端
       // 攞得到嘅地方（見 rooms/{roomId}/private/secret 同 firestore.rules），
       // 呢度淨係記低「有冇」，畀房內🔒「查看密碼」掣決定顯唔顯示；撳掣嗰刻
@@ -63,11 +64,32 @@
       wakeLockObj: null // Screen Wake Lock API 拎返嚟嘅 lock 物件，喺房入面攞住佢就可以擋住手機自動熄屏／鎖屏（見 requestRoomWakeLock/releaseRoomWakeLock）
     };
 
+    // 計分規則（每分鐘PTS、確認仍在學習嘅獎勵PTS）——Admin後台「計分
+    // 規則」分頁可以改（admin_config/scoringRules 文件），呢度嘅數值
+    // 淨係起步時嘅預設值／Firestore 讀唔到嗰陣嘅後備值，真正生效嘅
+    // 數值由 loadScoringRulesFromFirestore()（admin-panel.js）讀到之
+    // 後會覆蓋呢個物件。⚠️ Cloud Function（functions/index.js 嘅
+    // awardStudyPoints）嗰邊都係讀返同一份 admin_config/scoringRules
+    // 文件做伺服器端驗證，兩邊一定要跟同一個設定嚟源，唔係管理員改
+    // 咗呢度顯示嘅分數，但伺服器因為白名單對唔上而拒絕寫入。
+    window.SCORING_RULES = { ptsPerMinute: 1, presenceCheckBonus: 2 };
+
     const MIC_OPEN_LIMIT_SECONDS = 3 * 60; // 每次開咪最多連續 3 分鐘，避免學生掛住傾偈唔記得溫習
     const MIC_COOLDOWN_SECONDS = 5 * 60; // 開咪上限一到，要等 5 分鐘冷卻先可以再開
     const MIC_IDLE_RESET_SECONDS = 5 * 60; // 學生未撞到 3 分鐘上限、主動關咪之後，如果連續 5 分鐘都冇再開咪，就當佢已經完全休息返，回復返成套 3 分鐘預算（唔使一定撞晒 3 分鐘先可以歸零）
 
-    const ROOM_CAPACITY = 4; // 同一房間最多同時容納的用家人數（包括自己）
+    const ROOM_CAPACITY = 4; // 舊有嘅全域預設人數上限——而家改為「每間房自己揀 2 人房或
+    // 4 人房」（見建立房間彈窗嘅 #modal-room-capacity），呢個常數淨係用嚟做冇 capacity
+    // 欄位嘅舊房間（呢個功能推出之前建立）嘅後備預設值，唔再係全部房間共用嘅單一上限。
+    const ROOM_CAPACITY_OPTIONS = [2, 4]; // 建立房間嗰陣可以揀嘅人數上限選項
+    // 房間文件讀出嚟嘅 capacity 欄位一定要係 2 或 4 先當有效（防止舊資料
+    // 或者被人手改壞嘅資料令後面嘅版面／格仔分配邏輯出錯），唔啱就當
+    // 冇揀過，跌返去 ROOM_CAPACITY（4）呢個保守預設值。
+    function resolveRoomCapacity(roomData) {
+      const cap = roomData && roomData.capacity;
+      return ROOM_CAPACITY_OPTIONS.includes(cap) ? cap : ROOM_CAPACITY;
+    }
+    window.resolveRoomCapacity = resolveRoomCapacity;
 
     // ------------------------------------------------------------
     // Screen Wake Lock：喺視訊溫習室入面攞住個 wake lock，擋住手機／
@@ -114,10 +136,13 @@
         }
       });
     }
-    window.ROOM_CAPACITY = ROOM_CAPACITY; // 開放俾其他 <script> 區塊（例如大廳房間卡片）讀取
+    window.ROOM_CAPACITY = ROOM_CAPACITY; // 開放俾其他 <script> 區塊（例如大廳房間卡片）讀取，做冇 capacity 欄位嘅舊房間後備預設值
+    window.ROOM_CAPACITY_OPTIONS = ROOM_CAPACITY_OPTIONS;
 
-    // 房間上限 4 人，鏡頭恆常都用 2x2「四格漫畫」版面（見 CSS，唔理
-    // 螢幕幾闊都唔會變 3 欄、4 欄），四格一致大細。想再放到最大、睇得
+    // 版面恆常都用 2 欄嘅格仔（見 CSS，唔理螢幕幾闊都唔會變 3 欄、4
+    // 欄）：4 人房會用晒 2x2 四格；2 人房淨係顯示格 1／格 2（見
+    // resetVideoSlots／getOrCreateRemoteSlot 點樣跟 state.currentRoomCapacity
+    // 決定顯唔顯示格 3／格 4），格仔一致大細。想再放到最大、睇得
     // 更清楚，可以撳「⛶ 全螢幕」——特登連同 room-bar（開鏡頭／咪嘅
     // 按鈕、退出房間等）一齊放大蓋晒成個畫面，唔係淨係得個視訊格，
     // 唔係嘅話全螢幕嗰陣會撳唔到呢啲按鈕（見下面 toggleVideoFullscreenMode）。
@@ -139,17 +164,27 @@
       const GAP = 12; // 要同 .video-grid-container 嘅 CSS gap 一致
       const CELL_RATIO = 4 / 3;
 
-      let cellW = (availW - GAP) / 2;
+      // 呢個格仔版面之前一律當 4 人房計（固定 2x2），2 人房嗰陣就算淨係
+      // 得返兩個鏡頭畫面，都仲係跟住「2 行」嚟計格仔高度，變相谷細咗一
+      // 半、成個畫面上下留返一大嚿冇用嘅黑位（見用家反映「二人房間時
+      // 視訊畫面應該盡量放大及置中」）。而家改跟返呢間房實際嘅人數
+      // 上限：2 人房用 1 行 2 欄（兩格並排，各自可以攞盡成個高度），
+      // 4 人房先維持原本嘅 2x2。
+      const cap = state.currentRoomCapacity || ROOM_CAPACITY;
+      const cols = cap <= 2 ? Math.max(1, cap) : 2;
+      const rows = Math.max(1, Math.ceil(cap / cols));
+
+      let cellW = (availW - GAP * (cols - 1)) / cols;
       let cellH = cellW / CELL_RATIO;
-      if (cellH * 2 + GAP > availH) {
-        cellH = (availH - GAP) / 2;
+      if (cellH * rows + GAP * (rows - 1) > availH) {
+        cellH = (availH - GAP * (rows - 1)) / rows;
         cellW = cellH * CELL_RATIO;
       }
       cellW = Math.max(40, Math.floor(cellW));
       cellH = Math.max(30, Math.floor(cellH));
 
-      grid.style.gridTemplateColumns = `repeat(2, ${cellW}px)`;
-      grid.style.gridTemplateRows = `repeat(2, ${cellH}px)`;
+      grid.style.gridTemplateColumns = `repeat(${cols}, ${cellW}px)`;
+      grid.style.gridTemplateRows = `repeat(${rows}, ${cellH}px)`;
     }
     // 視窗大細改變（例如手機轉方向、電腦拉闊縮窄視窗）都要重新計過
     window.addEventListener('resize', updateFullscreenGridSize);
@@ -167,7 +202,7 @@
       if (!roomActive) return;
       const willBeFullscreen = !roomActive.classList.contains('video-fullscreen-mode');
       roomActive.classList.toggle('video-fullscreen-mode', willBeFullscreen);
-      if (fsBtn) fsBtn.innerHTML = willBeFullscreen ? '⛶ 退出全螢幕' : '⛶ 全螢幕';
+      if (fsBtn) fsBtn.innerHTML = willBeFullscreen ? window.t('room.exitFullscreen', '退出全螢幕') : window.t('room.fullscreen', '全螢幕');
       // 全螢幕嗰陣鎖住背景頁面唔畀捲動，唔係嘅話手指喺黑色空隙度拖到
       // 都會意外拉動咗底下嗰版，畀人覺得畫面甩晒版
       document.body.style.overflow = willBeFullscreen ? 'hidden' : '';
@@ -193,7 +228,7 @@
       const roomActive = document.getElementById('room-active');
       const fsBtn = document.getElementById('video-fullscreen-btn');
       if (roomActive) roomActive.classList.remove('video-fullscreen-mode');
-      if (fsBtn) fsBtn.innerHTML = '⛶ 全螢幕';
+      if (fsBtn) fsBtn.innerHTML = window.t('room.fullscreen', '全螢幕');
       document.body.style.overflow = '';
       // 清返 inline style，唔係就會用返呢啲 px 數值蓋晒返正常（非全
       // 螢幕）嗰個 CSS 版面規則
@@ -309,15 +344,35 @@
       el.innerHTML = `
         <div class="slot-empty-inner">
           <div class="slot-empty-icon">➕</div>
-          <p>等待用家加入...</p>
-          <button class="btn btn-outline" type="button" style="margin-top:8px; font-size:13px; padding:5px 10px;" onclick="openInviteFriendModal()">🤝 邀請朋友</button>
+          <p>${window.t('room.waitingUser', '等待用家加入...')}</p>
+          <button class="btn btn-outline" type="button" style="margin-top:8px; font-size:13px; padding:5px 10px;" onclick="openInviteFriendModal()">${window.t('room.inviteFriend', '邀請朋友')}</button>
         </div>
       `;
     }
 
-    // 重置所有格子（返回大廳 / 離開房間時使用）
+    // 依家間房嘅人數上限（state.currentRoomCapacity），計返格 2/3/4
+    // 入面邊幾格應該存在——2 人房淨係格 2，4 人房就格 2/3/4 都要。
+    function getExtraSlotNums() {
+      const cap = state.currentRoomCapacity || ROOM_CAPACITY;
+      const nums = [];
+      for (let n = 2; n <= cap; n++) nums.push(n);
+      return nums;
+    }
+
+    // 重置所有格子（返回大廳 / 離開房間時使用）：跟返現時房間嘅人數
+    // 上限，超出上限嘅格（例如 2 人房嘅格 3／格 4）直接隱藏埋，唔淨係
+    // 顯示「等待用家加入」——2 人房應該淨係見到兩個視訊畫面。
     function resetVideoSlots() {
-      [2, 3, 4].forEach(setSlotPlaceholder);
+      const activeExtraSlots = getExtraSlotNums();
+      [2, 3, 4].forEach((n) => {
+        const el = getSlotElement(n);
+        if (activeExtraSlots.includes(n)) {
+          if (el) el.style.display = '';
+          setSlotPlaceholder(n);
+        } else if (el) {
+          el.style.display = 'none';
+        }
+      });
       state.slotAssignments = {};
       // 「邊個新加入咗」嘅追蹤都要一齊重置，唔係就上一次入嗰間房仲留低嘅
       // 名單會累到落呢一次房，令啱啱入房嗰刻就即刻彈晒堆「XXX 進來了」
@@ -334,7 +389,7 @@
 
       if (!slotNum) {
         const taken = Object.values(state.slotAssignments);
-        slotNum = [2, 3, 4].find(n => !taken.includes(n));
+        slotNum = getExtraSlotNums().find(n => !taken.includes(n));
         if (!slotNum) return null; // 理論上不會發生，因為加入房間時已檢查人數上限
         state.slotAssignments[uid] = slotNum;
       }
@@ -347,19 +402,19 @@
         el.innerHTML = `
           <video class="remote-video-element" autoplay playsinline muted></video>
           <div class="video-overlay" style="display:none;">
-            <div class="avatar-circle" style="opacity:.6;">🚫</div>
-            <p style="font-size:13px; color:#ccc; margin-top:6px;">對方鏡頭已關閉</p>
+            <div class="avatar-circle" style="opacity:.6;"></div>
+            <p style="font-size:13px; color:#ccc; margin-top:6px;">${window.t('room.remoteCameraOff', '對方鏡頭已關閉')}</p>
           </div>
           <div class="video-header">
-            <span class="video-tag" style="cursor:pointer;" onclick="viewUserProfile('${uid}')" title="點擊查看資料／加好友">📹 ${name || '其他用家'}</span>
-            <span class="video-tag" id="remote-host-badge-${slotNum}" style="background:#D9EBEF; color:#1E4550; display:none;">👑 房主</span>
-            <span class="video-tag" id="stream-status-${uid}" style="background:#3E7A8A; color:#fff;">🔗 連線中...</span>
+            <span class="video-tag" style="cursor:pointer;" onclick="viewUserProfile('${uid}')" title="${window.t('room.viewProfile', '點擊查看資料／加好友')}">${name || window.t('room.otherUser', '其他用家')}</span>
+            <span class="video-tag" id="remote-host-badge-${slotNum}" style="background:#D9EBEF; color:#1E4550; display:none;">${window.t('room.hostBadge', '房主')}</span>
+            <span class="video-tag" id="stream-status-${uid}" style="background:#3E7A8A; color:#fff;">${window.t('room.remoteWaitStream', '連線中...')}</span>
             <div class="video-more-menu-wrap">
-              <span class="video-tag video-more-menu-toggle" onclick="event.stopPropagation(); window.toggleVideoMoreMenu('${uid}')" title="更多選項">⋮</span>
+              <span class="video-tag video-more-menu-toggle" onclick="event.stopPropagation(); window.toggleVideoMoreMenu('${uid}')" title="${window.t('room.moreOptions', '更多選項')}">⋮</span>
               <div class="video-more-menu-dropdown" id="video-more-menu-${uid}" style="display:none;">
-                <button type="button" class="video-more-menu-item" id="transfer-host-btn-${uid}" style="display:none;" onclick="event.stopPropagation(); window.toggleVideoMoreMenu('${uid}'); window.transferHostTo('${uid}', '${(name||'呢位同學').replace(/'/g, "\\'")}')">👑 轉移房主給他</button>
-                <button type="button" class="video-more-menu-item danger" id="kick-btn-${uid}" style="display:none;" onclick="event.stopPropagation(); window.toggleVideoMoreMenu('${uid}'); window.kickParticipant('${uid}', '${(name||'呢位同學').replace(/'/g, "\\'")}')">🚫 踢走呢位同學</button>
-                <button type="button" class="video-more-menu-item danger" onclick="event.stopPropagation(); window.toggleVideoMoreMenu('${uid}'); window.openReportModal('${uid}', '${(name||'呢位同學').replace(/'/g, "\\'")}')">🚩 舉報呢位同學</button>
+                <button type="button" class="video-more-menu-item" id="transfer-host-btn-${uid}" style="display:none;" onclick="event.stopPropagation(); window.toggleVideoMoreMenu('${uid}'); window.transferHostTo('${uid}', '${(name||'呢位同學').replace(/'/g, "\\'")}')">${window.t('room.transferHost', '轉移房主給他')}</button>
+                <button type="button" class="video-more-menu-item danger" id="kick-btn-${uid}" style="display:none;" onclick="event.stopPropagation(); window.toggleVideoMoreMenu('${uid}'); window.kickParticipant('${uid}', '${(name||'呢位同學').replace(/'/g, "\\'")}')">${window.t('room.kickUser', '踢走呢位同學')}</button>
+                <button type="button" class="video-more-menu-item danger" onclick="event.stopPropagation(); window.toggleVideoMoreMenu('${uid}'); window.openReportModal('${uid}', '${(name||'呢位同學').replace(/'/g, "\\'")}')">${window.t('room.reportUser', '舉報呢位同學')}</button>
               </div>
             </div>
           </div>
@@ -383,7 +438,7 @@
       if (selfHostTag) {
         if (hostUid && myUid && hostUid === myUid) {
           selfHostTag.style.display = 'flex';
-          selfHostTag.innerText = '你是房主 👑';
+          selfHostTag.innerText = window.t('room.youAreHost', '你是房主');
         } else {
           selfHostTag.style.display = 'none';
           selfHostTag.innerText = '';
@@ -578,12 +633,12 @@
           return;
         }
 
-        window.showToast('已送出舉報，管理員會盡快跟進，多謝你保障大家的安全 🙏', '🚩');
+        window.showToast('已送出舉報，管理員會盡快跟進，多謝你保障大家的安全', '🚩');
         window.closeReportModal();
       } catch (e) {
         window.showToast('舉報送出失敗：' + (e.message || e), '❌');
       } finally {
-        if (btn) { btn.disabled = false; btn.innerText = '🚩 確認送出舉報'; }
+        if (btn) { btn.disabled = false; btn.innerText = '確認送出舉報'; }
       }
     };
 
@@ -627,7 +682,7 @@
       const statusTag = document.getElementById('stream-status-' + uid);
       if (statusTag) {
         statusTag.style.background = '#D2C4AD';
-        statusTag.innerText = '🟢 即時串流';
+        statusTag.innerText = window.t('room.remoteLiveStream', '即時串流');
       }
     }
 
@@ -648,7 +703,7 @@
       const countEl = document.getElementById('room-participant-count');
       const tagEl = document.getElementById('room-capacity-tag');
       if (countEl) countEl.innerText = count;
-      if (tagEl) tagEl.classList.toggle('full', count >= ROOM_CAPACITY);
+      if (tagEl) tagEl.classList.toggle('full', count >= (state.currentRoomCapacity || ROOM_CAPACITY));
     }
 
     // 進入房間前檢查人數上限，未滿則寫入自己的 participants 紀錄。回傳 true/false 代表能否加入
@@ -679,9 +734,10 @@
           const [roomSnap, participantSnap] = await Promise.all([tx.get(roomRef), tx.get(participantRef)]);
           const alreadyIn = participantSnap.exists();
           const currentCount = roomSnap.exists() ? (roomSnap.data().participantCount || 0) : 0;
+          const roomCap = resolveRoomCapacity(roomSnap.exists() ? roomSnap.data() : null);
 
-          if (!alreadyIn && currentCount >= ROOM_CAPACITY) {
-            return false; // 房間已滿 4 人，禁止加入
+          if (!alreadyIn && currentCount >= roomCap) {
+            return false; // 房間已滿，禁止加入
           }
 
           tx.set(participantRef, {
@@ -781,7 +837,7 @@
         roomActiveEl.appendChild(container);
       }
       const note = document.createElement('div');
-      note.textContent = `👋 ${name || '同學'} 進來了`;
+      note.textContent = `${name || '同學'} 進來了`;
       note.style.cssText = 'background:rgba(20,20,20,0.72); color:#fff; padding:10px 20px; border-radius:999px; font-size:14px; font-weight:bold; box-shadow:0 4px 14px rgba(0,0,0,0.25); backdrop-filter:blur(4px); opacity:0; transform:translateY(-8px); transition:opacity .25s ease, transform .25s ease;';
       container.appendChild(note);
       requestAnimationFrame(() => {
@@ -872,7 +928,7 @@
           // 俾 enterRoomSetup 嗰個檢查擋返出去，唔可以再入返嚟。
           const myUid = window.currentUser ? window.currentUser.uid : null;
           if (myUid && data && Array.isArray(data.bannedUids) && data.bannedUids.includes(myUid)) {
-            doLeaveRoom(false, '你已被房主移出這個溫習房，之後都不可以再加入 🚫');
+            doLeaveRoom(false, '你已被房主移出這個溫習房，之後都不可以再加入');
           }
         }
       });
@@ -1071,6 +1127,13 @@
           return;
         }
 
+        // 房間人數上限：房主開房嗰陣揀 2 人房定 4 人房，寫死落房間文件
+        // 之後就唔會再改（同 roomPool 一樣一開始定咗就定咗）。如果讀到
+        // 唔識嘅值（例如 modal 冇揀好），就當 4 人房，同舊有行為一致。
+        const capacitySelectEl = document.getElementById('modal-room-capacity');
+        const chosenCapacityRaw = capacitySelectEl ? parseInt(capacitySelectEl.value, 10) : ROOM_CAPACITY;
+        const chosenCapacity = ROOM_CAPACITY_OPTIONS.includes(chosenCapacityRaw) ? chosenCapacityRaw : ROOM_CAPACITY;
+
         const roomId = 'room_' + Date.now();
         const createdAt = Date.now();
         const roomData = {
@@ -1080,6 +1143,7 @@
           hostUid: window.currentUser.uid,
           hostName: window.currentUser.username || '匿名同學',
           participantCount: 0,
+          capacity: chosenCapacity,
           createdAt: createdAt,
           lastActiveAt: createdAt, // 心跳時間戳，畀幽靈房自動清理機制用（見 gcStaleRooms）
           // 兩池公開溫習室：房間一開始建立就跟房主自己所屬嗰池（「中學
@@ -1107,22 +1171,44 @@
         closeModal('modal-create-room');
 
         await enterRoomSetup(roomId, roomName, subject, durationMins, window.currentUser.username || '匿名同學', true, createdAt, window.currentUser.uid);
-        window.showToast("🚀 溫習房建立成功並已廣播至公開大廳！", "✨");
+        window.showToast("溫習房建立成功並已廣播至公開大廳！", "✨");
       } catch (err) {
         window.showToast("建立房間失敗: " + err.message, "❌");
       } finally {
         state.creatingRoom = false;
         if (submitBtn) {
           submitBtn.disabled = false;
-          submitBtn.innerText = originalBtnText || '🚀 立即建立並廣播';
+          submitBtn.innerText = originalBtnText || '立即建立並廣播';
         }
       }
     };
 
-    window.joinPublicRoom = async function(roomId, roomName, subject, durationMins, hostName, isMyRoom, createdAt, hostUid) {
-      const success = await enterRoomSetup(roomId, roomName, subject, durationMins, hostName, isMyRoom, createdAt, hostUid);
-      if (success) {
-        window.showToast(`成功加入「${roomName}」！`, "🦦");
+    // btnEl：大廳房間卡片嗰粒「🚪 加入房間」掣本身（可以冇——例如經分享
+    // 連結、或者接受朋友邀請入房嗰兩條路徑，冧㨂冇對應嘅掣可以擋）。
+    // enterRoomSetup 入面要驗證密碼、核對 bannedUids 等，一律要等
+    // verifyRoomPassword 呢個 Cloud Function 回應（見下面），如果啱啱
+    // 冇人用過呢個 function（冷啟動），可能要等幾秒先有反應；擋住個掣
+    // 兼改文字，等用戶知道網站有反應緊、唔係當機。
+    window.joinPublicRoom = async function(roomId, roomName, subject, durationMins, hostName, isMyRoom, createdAt, hostUid, btnEl) {
+      let originalBtnHtml = null;
+      if (btnEl) {
+        originalBtnHtml = btnEl.innerHTML;
+        btnEl.disabled = true;
+        btnEl.innerHTML = '⏳ 加入緊…';
+      }
+      try {
+        const success = await enterRoomSetup(roomId, roomName, subject, durationMins, hostName, isMyRoom, createdAt, hostUid);
+        if (success) {
+          window.showToast(`成功加入「${roomName}」！`, "🦦");
+        }
+      } finally {
+        // 成功入到房之後，呢張房間卡片好快會隨住大廳列表重新渲染而消失，
+        // 所以呢度照舊還原返個掣都冇問題；主要係防止加入失敗／密碼錯之
+        // 類情況之下，個掣一直卡喺「⏳ 加入緊…」冇得再撳。
+        if (btnEl) {
+          btnEl.disabled = false;
+          btnEl.innerHTML = originalBtnHtml;
+        }
       }
     };
 
@@ -1131,6 +1217,13 @@
         window.showToast("請先登入會員", "⚠️");
         return false;
       }
+
+      // 即刻俾個提示，等用戶知道撳完掣網站有反應緊：入房要核對密碼／
+      // 黑名單，呢一步一律要呼叫 verifyRoomPassword 呢個 Cloud Function
+      // （見下面），如果啱啱冇人用過呢個 function（冷啟動），可能要等
+      // 幾秒先有回應。冇呢句提示嘅話，等候期間畫面完全冇變化，好易俾人
+      // 誤會網站壞咗。
+      window.showToast('正在準備溫習房，請稍等…', '⏳');
 
       // 曾經俾房主踢走過嘅用家唔可以再加入返呢間房（bannedUids 名單一直
       // 留喺房間文件度，唔會自動清走，見 window.kickParticipant）；
@@ -1202,10 +1295,16 @@
       const lockBtn = document.getElementById('room-password-lock-btn');
       if (lockBtn) lockBtn.style.display = state.currentRoomHasPassword ? 'inline-flex' : 'none';
 
-      // 房間人數上限檢查：最多 4 人同時使用同一個房間
+      // 房間人數上限檢查：跟返呢間房自己揀嘅人數上限（2 或 4 人），
+      // 而唔係一律當 4 人房——要喺 joinRoomParticipants／resetVideoSlots
+      // 呢兩步之前就設定好 state.currentRoomCapacity，等視訊格顯示邏輯
+      // 同底下嘅「已滿」提示都跟返正確嘅數字。
+      const roomCapacityForThisRoom = resolveRoomCapacity(roomCheckData);
+      state.currentRoomCapacity = roomCapacityForThisRoom;
+
       const canJoin = await joinRoomParticipants(roomId);
       if (!canJoin) {
-        window.showToast(`房間已滿（${ROOM_CAPACITY}/${ROOM_CAPACITY}），暫時無法加入`, "🚫");
+        window.showToast(`房間已滿（${roomCapacityForThisRoom}/${roomCapacityForThisRoom}），暫時無法加入`, "🚫");
         return false;
       }
 
@@ -1479,9 +1578,11 @@
 
         if (secondsSinceLastAward >= 60 && !state.awardingPaused) {
           secondsSinceLastAward = 0;
-          // 每滿 60 秒真正嘅溫習時間，除咗畀 1 PTS，仲要累加 1/60 小時到
-          // 「累積溫習時數」度，等個時數可以同視訊房嘅實際溫習時間掛鈎
-          awardStudyPoint(1, 1 / 60);
+          // 每滿 60 秒真正嘅溫習時間，除咗畀 N PTS（可以喺Admin後台
+          // 「計分規則」分頁調整，見 window.SCORING_RULES），仲要累加
+          // 1/60 小時到「累積溫習時數」度，等個時數可以同視訊房嘅實際
+          // 溫習時間掛鈎
+          awardStudyPoint(window.SCORING_RULES.ptsPerMinute, 1 / 60);
         }
       }, 1000);
     }
@@ -1567,7 +1668,7 @@
       const newLevel = calcLevelInfo(window.currentUser.exp).level;
       if (newLevel > prevLevel) {
         const rank = getRankTitle(newLevel);
-        window.showToast(`🎉 升級了！現在是 Lv.${newLevel} ${rank.emoji} ${rank.title}！`, '⬆️');
+        window.showToast(`升級了！現在是 Lv.${newLevel} ${rank.title}！`, '⬆️');
       }
       if (hoursIncrement > 0) {
         const newHours = (parseFloat(window.currentUser.hours) || 0) + hoursIncrement;
@@ -1706,9 +1807,11 @@
 
     window.confirmStillHere = function() {
       resumePresenceSilently();
-      // 主動確認「仲喺度」都算係一種投入專注嘅表現，順手獎多 2 分鼓勵一下
-      awardStudyPoint(2);
-      window.showToast('讚！繼續加油溫習，額外送你 +2 PTS 🎁', '💪');
+      // 主動確認「仲喺度」都算係一種投入專注嘅表現，順手獎分鼓勵一下
+      // （獎勵PTS數值可以喺Admin後台「計分規則」分頁調整）
+      const bonus = window.SCORING_RULES.presenceCheckBonus;
+      awardStudyPoint(bonus);
+      window.showToast(`讚！繼續加油溫習，額外送你 +${bonus} PTS`, '💪');
     };
 
     window.leaveRoom = async function() {
@@ -1850,7 +1953,7 @@
       if (canvasEl) canvasEl.style.display = 'none';
       if (overlayEl) overlayEl.style.display = 'flex';
       if (statusTag) statusTag.style.display = 'none';
-      if (btn) { btn.innerText = '📹 開啟鏡頭'; btn.className = 'btn btn-primary'; }
+      if (btn) { btn.innerText = window.t('room.cameraOn', '開啟鏡頭'); btn.className = 'btn btn-primary'; }
       updateMicButtonUI();
 
       if (state.signalingUnsubscribe) {
@@ -1889,6 +1992,10 @@
       state.peerConnections = {};
 
       await leaveRoomParticipants();
+      // 離開房間之後將人數上限還原做預設值 4，等下次入返一間普通（冇特別
+      // 指定）嘅房或者仲未入房嗰段空檔，視訊格顯示邏輯有個穩陣嘅預設可跟；
+      // 一定要喺 resetVideoSlots() 之前做，佢先會攞返啱嘅上限嚟顯示。
+      state.currentRoomCapacity = ROOM_CAPACITY;
       resetVideoSlots();
 
       state.currentRoomId = null;
@@ -2110,7 +2217,7 @@
       return `${m}:${String(sec).padStart(2, '0')}`;
     }
 
-    function updateMicButtonUI() {
+    window.updateMicButtonUI = function updateMicButtonUI() {
       const micBtn = document.getElementById('btn-mic');
       const micTag = document.getElementById('mic-status-tag');
       if (!micBtn) return;
@@ -2123,11 +2230,11 @@
         const remainSec = Math.ceil((state.micCooldownUntil - Date.now()) / 1000);
         const countdown = formatMicCountdown(remainSec);
         micBtn.disabled = true;
-        micBtn.innerText = `🧊 冷卻中 ${countdown}`;
+        micBtn.innerText = window.t('room.micCooldownBtn', '冷卻中 {n}').replace('{n}', countdown);
         micBtn.className = 'btn btn-outline';
         if (micTag) {
           micTag.style.display = state.isCameraOn ? 'flex' : 'none';
-          micTag.innerText = `🧊 咪冷卻中 ${countdown}`;
+          micTag.innerText = window.t('room.micCooldownTag', '咪冷卻中 {n}').replace('{n}', countdown);
           micTag.style.background = 'rgba(125,184,197,0.7)';
         }
         return;
@@ -2139,19 +2246,19 @@
         // 房間嘅番茄鐘）一樣淨係用空格分隔，唔加括號
         const remainSec = state.micOpenUntil ? Math.ceil((state.micOpenUntil - Date.now()) / 1000) : null;
         const countdown = remainSec !== null ? ` ${formatMicCountdown(remainSec)}` : '';
-        micBtn.innerText = `🎤 已開咪${countdown}`;
+        micBtn.innerText = window.t('room.micOnBtn', '已開咪{n}').replace('{n}', countdown);
         micBtn.className = 'btn btn-outline';
         if (micTag) {
           micTag.style.display = state.isCameraOn ? 'flex' : 'none';
-          micTag.innerText = `🎤 已開啟麥克風${countdown}`;
+          micTag.innerText = window.t('room.micOnTag', '已開啟麥克風{n}').replace('{n}', countdown);
           micTag.style.background = 'rgba(134,239,172,0.9)';
         }
       } else {
-        micBtn.innerText = '🔇 已靜音';
+        micBtn.innerText = window.t('room.micMuted', '已靜音');
         micBtn.className = 'btn btn-red';
         if (micTag) {
           micTag.style.display = state.isCameraOn ? 'flex' : 'none';
-          micTag.innerText = '🔇 已靜音';
+          micTag.innerText = window.t('room.micMuted', '已靜音');
           micTag.style.background = 'rgba(125,184,197,0.7)';
         }
       }
@@ -2239,13 +2346,13 @@
         canvasEl.style.display = 'none';
         overlayEl.style.display = 'flex';
         statusTag.style.display = 'none';
-        btn.innerText = '📹 開啟鏡頭';
+        btn.innerText = window.t('room.cameraOn', '開啟鏡頭');
         btn.className = 'btn btn-primary';
         updateMicButtonUI();
 
         updateMyCameraStatus(false);
       } else {
-        btn.innerText = '⏳ 鏡頭啟動中...';
+        btn.innerText = window.t('room.cameraStarting', '⏳ 鏡頭啟動中...');
 
         try {
           let videoTrack;
@@ -2297,7 +2404,7 @@
           canvasEl.style.display = 'block';
           overlayEl.style.display = 'none';
           statusTag.style.display = 'flex';
-          btn.innerText = '🔴 關閉鏡頭';
+          btn.innerText = window.t('room.cameraOff', '關閉鏡頭');
           btn.className = 'btn btn-red';
           updateMicButtonUI();
 
@@ -2322,7 +2429,7 @@
         } catch (err) {
           console.error("相機存取失敗:", err);
           window.showToast(describeMediaError(err), '❌');
-          btn.innerText = '📹 開啟鏡頭';
+          btn.innerText = window.t('room.cameraOn', '開啟鏡頭');
           btn.className = 'btn btn-primary';
         }
       }
@@ -2338,7 +2445,7 @@
       if (!state.isMicOn && state.micCooldownUntil && Date.now() < state.micCooldownUntil) {
         const remainSec = Math.max(0, Math.ceil((state.micCooldownUntil - Date.now()) / 1000));
         const mins = Math.ceil(remainSec / 60);
-        window.showToast(`麥克風仍在冷卻中，大約 ${mins} 分鐘後才可以再開啟 🧊`, '⏳');
+        window.showToast(`麥克風仍在冷卻中，大約 ${mins} 分鐘後才可以再開啟`, '⏳');
         return;
       }
 
@@ -2415,7 +2522,7 @@
           if (state.isMicOn && state.mediaStream) {
             state.isMicOn = false;
             state.mediaStream.getAudioTracks().forEach(track => track.enabled = false);
-            window.showToast('開啟麥克風已滿 3 分鐘，已為你自動關閉，請專心繼續溫習！麥克風按鈕進入 5 分鐘冷卻 🧊', '⏳');
+            window.showToast('開啟麥克風已滿 3 分鐘，已為你自動關閉，請專心繼續溫習！麥克風按鈕進入 5 分鐘冷卻', '⏳');
             // 額外彈出一個唔會自動關閉嘅提示視窗（書面語），確保學生真正留意到，
             // 唔止係一閃即逝嘅 toast——要學生主動按掣確認先關得閉。
             openModal('modal-mic-limit-reminder');
@@ -2471,7 +2578,7 @@
         state.micUsedSeconds = 0;
         if (state.micCooldownUiTimer) { clearInterval(state.micCooldownUiTimer); state.micCooldownUiTimer = null; }
         updateMicButtonUI();
-        window.showToast('麥克風冷卻完成，可以重新開啟 🎤', '✅');
+        window.showToast('麥克風冷卻完成，可以重新開啟', '✅');
       }, MIC_COOLDOWN_SECONDS * 1000);
     }
 
