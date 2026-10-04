@@ -77,7 +77,7 @@
     let adminUsersUnsubscribe = null;
     let adminReportsUnsubscribe = null;
     let adminReportsBadgeUnsubscribe = null;
-    let currentAdminTab = 'gacha';
+    let currentAdminTab = 'dashboard';
 
     // 網址 hash 路由：#admin 先顯示管理後台，離開就切返正常介面。
     // 未登入／auth 仲未 resolve 之前 window.currentUser 係 undefined，
@@ -143,7 +143,7 @@
       // 「🎓 導師申請」個紅點徽章同上，唔理揀緊邊個分頁都要見到
       if (typeof window.startAdminTutorsBadgeListener === 'function') window.startAdminTutorsBadgeListener();
 
-      switchAdminTab(currentAdminTab || 'gacha');
+      switchAdminTab(currentAdminTab || 'dashboard');
     }
     window.checkAdminHashRoute = checkAdminHashRoute;
     window.addEventListener('hashchange', checkAdminHashRoute);
@@ -158,7 +158,8 @@
         panel.style.display = (panel.id === 'admin-tab-' + tab) ? 'block' : 'none';
       });
 
-      if (tab === 'gacha') renderAdminGachaTab();
+      if (tab === 'dashboard') renderAdminDashboardTab();
+      else if (tab === 'gacha') renderAdminGachaTab();
       else if (tab === 'rooms') renderAdminRoomsTab();
       else if (tab === 'qa') renderAdminQaTab();
       else if (tab === 'users') renderAdminUsersTab();
@@ -168,6 +169,9 @@
       else if (tab === 'tutors') renderAdminTutorsTab();
       else if (tab === 'landing') renderAdminLandingTab();
       else if (tab === 'scoring') renderAdminScoringTab();
+      else if (tab === 'roomsettings') renderAdminRoomSettingsTab();
+      else if (tab === 'antiidle') renderAdminAntiIdleTab();
+      else if (tab === 'announcement') renderAdminAnnouncementTab();
     };
 
     // ---------- 扭蛋機貼紙管理 ----------
@@ -1998,6 +2002,613 @@
       });
     }
     window.loadScoringRulesFromFirestore = loadScoringRulesFromFirestore;
+
+    // ---------- 房間設定（建立溫習房表格嘅人數上限／預計溫習時間選項）----------
+    // 做法同「計分規則」分頁一致，存喺 Firestore（admin_config/roomSettings
+    // 文件），管理員喺呢度改完撳「儲存」，全站「建立溫習房」表格即時跟
+    // 住變（見 room-video.js 嘅 window.ROOM_SETTINGS／window.renderRoomCreateOptions）。
+    //
+    // ⚠️ 人數上限刻意淨係畀管理員喺「2 人房」「4 人房」呢兩個選項度開
+    // 關同揀預設值，唔可以自訂其他數字——因為視訊格位版面寫死咗淨係
+    // 支援呢兩種排法（2 格或 2x2 四格），加其他人數會整壞版面。預計
+    // 溫習時間就純粹係畀學生參考嘅顯示文字，房間唔會因為時間到而自
+    // 動結束，所以呢項可以自由加／減／改分鐘數選項。
+    let adminRoomSettingsDraft = null;
+    let roomSettingsConfigLoaded = false;
+
+    function renderAdminRoomSettingsTab() {
+      const container = document.getElementById('admin-tab-roomsettings');
+      if (!container) return;
+
+      if (!adminRoomSettingsDraft) {
+        if (!roomSettingsConfigLoaded) {
+          container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入中房間設定...</p>';
+          return; // Firestore 資料一到，loadRoomSettingsFromFirestore() 會自動再 render 多次
+        }
+        const s = window.ROOM_SETTINGS || {};
+        adminRoomSettingsDraft = {
+          capacity2Enabled: s.capacity2Enabled !== false,
+          capacity4Enabled: s.capacity4Enabled !== false,
+          defaultCapacity: s.defaultCapacity === 2 ? 2 : 4,
+          durationOptionsText: Array.isArray(s.durationOptions) ? s.durationOptions.join(', ') : '15, 30, 40, 45, 60',
+          defaultDuration: s.defaultDuration || 30
+        };
+      }
+
+      const d = adminRoomSettingsDraft;
+      const capacityChoicesNow = [];
+      if (d.capacity2Enabled) capacityChoicesNow.push(2);
+      if (d.capacity4Enabled) capacityChoicesNow.push(4);
+
+      container.innerHTML = `
+        <div class="admin-card">
+          <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); margin-bottom:14px;">人數上限選項</h3>
+          <p style="font-size:13px; color:#888; margin-bottom:16px;">揀選學生建立溫習房嗰陣可以選擇嘅人數上限（固定只有 2 人房／4 人房兩種，因為視訊畫面格位設計只支援呢兩種排法）。</p>
+          <label style="display:flex; align-items:center; gap:8px; font-size:14px; margin-bottom:10px; cursor:pointer;">
+            <input type="checkbox" ${d.capacity2Enabled ? 'checked' : ''} onchange="adminUpdateRoomSettingsDraft('capacity2Enabled', this.checked)"> 開放「2 人房」選項
+          </label>
+          <label style="display:flex; align-items:center; gap:8px; font-size:14px; margin-bottom:16px; cursor:pointer;">
+            <input type="checkbox" ${d.capacity4Enabled ? 'checked' : ''} onchange="adminUpdateRoomSettingsDraft('capacity4Enabled', this.checked)"> 開放「4 人房」選項
+          </label>
+          <div>
+            <label style="font-size:13px; font-weight:bold; color:var(--brand-700); display:block; margin-bottom:6px;">預設人數上限（表格一開啟時預先揀好嗰個）</label>
+            <select style="width:160px; font-size:15px; padding:8px 10px; border:1px solid #DDE7E9; border-radius:6px;" onchange="adminUpdateRoomSettingsDraft('defaultCapacity', this.value)">
+              ${capacityChoicesNow.map(n => `<option value="${n}" ${d.defaultCapacity === n ? 'selected' : ''}>${n} 人房</option>`).join('') || '<option value="">（請先開放最少一個選項）</option>'}
+            </select>
+          </div>
+        </div>
+        <div class="admin-card" style="margin-top:16px;">
+          <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); margin-bottom:14px;">預計溫習時間選項</h3>
+          <p style="font-size:13px; color:#888; margin-bottom:16px;">呢個時間純粹顯示喺公開大廳嘅房間列表，畀其他同學參考，房間唔會因為時間到而自動結束。可以自由加減分鐘數選項。</p>
+          <div style="margin-bottom:16px;">
+            <label style="font-size:13px; font-weight:bold; color:var(--brand-700); display:block; margin-bottom:6px;">分鐘數選項（用逗號分隔，例如：15, 30, 40, 45, 60）</label>
+            <input type="text" value="${d.durationOptionsText}" style="width:100%; max-width:420px; font-size:15px; padding:8px 10px; border:1px solid #DDE7E9; border-radius:6px;" oninput="adminUpdateRoomSettingsDraft('durationOptionsText', this.value)">
+          </div>
+          <div>
+            <label style="font-size:13px; font-weight:bold; color:var(--brand-700); display:block; margin-bottom:6px;">預設溫習時間（分鐘，表格一開啟時預先揀好嗰個）</label>
+            <input type="number" min="1" step="1" value="${d.defaultDuration}" style="width:160px; font-size:15px; padding:8px 10px; border:1px solid #DDE7E9; border-radius:6px;" oninput="adminUpdateRoomSettingsDraft('defaultDuration', this.value)">
+          </div>
+        </div>
+        <div style="text-align:center; margin-top:16px;">
+          <button type="button" class="btn btn-primary" id="btn-admin-save-roomsettings" style="padding:12px 32px; font-size:15px;" onclick="adminSaveRoomSettings()">儲存全部改動</button>
+        </div>
+      `;
+    }
+    window.renderAdminRoomSettingsTab = renderAdminRoomSettingsTab;
+
+    window.adminUpdateRoomSettingsDraft = function(key, value) {
+      if (!adminRoomSettingsDraft) return;
+      if (key === 'capacity2Enabled' || key === 'capacity4Enabled') {
+        adminRoomSettingsDraft[key] = !!value;
+      } else if (key === 'defaultCapacity') {
+        const n = parseInt(value, 10);
+        adminRoomSettingsDraft.defaultCapacity = (n === 2 || n === 4) ? n : adminRoomSettingsDraft.defaultCapacity;
+      } else if (key === 'defaultDuration') {
+        const n = parseInt(value, 10);
+        adminRoomSettingsDraft.defaultDuration = (Number.isFinite(n) && n > 0) ? n : adminRoomSettingsDraft.defaultDuration;
+      } else if (key === 'durationOptionsText') {
+        adminRoomSettingsDraft.durationOptionsText = value;
+      }
+      renderAdminRoomSettingsTab();
+    };
+
+    window.adminSaveRoomSettings = async function() {
+      if (!adminRoomSettingsDraft) return;
+      const d = adminRoomSettingsDraft;
+
+      if (!d.capacity2Enabled && !d.capacity4Enabled) {
+        window.showToast('「2 人房」同「4 人房」唔可以兩個都關埋，最少要開放一個', '⚠️');
+        return;
+      }
+
+      // 解析「分鐘數選項」文字輸入：逗號分隔、去重、過濾唔合法嘅值、
+      // 由細到大排序，確保存落 Firestore 嘅係乾淨嘅正整數陣列。
+      const durationOptions = Array.from(new Set(
+        d.durationOptionsText.split(',')
+          .map(s => parseInt(s.trim(), 10))
+          .filter(n => Number.isFinite(n) && n > 0)
+      )).sort((a, b) => a - b);
+
+      if (durationOptions.length === 0) {
+        window.showToast('最少要有一個有效嘅溫習時間選項（正整數分鐘數）', '⚠️');
+        return;
+      }
+
+      const defaultCapacity = (d.defaultCapacity === 2 && d.capacity2Enabled) ? 2
+        : (d.defaultCapacity === 4 && d.capacity4Enabled) ? 4
+        : (d.capacity4Enabled ? 4 : 2);
+
+      const defaultDuration = durationOptions.includes(d.defaultDuration) ? d.defaultDuration : durationOptions[0];
+
+      const payload = {
+        capacity2Enabled: d.capacity2Enabled,
+        capacity4Enabled: d.capacity4Enabled,
+        defaultCapacity: defaultCapacity,
+        durationOptions: durationOptions,
+        defaultDuration: defaultDuration,
+        updatedAt: Date.now(),
+        updatedBy: window.currentUser ? window.currentUser.email : null
+      };
+      const btn = document.getElementById('btn-admin-save-roomsettings');
+      if (btn) { btn.disabled = true; btn.innerText = '儲存中…'; }
+      try {
+        await window.fs.setDoc(window.fs.doc(window.db, 'admin_config', 'roomSettings'), payload);
+        window.showToast('房間設定已儲存，即時對所有用戶生效！', '🎉');
+      } catch (err) {
+        window.showToast('儲存失敗：' + (err.message || err), '❌');
+      } finally {
+        if (btn) { btn.disabled = false; btn.innerText = '儲存全部改動'; }
+      }
+    };
+
+    let roomSettingsConfigUnsubscribe = null;
+    function loadRoomSettingsFromFirestore() {
+      if (!window.db || !window.fs) return;
+      if (roomSettingsConfigUnsubscribe) roomSettingsConfigUnsubscribe();
+      const ref = window.fs.doc(window.db, 'admin_config', 'roomSettings');
+      roomSettingsConfigUnsubscribe = window.fs.onSnapshot(ref, (snap) => {
+        if (snap.exists() && window.ROOM_SETTINGS) {
+          const data = snap.data();
+          if (typeof data.capacity2Enabled === 'boolean') window.ROOM_SETTINGS.capacity2Enabled = data.capacity2Enabled;
+          if (typeof data.capacity4Enabled === 'boolean') window.ROOM_SETTINGS.capacity4Enabled = data.capacity4Enabled;
+          if (data.defaultCapacity === 2 || data.defaultCapacity === 4) window.ROOM_SETTINGS.defaultCapacity = data.defaultCapacity;
+          if (Array.isArray(data.durationOptions) && data.durationOptions.length > 0) window.ROOM_SETTINGS.durationOptions = data.durationOptions;
+          if (typeof data.defaultDuration === 'number' && data.defaultDuration > 0) window.ROOM_SETTINGS.defaultDuration = data.defaultDuration;
+        }
+        roomSettingsConfigLoaded = true;
+        if (currentAdminTab === 'roomsettings' && !adminRoomSettingsDraft) {
+          const adminPanelEl = document.getElementById('admin-panel-container');
+          if (adminPanelEl && adminPanelEl.style.display !== 'none') {
+            renderAdminRoomSettingsTab();
+          }
+        }
+      }, (err) => {
+        console.error('讀取房間設定失敗:', err);
+        roomSettingsConfigLoaded = true;
+        if (typeof window.isCurrentUserAdmin === 'function' && window.isCurrentUserAdmin()) {
+          window.showToast('讀取房間設定失敗（可能是 Firestore 規則未生效）：' + (err.message || err), '⚠️');
+        }
+      });
+    }
+    window.loadRoomSettingsFromFirestore = loadRoomSettingsFromFirestore;
+
+    // ---------- 防掛機參數（開咪時限、確認間隔等）----------
+    // 做法同「計分規則」「房間設定」一致，存喺 Firestore
+    // （admin_config/antiIdleRules 文件），管理員改完撳「儲存」，全站
+    // 即時跟住變（見 room-video.js 嘅 window.applyAntiIdleRules）。
+    //
+    // ⚠️ 呢幾個參數純粹前端生效，冇牽涉 Cloud Function（同「房間設定」
+    // 一樣），因為伺服器端淨係驗證每次送嚟嘅分數數值啱唔啱（見計分
+    // 規則嗰項），唔理會送分頻密程度。但「已經開始緊嘅計時器」（例如
+    // 學生已經喺房入面）唔會即時被打斷重設，新數值要等下一次相關計
+    // 時器重新開始（下次入房、下次開咪）先生效。
+    let adminAntiIdleDraft = null;
+    let antiIdleConfigLoaded = false;
+
+    const ANTI_IDLE_FIELDS = [
+      { key: 'presenceCheckIntervalMin', label: '「仍在溫習緊？」確認彈窗，相隔幾多分鐘出現一次' },
+      { key: 'presenceResponseMin', label: '彈窗出現之後，幾多分鐘內未確認就會暫停計分' },
+      { key: 'micOpenLimitMin', label: '每次開咪，最多可以連續開幾多分鐘' },
+      { key: 'micCooldownMin', label: '開咪撞到上限之後，要冷卻（鎖住咪掣）幾多分鐘先可以再開' },
+      { key: 'micIdleResetMin', label: '主動關咪、未撞到上限嘅情況下，連續幾多分鐘冇再開咪就當完全休息返、重新計過開咪時限' }
+    ];
+
+    function renderAdminAntiIdleTab() {
+      const container = document.getElementById('admin-tab-antiidle');
+      if (!container) return;
+
+      if (!adminAntiIdleDraft) {
+        if (!antiIdleConfigLoaded) {
+          container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入中防掛機參數設定...</p>';
+          return; // Firestore 資料一到，loadAntiIdleRulesFromFirestore() 會自動再 render 多次
+        }
+        const r = window.ANTI_IDLE_RULES || {};
+        adminAntiIdleDraft = {
+          presenceCheckIntervalMin: r.presenceCheckIntervalMin || 30,
+          presenceResponseMin: r.presenceResponseMin || 5,
+          micOpenLimitMin: r.micOpenLimitMin || 3,
+          micCooldownMin: r.micCooldownMin || 5,
+          micIdleResetMin: r.micIdleResetMin || 5
+        };
+      }
+
+      const d = adminAntiIdleDraft;
+      container.innerHTML = `
+        <div class="admin-card">
+          <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); margin-bottom:14px;">視訊溫習室防掛機參數</h3>
+          <p style="font-size:13px; color:#888; margin-bottom:16px;">呢組數值用嚟防止學生掛機／開住鏡頭唔理攞盡計分。單位全部係「分鐘」，改完記得核實清楚先撳儲存；已經喺房入面嘅學生唔會即時生效，要等佢哋下次入房／下次開咪先跟新數值。</p>
+          ${ANTI_IDLE_FIELDS.map(f => `
+            <div style="margin-bottom:16px;">
+              <label style="font-size:13px; font-weight:bold; color:var(--brand-700); display:block; margin-bottom:6px;">${f.label}</label>
+              <input type="number" min="1" step="1" value="${d[f.key]}" style="width:120px; font-size:15px; padding:8px 10px; border:1px solid #DDE7E9; border-radius:6px;" oninput="adminUpdateAntiIdleDraft('${f.key}', this.value)"> 分鐘
+            </div>
+          `).join('')}
+        </div>
+        <div style="text-align:center; margin-top:16px;">
+          <button type="button" class="btn btn-primary" id="btn-admin-save-antiidle" style="padding:12px 32px; font-size:15px;" onclick="adminSaveAntiIdleRules()">儲存全部改動</button>
+        </div>
+      `;
+    }
+    window.renderAdminAntiIdleTab = renderAdminAntiIdleTab;
+
+    window.adminUpdateAntiIdleDraft = function(key, value) {
+      if (!adminAntiIdleDraft) return;
+      const n = parseInt(value, 10);
+      adminAntiIdleDraft[key] = (Number.isFinite(n) && n > 0) ? n : adminAntiIdleDraft[key];
+    };
+
+    window.adminSaveAntiIdleRules = async function() {
+      if (!adminAntiIdleDraft) return;
+      const d = adminAntiIdleDraft;
+      const allValid = ANTI_IDLE_FIELDS.every(f => d[f.key] > 0);
+      if (!allValid) {
+        window.showToast('所有數值都要大於 0', '⚠️');
+        return;
+      }
+      const payload = {
+        presenceCheckIntervalMin: d.presenceCheckIntervalMin,
+        presenceResponseMin: d.presenceResponseMin,
+        micOpenLimitMin: d.micOpenLimitMin,
+        micCooldownMin: d.micCooldownMin,
+        micIdleResetMin: d.micIdleResetMin,
+        updatedAt: Date.now(),
+        updatedBy: window.currentUser ? window.currentUser.email : null
+      };
+      const btn = document.getElementById('btn-admin-save-antiidle');
+      if (btn) { btn.disabled = true; btn.innerText = '儲存中…'; }
+      try {
+        await window.fs.setDoc(window.fs.doc(window.db, 'admin_config', 'antiIdleRules'), payload);
+        window.showToast('防掛機參數已儲存，即時對所有用戶生效（已喺房入面嘅學生要下次入房／開咪先會跟新數值）！', '🎉');
+      } catch (err) {
+        window.showToast('儲存失敗：' + (err.message || err), '❌');
+      } finally {
+        if (btn) { btn.disabled = false; btn.innerText = '儲存全部改動'; }
+      }
+    };
+
+    let antiIdleConfigUnsubscribe = null;
+    function loadAntiIdleRulesFromFirestore() {
+      if (!window.db || !window.fs) return;
+      if (antiIdleConfigUnsubscribe) antiIdleConfigUnsubscribe();
+      const ref = window.fs.doc(window.db, 'admin_config', 'antiIdleRules');
+      antiIdleConfigUnsubscribe = window.fs.onSnapshot(ref, (snap) => {
+        if (snap.exists() && typeof window.applyAntiIdleRules === 'function') {
+          window.applyAntiIdleRules(snap.data());
+        }
+        antiIdleConfigLoaded = true;
+        if (currentAdminTab === 'antiidle' && !adminAntiIdleDraft) {
+          const adminPanelEl = document.getElementById('admin-panel-container');
+          if (adminPanelEl && adminPanelEl.style.display !== 'none') {
+            renderAdminAntiIdleTab();
+          }
+        }
+      }, (err) => {
+        console.error('讀取防掛機參數設定失敗:', err);
+        antiIdleConfigLoaded = true;
+        if (typeof window.isCurrentUserAdmin === 'function' && window.isCurrentUserAdmin()) {
+          window.showToast('讀取防掛機參數設定失敗（可能是 Firestore 規則未生效）：' + (err.message || err), '⚠️');
+        }
+      });
+    }
+    window.loadAntiIdleRulesFromFirestore = loadAntiIdleRulesFromFirestore;
+
+    // ---------- 數據總覽 Dashboard ----------
+    // 第三階段（運營工具）第一項：畀Alvis一入Admin後台就即刻見到成個
+    // 平台嘅關鍵數字，唔使逐個分頁揭嚟揭去自己數。
+    //
+    // 做法同其他分頁唔同：唔用 onSnapshot 持續監聽（用戶／房間呢兩個
+    // collection 會隨平台成長越嚟越大，持續監聽成個dashboard會一直
+    // 掛住唔少實時流量），而係用 getDocs／getCountFromServer 做「一次
+    // 性讀取」，撳「重新整理」先再讀多次——對一個總覽畫面嚟講，數字
+    // 唔使去到秒秒都即時更新，呢種做法對 Firestore 讀取量更溫和。
+    // 「待處理舉報」「待審批導師申請」用 getCountFromServer 直接喺伺服
+    // 器端計數，唔使下載晒成批文件，比較慳。
+    let adminDashboardStats = null;
+    let adminDashboardLoading = false;
+    let adminDashboardLoadedAt = null;
+
+    async function loadAdminDashboardStats() {
+      if (!window.db || !window.fs) return;
+      adminDashboardLoading = true;
+      renderAdminDashboardTab();
+      try {
+        const [usersSnap, roomsSnap, reportsCountSnap, tutorsCountSnap] = await Promise.all([
+          window.fs.getDocs(window.fs.collection(window.db, 'users')),
+          window.fs.getDocs(window.fs.collection(window.db, 'rooms')),
+          window.fs.getCountFromServer(window.fs.query(window.fs.collection(window.db, 'reports'), window.fs.where('status', '==', 'pending'))),
+          window.fs.getCountFromServer(window.fs.query(window.fs.collection(window.db, 'tutorApplications'), window.fs.where('status', '==', 'pending')))
+        ]);
+
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const todayStartMs = todayStart.getTime();
+        const weekAgoMs = Date.now() - 7 * 24 * 60 * 60 * 1000;
+
+        let totalUsers = 0, newToday = 0, newThisWeek = 0, activeToday = 0;
+        let suspendedCount = 0, tutorCount = 0, totalPoints = 0, totalHours = 0;
+
+        usersSnap.forEach(docSnap => {
+          const u = docSnap.data();
+          totalUsers++;
+          // createdAt／lastLoginAt 喺唔同時期寫入嘅帳號可能係數字（ms
+          // 時間戳）或者 ISO字串，new Date() 兩種都食得，跟返其他分頁
+          // （例如「房間管理」）一致嘅寬容寫法
+          const createdMs = typeof u.createdAt === 'number' ? u.createdAt : (u.createdAt ? new Date(u.createdAt).getTime() : 0);
+          if (createdMs >= todayStartMs) newToday++;
+          if (createdMs >= weekAgoMs) newThisWeek++;
+          const lastLoginMs = typeof u.lastLoginAt === 'number' ? u.lastLoginAt : (u.lastLoginAt ? new Date(u.lastLoginAt).getTime() : 0);
+          if (lastLoginMs >= todayStartMs) activeToday++;
+          if (u.suspended) suspendedCount++;
+          if (u.accountType === 'tutor') tutorCount++;
+          totalPoints += parseFloat(u.points) || 0;
+          totalHours += parseFloat(u.hours) || 0;
+        });
+
+        adminDashboardStats = {
+          totalUsers, newToday, newThisWeek, activeToday, suspendedCount, tutorCount,
+          totalPoints: Math.round(totalPoints),
+          totalHours: Math.round(totalHours * 10) / 10,
+          roomCount: roomsSnap.size,
+          pendingReports: reportsCountSnap.data().count,
+          pendingTutorApps: tutorsCountSnap.data().count
+        };
+      } catch (err) {
+        console.error('載入數據總覽失敗:', err);
+        adminDashboardStats = { error: err.message || String(err) };
+      } finally {
+        adminDashboardLoading = false;
+        adminDashboardLoadedAt = Date.now();
+        renderAdminDashboardTab();
+      }
+    }
+    window.loadAdminDashboardStats = loadAdminDashboardStats;
+    window.adminRefreshDashboard = function() { loadAdminDashboardStats(); };
+
+    function renderAdminDashboardTab() {
+      const container = document.getElementById('admin-tab-dashboard');
+      if (!container) return;
+
+      if (!adminDashboardStats && !adminDashboardLoading) {
+        loadAdminDashboardStats();
+        return;
+      }
+      if (adminDashboardLoading && !adminDashboardStats) {
+        container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入中數據總覽...</p>';
+        return;
+      }
+      if (adminDashboardStats && adminDashboardStats.error) {
+        container.innerHTML = `<div class="admin-card" style="color:#c0392b;">載入失敗：${escapeHtml(adminDashboardStats.error)}</div>`;
+        return;
+      }
+
+      const s = adminDashboardStats;
+      const lastUpdateText = adminDashboardLoadedAt ? new Date(adminDashboardLoadedAt).toLocaleString('zh-HK') : '—';
+      const refreshingNow = adminDashboardLoading;
+
+      const cards = [
+        { label: '總註冊用戶', value: s.totalUsers },
+        { label: '今日新註冊', value: s.newToday },
+        { label: '本週新註冊', value: s.newThisWeek },
+        { label: '今日活躍用戶（有登入）', value: s.activeToday },
+        { label: '目前溫習房間數', value: s.roomCount },
+        { label: '現存總 PTS（已扣除兌換）', value: s.totalPoints.toLocaleString('zh-HK') },
+        { label: '累積總溫習時數', value: s.totalHours.toLocaleString('zh-HK') + ' 小時' },
+        { label: '導師帳戶數', value: s.tutorCount },
+        { label: '停權帳戶數', value: s.suspendedCount },
+        { label: '待處理舉報', value: s.pendingReports },
+        { label: '待審批導師申請', value: s.pendingTutorApps }
+      ];
+
+      container.innerHTML = `
+        <div class="admin-card" style="margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+          <p style="font-size:13px; color:#888; margin:0;">數據截至：${lastUpdateText}（讀取當刻嘅快照，唔會自動即時更新，想攞最新數字就撳右邊個掣）</p>
+          <button type="button" class="btn btn-outline" style="font-size:13px; padding:6px 14px;" ${refreshingNow ? 'disabled' : ''} onclick="window.adminRefreshDashboard()">${refreshingNow ? '更新中…' : '🔄 重新整理'}</button>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:14px;">
+          ${cards.map(c => `
+            <div class="admin-card" style="text-align:center;">
+              <div style="font-size:28px; font-weight:800; color:var(--brand-800);">${c.value}</div>
+              <div style="font-size:13px; color:#888; margin-top:6px;">${c.label}</div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+    window.renderAdminDashboardTab = renderAdminDashboardTab;
+
+    // ---------- 全站公告橫幅 ----------
+    // 第三階段（運營工具）第二項：Admin後台可以隨時開關／編輯一則顯示
+    // 喺成個網站最頂嘅公告橫幅（例如「今晚12點系統維護」「XX活動開
+    // 跑喇」），**登入前Landing page同登入後主應用都會見到**，同
+    // 「Landing page文案」一樣，存喺Firestore（admin_config/announcement
+    // 文件），要額外開放俾未登入用戶讀取（見firestore.rules）。
+    //
+    // 三種語言分開輸入（同Landing page文案呢度做法一致），顯示嗰陣跟
+    // 訪客而家揀緊嗰種語言。訪客撳橫幅嗰粒 ✕ 可以收埋，記喺呢部裝置
+    // 嘅localStorage——下次改咗公告內容（即係updatedAt變咗）先會再
+    // 跳出嚟，改返同一個內容唔會死纏爛打逼訪客睇。
+    let adminAnnouncementDraft = null;
+    let announcementConfigLoaded = false;
+
+    function renderAdminAnnouncementTab() {
+      const container = document.getElementById('admin-tab-announcement');
+      if (!container) return;
+
+      if (!adminAnnouncementDraft) {
+        if (!announcementConfigLoaded) {
+          container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入中全站公告設定...</p>';
+          return; // Firestore 資料一到，loadSiteAnnouncementFromFirestore() 會自動再 render 多次
+        }
+        const a = window.SITE_ANNOUNCEMENT_RAW || {};
+        adminAnnouncementDraft = {
+          enabled: !!a.enabled,
+          type: ['info', 'warning', 'urgent'].includes(a.type) ? a.type : 'info',
+          message: {
+            'zh-Hant': (a.message && a.message['zh-Hant']) || '',
+            'en': (a.message && a.message['en']) || '',
+            'yue': (a.message && a.message['yue']) || ''
+          }
+        };
+      }
+
+      const d = adminAnnouncementDraft;
+      const typeOptions = [
+        { v: 'info', label: '📘 一般資訊（藍色）' },
+        { v: 'warning', label: '📙 注意事項（橙黃色）' },
+        { v: 'urgent', label: '📕 緊急／重要（紅色）' }
+      ];
+
+      container.innerHTML = `
+        <div class="admin-card">
+          <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); margin-bottom:14px;">全站公告橫幅</h3>
+          <p style="font-size:13px; color:#888; margin-bottom:16px;">顯示喺成個網站最頂（登入前Landing page同登入後主應用都會見到）。訪客可以撳 ✕ 自行收埋，收埋之後除非你改咗底下嘅文字，否則唔會再跳出嚟煩佢。</p>
+          <label style="display:flex; align-items:center; gap:8px; font-size:14px; margin-bottom:18px; cursor:pointer;">
+            <input type="checkbox" ${d.enabled ? 'checked' : ''} onchange="adminUpdateAnnouncementDraft('enabled', this.checked)"> 開啟公告橫幅
+          </label>
+          <div style="margin-bottom:18px;">
+            <label style="font-size:13px; font-weight:bold; color:var(--brand-700); display:block; margin-bottom:6px;">顏色／緊急程度</label>
+            <select style="width:220px; font-size:15px; padding:8px 10px; border:1px solid #DDE7E9; border-radius:6px;" onchange="adminUpdateAnnouncementDraft('type', this.value)">
+              ${typeOptions.map(o => `<option value="${o.v}" ${d.type === o.v ? 'selected' : ''}>${o.label}</option>`).join('')}
+            </select>
+          </div>
+          <div style="margin-bottom:14px;">
+            <label style="font-size:13px; font-weight:bold; color:var(--brand-700); display:block; margin-bottom:6px;">公告內容（繁體中文）</label>
+            <textarea rows="2" style="width:100%; max-width:560px; font-size:15px; padding:8px 10px; border:1px solid #DDE7E9; border-radius:6px; font-family:inherit;" oninput="adminUpdateAnnouncementMessage('zh-Hant', this.value)">${escapeHtml(d.message['zh-Hant'])}</textarea>
+          </div>
+          <div style="margin-bottom:14px;">
+            <label style="font-size:13px; font-weight:bold; color:var(--brand-700); display:block; margin-bottom:6px;">公告內容（English）</label>
+            <textarea rows="2" style="width:100%; max-width:560px; font-size:15px; padding:8px 10px; border:1px solid #DDE7E9; border-radius:6px; font-family:inherit;" oninput="adminUpdateAnnouncementMessage('en', this.value)">${escapeHtml(d.message['en'])}</textarea>
+          </div>
+          <div>
+            <label style="font-size:13px; font-weight:bold; color:var(--brand-700); display:block; margin-bottom:6px;">公告內容（廣東話）</label>
+            <textarea rows="2" style="width:100%; max-width:560px; font-size:15px; padding:8px 10px; border:1px solid #DDE7E9; border-radius:6px; font-family:inherit;" oninput="adminUpdateAnnouncementMessage('yue', this.value)">${escapeHtml(d.message['yue'])}</textarea>
+          </div>
+          <p style="font-size:13px; color:#999; margin-top:6px;">某種語言留空嘅話，揀咗嗰種語言嘅訪客會自動退返顯示繁體中文版本。</p>
+        </div>
+        <div style="text-align:center; margin-top:16px;">
+          <button type="button" class="btn btn-primary" id="btn-admin-save-announcement" style="padding:12px 32px; font-size:15px;" onclick="adminSaveAnnouncement()">儲存全部改動</button>
+        </div>
+      `;
+    }
+    window.renderAdminAnnouncementTab = renderAdminAnnouncementTab;
+
+    window.adminUpdateAnnouncementDraft = function(key, value) {
+      if (!adminAnnouncementDraft) return;
+      adminAnnouncementDraft[key] = value;
+    };
+
+    window.adminUpdateAnnouncementMessage = function(lang, value) {
+      if (!adminAnnouncementDraft) return;
+      adminAnnouncementDraft.message[lang] = value;
+    };
+
+    window.adminSaveAnnouncement = async function() {
+      if (!adminAnnouncementDraft) return;
+      const d = adminAnnouncementDraft;
+      if (d.enabled && !d.message['zh-Hant'].trim()) {
+        window.showToast('開啟公告橫幅之前，最少要填返繁體中文版本嘅內容', '⚠️');
+        return;
+      }
+      const payload = {
+        enabled: d.enabled,
+        type: d.type,
+        message: {
+          'zh-Hant': d.message['zh-Hant'].trim(),
+          'en': d.message['en'].trim(),
+          'yue': d.message['yue'].trim()
+        },
+        updatedAt: Date.now(),
+        updatedBy: window.currentUser ? window.currentUser.email : null
+      };
+      const btn = document.getElementById('btn-admin-save-announcement');
+      if (btn) { btn.disabled = true; btn.innerText = '儲存中…'; }
+      try {
+        await window.fs.setDoc(window.fs.doc(window.db, 'admin_config', 'announcement'), payload);
+        window.showToast('全站公告已儲存，即時對所有訪客生效！', '🎉');
+      } catch (err) {
+        window.showToast('儲存失敗：' + (err.message || err), '❌');
+      } finally {
+        if (btn) { btn.disabled = false; btn.innerText = '儲存全部改動'; }
+      }
+    };
+
+    let announcementConfigUnsubscribe = null;
+    function loadSiteAnnouncementFromFirestore() {
+      if (!window.db || !window.fs) return;
+      if (announcementConfigUnsubscribe) announcementConfigUnsubscribe();
+      const ref = window.fs.doc(window.db, 'admin_config', 'announcement');
+      announcementConfigUnsubscribe = window.fs.onSnapshot(ref, (snap) => {
+        const data = snap.exists() ? snap.data() : null;
+        window.SITE_ANNOUNCEMENT_RAW = data;
+        renderSiteAnnouncementBanner(data);
+        announcementConfigLoaded = true;
+        if (currentAdminTab === 'announcement' && !adminAnnouncementDraft) {
+          const adminPanelEl = document.getElementById('admin-panel-container');
+          if (adminPanelEl && adminPanelEl.style.display !== 'none') {
+            renderAdminAnnouncementTab();
+          }
+        }
+      }, (err) => {
+        console.error('讀取全站公告設定失敗:', err);
+        announcementConfigLoaded = true;
+      });
+    }
+    window.loadSiteAnnouncementFromFirestore = loadSiteAnnouncementFromFirestore;
+
+    const SITE_ANNOUNCEMENT_DISMISS_KEY = 'concenmate_announcement_dismissed_at';
+
+    // 將Firestore讀到嘅公告設定，實際畫落頁面最頂嘅橫幅。冇開啟、或者
+    // 訪客之前已經撳過 ✕ 收埋咗「同一個版本」（updatedAt冇變）嘅話就
+    // 唔顯示。
+    function renderSiteAnnouncementBanner(data) {
+      const banner = document.getElementById('site-announcement-banner');
+      const textEl = document.getElementById('site-announcement-text');
+      if (!banner || !textEl) return;
+
+      if (!data || !data.enabled) {
+        banner.style.display = 'none';
+        return;
+      }
+
+      let dismissedAt = null;
+      try { dismissedAt = localStorage.getItem(SITE_ANNOUNCEMENT_DISMISS_KEY); } catch (e) { /* 私隱模式等場合讀唔到，忽略 */ }
+      if (dismissedAt && String(data.updatedAt) === dismissedAt) {
+        banner.style.display = 'none';
+        return;
+      }
+
+      const lang = (typeof window.getAppLanguage === 'function') ? window.getAppLanguage() : 'zh-Hant';
+      const msgObj = data.message || {};
+      const text = (msgObj[lang] && msgObj[lang].trim()) || (msgObj['zh-Hant'] && msgObj['zh-Hant'].trim()) || '';
+      if (!text) {
+        banner.style.display = 'none';
+        return;
+      }
+
+      textEl.innerText = text;
+      banner.className = 'type-' + (['info', 'warning', 'urgent'].includes(data.type) ? data.type : 'info');
+      banner.style.display = 'block';
+    }
+    window.renderSiteAnnouncementBanner = renderSiteAnnouncementBanner;
+
+    window.dismissSiteAnnouncement = function() {
+      const banner = document.getElementById('site-announcement-banner');
+      if (banner) banner.style.display = 'none';
+      try {
+        const data = window.SITE_ANNOUNCEMENT_RAW;
+        if (data && typeof data.updatedAt !== 'undefined') {
+          localStorage.setItem(SITE_ANNOUNCEMENT_DISMISS_KEY, String(data.updatedAt));
+        }
+      } catch (e) { /* 私隱模式等場合寫唔到，忽略——今次單純收埋返，下次重新整理可能又會跳返出嚟 */ }
+    };
+
+    // 切換語言之後，公告橫幅嘅文字都要跟住切返（唔使等下次Firestore
+    // 有更新先變語言）
+    window.refreshSiteAnnouncementLanguage = function() {
+      if (typeof window.SITE_ANNOUNCEMENT_RAW !== 'undefined') {
+        renderSiteAnnouncementBanner(window.SITE_ANNOUNCEMENT_RAW);
+      }
+    };
 
     // 頁面一載入就檢查一次（處理直接開 #admin 網址嘅情況）
     checkAdminHashRoute();

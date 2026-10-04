@@ -798,6 +798,9 @@
     // 一個元素，要分開更新先會顯示返啱嘅語言名。
     const landingLabelEl = document.getElementById('landing-current-lang-label');
     if (landingLabelEl) landingLabelEl.textContent = window.LANGUAGE_LABELS[lang] || '繁體中文';
+    // 全站公告橫幅（admin-panel.js 嘅 window.SITE_ANNOUNCEMENT_RAW）都要
+    // 跟住轉語言即時換文字，唔使等落次 Firestore 有更新先變
+    if (typeof window.refreshSiteAnnouncementLanguage === 'function') window.refreshSiteAnnouncementLanguage();
   };
 
   // 一開波（未必已登入）都套用一次，等未登入嗰陣如果之前揀過語言，

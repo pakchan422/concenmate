@@ -6,7 +6,7 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.192.4"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.192.8"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <meta charset="UTF-8">
@@ -227,6 +227,18 @@
     .btn-red:hover { background: #7DB8C5; color: white; }
     .btn-outline { background: white; border: 1px solid var(--brand-300); color: var(--brand-800); }
     .btn-outline:hover { background: var(--brand-50); }
+
+    /* 全站公告橫幅——Admin後台「全站公告」分頁可以開關／編輯（見
+       admin_config/announcement），顯示喺成個網站最頂（登入前Landing
+       page／登入後主應用都會見到），用戶撳 ✕ 可以收埋呢一則（記喺
+       localStorage，下次改咗公告內容先會再跳出嚟）。三種顏色對應三
+       種緊急程度，純粹用顏色區分，唔佔用太多畫面空間。 */
+    #site-announcement-banner { display:none; position:relative; z-index:500; padding:10px 44px 10px 16px; font-size:14px; font-weight:600; text-align:center; line-height:1.5; }
+    #site-announcement-banner.type-info { background: var(--brand-500); color:#fff; }
+    #site-announcement-banner.type-warning { background:#f59e0b; color:#1a1a1a; }
+    #site-announcement-banner.type-urgent { background:#C0524A; color:#fff; }
+    #site-announcement-close { position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; color:inherit; font-size:16px; font-weight:800; cursor:pointer; padding:4px 8px; opacity:.85; }
+    #site-announcement-close:hover { opacity:1; }
     /* 語言切換面板：揀緊嗰種語言用實心底色標明，等用戶一眼睇到而家
        套用緊邊種（見 window.applyAppLanguage 點樣幫呢個 class 加減）。 */
     .lang-option-btn.active { background: var(--brand-500); color: white; border-color: var(--brand-500); }
@@ -1476,6 +1488,15 @@
       載入時間: <span id="load-timestamp" style="color:#7DB8C5;">讀取中...</span><br>
       對話清單: <span id="chat-dock-debug" style="color:#7DB8C5;">未載入</span>
     </div>
+  </div>
+
+  <!-- 📢 全站公告橫幅——Admin後台「全站公告」分頁開關／編輯，登入前
+       Landing page同登入後主應用都會見到（見 admin-panel.js 嘅
+       loadSiteAnnouncementFromFirestore）。預設隱藏，Firestore讀到
+       「已開啟」先會顯示。 -->
+  <div id="site-announcement-banner">
+    <span id="site-announcement-text"></span>
+    <button type="button" id="site-announcement-close" onclick="window.dismissSiteAnnouncement()" title="關閉公告" aria-label="關閉公告">✕</button>
   </div>
 
   <div id="toast-box">
@@ -3788,7 +3809,8 @@
       </div>
 
       <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;" id="admin-tab-nav">
-        <button class="btn btn-primary admin-tab-btn active" data-tab="gacha" onclick="switchAdminTab('gacha')">扭蛋機獎品</button>
+        <button class="btn btn-primary admin-tab-btn active" data-tab="dashboard" onclick="switchAdminTab('dashboard')">數據總覽</button>
+        <button class="btn btn-outline admin-tab-btn" data-tab="gacha" onclick="switchAdminTab('gacha')">扭蛋機獎品</button>
         <button class="btn btn-outline admin-tab-btn" data-tab="rooms" onclick="switchAdminTab('rooms')">房間管理</button>
         <button class="btn btn-outline admin-tab-btn" data-tab="qa" onclick="switchAdminTab('qa')">疑難解答區</button>
         <button class="btn btn-outline admin-tab-btn" data-tab="users" onclick="switchAdminTab('users')">用戶管理</button>
@@ -3798,9 +3820,13 @@
         <button class="btn btn-outline admin-tab-btn" data-tab="tutors" onclick="switchAdminTab('tutors')">導師申請 <span id="admin-tutors-badge" style="display:none; background:#C0524A; color:#fff; border-radius:99px; font-size:13px; padding:1px 6px; margin-left:3px;">0</span></button>
         <button class="btn btn-outline admin-tab-btn" data-tab="landing" onclick="switchAdminTab('landing')">Landing page文案</button>
         <button class="btn btn-outline admin-tab-btn" data-tab="scoring" onclick="switchAdminTab('scoring')">計分規則</button>
+        <button class="btn btn-outline admin-tab-btn" data-tab="roomsettings" onclick="switchAdminTab('roomsettings')">房間設定</button>
+        <button class="btn btn-outline admin-tab-btn" data-tab="antiidle" onclick="switchAdminTab('antiidle')">防掛機參數</button>
+        <button class="btn btn-outline admin-tab-btn" data-tab="announcement" onclick="switchAdminTab('announcement')">全站公告</button>
       </div>
 
-      <div id="admin-tab-gacha" class="admin-tab-panel"></div>
+      <div id="admin-tab-dashboard" class="admin-tab-panel"></div>
+      <div id="admin-tab-gacha" class="admin-tab-panel" style="display:none;"></div>
       <div id="admin-tab-rooms" class="admin-tab-panel" style="display:none;"></div>
       <div id="admin-tab-qa" class="admin-tab-panel" style="display:none;"></div>
       <div id="admin-tab-users" class="admin-tab-panel" style="display:none;"></div>
@@ -3810,6 +3836,9 @@
       <div id="admin-tab-tutors" class="admin-tab-panel" style="display:none;"></div>
       <div id="admin-tab-landing" class="admin-tab-panel" style="display:none;"></div>
       <div id="admin-tab-scoring" class="admin-tab-panel" style="display:none;"></div>
+      <div id="admin-tab-roomsettings" class="admin-tab-panel" style="display:none;"></div>
+      <div id="admin-tab-antiidle" class="admin-tab-panel" style="display:none;"></div>
+      <div id="admin-tab-announcement" class="admin-tab-panel" style="display:none;"></div>
 
     </div>
   </div>

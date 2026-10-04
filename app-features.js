@@ -81,6 +81,13 @@
       if (id === 'modal-buddy-post' && typeof window.resetBuddyPostForm === 'function') {
         window.resetBuddyPostForm();
       }
+      // 「建立溫習房」表格入面「人數上限」／「預計溫習時間」兩個下拉選單
+      // 嘅選項，而家可以喺 Admin 後台「房間設定」分頁調整（見
+      // admin_config/roomSettings、room-video.js 嘅 window.ROOM_SETTINGS），
+      // 每次打開呢個 modal 都重畫一次，確保用緊最新設定。
+      if (id === 'modal-create-room' && typeof window.renderRoomCreateOptions === 'function') {
+        window.renderRoomCreateOptions();
+      }
     }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
