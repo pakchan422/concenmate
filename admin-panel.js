@@ -104,7 +104,8 @@
     // 淨係『super』先睇得到／用得到嘅分頁——網站設定類同治理類。
     const SUPER_ADMIN_ONLY_TABS = [
       'gacha', 'level', 'icons', 'landing', 'scoring', 'roomsettings',
-      'antiidle', 'announcement', 'adminlist', 'auditlog'
+      'antiidle', 'announcement', 'adminlist', 'auditlog',
+      'subjects', 'districts', 'schools', 'legal'
     ];
 
     // 操作紀錄（第四階段第10項）：將重要嘅管治／高風險操作（停權、
@@ -217,6 +218,14 @@
           btn.style.display = isSuper ? '' : 'none';
         }
       });
+      // 分頁掣而家分咗三組顯示（日常營運／網站設定／管治）——「網站
+      // 設定」「管治」呢兩組入面嘅掣全部都係super限定，『support』
+      // 帳戶見唔到任何一粒，咁連個組嘅小標題都一齊隱藏埋，唔會見到
+      // 得個「網站設定」四個字、下面乜掣都冇咁奇怪。
+      ['admin-tab-group-settings', 'admin-tab-group-governance'].forEach((groupId) => {
+        const groupEl = document.getElementById(groupId);
+        if (groupEl) groupEl.style.display = isSuper ? '' : 'none';
+      });
       // 如果而家記住嘅分頁係『support』見唔到嗰啲，就退返去「數據總覽」，
       // 避免見到一個冇按鈕對應、又撳唔返嘅空白分頁。
       let startTab = currentAdminTab || 'dashboard';
@@ -260,6 +269,10 @@
       else if (tab === 'support') renderAdminSupportTab();
       else if (tab === 'adminlist') renderAdminAdminListTab();
       else if (tab === 'auditlog') renderAdminAuditLogTab();
+      else if (tab === 'subjects') renderAdminSubjectsTab();
+      else if (tab === 'districts') renderAdminDistrictsTab();
+      else if (tab === 'schools') renderAdminSchoolsTab();
+      else if (tab === 'legal') renderAdminLegalTab();
     };
 
     // ---------- 扭蛋機貼紙管理 ----------
@@ -3130,6 +3143,685 @@
       `;
     }
     window.renderAdminAuditLogTab = renderAdminAuditLogTab;
+
+    // ---------- 科目清單管理（低優先第11項，改用「淨係新增」模式）----------
+    // 背景：HKDSE科目清單（window.TUTOR_DSE_SUBJECTS，tutor-panel.js
+    // 定義）喺好多地方都用嚟做「篩選用嘅資料值」（qa_posts.subject、
+    // buddyPosts.subjects、導師申請嘅subjectsIntended等），如果開放
+    // 畀管理員自由改名／刪除，舊資料入面已經用緊舊名嘅紀錄就會即刻
+    // 「對唔返」（搵唔到英文翻譯、分組篩選唔到）。所以呢頁淨係開放
+    // 「新增」，新科目會追加喺內建清單之後（「其他（自行輸入）」
+    // 之前），唔支援改名／刪除。新增嘅科目會即時喺導師「想教嘅科目」
+    // 揀選器、教材管理「新增科目」下拉選單出現。
+    let subjectListConfigLoaded = false;
+    let subjectListConfigUnsubscribe = null;
+    let adminNewSubjectName = '';
+    let adminNewSubjectNameEn = '';
+
+    function applySubjectListAdditions(data) {
+      if (!data || !Array.isArray(data.subjects) || !window.TUTOR_DSE_SUBJECTS) return;
+      data.subjects.forEach((s) => {
+        if (!s || !s.name) return;
+        if (!window.TUTOR_DSE_SUBJECTS.includes(s.name)) {
+          const otherIdx = window.TUTOR_DSE_SUBJECTS.indexOf('其他（自行輸入）');
+          if (otherIdx >= 0) window.TUTOR_DSE_SUBJECTS.splice(otherIdx, 0, s.name);
+          else window.TUTOR_DSE_SUBJECTS.push(s.name);
+        }
+        if (s.nameEn && window.DSE_SUBJECT_EN_NAMES) window.DSE_SUBJECT_EN_NAMES[s.name] = s.nameEn;
+      });
+    }
+
+    function loadSubjectListFromFirestore() {
+      if (!window.db || !window.fs) return;
+      if (subjectListConfigUnsubscribe) subjectListConfigUnsubscribe();
+      const ref = window.fs.doc(window.db, 'admin_config', 'subjectList');
+      subjectListConfigUnsubscribe = window.fs.onSnapshot(ref, (snap) => {
+        const data = snap.exists() ? snap.data() : null;
+        window.ADMIN_SUBJECT_LIST_RAW = data;
+        applySubjectListAdditions(data);
+        subjectListConfigLoaded = true;
+        if (currentAdminTab === 'subjects') {
+          const panelEl = document.getElementById('admin-panel-container');
+          if (panelEl && panelEl.style.display !== 'none') renderAdminSubjectsTab();
+        }
+      }, (err) => {
+        console.error('讀取科目清單失敗:', err);
+        subjectListConfigLoaded = true;
+      });
+    }
+    window.loadSubjectListFromFirestore = loadSubjectListFromFirestore;
+
+    function renderAdminSubjectsTab() {
+      const container = document.getElementById('admin-tab-subjects');
+      if (!container) return;
+      if (!isCurrentUserSuperAdmin()) {
+        container.innerHTML = '<div class="admin-card" style="color:#c0392b;">淨係「超級管理員」先睇得到呢頁。</div>';
+        return;
+      }
+      if (!subjectListConfigLoaded) {
+        container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入中科目清單...</p>';
+        return;
+      }
+      const addedNames = new Set(((window.ADMIN_SUBJECT_LIST_RAW && window.ADMIN_SUBJECT_LIST_RAW.subjects) || []).map((s) => s.name));
+      const rows = (window.TUTOR_DSE_SUBJECTS || []).filter((s) => s !== '其他（自行輸入）').map((s) => {
+        const isAdded = addedNames.has(s);
+        const enName = (window.DSE_SUBJECT_EN_NAMES && window.DSE_SUBJECT_EN_NAMES[s]) || '—';
+        return `<tr><td>${escapeHtml(s)}</td><td style="color:#888;">${escapeHtml(enName)}</td><td>${isAdded ? '<span style="color:#3E7A8A;">後台新增</span>' : '<span style="color:#999;">內建</span>'}</td></tr>`;
+      }).join('');
+
+      container.innerHTML = `
+        <div class="admin-card" style="margin-bottom:16px;">
+          <p style="font-size:13px; color:#888; margin:0;">呢度顯示全站用緊嘅HKDSE科目清單（導師「想教嘅科目」、教材管理「新增科目」用）。為咗唔累壞舊有已經用緊呢啲科目名嘅帖子／房間／導師申請資料，呢頁淨係可以<b>新增</b>科目，唔支援改名或者刪除——如果新增錯咗，可以搵我手動處理。</p>
+        </div>
+        <div class="admin-card" style="margin-bottom:16px;">
+          <p style="font-size:13px; font-weight:bold; margin-bottom:8px;">➕ 新增科目</p>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end;">
+            <div style="flex:1; min-width:160px;">
+              <label style="font-size:12px; color:#888; display:block;">科目中文名稱 *</label>
+              <input type="text" class="input-field" value="${escapeHtml(adminNewSubjectName)}" oninput="window.adminUpdateNewSubjectField('name', this.value)" placeholder="例如：資訊科技概論">
+            </div>
+            <div style="flex:1; min-width:160px;">
+              <label style="font-size:12px; color:#888; display:block;">科目英文名稱（English顯示用，可留空）</label>
+              <input type="text" class="input-field" value="${escapeHtml(adminNewSubjectNameEn)}" oninput="window.adminUpdateNewSubjectField('nameEn', this.value)" placeholder="e.g. Information Technology">
+            </div>
+            <button type="button" class="btn btn-primary" style="height:38px;" onclick="window.adminAddSubject()">新增</button>
+          </div>
+        </div>
+        <div class="admin-card">
+          <div style="overflow-x:auto;">
+            <table class="admin-table">
+              <thead><tr><th>科目（中文）</th><th>English</th><th>來源</th></tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+    window.renderAdminSubjectsTab = renderAdminSubjectsTab;
+
+    window.adminUpdateNewSubjectField = function(key, value) {
+      if (key === 'name') adminNewSubjectName = value;
+      else if (key === 'nameEn') adminNewSubjectNameEn = value;
+    };
+
+    window.adminAddSubject = async function() {
+      const name = (adminNewSubjectName || '').trim();
+      const nameEn = (adminNewSubjectNameEn || '').trim();
+      if (!name) { window.showToast('請輸入科目中文名稱', '⚠️'); return; }
+      if (window.TUTOR_DSE_SUBJECTS && window.TUTOR_DSE_SUBJECTS.includes(name)) {
+        window.showToast('呢個科目已經存在喺清單度喇', '⚠️');
+        return;
+      }
+      try {
+        const ref = window.fs.doc(window.db, 'admin_config', 'subjectList');
+        const existing = (window.ADMIN_SUBJECT_LIST_RAW && Array.isArray(window.ADMIN_SUBJECT_LIST_RAW.subjects)) ? window.ADMIN_SUBJECT_LIST_RAW.subjects.slice() : [];
+        existing.push({ name, nameEn: nameEn || null });
+        await window.fs.setDoc(ref, { subjects: existing, updatedAt: Date.now(), updatedBy: (window.currentUser && window.currentUser.loginId) || null });
+        await logAdminAction('新增科目', { name, nameEn });
+        adminNewSubjectName = '';
+        adminNewSubjectNameEn = '';
+        window.showToast('已新增科目', '✅');
+      } catch (err) {
+        window.showToast('新增失敗：' + (err.message || err), '❌');
+      }
+    };
+
+    // ---------- 地區清單管理（低優先第12項，同科目清單一樣「淨係新增」）----------
+    // 背景：香港十八區清單（window.HK_DISTRICT_REGION_GROUPS，app-core.js
+    // 定義）用戶註冊表格揀學校地區、分區溫習排行榜都會用到，district
+    // 一樣係存做「資料值」（users.district、leaderboardEntries.district），
+    // 唔開放改名／刪除，淨係追加新地區落去指定分區（香港島／九龍／
+    // 新界）之下。
+    let districtListConfigLoaded = false;
+    let districtListConfigUnsubscribe = null;
+    let adminNewDistrictRegion = '';
+    let adminNewDistrictName = '';
+    let adminNewDistrictNameEn = '';
+
+    function applyDistrictListAdditions(data) {
+      if (!data || !Array.isArray(data.districts) || !window.HK_DISTRICT_REGION_GROUPS) return;
+      data.districts.forEach((d) => {
+        if (!d || !d.name || !d.region) return;
+        let group = window.HK_DISTRICT_REGION_GROUPS.find((g) => g.region === d.region);
+        if (!group) {
+          group = { region: d.region, districts: [] };
+          window.HK_DISTRICT_REGION_GROUPS.push(group);
+        }
+        if (!group.districts.includes(d.name)) group.districts.push(d.name);
+        if (d.nameEn && window.HK_DISTRICT_EN_NAMES) window.HK_DISTRICT_EN_NAMES[d.name] = d.nameEn;
+      });
+    }
+
+    function loadDistrictListFromFirestore() {
+      if (!window.db || !window.fs) return;
+      if (districtListConfigUnsubscribe) districtListConfigUnsubscribe();
+      const ref = window.fs.doc(window.db, 'admin_config', 'districtList');
+      districtListConfigUnsubscribe = window.fs.onSnapshot(ref, (snap) => {
+        const data = snap.exists() ? snap.data() : null;
+        window.ADMIN_DISTRICT_LIST_RAW = data;
+        applyDistrictListAdditions(data);
+        districtListConfigLoaded = true;
+        if (currentAdminTab === 'districts') {
+          const panelEl = document.getElementById('admin-panel-container');
+          if (panelEl && panelEl.style.display !== 'none') renderAdminDistrictsTab();
+        }
+      }, (err) => {
+        console.error('讀取地區清單失敗:', err);
+        districtListConfigLoaded = true;
+      });
+    }
+    window.loadDistrictListFromFirestore = loadDistrictListFromFirestore;
+
+    function renderAdminDistrictsTab() {
+      const container = document.getElementById('admin-tab-districts');
+      if (!container) return;
+      if (!isCurrentUserSuperAdmin()) {
+        container.innerHTML = '<div class="admin-card" style="color:#c0392b;">淨係「超級管理員」先睇得到呢頁。</div>';
+        return;
+      }
+      if (!districtListConfigLoaded) {
+        container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入中地區清單...</p>';
+        return;
+      }
+      const addedNames = new Set(((window.ADMIN_DISTRICT_LIST_RAW && window.ADMIN_DISTRICT_LIST_RAW.districts) || []).map((d) => d.name));
+      const groupsHtml = (window.HK_DISTRICT_REGION_GROUPS || []).map((g) => {
+        const rows = g.districts.map((d) => {
+          const isAdded = addedNames.has(d);
+          const enName = (window.HK_DISTRICT_EN_NAMES && window.HK_DISTRICT_EN_NAMES[d]) || '—';
+          return `<tr><td>${escapeHtml(d)}</td><td style="color:#888;">${escapeHtml(enName)}</td><td>${isAdded ? '<span style="color:#3E7A8A;">後台新增</span>' : '<span style="color:#999;">內建</span>'}</td></tr>`;
+        }).join('');
+        return `<p style="font-size:13px; font-weight:bold; margin:12px 0 6px;">${escapeHtml(g.region)}</p><table class="admin-table"><thead><tr><th>地區</th><th>English</th><th>來源</th></tr></thead><tbody>${rows}</tbody></table>`;
+      }).join('');
+      const regionOptionsHtml = (window.HK_DISTRICT_REGION_GROUPS || []).map((g) => `<option value="${escapeHtml(g.region)}"></option>`).join('');
+
+      container.innerHTML = `
+        <div class="admin-card" style="margin-bottom:16px;">
+          <p style="font-size:13px; color:#888; margin:0;">呢度顯示全站用緊嘅香港地區清單（註冊表格揀學校地區、分區溫習排行榜用）。同科目清單一樣，淨係可以<b>新增</b>，唔支援改名或者刪除。</p>
+        </div>
+        <div class="admin-card" style="margin-bottom:16px;">
+          <p style="font-size:13px; font-weight:bold; margin-bottom:8px;">➕ 新增地區</p>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end;">
+            <div style="flex:1; min-width:140px;">
+              <label style="font-size:12px; color:#888; display:block;">所屬分區 *</label>
+              <input type="text" class="input-field" list="admin-district-region-options" value="${escapeHtml(adminNewDistrictRegion)}" oninput="window.adminUpdateNewDistrictField('region', this.value)" placeholder="香港島／九龍／新界">
+              <datalist id="admin-district-region-options">${regionOptionsHtml}</datalist>
+            </div>
+            <div style="flex:1; min-width:140px;">
+              <label style="font-size:12px; color:#888; display:block;">地區名稱 *</label>
+              <input type="text" class="input-field" value="${escapeHtml(adminNewDistrictName)}" oninput="window.adminUpdateNewDistrictField('name', this.value)" placeholder="例如：將軍澳區">
+            </div>
+            <div style="flex:1; min-width:140px;">
+              <label style="font-size:12px; color:#888; display:block;">地區英文名稱（可留空）</label>
+              <input type="text" class="input-field" value="${escapeHtml(adminNewDistrictNameEn)}" oninput="window.adminUpdateNewDistrictField('nameEn', this.value)" placeholder="e.g. Tseung Kwan O">
+            </div>
+            <button type="button" class="btn btn-primary" style="height:38px;" onclick="window.adminAddDistrict()">新增</button>
+          </div>
+        </div>
+        <div class="admin-card">${groupsHtml}</div>
+      `;
+    }
+    window.renderAdminDistrictsTab = renderAdminDistrictsTab;
+
+    window.adminUpdateNewDistrictField = function(key, value) {
+      if (key === 'region') adminNewDistrictRegion = value;
+      else if (key === 'name') adminNewDistrictName = value;
+      else if (key === 'nameEn') adminNewDistrictNameEn = value;
+    };
+
+    window.adminAddDistrict = async function() {
+      const region = (adminNewDistrictRegion || '').trim();
+      const name = (adminNewDistrictName || '').trim();
+      const nameEn = (adminNewDistrictNameEn || '').trim();
+      if (!region || !name) { window.showToast('請填寫所屬分區同地區名稱', '⚠️'); return; }
+      const alreadyExists = (window.HK_DISTRICT_REGION_GROUPS || []).some((g) => g.districts.includes(name));
+      if (alreadyExists) { window.showToast('呢個地區已經存在喺清單度喇', '⚠️'); return; }
+      try {
+        const ref = window.fs.doc(window.db, 'admin_config', 'districtList');
+        const existing = (window.ADMIN_DISTRICT_LIST_RAW && Array.isArray(window.ADMIN_DISTRICT_LIST_RAW.districts)) ? window.ADMIN_DISTRICT_LIST_RAW.districts.slice() : [];
+        existing.push({ region, name, nameEn: nameEn || null });
+        await window.fs.setDoc(ref, { districts: existing, updatedAt: Date.now(), updatedBy: (window.currentUser && window.currentUser.loginId) || null });
+        await logAdminAction('新增地區', { region, name, nameEn });
+        adminNewDistrictRegion = '';
+        adminNewDistrictName = '';
+        adminNewDistrictNameEn = '';
+        window.showToast('已新增地區', '✅');
+      } catch (err) {
+        window.showToast('新增失敗：' + (err.message || err), '❌');
+      }
+    };
+
+    // ---------- 學校名單管理（Alvis主動要求，同科目／地區清單一樣
+    // 「淨係新增」模式）----------
+    // 背景：中學名單（window.HK_SECONDARY_SCHOOLS_BY_DISTRICT）、大專
+    // ／大學名單（window.HK_TERTIARY_INSTITUTIONS_BY_DISTRICT／
+    // window.HK_TERTIARY_INSTITUTIONS_COMMON，全部app-core.js定義）
+    // 一樣會存落users.school、schoolLeaderboard等地方做資料值，唔開放
+    // 改名／刪除。中學一定要揀返所屬地區（用返「地區清單」嗰份分區
+    // 清單，等新增咗嘅地區都可以即刻揀），大專院校可以唔揀地區（跟
+    // 現有做法，加入「常見院校」清單，唔分地區）。呢頁淨係顯示你後台
+    // 新增嗰啲學校——內建嗰成千幾間學校唔會喺度逐間列出嚟，唔係漏咗，
+    // 係特登咁做避免成頁好長，想睇內建完整清單可以直接去網站註冊表格
+    // 揀地區睇。
+    let schoolListConfigLoaded = false;
+    let schoolListConfigUnsubscribe = null;
+    let adminNewSecondarySchoolName = '';
+    let adminNewSecondarySchoolDistrict = '';
+    let adminNewTertiaryName = '';
+    let adminNewTertiaryDistrict = '';
+
+    function applySchoolListAdditions(data) {
+      if (!data) return;
+      if (Array.isArray(data.secondary) && window.HK_SECONDARY_SCHOOLS_BY_DISTRICT) {
+        data.secondary.forEach((s) => {
+          if (!s || !s.name || !s.district) return;
+          if (!window.HK_SECONDARY_SCHOOLS_BY_DISTRICT[s.district]) window.HK_SECONDARY_SCHOOLS_BY_DISTRICT[s.district] = [];
+          if (!window.HK_SECONDARY_SCHOOLS_BY_DISTRICT[s.district].includes(s.name)) {
+            window.HK_SECONDARY_SCHOOLS_BY_DISTRICT[s.district].push(s.name);
+          }
+        });
+      }
+      if (Array.isArray(data.tertiary)) {
+        data.tertiary.forEach((t) => {
+          if (!t || !t.name) return;
+          if (t.district && window.HK_TERTIARY_INSTITUTIONS_BY_DISTRICT) {
+            if (!window.HK_TERTIARY_INSTITUTIONS_BY_DISTRICT[t.district]) window.HK_TERTIARY_INSTITUTIONS_BY_DISTRICT[t.district] = [];
+            if (!window.HK_TERTIARY_INSTITUTIONS_BY_DISTRICT[t.district].includes(t.name)) {
+              window.HK_TERTIARY_INSTITUTIONS_BY_DISTRICT[t.district].push(t.name);
+            }
+          } else if (window.HK_TERTIARY_INSTITUTIONS_COMMON && !window.HK_TERTIARY_INSTITUTIONS_COMMON.includes(t.name)) {
+            window.HK_TERTIARY_INSTITUTIONS_COMMON.push(t.name);
+          }
+        });
+      }
+    }
+
+    function loadSchoolListFromFirestore() {
+      if (!window.db || !window.fs) return;
+      if (schoolListConfigUnsubscribe) schoolListConfigUnsubscribe();
+      const ref = window.fs.doc(window.db, 'admin_config', 'schoolList');
+      schoolListConfigUnsubscribe = window.fs.onSnapshot(ref, (snap) => {
+        const data = snap.exists() ? snap.data() : null;
+        window.ADMIN_SCHOOL_LIST_RAW = data;
+        applySchoolListAdditions(data);
+        schoolListConfigLoaded = true;
+        if (currentAdminTab === 'schools') {
+          const panelEl = document.getElementById('admin-panel-container');
+          if (panelEl && panelEl.style.display !== 'none') renderAdminSchoolsTab();
+        }
+      }, (err) => {
+        console.error('讀取學校名單失敗:', err);
+        schoolListConfigLoaded = true;
+      });
+    }
+    window.loadSchoolListFromFirestore = loadSchoolListFromFirestore;
+
+    function renderAdminSchoolsTab() {
+      const container = document.getElementById('admin-tab-schools');
+      if (!container) return;
+      if (!isCurrentUserSuperAdmin()) {
+        container.innerHTML = '<div class="admin-card" style="color:#c0392b;">淨係「超級管理員」先睇得到呢頁。</div>';
+        return;
+      }
+      if (!schoolListConfigLoaded) {
+        container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入中學校名單...</p>';
+        return;
+      }
+      const districtOptionsHtml = (window.HK_DISTRICT_REGION_GROUPS || []).map((g) =>
+        `<optgroup label="${escapeHtml(g.region)}">${g.districts.map((d) => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('')}</optgroup>`
+      ).join('');
+      const secondaryAdded = (window.ADMIN_SCHOOL_LIST_RAW && Array.isArray(window.ADMIN_SCHOOL_LIST_RAW.secondary)) ? window.ADMIN_SCHOOL_LIST_RAW.secondary : [];
+      const tertiaryAdded = (window.ADMIN_SCHOOL_LIST_RAW && Array.isArray(window.ADMIN_SCHOOL_LIST_RAW.tertiary)) ? window.ADMIN_SCHOOL_LIST_RAW.tertiary : [];
+      const secondaryRows = secondaryAdded.map((s) => `<tr><td>${escapeHtml(s.name)}</td><td style="color:#888;">${escapeHtml(s.district)}</td></tr>`).join('');
+      const tertiaryRows = tertiaryAdded.map((t) => `<tr><td>${escapeHtml(t.name)}</td><td style="color:#888;">${t.district ? escapeHtml(t.district) : '常見院校（唔分地區）'}</td></tr>`).join('');
+
+      container.innerHTML = `
+        <div class="admin-card" style="margin-bottom:16px;">
+          <p style="font-size:13px; color:#888; margin:0;">呢度可以新增註冊表格揀學校用嘅中學／大專院校。同科目清單／地區清單一樣，淨係可以<b>新增</b>，唔支援改名或者刪除。下面表格淨係顯示你喺呢度新增嘅學校，內建嗰成千幾間中學／院校唔會逐間列出嚟（可以去網站註冊表格揀地區睇齊內建清單）。</p>
+        </div>
+        <div class="admin-card" style="margin-bottom:16px;">
+          <p style="font-size:13px; font-weight:bold; margin-bottom:8px;">➕ 新增中學</p>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end;">
+            <div style="flex:1; min-width:180px;">
+              <label style="font-size:12px; color:#888; display:block;">中學名稱 *</label>
+              <input type="text" class="input-field" value="${escapeHtml(adminNewSecondarySchoolName)}" oninput="window.adminUpdateNewSchoolField('secondaryName', this.value)" placeholder="例如：XX中學">
+            </div>
+            <div style="flex:1; min-width:160px;">
+              <label style="font-size:12px; color:#888; display:block;">所屬地區 *</label>
+              <select class="input-field" onchange="window.adminUpdateNewSchoolField('secondaryDistrict', this.value)">
+                <option value="">請選擇地區</option>
+                ${districtOptionsHtml}
+              </select>
+            </div>
+            <button type="button" class="btn btn-primary" style="height:38px;" onclick="window.adminAddSecondarySchool()">新增</button>
+          </div>
+        </div>
+        <div class="admin-card" style="margin-bottom:16px;">
+          <div style="overflow-x:auto;">
+            <table class="admin-table">
+              <thead><tr><th>中學（後台新增）</th><th>地區</th></tr></thead>
+              <tbody>${secondaryRows || '<tr><td colspan="2" style="text-align:center; color:#999;">暫時未有後台新增嘅中學</td></tr>'}</tbody>
+            </table>
+          </div>
+        </div>
+        <div class="admin-card" style="margin-bottom:16px;">
+          <p style="font-size:13px; font-weight:bold; margin-bottom:8px;">➕ 新增大專／大學</p>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end;">
+            <div style="flex:1; min-width:180px;">
+              <label style="font-size:12px; color:#888; display:block;">院校名稱 *</label>
+              <input type="text" class="input-field" value="${escapeHtml(adminNewTertiaryName)}" oninput="window.adminUpdateNewSchoolField('tertiaryName', this.value)" placeholder="例如：XX學院">
+            </div>
+            <div style="flex:1; min-width:160px;">
+              <label style="font-size:12px; color:#888; display:block;">所屬地區（可留空＝加入常見院校清單）</label>
+              <select class="input-field" onchange="window.adminUpdateNewSchoolField('tertiaryDistrict', this.value)">
+                <option value="">唔揀地區（常見院校）</option>
+                ${districtOptionsHtml}
+              </select>
+            </div>
+            <button type="button" class="btn btn-primary" style="height:38px;" onclick="window.adminAddTertiaryInstitution()">新增</button>
+          </div>
+        </div>
+        <div class="admin-card">
+          <div style="overflow-x:auto;">
+            <table class="admin-table">
+              <thead><tr><th>大專／大學（後台新增）</th><th>地區</th></tr></thead>
+              <tbody>${tertiaryRows || '<tr><td colspan="2" style="text-align:center; color:#999;">暫時未有後台新增嘅院校</td></tr>'}</tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+    window.renderAdminSchoolsTab = renderAdminSchoolsTab;
+
+    window.adminUpdateNewSchoolField = function(key, value) {
+      if (key === 'secondaryName') adminNewSecondarySchoolName = value;
+      else if (key === 'secondaryDistrict') adminNewSecondarySchoolDistrict = value;
+      else if (key === 'tertiaryName') adminNewTertiaryName = value;
+      else if (key === 'tertiaryDistrict') adminNewTertiaryDistrict = value;
+    };
+
+    window.adminAddSecondarySchool = async function() {
+      const name = (adminNewSecondarySchoolName || '').trim();
+      const district = (adminNewSecondarySchoolDistrict || '').trim();
+      if (!name || !district) { window.showToast('請填寫中學名稱同所屬地區', '⚠️'); return; }
+      const alreadyExists = window.HK_SECONDARY_SCHOOLS_BY_DISTRICT && Object.values(window.HK_SECONDARY_SCHOOLS_BY_DISTRICT).some((list) => list.includes(name));
+      if (alreadyExists) { window.showToast('呢間中學已經存在喺清單度喇', '⚠️'); return; }
+      try {
+        const ref = window.fs.doc(window.db, 'admin_config', 'schoolList');
+        const existingSecondary = (window.ADMIN_SCHOOL_LIST_RAW && Array.isArray(window.ADMIN_SCHOOL_LIST_RAW.secondary)) ? window.ADMIN_SCHOOL_LIST_RAW.secondary.slice() : [];
+        const existingTertiary = (window.ADMIN_SCHOOL_LIST_RAW && Array.isArray(window.ADMIN_SCHOOL_LIST_RAW.tertiary)) ? window.ADMIN_SCHOOL_LIST_RAW.tertiary.slice() : [];
+        existingSecondary.push({ name, district });
+        await window.fs.setDoc(ref, { secondary: existingSecondary, tertiary: existingTertiary, updatedAt: Date.now(), updatedBy: (window.currentUser && window.currentUser.loginId) || null });
+        await logAdminAction('新增中學', { name, district });
+        adminNewSecondarySchoolName = '';
+        adminNewSecondarySchoolDistrict = '';
+        window.showToast('已新增中學', '✅');
+      } catch (err) {
+        window.showToast('新增失敗：' + (err.message || err), '❌');
+      }
+    };
+
+    window.adminAddTertiaryInstitution = async function() {
+      const name = (adminNewTertiaryName || '').trim();
+      const district = (adminNewTertiaryDistrict || '').trim();
+      if (!name) { window.showToast('請輸入院校名稱', '⚠️'); return; }
+      const inByDistrict = window.HK_TERTIARY_INSTITUTIONS_BY_DISTRICT && Object.values(window.HK_TERTIARY_INSTITUTIONS_BY_DISTRICT).some((list) => list.includes(name));
+      const inCommon = window.HK_TERTIARY_INSTITUTIONS_COMMON && window.HK_TERTIARY_INSTITUTIONS_COMMON.includes(name);
+      if (inByDistrict || inCommon) { window.showToast('呢間院校已經存在喺清單度喇', '⚠️'); return; }
+      try {
+        const ref = window.fs.doc(window.db, 'admin_config', 'schoolList');
+        const existingSecondary = (window.ADMIN_SCHOOL_LIST_RAW && Array.isArray(window.ADMIN_SCHOOL_LIST_RAW.secondary)) ? window.ADMIN_SCHOOL_LIST_RAW.secondary.slice() : [];
+        const existingTertiary = (window.ADMIN_SCHOOL_LIST_RAW && Array.isArray(window.ADMIN_SCHOOL_LIST_RAW.tertiary)) ? window.ADMIN_SCHOOL_LIST_RAW.tertiary.slice() : [];
+        existingTertiary.push({ name, district: district || null });
+        await window.fs.setDoc(ref, { secondary: existingSecondary, tertiary: existingTertiary, updatedAt: Date.now(), updatedBy: (window.currentUser && window.currentUser.loginId) || null });
+        await logAdminAction('新增大專院校', { name, district: district || '(常見院校)' });
+        adminNewTertiaryName = '';
+        adminNewTertiaryDistrict = '';
+        window.showToast('已新增院校', '✅');
+      } catch (err) {
+        window.showToast('新增失敗：' + (err.message || err), '❌');
+      }
+    };
+
+    // ---------- 服務條款／私隱政策內容管理（低優先第13項）----------
+    // 內容存喺 admin_config/legalContent（{terms:{zh-Hant,en,yue},
+    // privacy:{zh-Hant,en,yue}}），支援三語言分開編輯。未經Admin編輯
+    // 之前（Firestore冇對應語言嘅內容），index.html嗰兩個modal保持
+    // 顯示返寫死嗰份原本繁體中文內容，唔會開天窗。English／廣東話
+    // 留空會自動退返繁體中文版本顯示。下面兩個DEFAULT_*_ZH常數係
+    // 將index.html而家寫死嗰份內容轉做純文字格式，等管理員第一次打開
+    // 「條款內容」分頁嗰陣，文字框已經有現成內容可以直接編輯，唔使由
+    // 零開始打成千字嘅法律文字。
+    const DEFAULT_TERMS_ZH = `歡迎使用 ConcenMate 書伴（下稱「本服務」）。本服務由 ConcenMate 書伴（下稱「本公司」或「我們」）營運。本服務條款（下稱「本條款」）構成閣下（下稱「使用者」或「閣下」）與本公司之間具法律約束力之協議。
+
+閣下一經註冊帳戶，或以任何方式使用本服務之任何功能，即視為閣下已閱讀、理解並同意接受本條款所載之全部內容，並同意受其約束。倘若閣下未滿十八歲，閣下確認已取得閣下之家長或監護人就使用本服務一事之同意。倘若閣下不同意本條款之任何部分，請立即停止使用本服務。
+
+# 第一條　服務內容
+本服務提供線上溫習室（包括視訊及語音功能）、學習進度追蹤（等級、經驗值、貼紙收藏）、好友及即時通訊功能、疑難解答討論區等功能。本公司保留隨時新增、修改、暫停或終止本服務任何功能之權利，毋須事先通知使用者。
+
+# 第二條　帳戶註冊及使用者責任
+（一）使用者於註冊帳戶時所提供之資料（包括登入識別碼、電郵地址等），須真實、準確及完整；
+（二）使用者有責任妥善保管其帳戶登入密碼，不得將帳戶資料轉讓、出借或以任何方式提供予他人；
+（三）除有證據證明帳戶遭第三方未經授權存取外，使用者帳戶下所發生之一切活動，均視為由使用者本人所為，使用者須就此負全責；
+（四）除本公司另行書面同意外，每名使用者僅可擁有一個帳戶。
+
+# 第三條　使用守則
+使用者於使用本服務時，須遵守下列守則，不得從事下列行為：
+
+（一）上載、發佈或傳送任何違法、猥褻、暴力、具威嚇性、侵犯他人權利，或帶有歧視成分之內容（包括但不限於即時通訊訊息、頭像圖片、討論區發帖及留言）；
+（二）冒充他人身份，或提供虛假不實之個人資料；
+（三）以任何方式（包括但不限於利用瀏覽器開發者工具）試圖繞過、破壞或篡改本服務之計分及經驗值機制；
+（四）干擾或破壞本服務之正常運作，包括但不限於發動阻斷服務（DDoS）攻擊、大量發送垃圾訊息、濫用系統資源（例如無故大量開設溫習室）；
+（五）未經授權存取其他使用者之帳戶或個人資料；
+（六）將本服務用於任何違反香港特別行政區現行法例之用途。
+
+使用者如違反上述任何守則，本公司有權暫停或終止該使用者之帳戶，情節嚴重者，本公司保留追究相關法律責任之一切權利。本服務已設有舉報機制，供使用者就違規內容或行為作出舉報，由本公司管理團隊進行審查及處理。
+
+# 第四條　使用者生成內容
+使用者於本服務上所發佈之內容（包括但不限於即時通訊訊息、討論區發帖及留言，下稱「使用者生成內容」）之知識產權，仍歸屬於該使用者。惟使用者同意，就其發佈之使用者生成內容，授予本公司一項非獨家、免版稅、全球性之許可，容許本公司於營運及提供本服務所必需之範圍內（包括顯示、儲存、傳輸該等內容），使用該等使用者生成內容。
+
+本公司保留移除任何違反本條款之使用者生成內容之權利，毋須事先通知該使用者。
+
+# 第五條　收費及訂閱
+本服務於本條款生效之時，並不涉及任何收費功能，現有一切功能均以免費方式提供予使用者。倘若本公司日後推出收費或訂閱服務，本公司將另行公佈詳細之收費條款（包括但不限於收費方式、退款政策），並於使用者使用該等收費功能前，徵得使用者之明確同意。
+
+# 第六條　服務可用性及免責聲明
+（一）本服務按「現況」（as is）及「現有」（as available）之基礎提供，本公司不對本服務之不間斷運作、無錯誤或絕對安全作出任何保證；
+（二）本服務之運作依賴第三方基礎設施（包括但不限於 Google Firebase、GitHub Pages、Cloudflare、EmailJS），倘若因該等第三方服務之故障或中斷而導致本服務無法正常運作，本公司對此不負直接責任；
+（三）本服務之視訊溫習室功能依賴點對點即時通訊技術（WebRTC），於使用者之間直接建立連線，連線之品質可能受使用者之網絡環境及裝置性能所影響，本公司不對連線品質作出保證；
+（四）於香港現行法例容許之最大範圍內，本公司對因使用或無法使用本服務而引致之任何直接、間接、附帶、特殊或衍生性損失或損害，概不負責。
+
+# 第七條　帳戶暫停及終止
+（一）使用者可隨時自行停止使用本服務，或依本公司之私隱政策申請刪除帳戶；
+（二）倘若使用者違反本條款，或本公司合理懷疑使用者涉嫌濫用本服務，或基於其他合理理由，本公司保留暫停或終止該使用者帳戶之權利，並將於可行範圍內事先通知使用者，惟涉及惡意行為之情況則不在此限。
+
+# 第八條　本條款之修訂
+本公司保留隨時修訂本條款之權利。任何重大修訂將於本服務網站上公佈，並同時更新本文件頂部所載之「最後更新日期」。使用者於修訂公佈後繼續使用本服務，即視為使用者已接受該等經修訂之條款。
+
+# 第九條　準據法及司法管轄
+本條款受香港特別行政區法例管轄，並依照香港特別行政區法例解釋。因本條款所引起或與本條款有關之任何爭議，雙方同意接受香港特別行政區法院之非專屬司法管轄權。
+
+# 第十條　聯絡方式
+閣下如對本條款有任何疑問，請透過下列方式與本公司聯絡：電郵 support@concenmate.com`;
+
+    const DEFAULT_PRIVACY_ZH = `ConcenMate 書伴（下稱「本服務」）由 ConcenMate 書伴（下稱「本公司」或「我們」）營運及管理。本公司高度重視使用者（下稱「閣下」或「使用者」）之個人資料私隱，並致力遵守香港特別行政區《個人資料（私隱）條例》（香港法例第486章，下稱「該條例」）之相關規定。
+
+閣下透過瀏覽器登入、使用或以任何方式存取本服務，即表示閣下已閱讀、理解並同意接受本私隱政策（下稱「本政策」）所載之全部條款。倘若閣下不同意本政策之任何部分，請立即停止使用本服務。
+
+# 第一條　本政策之適用範圍
+本政策適用於閣下透過 concenmate.com 及其任何相關子網域使用本服務之情況。倘若閣下未滿十八歲，本公司建議由閣下之家長或監護人陪同閱讀本政策，並就使用本服務一事給予同意。
+
+# 第二條　本公司所收集之資料類別
+本公司因提供本服務之需要，可能收集以下類別之資料：帳戶資料（登入識別碼、電郵地址、顯示暱稱、頭像選項，於帳戶註冊時收集）；學習記錄（累積溫習時數、經驗值、等級、貼紙收藏紀錄，於使用服務過程中自動記錄）；社交互動資料（好友名單、即時通訊內容、討論區發帖及留言，於使用者主動使用相關功能時收集）；溫習室及視訊相關資料（房間設定、加入及離開時間、建立視像連線所需之協調訊息，於使用視訊溫習室功能時收集）；舉報資料（舉報內容及相關佐證，於使用者提交舉報時收集）；技術資料（瀏覽器類型、裝置資訊、網際網路協定（IP）位址，於連接本服務時由基礎設施自動記錄）。
+
+關於視訊及語音資料之特別聲明：本服務之視訊溫習室功能採用點對點即時通訊技術（WebRTC），使用者之鏡頭及咪高風畫面乃於瀏覽器之間直接傳輸，並不經由本公司之伺服器儲存或錄製。本公司之資料庫僅用作交換建立該連線所需之協調（signaling）訊息，並不接觸實際之影像或聲音內容。
+
+本公司不會收集閣下之身份證明文件號碼、住址、電話號碼，或信用卡及其他付款工具資料；本服務於現階段並不涉及任何收費功能。
+
+# 第三條　收集資料之目的
+本公司收集及處理閣下之個人資料，僅限於下列目的：（一）提供及維持本服務之核心功能，包括帳戶登入、溫習室運作、學習進度追蹤及社交互動功能；（二）維護帳戶安全及防止濫用行為，包括偵測異常操作及處理舉報事宜；（三）透過第三方服務提供者發送電郵驗證訊息（詳見第五條）；（四）分析及改善本服務之功能與使用體驗。本公司承諾不會將閣下之個人資料用於向第三方廣告商進行行銷推廣之目的。
+
+# 第四條　資料儲存地點及保安措施
+閣下之個人資料儲存於 Google Firebase（包括 Firestore 資料庫及 Cloud Storage 儲存空間），該等服務由 Google Cloud Platform 提供。資料於傳輸過程中，均以超文本傳輸安全協定（HTTPS/TLS）加密。本公司並已採取下列保安措施：（一）Firebase App Check（結合 reCAPTCHA Enterprise），用以識別及阻截非經正常途徑發出之存取請求；（二）資料庫及儲存空間存取規則，訂明使用者僅可存取屬於自己之資料，唯獲授權之管理員方可存取管理功能；（三）單次資料變更幅度限制，就學習進度等敏感數值之單次變更設有上限，以防止篡改。
+
+# 第五條　資料之披露及第三方服務提供者
+本公司不會出售或出租閣下之個人資料予任何第三方。惟為提供本服務所需之技術支援，本公司會將有限度之資料傳送予下列第三方服務提供者：（一）Google Firebase——提供資料庫、身份驗證、檔案儲存及防濫用機制等服務；（二）EmailJS——用於發送電郵驗證訊息，僅會接觸閣下之電郵地址。倘若本公司因法律程序而有責任披露閣下之個人資料，本公司將依法配合，並於法律容許之範圍內事先通知閣下。
+
+# 第六條　Cookie 及本地儲存技術
+本服務會利用瀏覽器之本地儲存功能（localStorage）記錄閣下之登入狀態，以省卻閣下每次重新登入之需要。該等資料儲存於閣下自身之裝置內，本公司並不藉此透過第三方追蹤 Cookie 監察閣下於其他網站之瀏覽活動。
+
+# 第七條　未成年使用者
+本公司理解本服務之使用者當中，不乏未滿十八歲之學生。倘若閣下為家長或監護人，並發現閣下之子女未經閣下同意而建立帳戶，或閣下希望查閱、更正或刪除該等未成年人士之個人資料，歡迎透過第十條所載之聯絡方式與本公司聯絡，本公司將優先處理該等請求。
+
+# 第八條　使用者之權利
+根據該條例，閣下就本公司所持有關於閣下之個人資料，享有下列權利：（一）查閱權；（二）更正權；（三）刪除權（惟因安全審查需要而須保留之資料，或經匿名化處理而無法識別個人身份之統計數據，則不在此限）；（四）停止使用權。閣下如欲行使上述任何權利，請透過第十條所載之聯絡方式提出申請，本公司將於合理時間內作出回覆及處理。
+
+# 第九條　資料保留期限
+本公司將於閣下之帳戶維持活躍狀態期間，保留閣下之個人資料。倘若閣下申請刪除帳戶，本公司將於合理時間內刪除或將閣下之個人可識別資料進行匿名化處理，惟因安全審查或法律責任而須予保留之資料，則不受此限。
+
+# 第十條　聯絡方式
+閣下如對本政策有任何疑問，或欲行使第八條所載之任何權利，請透過下列方式與本公司聯絡：電郵 support@concenmate.com
+
+# 第十一條　政策之修訂
+本公司保留隨時修訂本政策之權利。任何重大修訂將於本服務網站上公佈，並同時更新本文件頂部所載之「最後更新日期」。本公司建議閣下定期查閱本政策，以知悉最新內容。閣下於修訂公佈後繼續使用本服務，即視為閣下已接受該等修訂。`;
+
+    let legalContentConfigLoaded = false;
+    let legalContentConfigUnsubscribe = null;
+    let adminLegalDraft = null;
+    let adminLegalActiveDoc = 'terms';
+    let adminLegalActiveLang = 'zh-Hant';
+
+    function renderLegalContentParagraphs(text) {
+      return text.split(/\n\s*\n/).map((para) => {
+        const trimmed = para.trim();
+        if (!trimmed) return '';
+        if (trimmed.startsWith('#')) {
+          const heading = trimmed.replace(/^#+\s*/, '');
+          return `<p style="font-weight:bold; margin-top:14px;">${escapeHtml(heading)}</p>`;
+        }
+        return `<p>${escapeHtml(trimmed).replace(/\n/g, '<br>')}</p>`;
+      }).join('');
+    }
+
+    function renderLegalContentBody() {
+      const data = window.LEGAL_CONTENT_RAW;
+      const lang = (typeof window.getAppLanguage === 'function') ? window.getAppLanguage() : 'zh-Hant';
+      [['terms', 'terms-content-body'], ['privacy', 'privacy-content-body']].forEach(([docKey, elId]) => {
+        const el = document.getElementById(elId);
+        if (!el) return;
+        const docData = data && data[docKey];
+        if (!docData) return; // 未有Firestore內容，保持顯示番index.html原本寫死嗰份
+        let text = docData[lang];
+        if (!text && lang !== 'zh-Hant') text = docData['zh-Hant']; // 冇對應語言就退返繁體中文
+        if (!text) return; // 連繁體中文都未填，保持顯示番原本寫死嗰份
+        el.innerHTML = renderLegalContentParagraphs(text);
+      });
+    }
+    window.refreshLegalContentLanguage = renderLegalContentBody;
+
+    function loadLegalContentFromFirestore() {
+      if (!window.db || !window.fs) return;
+      if (legalContentConfigUnsubscribe) legalContentConfigUnsubscribe();
+      const ref = window.fs.doc(window.db, 'admin_config', 'legalContent');
+      legalContentConfigUnsubscribe = window.fs.onSnapshot(ref, (snap) => {
+        window.LEGAL_CONTENT_RAW = snap.exists() ? snap.data() : null;
+        renderLegalContentBody();
+        legalContentConfigLoaded = true;
+        if (currentAdminTab === 'legal' && !adminLegalDraft) {
+          const panelEl = document.getElementById('admin-panel-container');
+          if (panelEl && panelEl.style.display !== 'none') renderAdminLegalTab();
+        }
+      }, (err) => {
+        console.error('讀取服務條款／私隱政策內容失敗:', err);
+        legalContentConfigLoaded = true;
+      });
+    }
+    window.loadLegalContentFromFirestore = loadLegalContentFromFirestore;
+
+    function ensureLegalDraftLoaded() {
+      if (adminLegalDraft) return;
+      const raw = window.LEGAL_CONTENT_RAW || {};
+      adminLegalDraft = {
+        terms: {
+          'zh-Hant': (raw.terms && raw.terms['zh-Hant']) || DEFAULT_TERMS_ZH,
+          'en': (raw.terms && raw.terms['en']) || '',
+          'yue': (raw.terms && raw.terms['yue']) || '',
+        },
+        privacy: {
+          'zh-Hant': (raw.privacy && raw.privacy['zh-Hant']) || DEFAULT_PRIVACY_ZH,
+          'en': (raw.privacy && raw.privacy['en']) || '',
+          'yue': (raw.privacy && raw.privacy['yue']) || '',
+        },
+      };
+    }
+
+    function renderAdminLegalTab() {
+      const container = document.getElementById('admin-tab-legal');
+      if (!container) return;
+      if (!isCurrentUserSuperAdmin()) {
+        container.innerHTML = '<div class="admin-card" style="color:#c0392b;">淨係「超級管理員」先睇得到呢頁。</div>';
+        return;
+      }
+      if (!legalContentConfigLoaded) {
+        container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入中條款內容設定...</p>';
+        return;
+      }
+      ensureLegalDraftLoaded();
+      const docTabs = [['terms', '服務條款'], ['privacy', '私隱政策']];
+      const langTabs = [['zh-Hant', '繁體中文'], ['en', 'English'], ['yue', '廣東話']];
+      const docBtns = docTabs.map(([k, label]) => `<button type="button" class="btn ${adminLegalActiveDoc === k ? 'btn-primary' : 'btn-outline'}" style="font-size:13px; padding:6px 14px;" onclick="window.adminSwitchLegalDoc('${k}')">${label}</button>`).join('');
+      const langBtns = langTabs.map(([k, label]) => `<button type="button" class="btn ${adminLegalActiveLang === k ? 'btn-primary' : 'btn-outline'}" style="font-size:12px; padding:5px 12px;" onclick="window.adminSwitchLegalLang('${k}')">${label}</button>`).join('');
+      const currentText = adminLegalDraft[adminLegalActiveDoc][adminLegalActiveLang] || '';
+      const hint = adminLegalActiveLang === 'zh-Hant'
+        ? '呢個係而家網站顯示緊嘅版本，可以直接修改。'
+        : `留空嘅話，呢個語言會自動顯示返繁體中文版本（${adminLegalActiveLang === 'en' ? 'English' : '廣東話'}未填唔會開天窗）。`;
+
+      container.innerHTML = `
+        <div class="admin-card" style="margin-bottom:16px;">
+          <p style="font-size:13px; color:#888; margin:0;">呢度編輯「服務條款」同「私隱政策」嘅內容，支援三語言分開編輯。段落之間留一行空白分段；想要粗體小標題（例如「第一條　服務內容」），喺嗰行開頭打「#」。⚠️ 法律文字嘅English／廣東話版本（翻譯是否準確、是否符合法律要求）請你自己把關或者搵專業人士核實，我哋淨係提供編輯工具，唔負責法律文字本身嘅準確性。</p>
+        </div>
+        <div class="admin-card" style="margin-bottom:16px;">
+          <div style="display:flex; gap:8px; margin-bottom:10px;">${docBtns}</div>
+          <div style="display:flex; gap:6px; margin-bottom:10px;">${langBtns}</div>
+          <p style="font-size:12px; color:#999; margin-bottom:6px;">${hint}</p>
+          <textarea class="input-field" style="width:100%; min-height:360px; font-family:inherit; font-size:13px; line-height:1.6;" oninput="window.adminUpdateLegalDraft(this.value)">${escapeHtml(currentText)}</textarea>
+          <button type="button" class="btn btn-primary" style="margin-top:10px;" onclick="window.adminSaveLegalContent()">儲存全部語言</button>
+        </div>
+      `;
+    }
+    window.renderAdminLegalTab = renderAdminLegalTab;
+
+    window.adminSwitchLegalDoc = function(docKey) {
+      ensureLegalDraftLoaded();
+      adminLegalActiveDoc = docKey;
+      renderAdminLegalTab();
+    };
+    window.adminSwitchLegalLang = function(lang) {
+      ensureLegalDraftLoaded();
+      adminLegalActiveLang = lang;
+      renderAdminLegalTab();
+    };
+    window.adminUpdateLegalDraft = function(value) {
+      ensureLegalDraftLoaded();
+      adminLegalDraft[adminLegalActiveDoc][adminLegalActiveLang] = value;
+    };
+
+    window.adminSaveLegalContent = async function() {
+      ensureLegalDraftLoaded();
+      if (!confirm('確定要儲存？呢個改動會即時影響全站顯示緊嘅服務條款／私隱政策內容。')) return;
+      try {
+        const ref = window.fs.doc(window.db, 'admin_config', 'legalContent');
+        await window.fs.setDoc(ref, {
+          terms: adminLegalDraft.terms,
+          privacy: adminLegalDraft.privacy,
+          updatedAt: Date.now(),
+          updatedBy: (window.currentUser && window.currentUser.loginId) || null,
+        });
+        await logAdminAction('更新服務條款／私隱政策內容', { doc: adminLegalActiveDoc, lang: adminLegalActiveLang });
+        window.showToast('已儲存', '✅');
+      } catch (err) {
+        window.showToast('儲存失敗：' + (err.message || err), '❌');
+      }
+    };
 
     // 頁面一載入就檢查一次（處理直接開 #admin 網址嘅情況）
     checkAdminHashRoute();

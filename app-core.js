@@ -537,6 +537,22 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       if (typeof window.loadSiteAnnouncementFromFirestore === 'function') {
         window.loadSiteAnnouncementFromFirestore();
       }
+      // 科目清單／地區清單／服務條款與私隱政策內容（低優先第11-13項）
+      // 一樣要登入前後都載入——科目清單同地區清單喺註冊表格已經要用
+      // （申請做導師、揀學校地區），服務條款連結喺註冊表格嘅同意
+      // checkbox都已經可以撳到，全部都發生喺登入之前。
+      if (typeof window.loadSubjectListFromFirestore === 'function') {
+        window.loadSubjectListFromFirestore();
+      }
+      if (typeof window.loadDistrictListFromFirestore === 'function') {
+        window.loadDistrictListFromFirestore();
+      }
+      if (typeof window.loadSchoolListFromFirestore === 'function') {
+        window.loadSchoolListFromFirestore();
+      }
+      if (typeof window.loadLegalContentFromFirestore === 'function') {
+        window.loadLegalContentFromFirestore();
+      }
       // 登入／登出狀態一改變，「目前語言」嘅判斷依據都可能跟住變（已
       // 登入睇 users/{uid}.language，登出返又退返去睇 localStorage——
       // 見 i18n.js 嘅 window.getAppLanguage），所以要即刻重新套用一次，

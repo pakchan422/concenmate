@@ -6,7 +6,7 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.193.1"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.195.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <meta charset="UTF-8">
@@ -3104,7 +3104,12 @@
     <div class="modal-box" style="max-width:640px; max-height:85vh; overflow-y:auto;">
       <h3 style="font-size:17px; font-weight:bold; color:var(--brand-800); margin-bottom:4px;">服務條款</h3>
       <p style="font-size:12px; color:#999; margin-bottom:14px;">生效日期：2026 年 9 月 1 日　最後更新日期：2026 年 9 月</p>
-      <div style="font-size:13px; color:#444; line-height:1.8;">
+      <!-- 呢個div嘅內容而家可以由Admin後台「條款內容」分頁編輯（存喺
+           Firestore admin_config/legalContent），見admin-panel.js嘅
+           renderLegalContentBody()。管理員未編輯之前（Firestore入面
+           冇對應語言嘅內容），就保持顯示番下面呢份原本寫死嘅繁體中文
+           版本做預設內容，唔會開天窗。 -->
+      <div id="terms-content-body" style="font-size:13px; color:#444; line-height:1.8;">
         <p>歡迎使用 ConcenMate 書伴（下稱「本服務」）。本服務由 ConcenMate 書伴（下稱「本公司」或「我們」）營運。本服務條款（下稱「本條款」）構成閣下（下稱「使用者」或「閣下」）與本公司之間具法律約束力之協議。</p>
         <p>閣下一經註冊帳戶，或以任何方式使用本服務之任何功能，即視為閣下已閱讀、理解並同意接受本條款所載之全部內容，並同意受其約束。倘若閣下未滿十八歲，閣下確認已取得閣下之家長或監護人就使用本服務一事之同意。倘若閣下不同意本條款之任何部分，請立即停止使用本服務。</p>
 
@@ -3162,7 +3167,9 @@
     <div class="modal-box" style="max-width:640px; max-height:85vh; overflow-y:auto;">
       <h3 style="font-size:17px; font-weight:bold; color:var(--brand-800); margin-bottom:4px;">🔒 私隱政策</h3>
       <p style="font-size:12px; color:#999; margin-bottom:14px;">生效日期：2026 年 9 月 1 日　最後更新日期：2026 年 9 月</p>
-      <div style="font-size:13px; color:#444; line-height:1.8;">
+      <!-- 同上面modal-terms一樣，內容可以由Admin後台「條款內容」分頁
+           編輯，未編輯之前保持顯示下面呢份寫死嘅繁體中文版本做預設。 -->
+      <div id="privacy-content-body" style="font-size:13px; color:#444; line-height:1.8;">
         <p>ConcenMate 書伴（下稱「本服務」）由 ConcenMate 書伴（下稱「本公司」或「我們」）營運及管理。本公司高度重視使用者（下稱「閣下」或「使用者」）之個人資料私隱，並致力遵守香港特別行政區《個人資料（私隱）條例》（香港法例第486章，下稱「該條例」）之相關規定。</p>
         <p>閣下透過瀏覽器登入、使用或以任何方式存取本服務，即表示閣下已閱讀、理解並同意接受本私隱政策（下稱「本政策」）所載之全部條款。倘若閣下不同意本政策之任何部分，請立即停止使用本服務。</p>
 
@@ -3808,24 +3815,48 @@
         </div>
       </div>
 
-      <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;" id="admin-tab-nav">
-        <button class="btn btn-primary admin-tab-btn active" data-tab="dashboard" onclick="switchAdminTab('dashboard')">數據總覽</button>
-        <button class="btn btn-outline admin-tab-btn" data-tab="gacha" onclick="switchAdminTab('gacha')">扭蛋機獎品</button>
-        <button class="btn btn-outline admin-tab-btn" data-tab="rooms" onclick="switchAdminTab('rooms')">房間管理</button>
-        <button class="btn btn-outline admin-tab-btn" data-tab="qa" onclick="switchAdminTab('qa')">疑難解答區</button>
-        <button class="btn btn-outline admin-tab-btn" data-tab="users" onclick="switchAdminTab('users')">用戶管理</button>
-        <button class="btn btn-outline admin-tab-btn" data-tab="level" onclick="switchAdminTab('level')">等級系統</button>
-        <button class="btn btn-outline admin-tab-btn" data-tab="reports" onclick="switchAdminTab('reports')">舉報處理 <span id="admin-reports-badge" style="display:none; background:#C0524A; color:#fff; border-radius:99px; font-size:13px; padding:1px 6px; margin-left:3px;">0</span></button>
-        <button class="btn btn-outline admin-tab-btn" data-tab="icons" onclick="switchAdminTab('icons')">功能圖示</button>
-        <button class="btn btn-outline admin-tab-btn" data-tab="tutors" onclick="switchAdminTab('tutors')">導師申請 <span id="admin-tutors-badge" style="display:none; background:#C0524A; color:#fff; border-radius:99px; font-size:13px; padding:1px 6px; margin-left:3px;">0</span></button>
-        <button class="btn btn-outline admin-tab-btn" data-tab="landing" onclick="switchAdminTab('landing')">Landing page文案</button>
-        <button class="btn btn-outline admin-tab-btn" data-tab="scoring" onclick="switchAdminTab('scoring')">計分規則</button>
-        <button class="btn btn-outline admin-tab-btn" data-tab="roomsettings" onclick="switchAdminTab('roomsettings')">房間設定</button>
-        <button class="btn btn-outline admin-tab-btn" data-tab="antiidle" onclick="switchAdminTab('antiidle')">防掛機參數</button>
-        <button class="btn btn-outline admin-tab-btn" data-tab="announcement" onclick="switchAdminTab('announcement')">全站公告</button>
-        <button class="btn btn-outline admin-tab-btn" data-tab="support" onclick="switchAdminTab('support')">用戶支援</button>
-        <button class="btn btn-outline admin-tab-btn" data-tab="adminlist" onclick="switchAdminTab('adminlist')">管理員名單</button>
-        <button class="btn btn-outline admin-tab-btn" data-tab="auditlog" onclick="switchAdminTab('auditlog')">操作紀錄</button>
+      <!-- Admin分頁掣而家分三組顯示（日常營運／網站設定／管治），唔再
+           成17粒掣逼晒喺一行——常用嘅（數據總覽、用戶管理等）同好少
+           用嘅設定／管治分頁分開，方便搵。每組淨係加咗一個小標題
+           文字，分頁掣本身嘅class、data-tab、onclick完全冇變，
+           switchAdminTab()／checkAdminHashRoute()嗰套邏輯唔使改。 -->
+      <div id="admin-tab-nav">
+        <div id="admin-tab-group-daily">
+        <p class="admin-tab-group-label" style="font-size:12px; font-weight:bold; color:#999; margin:0 0 6px;">日常營運</p>
+        <div style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;">
+          <button class="btn btn-primary admin-tab-btn active" data-tab="dashboard" onclick="switchAdminTab('dashboard')">數據總覽</button>
+          <button class="btn btn-outline admin-tab-btn" data-tab="rooms" onclick="switchAdminTab('rooms')">房間管理</button>
+          <button class="btn btn-outline admin-tab-btn" data-tab="qa" onclick="switchAdminTab('qa')">疑難解答區</button>
+          <button class="btn btn-outline admin-tab-btn" data-tab="users" onclick="switchAdminTab('users')">用戶管理</button>
+          <button class="btn btn-outline admin-tab-btn" data-tab="reports" onclick="switchAdminTab('reports')">舉報處理 <span id="admin-reports-badge" style="display:none; background:#C0524A; color:#fff; border-radius:99px; font-size:13px; padding:1px 6px; margin-left:3px;">0</span></button>
+          <button class="btn btn-outline admin-tab-btn" data-tab="tutors" onclick="switchAdminTab('tutors')">導師申請 <span id="admin-tutors-badge" style="display:none; background:#C0524A; color:#fff; border-radius:99px; font-size:13px; padding:1px 6px; margin-left:3px;">0</span></button>
+          <button class="btn btn-outline admin-tab-btn" data-tab="support" onclick="switchAdminTab('support')">用戶支援</button>
+        </div>
+        </div>
+        <div id="admin-tab-group-settings">
+        <p class="admin-tab-group-label" style="font-size:12px; font-weight:bold; color:#999; margin:0 0 6px;">網站設定</p>
+        <div style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;">
+          <button class="btn btn-outline admin-tab-btn" data-tab="gacha" onclick="switchAdminTab('gacha')">扭蛋機獎品</button>
+          <button class="btn btn-outline admin-tab-btn" data-tab="level" onclick="switchAdminTab('level')">等級系統</button>
+          <button class="btn btn-outline admin-tab-btn" data-tab="icons" onclick="switchAdminTab('icons')">功能圖示</button>
+          <button class="btn btn-outline admin-tab-btn" data-tab="landing" onclick="switchAdminTab('landing')">Landing page文案</button>
+          <button class="btn btn-outline admin-tab-btn" data-tab="scoring" onclick="switchAdminTab('scoring')">計分規則</button>
+          <button class="btn btn-outline admin-tab-btn" data-tab="roomsettings" onclick="switchAdminTab('roomsettings')">房間設定</button>
+          <button class="btn btn-outline admin-tab-btn" data-tab="antiidle" onclick="switchAdminTab('antiidle')">防掛機參數</button>
+          <button class="btn btn-outline admin-tab-btn" data-tab="announcement" onclick="switchAdminTab('announcement')">全站公告</button>
+          <button class="btn btn-outline admin-tab-btn" data-tab="subjects" onclick="switchAdminTab('subjects')">科目清單</button>
+          <button class="btn btn-outline admin-tab-btn" data-tab="districts" onclick="switchAdminTab('districts')">地區清單</button>
+          <button class="btn btn-outline admin-tab-btn" data-tab="schools" onclick="switchAdminTab('schools')">學校名單</button>
+          <button class="btn btn-outline admin-tab-btn" data-tab="legal" onclick="switchAdminTab('legal')">條款內容</button>
+        </div>
+        </div>
+        <div id="admin-tab-group-governance">
+        <p class="admin-tab-group-label" style="font-size:12px; font-weight:bold; color:#999; margin:0 0 6px;">管治</p>
+        <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;">
+          <button class="btn btn-outline admin-tab-btn" data-tab="adminlist" onclick="switchAdminTab('adminlist')">管理員名單</button>
+          <button class="btn btn-outline admin-tab-btn" data-tab="auditlog" onclick="switchAdminTab('auditlog')">操作紀錄</button>
+        </div>
+        </div>
       </div>
 
       <div id="admin-tab-dashboard" class="admin-tab-panel"></div>
@@ -3845,6 +3876,10 @@
       <div id="admin-tab-support" class="admin-tab-panel" style="display:none;"></div>
       <div id="admin-tab-adminlist" class="admin-tab-panel" style="display:none;"></div>
       <div id="admin-tab-auditlog" class="admin-tab-panel" style="display:none;"></div>
+      <div id="admin-tab-subjects" class="admin-tab-panel" style="display:none;"></div>
+      <div id="admin-tab-districts" class="admin-tab-panel" style="display:none;"></div>
+      <div id="admin-tab-schools" class="admin-tab-panel" style="display:none;"></div>
+      <div id="admin-tab-legal" class="admin-tab-panel" style="display:none;"></div>
 
     </div>
   </div>
