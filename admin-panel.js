@@ -37,12 +37,36 @@
     // 後台入口」）。
     const ADMIN_LOGIN_IDS_FALLBACK = ['admin_main', 'admin_02', 'admin_03'];
     window.ADMIN_LOGIN_IDS = ADMIN_LOGIN_IDS_FALLBACK.slice();
+    // 管理員權限分級（第四階段第9項）：loginId -> 'super' | 'support'。
+    // 冇出現喺呢個map嘅管理員（包括呢個功能推出之前已經存在嘅帳戶）
+    // 一律當『super』處理——咁樣先唔會因為加咗呢個新機制，就令舊有
+    // 管理員帳戶突然喺Admin後台見少咗分頁、打亂佢哋原本慣用嘅工作
+    // 流程。『super』見到全部分頁；『support』淨係見到日常客服／巡查
+    // 用得著嗰幾個（數據總覽、房間管理、疑難解答區、用戶管理、舉報
+    // 處理、導師申請、用戶支援），唔見網站設定類（扭蛋機／等級系統／
+    // Landing page文案／計分規則／房間設定／防掛機參數／全站公告）
+    // 同管治類（管理員名單、操作紀錄）嗰幾頁。
+    //
+    // ✅ 呢個分級而家唔淨係「UI入口限制」：firestore.rules已經加咗
+    // isSuperAdmin()，所有『support』喺畫面見唔到嗰啲設定文件
+    // （admin_config/gacha、levelSystem、navIcons、landingContent、
+    // scoringRules、roomSettings、antiIdleRules、announcement、
+    // adminIds）喺資料庫層一樣鎖死淨係super先寫得入——就算『support』
+    // 帳戶刻意開瀏覽器開發者工具、直接用Firestore SDK嘅語法去寫，都
+    // 一樣會被伺服器拒絕（唔再淨係靠前端唔顯示嗰粒掣）。操作紀錄
+    // （adminAuditLog）嘅讀取都同樣鎖返淨係super先睇得到，但寫入
+    // （create）保持任何管理員都得——因為『support』帳戶做嘅操作
+    // （例如停權用戶）都要寫得入呢份紀錄先追蹤得到。
+    window.ADMIN_ROLES = {};
 
     async function loadAdminIdsFromFirestore() {
       try {
         const snap = await window.fs.getDoc(window.fs.doc(window.db, 'admin_config', 'adminIds'));
         if (snap.exists() && Array.isArray(snap.data().ids) && snap.data().ids.length > 0) {
           window.ADMIN_LOGIN_IDS = snap.data().ids;
+        }
+        if (snap.exists() && snap.data().roles && typeof snap.data().roles === 'object') {
+          window.ADMIN_ROLES = snap.data().roles;
         }
       } catch (e) {
         console.warn('讀取管理員名單（admin_config/adminIds）失敗，暫時使用內建預設名單:', e);
@@ -63,6 +87,47 @@
       return !!(window.currentUser && window.currentUser.loginId && window.ADMIN_LOGIN_IDS.includes(window.currentUser.loginId));
     }
     window.isCurrentUserAdmin = isCurrentUserAdmin;
+
+    // 而家呢個管理員帳戶嘅權限等級——冇記錄過就當『super』（見上面
+    // window.ADMIN_ROLES 嗰段解釋，為咗向下兼容舊帳戶）。
+    function getCurrentAdminRole() {
+      if (!window.currentUser || !window.currentUser.loginId) return null;
+      return window.ADMIN_ROLES[window.currentUser.loginId] || 'super';
+    }
+    window.getCurrentAdminRole = getCurrentAdminRole;
+
+    function isCurrentUserSuperAdmin() {
+      return isCurrentUserAdmin() && getCurrentAdminRole() === 'super';
+    }
+    window.isCurrentUserSuperAdmin = isCurrentUserSuperAdmin;
+
+    // 淨係『super』先睇得到／用得到嘅分頁——網站設定類同治理類。
+    const SUPER_ADMIN_ONLY_TABS = [
+      'gacha', 'level', 'icons', 'landing', 'scoring', 'roomsettings',
+      'antiidle', 'announcement', 'adminlist', 'auditlog'
+    ];
+
+    // 操作紀錄（第四階段第10項）：將重要嘅管治／高風險操作（停權、
+    // 補發分數／貼紙、強制關房、審批導師、管理員名單異動等）寫一筆
+    // 落 adminAuditLog collection，畀日後有爭議或者想追查「邊個管理員
+    // 做咗咩」嗰陣有紀錄可以查。純粹盡力而為（fire-and-forget）：寫入
+    // 失敗唔應該阻住主要操作本身完成，所以呢度淨係 console.warn，唔
+    // 會再彈 toast 打擾管理員。
+    async function logAdminAction(action, details) {
+      if (!window.db || !window.fs || !window.currentUser) return;
+      try {
+        await window.fs.addDoc(window.fs.collection(window.db, 'adminAuditLog'), {
+          action,
+          details: (typeof details === 'undefined') ? null : details,
+          adminEmail: window.currentUser.email || null,
+          adminLoginId: window.currentUser.loginId || null,
+          createdAt: Date.now()
+        });
+      } catch (err) {
+        console.warn('寫入操作紀錄失敗（唔影響主要操作本身）:', err);
+      }
+    }
+    window.logAdminAction = logAdminAction;
 
     // 更新 header 度嗰粒「⚙️ 管理後台」入口掣顯唔顯示（淨係俾管理員睇到）
     function updateAdminEntryButton() {
@@ -143,12 +208,32 @@
       // 「🎓 導師申請」個紅點徽章同上，唔理揀緊邊個分頁都要見到
       if (typeof window.startAdminTutorsBadgeListener === 'function') window.startAdminTutorsBadgeListener();
 
-      switchAdminTab(currentAdminTab || 'dashboard');
+      // 管理員權限分級：『support』帳戶見唔到網站設定／治理類分頁嘅
+      // 按鈕（見上面 SUPER_ADMIN_ONLY_TABS）。
+      const isSuper = isCurrentUserSuperAdmin();
+      document.querySelectorAll('.admin-tab-btn').forEach(btn => {
+        const tabName = btn.getAttribute('data-tab');
+        if (SUPER_ADMIN_ONLY_TABS.includes(tabName)) {
+          btn.style.display = isSuper ? '' : 'none';
+        }
+      });
+      // 如果而家記住嘅分頁係『support』見唔到嗰啲，就退返去「數據總覽」，
+      // 避免見到一個冇按鈕對應、又撳唔返嘅空白分頁。
+      let startTab = currentAdminTab || 'dashboard';
+      if (!isSuper && SUPER_ADMIN_ONLY_TABS.includes(startTab)) startTab = 'dashboard';
+
+      switchAdminTab(startTab);
     }
     window.checkAdminHashRoute = checkAdminHashRoute;
     window.addEventListener('hashchange', checkAdminHashRoute);
 
     window.switchAdminTab = function(tab) {
+      // 防止『support』帳戶用網址hash或者其他方式直接跳去冇按鈕對應
+      // 嘅super限定分頁——退返去「數據總覽」並提示一下。
+      if (SUPER_ADMIN_ONLY_TABS.includes(tab) && !isCurrentUserSuperAdmin()) {
+        window.showToast('呢個分頁淨係「超級管理員」先用得到', '🔒');
+        tab = 'dashboard';
+      }
       currentAdminTab = tab;
       document.querySelectorAll('.admin-tab-btn').forEach(btn => {
         const active = btn.getAttribute('data-tab') === tab;
@@ -172,6 +257,9 @@
       else if (tab === 'roomsettings') renderAdminRoomSettingsTab();
       else if (tab === 'antiidle') renderAdminAntiIdleTab();
       else if (tab === 'announcement') renderAdminAnnouncementTab();
+      else if (tab === 'support') renderAdminSupportTab();
+      else if (tab === 'adminlist') renderAdminAdminListTab();
+      else if (tab === 'auditlog') renderAdminAuditLogTab();
     };
 
     // ---------- 扭蛋機貼紙管理 ----------
@@ -857,6 +945,7 @@
       if (!confirm(`確定要強制關閉房間「${roomName}」？裡面的同學會即時被移至大廳。`)) return;
       try {
         await window.fs.deleteDoc(window.fs.doc(window.db, 'rooms', roomId));
+        await logAdminAction('強制關閉房間', { roomId, roomName });
         window.showToast('已強制關閉該房間', '🗑️');
       } catch (err) {
         window.showToast('操作失敗：' + (err.message || err), '❌');
@@ -1046,6 +1135,7 @@
       const exp = parseInt(expEl && expEl.value, 10) || 0;
       try {
         await window.fs.updateDoc(window.fs.doc(window.db, 'users', uid), { points, hours, exp });
+        await logAdminAction('更新用戶資料', { uid, points, hours, exp });
         window.showToast('已更新用戶資料', '✅');
       } catch (err) {
         window.showToast('更新失敗：' + (err.message || err), '❌');
@@ -1056,6 +1146,7 @@
       if (!confirm(suspend ? '確定停權這個帳戶？他下次登入會被強制登出。' : '確定解除這個帳戶的停權？')) return;
       try {
         await window.fs.updateDoc(window.fs.doc(window.db, 'users', uid), { suspended: suspend });
+        await logAdminAction(suspend ? '停權用戶' : '解除停權', { uid });
         window.showToast(suspend ? '已停權該帳戶' : '已解除停權', suspend ? '🚫' : '✅');
       } catch (err) {
         window.showToast('操作失敗：' + (err.message || err), '❌');
@@ -1219,6 +1310,7 @@
       try {
         await window.fs.updateDoc(window.fs.doc(window.db, 'users', reportedUid), { suspended: true });
         await window.fs.updateDoc(window.fs.doc(window.db, 'reports', reportId), { status: 'reviewed' });
+        await logAdminAction('因舉報停權用戶', { reportId, reportedUid });
         window.showToast('已停權該帳戶', '🚫');
       } catch (err) {
         window.showToast('操作失敗：' + (err.message || err), '❌');
@@ -1578,6 +1670,7 @@
       if (!confirm('確定批准這個導師申請？批准之後該用戶會立即獲得導師身份。')) return;
       try {
         await window.callCloudFunction('approveTutorApplication', { targetUid: uid });
+        await logAdminAction('批准導師申請', { uid });
         window.showToast('已批准導師申請', '✅');
       } catch (err) {
         window.showToast('批准失敗：' + (err.message || err), '❌');
@@ -1589,6 +1682,7 @@
       if (reason === null) return; // 撳咗取消
       try {
         await window.callCloudFunction('rejectTutorApplication', { targetUid: uid, rejectionReason: reason });
+        await logAdminAction('駁回導師申請', { uid, reason });
         window.showToast('已駁回導師申請', '🗂️');
       } catch (err) {
         window.showToast('駁回失敗：' + (err.message || err), '❌');
@@ -1599,6 +1693,7 @@
       if (!confirm('確定停權這位導師？其已上架的筆記會自動下架，但已購買的學生保留下載權。')) return;
       try {
         await window.callCloudFunction('suspendTutor', { targetUid: uid });
+        await logAdminAction('停權導師', { uid });
         window.showToast('已停權該導師', '🚫');
       } catch (err) {
         window.showToast('停權失敗：' + (err.message || err), '❌');
@@ -1608,6 +1703,7 @@
     window.adminReinstateTutor = async function(uid) {
       try {
         await window.callCloudFunction('reinstateTutor', { targetUid: uid });
+        await logAdminAction('解除導師停權', { uid });
         window.showToast('已解除停權', '✅');
       } catch (err) {
         window.showToast('解除停權失敗：' + (err.message || err), '❌');
@@ -2609,6 +2705,431 @@
         renderSiteAnnouncementBanner(window.SITE_ANNOUNCEMENT_RAW);
       }
     };
+
+    // ---------- 用戶支援工具 ----------
+    // 第三階段（運營工具）最後一項：處理學生／家長support ticket嘅
+    // 快捷工具——搜尋單一用戶、睇晒佢嘅關鍵資料，再直接喺呢度補發／
+    // 扣減PTS、補發貼紙，唔使好似「用戶管理」分頁咁要喺一大張表格度
+    // 揾（嗰頁仍然保留，做日常批量管理用；呢個分頁專門做「一個一個
+    // 咁處理個別support個案」嘅場景）。
+    //
+    // 做法同「數據總覽」一樣：一次性讀取（唔持續監聽），撳「重新整理
+    // 資料」先再讀多次；搜尋喺本機（瀏覽器）記憶體入面做，唔使每打
+    // 一個字都問一次 Firestore。
+    let adminSupportUsersCache = null;
+    let adminSupportUsersCacheLoading = false;
+    let adminSupportQuery = '';
+    let adminSupportSelectedUid = null;
+    let adminSupportPointsGrantAmount = 0;
+    let adminSupportStickerGrantDraft = { stickerId: null, qty: 1 };
+
+    async function loadAdminSupportUsersCache() {
+      if (!window.db || !window.fs) return;
+      adminSupportUsersCacheLoading = true;
+      renderAdminSupportTab();
+      try {
+        const snap = await window.fs.getDocs(window.fs.collection(window.db, 'users'));
+        adminSupportUsersCache = snap.docs.map(d => ({ uid: d.id, data: d.data() }));
+      } catch (err) {
+        console.error('載入用戶支援資料失敗:', err);
+        adminSupportUsersCache = [];
+      } finally {
+        adminSupportUsersCacheLoading = false;
+        renderAdminSupportTab();
+      }
+    }
+    window.adminRefreshSupportUsers = function() { loadAdminSupportUsersCache(); };
+
+    function renderSupportUserDetailCard(u) {
+      const d = u.data;
+      const uid = u.uid;
+      const suspended = !!d.suspended;
+      const displayEmail = d.contactEmail || d.email || '—';
+      const createdMs = typeof d.createdAt === 'number' ? d.createdAt : (d.createdAt ? new Date(d.createdAt).getTime() : 0);
+      const createdDisplay = createdMs ? new Date(createdMs).toLocaleString('zh-HK') : '—';
+      const lastLoginDisplay = (typeof formatLastLoginDisplay === 'function') ? formatLastLoginDisplay(d.lastLoginAt) : '—';
+
+      const stickerOptions = GACHA_STICKERS.map(s => `<option value="${s.id}" ${adminSupportStickerGrantDraft.stickerId === s.id ? 'selected' : ''}>${escapeHtml(s.name)}（#${s.id}）</option>`).join('');
+
+      return `
+        <div class="admin-card">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+            <h3 style="font-size:17px; font-weight:bold; color:var(--brand-800); margin:0;">${escapeHtml(d.username || '—')} ${suspended ? '<span style="color:#c0392b; font-size:13px;">（已停權）</span>' : ''}</h3>
+            <button type="button" class="btn ${suspended ? 'btn-primary' : 'btn-red'}" style="font-size:13px; padding:4px 10px;" onclick="adminToggleSuspendUser('${uid}', ${!suspended})">${suspended ? '解除停權' : '停權'}</button>
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:10px; font-size:13px; color:#555; margin-bottom:18px;">
+            <div><b>帳號ID：</b>${escapeHtml(d.loginId || '未設定')}</div>
+            <div><b>Email：</b>${escapeHtml(displayEmail)}</div>
+            <div><b>學校：</b>${escapeHtml(d.school || '—')}</div>
+            <div><b>年級：</b>${escapeHtml(d.grade || '—')}</div>
+            <div><b>身份：</b>${d.accountType === 'tutor' ? '導師' : '學生'}</div>
+            <div><b>現存 PTS：</b>${d.points || 0}</div>
+            <div><b>累積時數：</b>${(parseFloat(d.hours) || 0).toFixed(1)}</div>
+            <div><b>EXP：</b>${d.exp || 0}</div>
+            <div><b>註冊時間：</b>${createdDisplay}</div>
+            <div><b>最後上線：</b>${lastLoginDisplay}</div>
+          </div>
+
+          <div style="border-top:1px solid #F0F0F0; padding-top:14px; margin-bottom:14px;">
+            <h4 style="font-size:14px; font-weight:bold; color:var(--brand-700); margin-bottom:8px;">補發／扣減 PTS</h4>
+            <p style="font-size:13px; color:#999; margin-bottom:8px;">正數係補發，負數係扣減（例如處理爭議或者錯誤發放）。</p>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <input type="number" step="1" value="${adminSupportPointsGrantAmount}" style="width:120px; font-size:15px; padding:8px 10px; border:1px solid #DDE7E9; border-radius:6px;" oninput="adminUpdateSupportPointsAmount(this.value)">
+              <button type="button" class="btn btn-primary" style="font-size:13px; padding:6px 16px;" onclick="adminGrantSupportPoints('${uid}')">確認</button>
+            </div>
+          </div>
+
+          <div style="border-top:1px solid #F0F0F0; padding-top:14px;">
+            <h4 style="font-size:14px; font-weight:bold; color:var(--brand-700); margin-bottom:8px;">補發貼紙</h4>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <select style="font-size:15px; padding:8px 10px; border:1px solid #DDE7E9; border-radius:6px; max-width:240px;" onchange="adminUpdateSupportStickerDraft('stickerId', this.value)">${stickerOptions}</select>
+              <input type="number" min="1" step="1" value="${adminSupportStickerGrantDraft.qty}" style="width:90px; font-size:15px; padding:8px 10px; border:1px solid #DDE7E9; border-radius:6px;" oninput="adminUpdateSupportStickerDraft('qty', this.value)">
+              <button type="button" class="btn btn-primary" style="font-size:13px; padding:6px 16px;" onclick="adminGrantSupportSticker('${uid}')">確認</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderAdminSupportTab() {
+      const container = document.getElementById('admin-tab-support');
+      if (!container) return;
+
+      if (!adminSupportUsersCache && !adminSupportUsersCacheLoading) {
+        loadAdminSupportUsersCache();
+        return;
+      }
+      if (adminSupportUsersCacheLoading && !adminSupportUsersCache) {
+        container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入中用戶資料...</p>';
+        return;
+      }
+
+      const q = adminSupportQuery.trim().toLowerCase();
+      const matches = q ? adminSupportUsersCache.filter(u => {
+        const d = u.data;
+        const hay = [d.username, d.loginId, d.contactEmail, d.email].filter(Boolean).join(' ').toLowerCase();
+        return hay.includes(q);
+      }).slice(0, 20) : [];
+
+      const selected = adminSupportSelectedUid ? adminSupportUsersCache.find(u => u.uid === adminSupportSelectedUid) : null;
+
+      container.innerHTML = `
+        <div class="admin-card" style="margin-bottom:16px;">
+          <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;">搜尋用戶</h3>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+            <input type="text" placeholder="輸入帳號ID／用戶名／Email（部分符合都得）" value="${escapeHtml(adminSupportQuery)}" style="flex:1; min-width:220px; font-size:15px; padding:8px 10px; border:1px solid #DDE7E9; border-radius:6px;" oninput="adminUpdateSupportQuery(this.value)">
+            <button type="button" class="btn btn-outline" style="font-size:13px; padding:6px 14px;" onclick="window.adminRefreshSupportUsers()">🔄 重新整理資料</button>
+          </div>
+          <p style="font-size:13px; color:#999; margin-top:8px;">資料讀取於你打開／重新整理呢頁嗰一刻，現共 ${adminSupportUsersCache.length} 位用戶。</p>
+          ${q ? `
+            <div style="margin-top:12px; max-height:260px; overflow-y:auto;">
+              ${matches.length === 0 ? '<p style="color:#999; font-size:13px;">搵唔到相關用戶</p>' : matches.map(u => `
+                <div style="padding:8px 10px; border-bottom:1px solid #F0F0F0; cursor:pointer; ${adminSupportSelectedUid === u.uid ? 'background:var(--brand-50);' : ''}" onclick="adminSelectSupportUser('${u.uid}')">
+                  <b>${escapeHtml(u.data.username || '—')}</b>
+                  <span style="color:#888; font-size:13px;"> ／ ${escapeHtml(u.data.loginId || '未設定')} ／ ${escapeHtml(u.data.contactEmail || u.data.email || '—')}</span>
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
+        </div>
+        ${selected ? renderSupportUserDetailCard(selected) : ''}
+      `;
+    }
+    window.renderAdminSupportTab = renderAdminSupportTab;
+
+    window.adminUpdateSupportQuery = function(value) {
+      adminSupportQuery = value;
+      renderAdminSupportTab();
+    };
+
+    window.adminSelectSupportUser = function(uid) {
+      adminSupportSelectedUid = uid;
+      adminSupportPointsGrantAmount = 0;
+      adminSupportStickerGrantDraft = { stickerId: (GACHA_STICKERS[0] && GACHA_STICKERS[0].id) || null, qty: 1 };
+      renderAdminSupportTab();
+    };
+
+    window.adminUpdateSupportPointsAmount = function(value) {
+      const n = parseInt(value, 10);
+      adminSupportPointsGrantAmount = Number.isFinite(n) ? n : 0;
+    };
+
+    window.adminGrantSupportPoints = async function(uid) {
+      const amount = adminSupportPointsGrantAmount;
+      if (!amount) {
+        window.showToast('請輸入唔係 0 嘅數值', '⚠️');
+        return;
+      }
+      if (!confirm(`確定要幫呢位用戶${amount > 0 ? '補發' : '扣減'} ${Math.abs(amount)} PTS？`)) return;
+      try {
+        await window.fs.updateDoc(window.fs.doc(window.db, 'users', uid), { points: window.fs.increment(amount) });
+        await logAdminAction('補發／扣減PTS', { uid, amount });
+        window.showToast(`已${amount > 0 ? '補發' : '扣減'} ${Math.abs(amount)} PTS`, '✅');
+        adminSupportPointsGrantAmount = 0;
+        // 更新返cache入面嗰份本地資料，等卡片即刻反映新數值，唔使成頁
+        // 重新載入先至見到最新數字
+        const cached = adminSupportUsersCache.find(u => u.uid === uid);
+        if (cached) cached.data.points = (cached.data.points || 0) + amount;
+        renderAdminSupportTab();
+      } catch (err) {
+        window.showToast('操作失敗：' + (err.message || err), '❌');
+      }
+    };
+
+    window.adminUpdateSupportStickerDraft = function(key, value) {
+      if (key === 'stickerId') {
+        const n = parseInt(value, 10);
+        adminSupportStickerGrantDraft.stickerId = Number.isFinite(n) ? n : adminSupportStickerGrantDraft.stickerId;
+      } else if (key === 'qty') {
+        const n = parseInt(value, 10);
+        adminSupportStickerGrantDraft.qty = (Number.isFinite(n) && n > 0) ? n : 1;
+      }
+    };
+
+    window.adminGrantSupportSticker = async function(uid) {
+      const { stickerId, qty } = adminSupportStickerGrantDraft;
+      if (!stickerId || !(qty > 0)) {
+        window.showToast('請揀返貼紙同數量', '⚠️');
+        return;
+      }
+      const sticker = GACHA_STICKERS.find(s => s.id === stickerId);
+      if (!confirm(`確定要幫呢位用戶補發 ${qty} 張「${sticker ? sticker.name : '#' + stickerId}」？`)) return;
+      try {
+        const payload = {};
+        payload['ownedStickers.' + stickerId] = window.fs.increment(qty);
+        await window.fs.updateDoc(window.fs.doc(window.db, 'users', uid), payload);
+        await logAdminAction('補發貼紙', { uid, stickerId, qty });
+        window.showToast(`已補發 ${qty} 張貼紙`, '✅');
+        adminSupportStickerGrantDraft.qty = 1;
+        renderAdminSupportTab();
+      } catch (err) {
+        window.showToast('操作失敗：' + (err.message || err), '❌');
+      }
+    };
+
+    // ---------- 管理員名單（第四階段第9項：管理員權限分級）----------
+    // 之前要加／減管理員，一定要去 Firebase Console 手動改
+    // admin_config/adminIds 文件（連欄位名都要打啱先得），而家喺Admin
+    // 後台開返呢頁俾超級管理員自己管理，仲加埋「權限等級」呢個新概念
+    // （見檔案頂部 window.ADMIN_ROLES 嗰段解釋）。
+    let adminAdminListDraft = null;
+    let adminListConfigLoaded = false;
+
+    async function ensureAdminListLoaded() {
+      if (adminListConfigLoaded) return;
+      try {
+        const snap = await window.fs.getDoc(window.fs.doc(window.db, 'admin_config', 'adminIds'));
+        const data = snap.exists() ? snap.data() : {};
+        const ids = Array.isArray(data.ids) ? data.ids : [];
+        const roles = (data.roles && typeof data.roles === 'object') ? data.roles : {};
+        adminAdminListDraft = {
+          entries: ids.map(id => ({ loginId: id, role: roles[id] || 'super' })),
+          newLoginId: '',
+          newRole: 'support'
+        };
+      } catch (err) {
+        console.error('載入管理員名單失敗:', err);
+        adminAdminListDraft = { entries: [], newLoginId: '', newRole: 'support' };
+      } finally {
+        adminListConfigLoaded = true;
+        renderAdminAdminListTab();
+      }
+    }
+
+    function renderAdminAdminListTab() {
+      const container = document.getElementById('admin-tab-adminlist');
+      if (!container) return;
+      if (!isCurrentUserSuperAdmin()) {
+        container.innerHTML = '<div class="admin-card" style="color:#c0392b;">淨係「超級管理員」先睇得到呢頁。</div>';
+        return;
+      }
+      if (!adminAdminListDraft) {
+        if (!adminListConfigLoaded) {
+          container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入中管理員名單...</p>';
+          ensureAdminListLoaded();
+          return;
+        }
+      }
+      const d = adminAdminListDraft;
+      const myLoginId = window.currentUser && window.currentUser.loginId;
+
+      const rows = d.entries.map((e, idx) => `
+        <tr>
+          <td>${escapeHtml(e.loginId)}${e.loginId === myLoginId ? ' <span style="color:#999; font-size:12px;">（你自己）</span>' : ''}</td>
+          <td>
+            <select style="font-size:14px; padding:5px 8px; border:1px solid #DDE7E9; border-radius:6px;" onchange="adminUpdateAdminListRole(${idx}, this.value)">
+              <option value="super" ${e.role === 'super' ? 'selected' : ''}>超級管理員</option>
+              <option value="support" ${e.role === 'support' ? 'selected' : ''}>客服／支援管理員</option>
+            </select>
+          </td>
+          <td><button class="btn btn-red" style="font-size:13px; padding:3px 8px;" onclick="adminRemoveAdminListEntry(${idx})">移除</button></td>
+        </tr>
+      `).join('');
+
+      container.innerHTML = `
+        <div class="admin-card" style="margin-bottom:16px;">
+          <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;">管理員名單</h3>
+          <p style="font-size:13px; color:#888; margin-bottom:10px;"><b>超級管理員</b>見到並用得到全部分頁同設定；<b>客服／支援管理員</b>淨係見到日常客服／巡查用得著嗰幾頁（數據總覽、房間管理、疑難解答區、用戶管理、舉報處理、導師申請、用戶支援），見唔到網站設定（扭蛋機、計分規則等）同呢兩頁管治分頁。</p>
+          <p style="font-size:13px; color:#c17a2e; margin-bottom:14px;">⚠️ 呢個分級目前係Admin後台「入口介面」層面嘅限制（控制畫面見唔見到、撳唔撳到嗰啲分頁），唔係Firestore資料庫層面嘅硬性保障——適合互相信任嘅細團隊減少誤觸同簡化介面，唔係防惡意內部人員嘅保安牆。</p>
+          <div style="overflow-x:auto;">
+            <table class="admin-table">
+              <thead><tr><th>帳號ID</th><th>權限等級</th><th></th></tr></thead>
+              <tbody>${rows || '<tr><td colspan="3" style="text-align:center; color:#999;">未有任何管理員</td></tr>'}</tbody>
+            </table>
+          </div>
+        </div>
+        <div class="admin-card" style="margin-bottom:16px;">
+          <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;">新增管理員</h3>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+            <input type="text" placeholder="帳號ID（即係用戶登入用嗰個ID，唔係Email）" value="${escapeHtml(d.newLoginId)}" style="flex:1; min-width:220px; font-size:15px; padding:8px 10px; border:1px solid #DDE7E9; border-radius:6px;" oninput="adminUpdateAdminListNewField('newLoginId', this.value)">
+            <select style="font-size:15px; padding:8px 10px; border:1px solid #DDE7E9; border-radius:6px;" onchange="adminUpdateAdminListNewField('newRole', this.value)">
+              <option value="super" ${d.newRole === 'super' ? 'selected' : ''}>超級管理員</option>
+              <option value="support" ${d.newRole === 'support' ? 'selected' : ''}>客服／支援管理員</option>
+            </select>
+            <button type="button" class="btn btn-outline" style="font-size:13px; padding:6px 16px;" onclick="adminAddAdminListEntry()">加入</button>
+          </div>
+        </div>
+        <div style="text-align:center;">
+          <button type="button" class="btn btn-primary" id="btn-admin-save-adminlist" style="padding:12px 32px; font-size:15px;" onclick="adminSaveAdminList()">儲存全部改動</button>
+        </div>
+      `;
+    }
+    window.renderAdminAdminListTab = renderAdminAdminListTab;
+
+    window.adminUpdateAdminListRole = function(idx, role) {
+      if (!adminAdminListDraft || !adminAdminListDraft.entries[idx]) return;
+      adminAdminListDraft.entries[idx].role = role;
+    };
+
+    window.adminRemoveAdminListEntry = function(idx) {
+      if (!adminAdminListDraft || !adminAdminListDraft.entries[idx]) return;
+      if (!confirm(`確定要移除「${adminAdminListDraft.entries[idx].loginId}」嘅管理員身份？`)) return;
+      adminAdminListDraft.entries.splice(idx, 1);
+      renderAdminAdminListTab();
+    };
+
+    window.adminUpdateAdminListNewField = function(key, value) {
+      if (!adminAdminListDraft) return;
+      adminAdminListDraft[key] = value;
+    };
+
+    window.adminAddAdminListEntry = function() {
+      if (!adminAdminListDraft) return;
+      const loginId = (adminAdminListDraft.newLoginId || '').trim();
+      if (!loginId) { window.showToast('請輸入帳號ID', '⚠️'); return; }
+      if (adminAdminListDraft.entries.some(e => e.loginId === loginId)) {
+        window.showToast('呢個帳號已經喺管理員名單入面', '⚠️');
+        return;
+      }
+      adminAdminListDraft.entries.push({ loginId, role: adminAdminListDraft.newRole || 'support' });
+      adminAdminListDraft.newLoginId = '';
+      renderAdminAdminListTab();
+    };
+
+    window.adminSaveAdminList = async function() {
+      if (!adminAdminListDraft) return;
+      const entries = adminAdminListDraft.entries;
+      if (entries.length === 0) {
+        window.showToast('管理員名單唔可以清空——你會即刻撳唔返入嚟Admin後台', '⚠️');
+        return;
+      }
+      const superCount = entries.filter(e => e.role === 'super').length;
+      if (superCount === 0) {
+        window.showToast('最少要有一位「超級管理員」，否則冇人可以再管理呢份名單', '⚠️');
+        return;
+      }
+      const myLoginId = window.currentUser && window.currentUser.loginId;
+      const stillAdmin = entries.some(e => e.loginId === myLoginId);
+      const stillSuper = entries.some(e => e.loginId === myLoginId && e.role === 'super');
+      if (!stillAdmin) {
+        if (!confirm('你將會喺呢次儲存之後移除咗自己嘅管理員身份，即刻會撳唔返入嚟Admin後台。確定要咁做？')) return;
+      } else if (!stillSuper) {
+        if (!confirm('你將會喺呢次儲存之後將自己降做「客服／支援管理員」，即刻會見唔返呢頁同其他設定分頁。確定要咁做？')) return;
+      }
+
+      const ids = entries.map(e => e.loginId);
+      const roles = {};
+      entries.forEach(e => { roles[e.loginId] = e.role; });
+      const payload = { ids, roles, updatedAt: Date.now(), updatedBy: window.currentUser ? window.currentUser.email : null };
+
+      const btn = document.getElementById('btn-admin-save-adminlist');
+      if (btn) { btn.disabled = true; btn.innerText = '儲存中…'; }
+      try {
+        await window.fs.setDoc(window.fs.doc(window.db, 'admin_config', 'adminIds'), payload);
+        await logAdminAction('更新管理員名單', { ids, roles });
+        window.showToast('管理員名單已儲存！', '🎉');
+        if (typeof window.loadAdminIdsFromFirestore === 'function') window.loadAdminIdsFromFirestore();
+      } catch (err) {
+        window.showToast('儲存失敗：' + (err.message || err), '❌');
+      } finally {
+        if (btn) { btn.disabled = false; btn.innerText = '儲存全部改動'; }
+      }
+    };
+
+    // ---------- 操作紀錄（第四階段第10項：Audit Log）----------
+    let adminAuditLogEntries = null;
+    let adminAuditLogLoading = false;
+
+    async function loadAdminAuditLog() {
+      if (!window.db || !window.fs) return;
+      adminAuditLogLoading = true;
+      renderAdminAuditLogTab();
+      try {
+        const q = window.fs.query(
+          window.fs.collection(window.db, 'adminAuditLog'),
+          window.fs.orderBy('createdAt', 'desc'),
+          window.fs.limit(100)
+        );
+        const snap = await window.fs.getDocs(q);
+        adminAuditLogEntries = snap.docs.map(d => d.data());
+      } catch (err) {
+        console.error('載入操作紀錄失敗:', err);
+        adminAuditLogEntries = [];
+      } finally {
+        adminAuditLogLoading = false;
+        renderAdminAuditLogTab();
+      }
+    }
+    window.adminRefreshAuditLog = function() { loadAdminAuditLog(); };
+
+    function renderAdminAuditLogTab() {
+      const container = document.getElementById('admin-tab-auditlog');
+      if (!container) return;
+      if (!isCurrentUserSuperAdmin()) {
+        container.innerHTML = '<div class="admin-card" style="color:#c0392b;">淨係「超級管理員」先睇得到呢頁。</div>';
+        return;
+      }
+      if (!adminAuditLogEntries && !adminAuditLogLoading) {
+        loadAdminAuditLog();
+        return;
+      }
+      if (adminAuditLogLoading && !adminAuditLogEntries) {
+        container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入中操作紀錄...</p>';
+        return;
+      }
+      const rows = adminAuditLogEntries.map(e => {
+        const when = e.createdAt ? new Date(e.createdAt).toLocaleString('zh-HK') : '—';
+        const who = e.adminLoginId || e.adminEmail || '—';
+        const detailsText = e.details ? (typeof e.details === 'string' ? e.details : JSON.stringify(e.details)) : '';
+        return `<tr><td style="white-space:nowrap;">${when}</td><td>${escapeHtml(who)}</td><td>${escapeHtml(e.action || '—')}</td><td style="font-size:12px; color:#888; max-width:320px; word-break:break-all;">${escapeHtml(detailsText)}</td></tr>`;
+      }).join('');
+
+      container.innerHTML = `
+        <div class="admin-card" style="margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+          <p style="font-size:13px; color:#888; margin:0;">顯示最近 ${adminAuditLogEntries.length} 筆重要操作紀錄（停權、補發分數／貼紙、強制關房、導師審批、管理員名單異動等）。呢個清單讀取於你打開／重新整理呢頁嗰一刻，撳右邊個掣攞最新。</p>
+          <button type="button" class="btn btn-outline" style="font-size:13px; padding:6px 14px;" onclick="window.adminRefreshAuditLog()">🔄 重新整理</button>
+        </div>
+        <div class="admin-card">
+          <div style="overflow-x:auto;">
+            <table class="admin-table">
+              <thead><tr><th>時間</th><th>管理員</th><th>操作</th><th>詳情</th></tr></thead>
+              <tbody>${rows || '<tr><td colspan="4" style="text-align:center; color:#999;">暫時未有任何紀錄</td></tr>'}</tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+    window.renderAdminAuditLogTab = renderAdminAuditLogTab;
 
     // 頁面一載入就檢查一次（處理直接開 #admin 網址嘅情況）
     checkAdminHashRoute();
