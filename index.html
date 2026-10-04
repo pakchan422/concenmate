@@ -6,7 +6,7 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.192.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.192.4"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <meta charset="UTF-8">
@@ -1364,13 +1364,12 @@
 
     .landing-nav { position: sticky; top: 0; z-index: 10; background: rgba(255,255,255,.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--brand-200); }
     .landing-nav-inner { max-width: 1160px; margin: 0 auto; padding: 14px 40px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-    .landing-nav-brand { display: flex; flex-direction: row; align-items: center; gap: 10px; flex-shrink: 0; }
-    .landing-nav-logo { width: 150px; height: auto; object-fit: contain; flex-shrink: 0; }
-    .landing-nav-tagline { font-size: 11px; font-weight: 600; letter-spacing: .03em; color: var(--brand-500); white-space: nowrap; }
     .landing-nav-actions { display: flex; align-items: center; gap: 20px; flex-shrink: 0; }
-    .landing-nav-login { font-size: 15px; font-weight: 700; color: var(--brand-700); text-decoration: none; white-space: nowrap; cursor: pointer; background: none; border: none; padding: 0; font-family: inherit; }
+    .landing-nav-login { font-size: 15px; font-weight: 700; color: var(--brand-700); text-decoration: none; white-space: nowrap; cursor: pointer; background: #fff; border: 1px solid var(--brand-300); border-radius: 10px; padding: 8px 16px; font-family: inherit; }
+    .landing-nav-login:hover { background: var(--brand-50); }
+    .landing-hero-logo { width: 160px; height: auto; object-fit: contain; display: block; margin: 0 0 20px; }
 
-    .landing-hero { padding: 84px 0 104px; overflow: hidden; }
+    .landing-hero { padding: 36px 0 104px; overflow: hidden; }
     .landing-hero-inner { display: flex; align-items: center; gap: 56px; }
     .landing-hero-text { flex: 1 1 480px; min-width: 0; }
     .landing-eyebrow { display: inline-flex; align-items: center; gap: 8px; background: var(--brand-100); color: var(--brand-700); font-size: 15px; font-weight: 800; padding: 8px 16px; border-radius: 999px; margin-bottom: 24px; }
@@ -1387,8 +1386,8 @@
     .landing-hero-subjects { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
     .landing-hero-subject-tile { position: absolute; width: 64px; height: 64px; border-radius: 16px; background: #fff; border: 1px solid var(--brand-200); box-shadow: 0 8px 20px rgba(30,69,80,.12); display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; color: var(--brand-800); }
     .landing-hero-subject-tile:nth-child(1) { top: 16%; left: 4%; transform: rotate(-10deg); }
-    .landing-hero-subject-tile:nth-child(2) { top: 48%; right: 4%; transform: rotate(8deg); }
-    .landing-hero-subject-tile:nth-child(3) { bottom: -4%; left: 30%; transform: rotate(-6deg); }
+    .landing-hero-subject-tile:nth-child(2) { top: 48%; right: -4%; transform: rotate(8deg); }
+    .landing-hero-subject-tile:nth-child(3) { bottom: 4%; left: 30%; transform: rotate(-6deg); }
 
     .landing-steps { background: var(--brand-50); padding: 96px 0; }
     .landing-steps-head { text-align: center; max-width: 600px; margin: 0 auto 56px; }
@@ -1408,9 +1407,10 @@
 
     @media (max-width: 860px) {
       .landing-container, .landing-nav-inner { padding-left: 22px; padding-right: 22px; }
-      .landing-hero { padding: 48px 0 60px; }
+      .landing-hero { padding: 20px 0 60px; }
       .landing-hero-inner { flex-direction: column-reverse; gap: 44px; text-align: center; }
       .landing-hero-text { max-width: 100%; }
+      .landing-hero-logo { margin-left: auto; margin-right: auto; }
       .landing-hero-sub { margin-left: auto; margin-right: auto; font-size: 18px; }
       .landing-hero-ctas { justify-content: center; }
       .landing-hero-h1 { font-size: 32px; }
@@ -1420,8 +1420,8 @@
       .landing-hero-art img { width: 375px; max-width: 114%; }
       .landing-hero-subject-tile { width: 52px; height: 52px; font-size: 13px; }
       .landing-hero-subject-tile:nth-child(1) { top: 12%; left: 2%; }
-      .landing-hero-subject-tile:nth-child(2) { top: 46%; right: 2%; }
-      .landing-hero-subject-tile:nth-child(3) { bottom: -6%; left: 28%; }
+      .landing-hero-subject-tile:nth-child(2) { top: 46%; right: -6%; }
+      .landing-hero-subject-tile:nth-child(3) { bottom: 2%; left: 28%; }
       .landing-steps { padding: 60px 0; }
       .landing-steps-h2 { font-size: 29px; }
       .landing-steps-sub { font-size: 16px; }
@@ -1431,15 +1431,14 @@
     }
     @media (max-width: 430px) {
       .landing-nav-inner { padding-left: 16px; padding-right: 16px; gap: 8px; }
-      .landing-nav-tagline { display: none; }
-      .landing-nav-logo { width: 100px; height: auto; }
+      .landing-hero-logo { width: 120px; margin-bottom: 14px; }
       .landing-nav-actions { gap: 6px; }
       /* 手機窄畫面下都要保留「登入」按鈕，之前設定咗 display:none 會令
          登入前主頁完全冇入口去登入畫面，只剩返「免費開始使用」（註冊），
          而家改為縮細字體＋去除白位，保留於畫面上，確保語言切換、登入
          同註冊三個按鈕喺窄畫面都能夠並排顯示晒。 */
       .landing-nav-lang-btn { padding: 6px 7px !important; font-size: 12px; }
-      .landing-nav-login-header { font-size: 13px; }
+      .landing-nav-login-header { font-size: 13px; padding: 6px 12px; }
       .landing-nav-actions .landing-btn { padding: 10px 14px; font-size: 13px; }
     }
   </style>
@@ -1503,11 +1502,7 @@
        updateUserAuthUI() 隱藏返呢個 div，改用返下面 #app-shell -->
   <div id="landing-page" style="display:none;">
     <nav class="landing-nav">
-      <div class="landing-nav-inner">
-        <div class="landing-nav-brand">
-          <img class="landing-nav-logo" id="landing-nav-logo-img" src="logo-hero.png" alt="ConcenMate">
-          <div class="landing-nav-tagline" data-i18n="landing.slogan">Always By Your Side</div>
-        </div>
+      <div class="landing-nav-inner" style="justify-content:flex-end;">
         <div class="landing-nav-actions">
           <button class="btn btn-outline landing-nav-lang-btn" type="button" onclick="typeof window.openModal==='function' && window.openModal('modal-language-switcher')" style="padding:6px 10px;"><span class="header-lang-text" id="landing-current-lang-label">繁體中文</span></button>
           <button type="button" class="landing-nav-login landing-nav-login-header" data-i18n="landing.navLogin" onclick="typeof window.openModal==='function' && window.openModal('modal-login')">登入</button>
@@ -1519,6 +1514,7 @@
     <section class="landing-hero">
       <div class="landing-container landing-hero-inner">
         <div class="landing-hero-text">
+          <img class="landing-hero-logo" id="landing-nav-logo-img" src="logo-hero.png" alt="ConcenMate">
           <div class="landing-eyebrow" data-i18n="landing.eyebrow">認識 ConcenMate 書伴</div>
           <h1 class="landing-hero-h1"><span data-i18n="landing.heroH1Line1">相遇你的書伴，陪你走過</span><span data-i18n="landing.heroH1Line2">每一段溫習時光</span></h1>
           <p class="landing-hero-slogan" data-i18n="landing.slogan">Always By Your Side</p>

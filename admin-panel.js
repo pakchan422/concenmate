@@ -1631,8 +1631,7 @@
         title: '導覽列',
         fields: [
           { key: 'landing.navLogin', label: '「登入」按鈕文字' },
-          { key: 'landing.registerBtn', label: '「註冊帳號」按鈕文字（頂部導覽／主橫幅／底部行動呼籲共用同一句，改一次三處一齊變）' },
-          { key: 'landing.slogan', label: '品牌標語（Logo 右邊嗰句）' }
+          { key: 'landing.registerBtn', label: '「註冊帳號」按鈕文字（頂部導覽／主橫幅／底部行動呼籲共用同一句，改一次三處一齊變）' }
         ]
       },
       {
@@ -1641,6 +1640,7 @@
           { key: 'landing.eyebrow', label: '小標籤' },
           { key: 'landing.heroH1Line1', label: '主標題　第一行' },
           { key: 'landing.heroH1Line2', label: '主標題　第二行' },
+          { key: 'landing.slogan', label: '品牌標語（主標題下面嗰句）' },
           { key: 'landing.heroSub', label: '說明文字' },
           { key: 'landing.subjectChinese', label: '科目裝飾格：中文' },
           { key: 'landing.subjectEnglish', label: '科目裝飾格：英文' },
