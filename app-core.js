@@ -892,12 +892,12 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
         badge.style.background = 'transparent';
         resendBtn.style.display = 'none';
       } else if (window.currentUser.emailVerified) {
-        badge.innerText = '已驗證';
+        badge.innerText = window.t ? window.t('profile.emailVerifiedBadge', '已驗證') : '已驗證';
         badge.style.background = '#DFF3E3';
         badge.style.color = '#2A7A46';
         resendBtn.style.display = 'none';
       } else {
-        badge.innerText = '未驗證';
+        badge.innerText = window.t ? window.t('profile.emailNotVerifiedBadge', '未驗證') : '未驗證';
         badge.style.background = '#FDECEA';
         badge.style.color = '#C0392B';
         resendBtn.style.display = 'inline-block';

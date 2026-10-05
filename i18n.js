@@ -87,6 +87,37 @@
     return name;
   };
 
+  // 將「現時年級」嘅原文值（中一 (S1)／中六 (S6 DSE)／大專/大學／
+  // 其他自修生等，同登記／個人資料表格嗰個<select>嘅value一致）按目前
+  // 語言轉做顯示文字。同科目名道理一樣：底層存落資料庫嘅值永遠維持
+  // 原文（因為leaderboard「自修生/大專大學不適用」等邏輯要靠精確
+  // 比對呢個字串，改咗會累壞判斷），淨係顯示文字跟語言轉；揾唔到
+  // 對應key（例如舊資料或者未填寫）就自動退返原文，唔會開天窗。
+  window.GRADE_VALUE_TO_I18N_KEY = {
+    '中一 (S1)': 'profile.gradeS1',
+    '中二 (S2)': 'profile.gradeS2',
+    '中三 (S3)': 'profile.gradeS3',
+    '中四 (S4)': 'profile.gradeS4',
+    '中五 (S5)': 'profile.gradeS5',
+    '中六 (S6 DSE)': 'profile.gradeS6',
+    '大專/大學': 'profile.gradeTertiary',
+    '其他自修生': 'profile.gradeOther',
+  };
+  window.translateGradeName = function (grade) {
+    const key = window.GRADE_VALUE_TO_I18N_KEY[grade];
+    if (key) return window.t(key, grade);
+    return grade;
+  };
+
+  // 「喜愛學科」／「討厭學科」等可留白嘅個人資料欄位，留白嗰陣
+  // app-core.js會存「無」呢個字落資料庫（唔係空字串）；顯示嗰陣淨係
+  // 判斷`值 || 未填寫`係搵唔到「無」呢個情況嘅（因為「無」本身都係
+  // truthy），所以呢度額外將「無」都當做未填寫處理，先會跟語言轉。
+  window.displayOptionalFieldValue = function (val) {
+    if (!val || val === '無') return window.t('common.notFilled', '未填寫');
+    return val;
+  };
+
   // ── 香港十八區英文名（跟政府憲報／區議會官方英文區名）── 同上面
   // 學科英文名系統道理一樣：繁體中文／廣東話一律維持原文，篩選用嘅
   // 資料值（<option value="...">、Firestore 存嘅 district 欄位）繼續係
@@ -131,7 +162,7 @@
     'nav.home': { 'zh-Hant': '主頁', 'en': 'Home', 'yue': '主頁' },
     'nav.room': { 'zh-Hant': '視訊溫習室', 'en': 'Video Study Room', 'yue': '視訊溫習室' },
     'nav.qa': { 'zh-Hant': '疑難解答區', 'en': 'Q&A', 'yue': '疑難解答區' },
-    'nav.vip': { 'zh-Hant': '溫習資源', 'en': 'Study Resources', 'yue': '溫習資源' },
+    'nav.vip': { 'zh-Hant': '教材中心', 'en': 'Materials Hub', 'yue': '教材中心' },
     'nav.store': { 'zh-Hant': '時數扭蛋機', 'en': 'Gashapon', 'yue': '時數扭蛋機' },
     'nav.leaderboard': { 'zh-Hant': '溫習排行榜', 'en': 'Leaderboard', 'yue': '溫習排行榜' },
     'nav.social': { 'zh-Hant': '書伴廣場', 'en': 'Study Buddy Plaza', 'yue': '書伴廣場' },
@@ -237,6 +268,145 @@
     'room.micOnBtn': { 'zh-Hant': '已開咪{n}', 'en': 'Mic On{n}', 'yue': '開咗Mic{n}' },
     'room.micOnTag': { 'zh-Hant': '已開啟麥克風{n}', 'en': 'Microphone On{n}', 'yue': '開咗Mic{n}' },
 
+    // ── 視訊溫習室內幾個彈窗／提示（第二階段補鑊：舉報、定時確認仍在
+    // 學習、咪高風時限提示、房主退出選擇、溫習室密碼鎖、踢走／轉移
+    // 房主嘅confirm()／toast()提示字，之前一直維持繁體中文寫死，而家
+    // 一次過納入翻譯系統）。confirm()／toast()嗰幾個因為要塞人名／
+    // 錯誤訊息，跟返其他地方嘅做法用「...Template」key＋{name}／
+    // {error}佔位符，靠.replace()塞返實際值。 ──
+    'room.reportTitle': { 'zh-Hant': '舉報用家', 'en': 'Report User', 'yue': '舉報用家' },
+    'room.reportDesc': { 'zh-Hant': '舉報內容連同截圖只有管理員先看到，會用來審核是否需要停權處理。惡意亂舉報都會被追究。', 'en': 'Your report and screenshot are only visible to admins, and will be reviewed to decide if a suspension is needed. Malicious false reports will also be investigated.', 'yue': '舉報內容同截圖淨係管理員先睇到，會用嚟審核駛唔駛停權。亂咁舉報都會被追究㗎' },
+    'room.reportTargetLabel': { 'zh-Hant': '被舉報用家：', 'en': 'Reported User: ', 'yue': '被舉報嘅用家：' },
+    'room.reportScreenshotLabel': { 'zh-Hant': '已自動截取證據截圖（會一齊交給管理員）', 'en': 'Evidence screenshot auto-captured (will be sent to admins too)', 'yue': '自動截咗張證據截圖（會一齊交畀管理員）' },
+    'room.reportScreenshotMissing': { 'zh-Hant': '目前無法取得對方畫面（可能對方鏡頭已關閉），舉報仍然會照常送出，管理員會依其他資料處理。', 'en': "Couldn't capture their camera right now (their camera may be off) — your report will still be submitted, and admins will review it using other information.", 'yue': '而家攞唔到對方畫面（可能對方閂咗鏡頭），舉報照樣會送出，管理員會用其他資料處理' },
+    'room.reportReasonLabel': { 'zh-Hant': '舉報原因 *', 'en': 'Reason for Report *', 'yue': '舉報原因 *' },
+    'room.reportReasonInappropriate': { 'zh-Hant': '不當／不雅行為', 'en': 'Inappropriate behaviour', 'yue': '不當／不雅行為' },
+    'room.reportReasonHarassment': { 'zh-Hant': '言語騷擾／欺凌', 'en': 'Verbal harassment / bullying', 'yue': '言語騷擾／欺凌' },
+    'room.reportReasonPrivateContact': { 'zh-Hant': '要求私下聯絡／索取個人資料', 'en': 'Asking to contact privately / requesting personal info', 'yue': '要求私下聯絡／攞個人資料' },
+    'room.reportReasonOther': { 'zh-Hant': '其他', 'en': 'Other', 'yue': '其他' },
+    'room.reportNotesLabel': { 'zh-Hant': '補充說明（選填）', 'en': 'Additional Notes (optional)', 'yue': '補充說明（唔填都得）' },
+    'room.reportNotesPlaceholder': { 'zh-Hant': '想同管理員講的其他細節...', 'en': 'Any other details you want to tell the admins...', 'yue': '想同管理員講嘅其他細節...' },
+    'room.reportSubmitBtn': { 'zh-Hant': '確認送出舉報', 'en': 'Submit Report', 'yue': '確認送出舉報' },
+    'room.presenceCheckTitle': { 'zh-Hant': '你仍在學習嗎？', 'en': 'Are you still studying?', 'yue': '你仲係咪喺度溫緊書？' },
+    'room.presenceCheckDesc': { 'zh-Hant': '為了確保積分／經驗值只會給予真正專注的同學，請在 5 分鐘內按一下確認。逾時未確認會暫停計分，直至你返回為止。', 'en': 'To make sure PTS and EXP only go to students who are genuinely focused, please confirm within 5 minutes. If you miss it, scoring will pause until you return.', 'yue': '為咗確保PTS同EXP淨係畀真係專注緊嘅同學，要喺5分鐘內撳一下確認。過咗時仲未確認就會暫停計分，直到你返返嚟為止' },
+    'room.presenceCheckConfirmBtn': { 'zh-Hant': '是，我仍在學習', 'en': "Yes, I'm still studying", 'yue': '係呀，我仲喺度溫緊書' },
+    'room.micLimitTitle': { 'zh-Hant': '麥克風已自動關閉', 'en': 'Microphone Automatically Turned Off', 'yue': '咪自動閂咗' },
+    'room.micLimitDesc': { 'zh-Hant': '開咪時間已達上限，系統已自動關閉麥克風。請勿再繼續交談，宜盡快回到溫習狀態，繼續努力，加油！', 'en': "You've reached the mic time limit, so the system has automatically turned it off. Please stop chatting and get back to studying — keep it up!", 'yue': '開咪時間到咗上限，系統自動幫你閂咗咪。唔好再傾偈喇，快啲返去溫書，加油！' },
+    'room.micLimitAckBtn': { 'zh-Hant': '知道了，繼續溫習', 'en': 'Got it, back to studying', 'yue': '知道喇，返去溫書' },
+    'room.hostLeaveTitle': { 'zh-Hant': '你是房主，想點處理這個房間？', 'en': "You're the host — what would you like to do with this room?", 'yue': '你係房主，想點處理呢間房？' },
+    'room.hostLeaveDesc': { 'zh-Hant': '其他成員仍然在，你可以選擇保留房間讓他們繼續使用，或者直接關閉整個房間。', 'en': 'Other members are still here. You can keep the room open for them, or close the whole room.', 'yue': '仲有其他人喺房入面，你可以保留間房俾佢哋繼續用，或者直接閂埋成間房' },
+    'room.hostLeaveKeepBtn': { 'zh-Hant': '保留房間，自己退出', 'en': 'Keep room, just leave', 'yue': '保留間房，自己走先' },
+    'room.hostLeaveDeleteBtn': { 'zh-Hant': '關閉房間，所有人踢走', 'en': 'Close room, remove everyone', 'yue': '閂埋間房，全部人踢走' },
+    'room.passwordLockedTitle': { 'zh-Hant': '這個溫習室已上鎖', 'en': 'This Study Room Is Locked', 'yue': '呢個溫習室鎖咗' },
+    'room.passwordLockedDesc': { 'zh-Hant': '請向房主查詢密碼，並輸入 4 位數字密碼先可以加入。', 'en': 'Please ask the host for the password and enter the 4-digit code to join.', 'yue': '要問返房主拎密碼，打返4位數字密碼先可以加入' },
+    'room.passwordConfirmBtn': { 'zh-Hant': '確認加入', 'en': 'Confirm & Join', 'yue': '確認加入' },
+    'room.transferHostConfirmTemplate': { 'zh-Hant': '確定要將房主身份轉移給「{name}」？轉移之後你會變回普通成員，不會再有踢人／轉移房主的權限。', 'en': 'Transfer host to "{name}"? After transferring, you\'ll become a regular member and lose the ability to remove members or transfer host.', 'yue': '確定要將房主身份轉俾「{name}」？轉咗之後你會變返普通成員，唔會再有踢人／轉房主嘅權限' },
+    'room.transferHostSuccessTemplate': { 'zh-Hant': '已將房主身份轉移給「{name}」', 'en': 'Host transferred to "{name}"', 'yue': '已經將房主身份轉咗俾「{name}」' },
+    'room.transferHostFailedTemplate': { 'zh-Hant': '轉移房主失敗：{error}', 'en': 'Failed to transfer host: {error}', 'yue': '轉房主失敗：{error}' },
+    'room.kickConfirmTemplate': { 'zh-Hant': '確定要將「{name}」移出這個溫習房？他之後都不可以再加入這間房。', 'en': 'Remove "{name}" from this study room? They won\'t be able to rejoin this room afterwards.', 'yue': '確定要將「{name}」踢出呢間溫習房？佢之後都唔可以再加入呢間房' },
+    'room.kickSuccessTemplate': { 'zh-Hant': '已將「{name}」移出房間，他不可以再加入這間房', 'en': '"{name}" has been removed from the room and cannot rejoin', 'yue': '已經將「{name}」踢咗出房，佢唔可以再加入呢間房' },
+    'room.kickFailedTemplate': { 'zh-Hant': '踢走失敗：{error}', 'en': 'Failed to remove: {error}', 'yue': '踢走唔到：{error}' },
+
+    // ── 邀請朋友入房／收到邀請提示卡／PDF預覽／等級詳情／頭像裁剪（第三
+    // 階段補鑊：Alvis截圖發現「邀請朋友加入溫習室」完全未翻譯，順便查
+    // 埋成個網站搵到呢幾個都係100%未翻譯嘅學生日常彈窗，一次過補晒）──
+    'room.inviteFriendTitle': { 'zh-Hant': '邀請朋友加入溫習室', 'en': 'Invite Friends to the Study Room', 'yue': '邀請朋友加入溫習室' },
+    'room.inviteByLinkHeading': { 'zh-Hant': '以連結方式邀請（WhatsApp、Instagram 等社交媒體均適用）', 'en': 'Invite with a Link (works with WhatsApp, Instagram, etc.)', 'yue': '用連結邀請（WhatsApp、Instagram 呢啲都用得）' },
+    'room.inviteByLinkDesc': { 'zh-Hant': '對方無須為閣下於本平台之朋友，按一下即可將連結傳送予任何人士', 'en': "They don't need to be your friend on this platform — just tap to send the link to anyone", 'yue': '對方唔使係你喺呢個平台嘅朋友，撳一下就可以將連結send俾任何人' },
+    'room.shareLinkBtn': { 'zh-Hant': '分享連結', 'en': 'Share Link', 'yue': '分享連結' },
+    'room.copyLinkBtn': { 'zh-Hant': '複製連結', 'en': 'Copy Link', 'yue': '複製連結' },
+    'room.inviteFriendsHeading': { 'zh-Hant': '或邀請已加為朋友之同學：', 'en': 'Or invite students who are already your friends:', 'yue': '或者邀請已經加咗做朋友嘅同學：' },
+    'room.inviteExpiryHint': { 'zh-Hant': '邀請將於五分鐘內有效，逾時即告失效', 'en': 'Invites are valid for 5 minutes and will expire after that', 'yue': '邀請5分鐘內有效，過咗時就會失效' },
+    'room.inviteFriendCloseBtn': { 'zh-Hant': '關閉', 'en': 'Close', 'yue': '閂返' },
+    'room.inviteReceivedDefaultText': { 'zh-Hant': '朋友邀請你加入溫習房', 'en': 'A friend has invited you to a study room', 'yue': '朋友邀請你加入溫習房' },
+    'room.inviteReceivedTemplate': { 'zh-Hant': '{from} 邀請你加入「{room}」', 'en': '{from} invited you to join "{room}"', 'yue': '{from} 邀請你加入「{room}」' },
+    'room.inviteFromFallback': { 'zh-Hant': '朋友', 'en': 'A friend', 'yue': '朋友' },
+    'room.inviteRoomFallback': { 'zh-Hant': '溫習房', 'en': 'study room', 'yue': '溫習房' },
+    'room.inviteDeclineBtn': { 'zh-Hant': '拒絕', 'en': 'Decline', 'yue': '唔去住' },
+    'room.inviteJoinBtn': { 'zh-Hant': '加入', 'en': 'Join', 'yue': '加入' },
+    'room.inviteLaterBtn': { 'zh-Hant': '遲些先想', 'en': 'Maybe later', 'yue': '遲啲先諗' },
+    'room.pdfPreviewDefaultTitle': { 'zh-Hant': '預覽', 'en': 'Preview', 'yue': '預覽' },
+    'room.pdfPreviewCloseBtn': { 'zh-Hant': '關閉', 'en': 'Close', 'yue': '閂返' },
+    'room.pdfPreviewPrevPage': { 'zh-Hant': '‹ 上一頁', 'en': '‹ Previous Page', 'yue': '‹ 上一頁' },
+    'room.pdfPreviewNextPage': { 'zh-Hant': '下一頁 ›', 'en': 'Next Page ›', 'yue': '下一頁 ›' },
+    'level.infoTitle': { 'zh-Hant': '等級與段位詳情', 'en': 'Level & Tier Details', 'yue': '等級與段位詳情' },
+    'level.infoCloseBtn': { 'zh-Hant': '關閉', 'en': 'Close', 'yue': '閂返' },
+
+    // ── EXP／升級進度文字（app-features.js嘅updateLevelDisplay()、
+    // openLevelInfoModal()、「我的帳戶」彈窗——全部都係JS直接組template
+    // literal，之前一直漏咗冇入翻譯系統）──
+    'level.expShortTemplate': { 'zh-Hant': '{into} / {needed} EXP · 仍欠 {remaining} EXP 升級', 'en': '{into} / {needed} EXP · {remaining} EXP to go until you level up', 'yue': '{into} / {needed} EXP · 重差 {remaining} EXP 就升級' },
+    'level.expWithNextLvTemplate': { 'zh-Hant': '{into} / {needed} EXP · 仍欠 {remaining} EXP 就升到 Lv.{nextLevel}', 'en': '{into} / {needed} EXP · {remaining} EXP to go until Lv.{nextLevel}', 'yue': '{into} / {needed} EXP · 重差 {remaining} EXP 就到 Lv.{nextLevel}' },
+    'level.expWithNextLvTotalTemplate': { 'zh-Hant': '{into} / {needed} EXP · 仍欠 {remaining} EXP 就升到 Lv.{nextLevel}（總計 {total} EXP）', 'en': '{into} / {needed} EXP · {remaining} EXP to go until Lv.{nextLevel} (total {total} EXP)', 'yue': '{into} / {needed} EXP · 重差 {remaining} EXP 就到 Lv.{nextLevel}（總共 {total} EXP）' },
+    'level.headerBadgeTooltipTemplate': { 'zh-Hant': '{title}（{titleEn}）｜仍欠 {remaining} EXP 就升到 Lv.{nextLevel}', 'en': '{title} ({titleEn}) | {remaining} EXP to go until Lv.{nextLevel}', 'yue': '{title}（{titleEn}）｜重差 {remaining} EXP 就到 Lv.{nextLevel}' },
+    'avatar.cropTitle': { 'zh-Hant': '調整頭像位置', 'en': 'Adjust Avatar Position', 'yue': '調整頭像位置' },
+    'avatar.cropHint': { 'zh-Hant': '拖曳相片調整位置，並使用滑桿調整縮放', 'en': 'Drag the photo to reposition it, and use the slider to zoom', 'yue': '拖吓張相調位置，再用滑桿調縮放' },
+    'avatar.cropConfirmBtn': { 'zh-Hant': '確認上傳', 'en': 'Confirm Upload', 'yue': '確認上傳' },
+
+    // ── 「邀請朋友入房」彈窗嘅好友列表（app-features.js
+    // renderInviteFriendListUI／openInviteFriendModal）：呢幾句之前
+    // 漏咗，Alvis截圖發現English／廣東話版仍然顯示緊繁體中文嘅
+    // 「目前並無可邀請之朋友」。另外房間入面個科目標籤（room-video.js
+    // 嘅#active-room-subject）之前冇跟window.translateSubjectName，
+    // 同一輪一齊補鑊。 ──
+    'room.inviteNoFriendsAvailable': { 'zh-Hant': '目前並無可邀請之朋友（可能對方已在房內，或閣下尚未加入任何朋友）', 'en': 'No friends available to invite right now (they may already be in the room, or you have no friends added yet)', 'yue': '而家冇朋友可以邀請（可能佢哋已經喺房入面，或者你仲未加任何朋友）' },
+    'room.onlineIndicator': { 'zh-Hant': '● 在線', 'en': '● Online', 'yue': '● 在線' },
+    'room.inviteBtnShort': { 'zh-Hant': '邀請', 'en': 'Invite', 'yue': '邀請' },
+    'room.loadingFriendList': { 'zh-Hant': '載入中好友名單...', 'en': 'Loading friend list...', 'yue': 'Load緊好友名單...' },
+    'room.loadFriendListFailed': { 'zh-Hant': '載入失敗，請再試一次', 'en': 'Failed to load, please try again', 'yue': 'Load唔到，試多次啦' },
+    'room.needLoginToInvite': { 'zh-Hant': '請先登入', 'en': 'Please log in first', 'yue': '要登入先得㗎' },
+    'room.needInRoomToInvite': { 'zh-Hant': '要在房間入面先可以邀請朋友', 'en': 'You need to be in a room to invite friends', 'yue': '要喺房入面先可以邀請朋友' },
+    'room.copyLinkSuccess': { 'zh-Hant': '連結已複製，請貼上 WhatsApp、Instagram 等傳送予朋友', 'en': 'Link copied — paste it into WhatsApp, Instagram, etc. to send to friends', 'yue': '連結已複製，貼去WhatsApp、Instagram呢啲send俾朋友啦' },
+    'room.copyLinkFailedTemplate': { 'zh-Hant': '複製失敗，連結：{link}', 'en': 'Copy failed. Link: {link}', 'yue': '複製唔到，連結：{link}' },
+    'room.hostClosedRoomToast': { 'zh-Hant': '房主已關閉房間，你已被移至大廳', 'en': "The host has closed the room — you've been moved back to the lobby", 'yue': '房主閂咗間房，你已經返咗去大廳' },
+    'room.kickedOutToast': { 'zh-Hant': '你已被房主移出這個溫習房，之後都不可以再加入', 'en': "You've been removed from this study room by the host and can't rejoin it", 'yue': '你已經俾房主踢咗出呢間溫習房，之後都唔可以再加入' },
+
+    // ── 視訊溫習室內其餘toast提示／按鈕loading字（第四階段深度補鑊：
+    // Alvis喺Staging實測English版，發現「房主已關閉房間」toast都未
+    // 翻譯，查一查發現room-video.js仲有成30幾句短提示未跟翻譯系統，
+    // 一次過補晒，唔再等用家一個個截圖）──
+    'room.debugLogCopied': { 'zh-Hant': '已複製除錯記錄', 'en': 'Debug log copied', 'yue': '已複製除錯記錄' },
+    'room.debugLogCopyFailed': { 'zh-Hant': '複製失敗，請長按選取文字手動複製', 'en': 'Copy failed — press and hold to select text and copy manually', 'yue': '複製唔到，長按揀文字自己複製啦' },
+    'room.cannotReportSelf': { 'zh-Hant': '不可以舉報自己', 'en': "You can't report yourself", 'yue': '唔可以舉報自己' },
+    'room.reportTargetFallback': { 'zh-Hant': '呢位同學', 'en': 'This student', 'yue': '呢位同學' },
+    'room.reportDataError': { 'zh-Hant': '舉報資料有錯，請重新再試', 'en': 'Something went wrong with the report data — please try again', 'yue': '舉報資料有錯，再試多次啦' },
+    'room.reportSendingBtn': { 'zh-Hant': '⏳ 傳送中...', 'en': '⏳ Sending...', 'yue': '⏳ 傳緊...' },
+    'room.reportTooManyAttempts': { 'zh-Hant': '舉報次數過多，請稍後再試', 'en': 'Too many reports submitted — please try again later', 'yue': '舉報次數太多，遲啲再試' },
+    'room.reportSubmitFailedTemplate': { 'zh-Hant': '送出舉報失敗：{error}', 'en': 'Failed to submit report: {error}', 'yue': '送唔到舉報：{error}' },
+    'room.reportSubmitSuccess': { 'zh-Hant': '已送出舉報，管理員會盡快跟進，多謝你保障大家的安全', 'en': "Report submitted — an admin will follow up soon. Thanks for helping keep everyone safe", 'yue': '已經送咗舉報，管理員會盡快跟進，多謝你保障大家安全' },
+    'room.reportSubmitFailedTemplate2': { 'zh-Hant': '舉報送出失敗：{error}', 'en': 'Report failed to send: {error}', 'yue': '舉報send唔到：{error}' },
+    'room.readPasswordFailedTemplate': { 'zh-Hant': '讀取密碼失敗：{error}', 'en': 'Failed to read password: {error}', 'yue': '讀唔到密碼：{error}' },
+    'room.readPasswordFailedRetry': { 'zh-Hant': '讀取密碼失敗，請再試一次', 'en': 'Failed to read password — please try again', 'yue': '讀唔到密碼，試多次啦' },
+    'room.needLoginMember': { 'zh-Hant': '請先登入會員', 'en': 'Please log in first', 'yue': '要登入會員先得㗎' },
+    'room.passwordMustBe4Digits': { 'zh-Hant': '密碼鎖必須係 4 位數字，或者留空代表不設密碼', 'en': 'The password lock must be a 4-digit number, or leave it blank for no password', 'yue': '密碼要係4位數字，唔設密碼就留空' },
+    'room.creatingRoomBtn': { 'zh-Hant': '⏳ 建立中…', 'en': '⏳ Creating...', 'yue': '⏳ 開緊房…' },
+    'room.createRoomSuccess': { 'zh-Hant': '溫習房建立成功並已廣播至公開大廳！', 'en': 'Study room created and broadcast to the public lobby!', 'yue': '溫習房開好晒，已經廣播去公開大廳！' },
+    'room.createRoomFailedTemplate': { 'zh-Hant': '建立房間失敗: {error}', 'en': 'Failed to create room: {error}', 'yue': '開房失敗：{error}' },
+    'room.joiningRoomBtn': { 'zh-Hant': '⏳ 加入緊…', 'en': '⏳ Joining...', 'yue': '⏳ 加入緊…' },
+    'room.joinRoomSuccessTemplate': { 'zh-Hant': '成功加入「{room}」！', 'en': 'Joined "{room}"!', 'yue': '成功加入「{room}」！' },
+    'room.preparingRoom': { 'zh-Hant': '正在準備溫習房，請稍等…', 'en': 'Preparing study room, please wait…', 'yue': '準備緊溫習房，等陣…' },
+    'room.tooManyAttempts': { 'zh-Hant': '嘗試次數過多，請稍後再試', 'en': 'Too many attempts — please try again later', 'yue': '試得太多次，遲啲再試' },
+    'room.alreadyRemovedCannotRejoin': { 'zh-Hant': '你已經被移出這間房，不可以再加入', 'en': "You've already been removed from this room and can't rejoin", 'yue': '你已經俾人移出咗呢間房，唔可以再加入' },
+    'room.verifyEntryFailed': { 'zh-Hant': '驗證入房資格失敗，請檢查網絡連線後再試', 'en': 'Failed to verify entry — please check your network connection and try again', 'yue': '驗證入房資格失敗，check吓網絡再試' },
+    'room.wrongPasswordCannotJoin': { 'zh-Hant': '密碼錯誤，未能加入這個溫習室', 'en': "Wrong password — couldn't join this study room", 'yue': '密碼錯晒，入唔到呢個溫習室' },
+    'room.entryVerifyFailed': { 'zh-Hant': '入房驗證失敗，請檢查網絡連線後再試', 'en': 'Entry verification failed — please check your network connection and try again', 'yue': '入房驗證失敗，check吓網絡再試' },
+    'room.roomFullTemplate': { 'zh-Hant': '房間已滿（{count}/{max}），暫時無法加入', 'en': 'Room is full ({count}/{max}) — unable to join right now', 'yue': '間房爆咗（{count}/{max}），而家入唔到' },
+    'room.deleteRoomSuccess': { 'zh-Hant': '已刪除該溫習房', 'en': 'Study room deleted', 'yue': '已經刪除咗間溫習房' },
+    'room.bgNoisePlayFailed': { 'zh-Hant': '背景音播放失敗，請再揀一次', 'en': 'Failed to play background sound — please select again', 'yue': '背景音播唔到，再揀多次啦' },
+    'room.levelUpTemplate': { 'zh-Hant': '升級了！現在是 Lv.{level} {title}！', 'en': "Level up! You're now Lv.{level} {title}!", 'yue': '升級喇！而家係 Lv.{level} {title}！' },
+    'room.presenceAutoSuspended': { 'zh-Hant': '偵測到你可能不在，已暫停計分。按「是，我仍在學習」即可恢復', 'en': 'We noticed you might be away, so scoring has been paused. Tap "Yes, I\'m still studying" to resume', 'yue': '偵測到你可能唔喺度，計分已經暫停。撳「係呀，我仲喺度溫緊書」就可以恢復' },
+    'room.presenceBonusTemplate': { 'zh-Hant': '讚！繼續加油溫習，額外送你 +{bonus} PTS', 'en': 'Nice! Keep up the great study session — here\'s an extra +{bonus} PTS', 'yue': '叻仔叻女！繼續加油溫書，額外送你 +{bonus} PTS' },
+    'room.hostTransferredAutoTemplate': { 'zh-Hant': '房主已移交給 {name}，房間繼續開放', 'en': 'Host transferred to {name} — the room stays open', 'yue': '房主已經轉咗俾 {name}，間房繼續開放' },
+    'room.micAccessFailedCameraOnly': { 'zh-Hant': '未能存取麥克風，僅開啟鏡頭畫面', 'en': "Couldn't access the microphone — camera only", 'yue': '攞唔到麥克風權限，淨係開咗鏡頭' },
+    'room.gettingMicBtn': { 'zh-Hant': '⏳ 取得麥克風中...', 'en': '⏳ Getting microphone...', 'yue': '⏳ 攞緊咪...' },
+    'room.micCoolingDownTemplate': { 'zh-Hant': '麥克風仍在冷卻中，大約 {mins} 分鐘後才可以再開啟', 'en': 'Microphone is still cooling down — you can turn it on again in about {mins} minutes', 'yue': '咪仲喺度冷卻緊，大約 {mins} 分鐘後先可以再開' },
+    'room.micAutoOffAfter3Min': { 'zh-Hant': '開啟麥克風已滿 3 分鐘，已為你自動關閉，請專心繼續溫習！麥克風按鈕進入 5 分鐘冷卻', 'en': "You've had your mic on for 3 minutes, so it's been automatically turned off. Stay focused and keep studying! The mic button will cool down for 5 minutes", 'yue': '開咪已經滿3分鐘，自動幫你閂咗，專心返去溫書喇！咪掣而家開始5分鐘冷卻' },
+    'room.micCooldownDone': { 'zh-Hant': '麥克風冷卻完成，可以重新開啟', 'en': 'Microphone cooldown complete — you can turn it on again', 'yue': '咪冷卻完成，可以重新開返' },
+    'room.mediaPermissionDenied': { 'zh-Hant': '權限被拒絕。請到瀏覽器／系統設定允許這個網站使用鏡頭與麥克風後再試一次。', 'en': 'Permission denied. Please allow this site to use your camera and microphone in your browser/system settings, then try again.', 'yue': '權限俾人拒絕咗。要去瀏覽器／系統設定度允許呢個網站用鏡頭同麥克風，先再試多次' },
+    'room.mediaDeviceNotFound': { 'zh-Hant': '未偵測到鏡頭或麥克風裝置。', 'en': 'No camera or microphone device detected.', 'yue': '偵測唔到鏡頭或者麥克風裝置' },
+    'room.mediaDeviceBusy': { 'zh-Hant': '鏡頭或麥克風正被其他 App／分頁佔用，請關閉後再試一次（或重新整理網頁）。', 'en': 'Your camera or microphone is being used by another app/tab. Please close it and try again (or refresh the page).', 'yue': '鏡頭或者麥克風俾第啲App／分頁用緊，閂咗佢再試（或者重新整理網頁）' },
+    'room.mediaAccessFailedGeneric': { 'zh-Hant': '無法存取鏡頭／麥克風，請檢查瀏覽器權限設定。', 'en': 'Unable to access camera/microphone — please check your browser permission settings.', 'yue': '攞唔到鏡頭／麥克風，check吓瀏覽器權限設定' },
+
     // ── 疑難解答區（第四階段：English 由 Claude 翻譯、廣東話口語由
     //    Claude 起草，兩者都仲要 Alvis 過目先算數，未過目之前先當
     //    草稿睇待）。分類 Tab（全部／必修科目／選修科目／其他）重用
@@ -291,7 +461,7 @@
     //    草稿睇待）。包括導師名錄（tab-vip）同導師專頁（tab-tutor-view）
     //    呢兩個分頁——淨係學生瀏覽導師嘅呢一邊，導師自己嘅「管理教材」
     //    後台（tab-tutor-materials）未轉，留返下一階段。 ──
-    'vip.heading': { 'zh-Hant': '溫習資源', 'en': 'Study Resources', 'yue': '溫習資源' },
+    'vip.heading': { 'zh-Hant': '教材中心', 'en': 'Materials Hub', 'yue': '教材中心' },
     'vip.subheading': { 'zh-Hant': '瀏覽已上架的導師，點擊卡片可以查看資料並追蹤，接收最新消息', 'en': 'Browse listed tutors — tap a card to view their profile, follow them, and get updates', 'yue': '睇吓有邊啲導師，撳張卡可以睇資料同追蹤，第一時間收到最新消息' },
     'vip.loadingDirectory': { 'zh-Hant': '載入導師名錄中…', 'en': 'Loading tutor directory…', 'yue': 'Load緊導師名單…' },
     // {msg} 係佔位符，塞入錯誤訊息本身。
@@ -299,7 +469,7 @@
     'vip.noTutorsForSubjectTemplate': { 'zh-Hant': '暫時未有教授「{subject}」的已上架導師', 'en': 'No listed tutors teaching "{subject}" yet', 'yue': '暫時未有導師教緊「{subject}」' },
     'vip.noTutorsYet': { 'zh-Hant': '目前尚未有已上架的導師', 'en': 'No listed tutors yet', 'yue': '而家仲未有已上架嘅導師' },
     'vip.viewLabel': { 'zh-Hant': '查看 ›', 'en': 'View ›', 'yue': '睇吓 ›' },
-    'tutorview.backButton': { 'zh-Hant': '← 返回溫習資源', 'en': '← Back to Study Resources', 'yue': '← 返去溫習資源' },
+    'tutorview.backButton': { 'zh-Hant': '← 返回教材中心', 'en': '← Back to Materials Hub', 'yue': '← 返去教材中心' },
     'tutorview.followers': { 'zh-Hant': '粉絲', 'en': 'Followers', 'yue': '粉絲' },
     'tutorview.materialsHeading': { 'zh-Hant': '已上架教材', 'en': 'Published Materials', 'yue': '已上架教材' },
     'tutorview.defaultName': { 'zh-Hant': '導師', 'en': 'Tutor', 'yue': '導師' },
@@ -633,6 +803,16 @@
 
     // ── 通用：未填寫欄位嘅預設字 ──
     'common.notFilled': { 'zh-Hant': '未填寫', 'en': 'Not filled in', 'yue': '未填' },
+    // 註冊嗰陣「喜愛學科」／「討厭學科」留白嘅話，app-core.js會存落
+    // 資料庫做「無」呢個字（唔係空字串），所以顯示嗰陣淨係靠
+    // `u.favSubjects || fallback`判斷唔到要唔要轉用common.notFilled，
+    // 要額外識別「無」呢個值先得。
+    'common.noneValue': { 'zh-Hant': '無', 'en': 'None', 'yue': '無' },
+
+    // ── 「編輯個人資料」聯絡電郵嗰行嘅已驗證／未驗證徽章（app-core.js
+    // 嘅 updateProfileEmailVerifyUI()）──
+    'profile.emailVerifiedBadge': { 'zh-Hant': '已驗證', 'en': 'Verified', 'yue': '已驗證' },
+    'profile.emailNotVerifiedBadge': { 'zh-Hant': '未驗證', 'en': 'Not Verified', 'yue': '未驗證' },
 
     // ── 註冊表格：分區選單預設提示字 ──
     'reg.chooseDistrictFirst': { 'zh-Hant': '請先選擇地區', 'en': 'Please choose a district first', 'yue': '請先揀地區' },
@@ -863,6 +1043,10 @@
     // 服務條款／私隱政策內容（admin-panel.js 嘅 window.LEGAL_CONTENT_RAW）
     // 同樣要即時跟住轉語言換文字（第四階段後續第13項，管理員後台可編輯）
     if (typeof window.refreshLegalContentLanguage === 'function') window.refreshLegalContentLanguage();
+    // 「編輯個人資料」聯絡電郵嗰行嘅「已驗證／未驗證」徽章（app-core.js）
+    // 唔係靠data-i18n畫出嚟，而係JS直接set innerText，要喺度額外補一句
+    // 先會即時跟住轉語言（唔使閂咗再開返個人資料頁先見到新語言）。
+    if (typeof window.updateProfileEmailVerifyUI === 'function') window.updateProfileEmailVerifyUI();
   };
 
   // 一開波（未必已登入）都套用一次，等未登入嗰陣如果之前揀過語言，

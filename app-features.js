@@ -633,7 +633,8 @@
       const headerBadge = document.getElementById('header-level-badge');
       if (headerBadge) {
         headerBadge.innerText = `Lv.${info.level}`;
-        headerBadge.title = `${rank.title}（${rank.titleEn}）｜仍欠 ${info.expRemaining} EXP 就升到 Lv.${info.level + 1}`;
+        headerBadge.title = window.t('level.headerBadgeTooltipTemplate', `${rank.title}（${rank.titleEn}）｜仍欠 ${info.expRemaining} EXP 就升到 Lv.${info.level + 1}`)
+          .replace('{title}', rank.title).replace('{titleEn}', rank.titleEn).replace('{remaining}', info.expRemaining).replace('{nextLevel}', info.level + 1);
       }
 
       const globalLevelBadge = document.getElementById('global-level-badge');
@@ -650,7 +651,8 @@
         profRankTitle.innerText = `${rank.title} (${rank.titleEn})`;
         profRankTitle.style.color = rank.color;
       }
-      if (profExpText) profExpText.innerText = `${info.expIntoLevel} / ${info.expNeededForNext} EXP · 仍欠 ${info.expRemaining} EXP 就升到 Lv.${info.level + 1}（總計 ${info.exp} EXP）`;
+      if (profExpText) profExpText.innerText = window.t('level.expWithNextLvTotalTemplate', `${info.expIntoLevel} / ${info.expNeededForNext} EXP · 仍欠 ${info.expRemaining} EXP 就升到 Lv.${info.level + 1}（總計 ${info.exp} EXP）`)
+        .replace('{into}', info.expIntoLevel).replace('{needed}', info.expNeededForNext).replace('{remaining}', info.expRemaining).replace('{nextLevel}', info.level + 1).replace('{total}', info.exp);
       if (profExpBar) profExpBar.style.width = info.pctToNext + '%';
 
       // 主頁「我的水獺」卡嘅等級／升級所需 EXP 都係跟呢份 info 嚟，
@@ -671,7 +673,8 @@
       if (currentEl) {
         currentEl.innerHTML = `
           <div style="font-size:15px; font-weight:bold; color:${rank.color || 'var(--brand-800)'};">Lv.${info.level} ${escapeHtml(rank.title || '')}（${escapeHtml(rank.titleEn || '')}）</div>
-          <div style="font-size:13px; color:#888; margin-top:4px;">${info.expIntoLevel} / ${info.expNeededForNext} EXP · 仍欠 ${info.expRemaining} EXP 就升到 Lv.${info.level + 1}</div>
+          <div style="font-size:13px; color:#888; margin-top:4px;">${window.t('level.expWithNextLvTemplate', `${info.expIntoLevel} / ${info.expNeededForNext} EXP · 仍欠 ${info.expRemaining} EXP 就升到 Lv.${info.level + 1}`)
+            .replace('{into}', info.expIntoLevel).replace('{needed}', info.expNeededForNext).replace('{remaining}', info.expRemaining).replace('{nextLevel}', info.level + 1)}</div>
           ${rank.desc ? `<div style="font-size:13px; color:#555; margin-top:6px; line-height:1.5;">${escapeHtml(rank.desc)}</div>` : ''}
         `;
       }
@@ -2043,9 +2046,9 @@
       setText('myacc-username', u.username || '同學');
       setText('myacc-loginid', u.loginId ? ('🆔 ' + u.loginId) : '🆔 未設定');
       setText('myacc-school', u.school || window.t('common.notFilled', '未填寫'));
-      setText('myacc-grade', u.grade || window.t('common.notFilled', '未填寫'));
-      setText('myacc-fav', u.favSubjects || window.t('common.notFilled', '未填寫'));
-      setText('myacc-dislike', u.dislikeSubjects || window.t('common.notFilled', '未填寫'));
+      setText('myacc-grade', u.grade ? (window.translateGradeName ? window.translateGradeName(u.grade) : u.grade) : window.t('common.notFilled', '未填寫'));
+      setText('myacc-fav', window.displayOptionalFieldValue ? window.displayOptionalFieldValue(u.favSubjects) : (u.favSubjects || window.t('common.notFilled', '未填寫')));
+      setText('myacc-dislike', window.displayOptionalFieldValue ? window.displayOptionalFieldValue(u.dislikeSubjects) : (u.dislikeSubjects || window.t('common.notFilled', '未填寫')));
       setText('myacc-hours', (parseFloat(u.hours) || 0).toFixed(1) + ' ' + window.t('unit.hours', '小時'));
       setText('myacc-points', (u.points ?? 0) + ' PTS');
 
@@ -2058,7 +2061,8 @@
       }
       const expBar = document.getElementById('myacc-exp-bar');
       if (expBar) expBar.style.width = info.pctToNext + '%';
-      setText('myacc-exp-text', `${info.expIntoLevel} / ${info.expNeededForNext} EXP · 仍欠 ${info.expRemaining} EXP 升級`);
+      setText('myacc-exp-text', window.t('level.expShortTemplate', `${info.expIntoLevel} / ${info.expNeededForNext} EXP · 仍欠 ${info.expRemaining} EXP 升級`)
+        .replace('{into}', info.expIntoLevel).replace('{needed}', info.expNeededForNext).replace('{remaining}', info.expRemaining));
 
       // 「溫習日記」獨立做咗一個分頁（tab-diary），呢度資料卡淨係顯示
       // 簡要數字（相片／粉絲／追蹤中），撳「查看溫習日記」先真正載入
@@ -3418,9 +3422,9 @@
         if (nameEl) nameEl.innerText = u.username || window.t('lb.defaultUsername', '同學');
         document.getElementById('pop-user-verified').innerText = u.loginId ? ('🆔 ' + u.loginId) : '';
         document.getElementById('pop-user-school').innerText = u.school || window.t('common.notFilled', '未填寫');
-        document.getElementById('pop-user-grade').innerText = u.grade || window.t('common.notFilled', '未填寫');
-        document.getElementById('pop-user-fav').innerText = u.favSubjects || window.t('common.notFilled', '未填寫');
-        document.getElementById('pop-user-dislike').innerText = u.dislikeSubjects || window.t('common.notFilled', '未填寫');
+        document.getElementById('pop-user-grade').innerText = u.grade ? (window.translateGradeName ? window.translateGradeName(u.grade) : u.grade) : window.t('common.notFilled', '未填寫');
+        document.getElementById('pop-user-fav').innerText = window.displayOptionalFieldValue ? window.displayOptionalFieldValue(u.favSubjects) : (u.favSubjects || window.t('common.notFilled', '未填寫'));
+        document.getElementById('pop-user-dislike').innerText = window.displayOptionalFieldValue ? window.displayOptionalFieldValue(u.dislikeSubjects) : (u.dislikeSubjects || window.t('common.notFilled', '未填寫'));
         document.getElementById('pop-user-hours').innerText = (parseFloat(u.hours) || 0).toFixed(1) + " " + window.t('unit.hours', '小時');
         const popPhotoCountEl = document.getElementById('pop-photo-count');
         if (popPhotoCountEl) popPhotoCountEl.innerText = u.photoCount || 0;
@@ -4004,7 +4008,7 @@
             </div>
             <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
               <div style="text-align:right; font-size:13px; color:#888; line-height:1.5;">
-                <div>${escapeHtml(u.grade || window.t('common.notFilled', '未填寫'))}</div>
+                <div>${escapeHtml(u.grade ? (window.translateGradeName ? window.translateGradeName(u.grade) : u.grade) : window.t('common.notFilled', '未填寫'))}</div>
                 <div style="color:${rank.color};">Lv.${levelInfo.level} ${escapeHtml(rank.title)}</div>
                 <div>累積溫習 ${(parseFloat(u.hours) || 0).toFixed(1)} 小時</div>
               </div>
@@ -4937,9 +4941,9 @@
     async function copyLinkToClipboard(link, text) {
       try {
         await navigator.clipboard.writeText(`${text}\n${link}`);
-        window.showToast('連結已複製，請貼上 WhatsApp、Instagram 等傳送予朋友', '📋');
+        window.showToast(window.t('room.copyLinkSuccess', '連結已複製，請貼上 WhatsApp、Instagram 等傳送予朋友'), '📋');
       } catch (e) {
-        window.showToast('複製失敗，連結：' + link, '⚠️');
+        window.showToast(window.t('room.copyLinkFailedTemplate', '複製失敗，連結：{link}').replace('{link}', link), '⚠️');
       }
     }
 
@@ -4955,7 +4959,7 @@
       const listEl = document.getElementById('invite-friend-list');
       if (!listEl) return;
       if (inviteFriendListCache.length === 0) {
-        listEl.innerHTML = '<p style="font-size:13px; color:#999; text-align:center; padding:10px 0;">目前並無可邀請之朋友（可能對方已在房內，或閣下尚未加入任何朋友）</p>';
+        listEl.innerHTML = `<p style="font-size:13px; color:#999; text-align:center; padding:10px 0;">${window.t('room.inviteNoFriendsAvailable', '目前並無可邀請之朋友（可能對方已在房內，或閣下尚未加入任何朋友）')}</p>`;
         return;
       }
       const presenceMap = window.friendPresenceMap || {};
@@ -4969,11 +4973,11 @@
               <span class="presence-dot ${online ? 'online' : ''}"></span>
             </div>
             <div>
-              <div style="font-weight:bold; color:var(--brand-800); font-size:13px;">${escapeHtml(f.username||'同學')} <span style="font-weight:normal; font-size:13px; color:${online ? '#4CAF50' : '#999'};">${online ? '● 在線' : ''}</span></div>
+              <div style="font-weight:bold; color:var(--brand-800); font-size:13px;">${escapeHtml(f.username||window.t('lb.defaultUsername', '同學'))} <span style="font-weight:normal; font-size:13px; color:${online ? '#4CAF50' : '#999'};">${online ? window.t('room.onlineIndicator', '● 在線') : ''}</span></div>
               <div style="font-size:13px; color:#888;">${escapeHtml(f.loginId||'')}</div>
             </div>
           </div>
-          <button class="btn btn-primary" type="button" style="font-size:13px; padding:5px 10px;" onclick="inviteFriendToRoom('${f.uid}', '${escapeHtml((f.username||'同學')).replace(/'/g, "\\'")}')">邀請</button>
+          <button class="btn btn-primary" type="button" style="font-size:13px; padding:5px 10px;" onclick="inviteFriendToRoom('${f.uid}', '${escapeHtml((f.username||window.t('lb.defaultUsername', '同學'))).replace(/'/g, "\\'")}')">${window.t('room.inviteBtnShort', '邀請')}</button>
         </div>
       `;
       }).join('');
@@ -4981,11 +4985,11 @@
     window.renderInviteFriendListUI = renderInviteFriendListUI;
 
     window.openInviteFriendModal = async function() {
-      if (!window.currentUser || !window.db || !window.fs) { window.showToast('請先登入', '⚠️'); return; }
-      if (!state.currentRoomId) { window.showToast('要在房間入面先可以邀請朋友', '⚠️'); return; }
+      if (!window.currentUser || !window.db || !window.fs) { window.showToast(window.t('room.needLoginToInvite', '請先登入'), '⚠️'); return; }
+      if (!state.currentRoomId) { window.showToast(window.t('room.needInRoomToInvite', '要在房間入面先可以邀請朋友'), '⚠️'); return; }
       const listEl = document.getElementById('invite-friend-list');
       if (!listEl) return;
-      listEl.innerHTML = '<p style="font-size:13px; color:#999; text-align:center;">載入中好友名單...</p>';
+      listEl.innerHTML = `<p style="font-size:13px; color:#999; text-align:center;">${window.t('room.loadingFriendList', '載入中好友名單...')}</p>`;
       openModal('modal-invite-friend');
       try {
         const snap = await window.fs.getDocs(window.fs.collection(window.db, 'users', window.currentUser.uid, 'friends'));
@@ -4995,7 +4999,7 @@
         renderInviteFriendListUI();
       } catch (e) {
         console.error('載入好友名單失敗:', e);
-        listEl.innerHTML = '<p style="font-size:13px; color:#D9764A; text-align:center;">載入失敗，請再試一次</p>';
+        listEl.innerHTML = `<p style="font-size:13px; color:#D9764A; text-align:center;">${window.t('room.loadFriendListFailed', '載入失敗，請再試一次')}</p>`;
       }
     };
 
@@ -5060,7 +5064,9 @@
       window._activeRoomInvite = invite;
       const textEl = document.getElementById('invite-popup-text');
       if (textEl) {
-        textEl.innerText = `${invite.fromUsername || '朋友'} 邀請你加入「${invite.roomName || '溫習房'}」`;
+        const fromName = invite.fromUsername || window.t('room.inviteFromFallback', '朋友');
+        const roomName = invite.roomName || window.t('room.inviteRoomFallback', '溫習房');
+        textEl.innerText = window.t('room.inviteReceivedTemplate', `${fromName} 邀請你加入「${roomName}」`).replace('{from}', fromName).replace('{room}', roomName);
       }
       openModal('modal-room-invite-popup');
     }

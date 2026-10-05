@@ -367,9 +367,9 @@
       const panel = document.getElementById('webrtc-debug-log');
       const text = panel ? Array.from(panel.children).map(el => el.textContent).join('\n') : '';
       navigator.clipboard.writeText(text || '（暫時未有記錄）').then(() => {
-        window.showToast('已複製除錯記錄', '📋');
+        window.showToast(window.t('room.debugLogCopied', '已複製除錯記錄'), '📋');
       }).catch(() => {
-        window.showToast('複製失敗，請長按選取文字手動複製', '⚠️');
+        window.showToast(window.t('room.debugLogCopyFailed', '複製失敗，請長按選取文字手動複製'), '⚠️');
       });
     };
 
@@ -538,14 +538,14 @@
     // 同一間房都會俾 enterRoomSetup 擋返出去，直到呢間房執咗為止。
     window.kickParticipant = async function(targetUid, targetName) {
       if (!state.isHost || !state.currentRoomId || !window.db || !window.fs) return;
-      if (!confirm(`確定要將「${targetName}」移出這個溫習房？他之後都不可以再加入這間房。`)) return;
+      if (!confirm(window.t('room.kickConfirmTemplate', `確定要將「${targetName}」移出這個溫習房？他之後都不可以再加入這間房。`).replace('{name}', targetName))) return;
       try {
         await window.fs.updateDoc(window.fs.doc(window.db, 'rooms', state.currentRoomId), {
           bannedUids: window.fs.arrayUnion(targetUid)
         });
-        window.showToast(`已將「${targetName}」移出房間，他不可以再加入這間房`, '🚫');
+        window.showToast(window.t('room.kickSuccessTemplate', `已將「${targetName}」移出房間，他不可以再加入這間房`).replace('{name}', targetName), '🚫');
       } catch (e) {
-        window.showToast('踢走失敗：' + (e.message || e), '❌');
+        window.showToast(window.t('room.kickFailedTemplate', '踢走失敗：{error}').replace('{error}', e.message || e), '❌');
       }
     };
 
@@ -558,15 +558,15 @@
     // 選項，唔使額外寫多一套同步邏輯。
     window.transferHostTo = async function(targetUid, targetName) {
       if (!state.isHost || !state.currentRoomId || !window.db || !window.fs) return;
-      if (!confirm(`確定要將房主身份轉移給「${targetName}」？轉移之後你會變回普通成員，不會再有踢人／轉移房主的權限。`)) return;
+      if (!confirm(window.t('room.transferHostConfirmTemplate', `確定要將房主身份轉移給「${targetName}」？轉移之後你會變回普通成員，不會再有踢人／轉移房主的權限。`).replace('{name}', targetName))) return;
       try {
         await window.fs.updateDoc(window.fs.doc(window.db, 'rooms', state.currentRoomId), {
           hostUid: targetUid,
           hostName: targetName
         });
-        window.showToast(`已將房主身份轉移給「${targetName}」`, '👑');
+        window.showToast(window.t('room.transferHostSuccessTemplate', `已將房主身份轉移給「${targetName}」`).replace('{name}', targetName), '👑');
       } catch (e) {
-        window.showToast('轉移房主失敗：' + (e.message || e), '❌');
+        window.showToast(window.t('room.transferHostFailedTemplate', '轉移房主失敗：{error}').replace('{error}', e.message || e), '❌');
       }
     };
 
@@ -627,9 +627,9 @@
     // 之後填緊原因期間對方畫面已經變晒都唔緊要），然後先至彈個 modal
     // 出嚟畀用家揀舉報原因、加補充說明
     window.openReportModal = function(targetUid, targetName) {
-      if (!window.currentUser) { window.showToast('請先登入', '⚠️'); return; }
-      if (targetUid === window.currentUser.uid) { window.showToast('不可以舉報自己', '⚠️'); return; }
-      pendingReportTarget = { uid: targetUid, name: targetName || '呢位同學' };
+      if (!window.currentUser) { window.showToast(window.t('room.needLoginToInvite', '請先登入'), '⚠️'); return; }
+      if (targetUid === window.currentUser.uid) { window.showToast(window.t('room.cannotReportSelf', '不可以舉報自己'), '⚠️'); return; }
+      pendingReportTarget = { uid: targetUid, name: targetName || window.t('room.reportTargetFallback', '呢位同學') };
       pendingReportScreenshot = captureRemoteVideoFrame(targetUid);
 
       const nameEl = document.getElementById('report-target-name');
@@ -663,7 +663,7 @@
 
     window.submitReport = async function() {
       if (!pendingReportTarget || !window.currentUser || !window.db || !window.fs) {
-        window.showToast('舉報資料有錯，請重新再試', '❌'); return;
+        window.showToast(window.t('room.reportDataError', '舉報資料有錯，請重新再試'), '❌'); return;
       }
       const btn = document.getElementById('report-submit-btn');
       const reasonEl = document.getElementById('report-reason');
@@ -671,7 +671,7 @@
       const reason = (reasonEl && reasonEl.value) || '其他';
       const notes = (notesEl && notesEl.value || '').trim();
 
-      if (btn) { btn.disabled = true; btn.innerText = '⏳ 傳送中...'; }
+      if (btn) { btn.disabled = true; btn.innerText = window.t('room.reportSendingBtn', '⏳ 傳送中...'); }
       try {
         // 舉報寫入而家改用 Cloud Function（submitReport）做，用 Admin
         // SDK 寫入 reports，同時套用咗速率限制（同一舉報人 10 分鐘內
@@ -691,19 +691,19 @@
         } catch (submitErr) {
           const code = submitErr && (submitErr.code || '');
           if (typeof code === 'string' && code.indexOf('resource-exhausted') !== -1) {
-            window.showToast(submitErr.message || '舉報次數過多，請稍後再試', '⏳');
+            window.showToast(submitErr.message || window.t('room.reportTooManyAttempts', '舉報次數過多，請稍後再試'), '⏳');
           } else {
-            window.showToast('送出舉報失敗：' + (submitErr.message || submitErr), '❌');
+            window.showToast(window.t('room.reportSubmitFailedTemplate', '送出舉報失敗：{error}').replace('{error}', submitErr.message || submitErr), '❌');
           }
           return;
         }
 
-        window.showToast('已送出舉報，管理員會盡快跟進，多謝你保障大家的安全', '🚩');
+        window.showToast(window.t('room.reportSubmitSuccess', '已送出舉報，管理員會盡快跟進，多謝你保障大家的安全'), '🚩');
         window.closeReportModal();
       } catch (e) {
-        window.showToast('舉報送出失敗：' + (e.message || e), '❌');
+        window.showToast(window.t('room.reportSubmitFailedTemplate2', '舉報送出失敗：{error}').replace('{error}', e.message || e), '❌');
       } finally {
-        if (btn) { btn.disabled = false; btn.innerText = '確認送出舉報'; }
+        if (btn) { btn.disabled = false; btn.innerText = window.t('room.reportSubmitBtn', '確認送出舉報'); }
       }
     };
 
@@ -977,7 +977,7 @@
           cleanupRoomConnections();
           document.getElementById('room-active').style.display = 'none';
           document.getElementById('room-lobby').style.display = 'block';
-          window.showToast('房主已關閉房間，你已被移至大廳', '🚪');
+          window.showToast(window.t('room.hostClosedRoomToast', '房主已關閉房間，你已被移至大廳'), '🚪');
         } else {
           // 房主轉移：更新邊個係房主，「👑 房主」牌會由 updateHostBadge()
           // 自動掛去返正確嗰一格（自己個格或者相應嘅遠端格）
@@ -993,7 +993,7 @@
           // 俾 enterRoomSetup 嗰個檢查擋返出去，唔可以再入返嚟。
           const myUid = window.currentUser ? window.currentUser.uid : null;
           if (myUid && data && Array.isArray(data.bannedUids) && data.bannedUids.includes(myUid)) {
-            doLeaveRoom(false, '你已被房主移出這個溫習房，之後都不可以再加入');
+            doLeaveRoom(false, window.t('room.kickedOutToast', '你已被房主移出這個溫習房，之後都不可以再加入'));
           }
         }
       });
@@ -1117,11 +1117,11 @@
         const result = await window.callCloudFunction('getRoomPassword', { roomId: state.currentRoomId });
         password = result && result.password;
       } catch (e) {
-        window.showToast('讀取密碼失敗：' + (e.message || e), '❌');
+        window.showToast(window.t('room.readPasswordFailedTemplate', '讀取密碼失敗：{error}').replace('{error}', e.message || e), '❌');
         return;
       }
       if (!password) {
-        window.showToast('讀取密碼失敗，請再試一次', '❌');
+        window.showToast(window.t('room.readPasswordFailedRetry', '讀取密碼失敗，請再試一次'), '❌');
         return;
       }
 
@@ -1166,7 +1166,7 @@
       }
 
       if (!window.currentUser || !window.db || !window.fs) {
-        window.showToast("請先登入會員", "⚠️");
+        window.showToast(window.t('room.needLoginMember', '請先登入會員'), "⚠️");
         return;
       }
 
@@ -1175,7 +1175,7 @@
       const originalBtnText = submitBtn ? submitBtn.innerText : '';
       if (submitBtn) {
         submitBtn.disabled = true;
-        submitBtn.innerText = '⏳ 建立中…';
+        submitBtn.innerText = window.t('room.creatingRoomBtn', '⏳ 建立中…');
       }
 
       try {
@@ -1188,7 +1188,7 @@
         // function 最尾 finally 嗰套邏輯）。
         const roomPasswordRaw = (document.getElementById('modal-room-password').value || '').trim();
         if (roomPasswordRaw && !/^\d{4}$/.test(roomPasswordRaw)) {
-          window.showToast('密碼鎖必須係 4 位數字，或者留空代表不設密碼', '⚠️');
+          window.showToast(window.t('room.passwordMustBe4Digits', '密碼鎖必須係 4 位數字，或者留空代表不設密碼'), '⚠️');
           return;
         }
 
@@ -1235,10 +1235,10 @@
         }
         closeModal('modal-create-room');
 
-        await enterRoomSetup(roomId, roomName, subject, durationMins, window.currentUser.username || '匿名同學', true, createdAt, window.currentUser.uid);
-        window.showToast("溫習房建立成功並已廣播至公開大廳！", "✨");
+        await enterRoomSetup(roomId, roomName, subject, durationMins, window.currentUser.username || window.t('room.anonymousStudent', '匿名同學'), true, createdAt, window.currentUser.uid);
+        window.showToast(window.t('room.createRoomSuccess', '溫習房建立成功並已廣播至公開大廳！'), "✨");
       } catch (err) {
-        window.showToast("建立房間失敗: " + err.message, "❌");
+        window.showToast(window.t('room.createRoomFailedTemplate', '建立房間失敗: {error}').replace('{error}', err.message), "❌");
       } finally {
         state.creatingRoom = false;
         if (submitBtn) {
@@ -1259,12 +1259,12 @@
       if (btnEl) {
         originalBtnHtml = btnEl.innerHTML;
         btnEl.disabled = true;
-        btnEl.innerHTML = '⏳ 加入緊…';
+        btnEl.innerHTML = window.t('room.joiningRoomBtn', '⏳ 加入緊…');
       }
       try {
         const success = await enterRoomSetup(roomId, roomName, subject, durationMins, hostName, isMyRoom, createdAt, hostUid);
         if (success) {
-          window.showToast(`成功加入「${roomName}」！`, "🦦");
+          window.showToast(window.t('room.joinRoomSuccessTemplate', `成功加入「${roomName}」！`).replace('{room}', roomName), "🦦");
         }
       } finally {
         // 成功入到房之後，呢張房間卡片好快會隨住大廳列表重新渲染而消失，
@@ -1279,7 +1279,7 @@
 
     async function enterRoomSetup(roomId, roomName, subject, durationMins, hostName, isMyRoom, createdAt, hostUid) {
       if (!window.currentUser || !window.db || !window.fs) {
-        window.showToast("請先登入會員", "⚠️");
+        window.showToast(window.t('room.needLoginMember', '請先登入會員'), "⚠️");
         return false;
       }
 
@@ -1288,7 +1288,7 @@
       // （見下面），如果啱啱冇人用過呢個 function（冷啟動），可能要等
       // 幾秒先有回應。冇呢句提示嘅話，等候期間畫面完全冇變化，好易俾人
       // 誤會網站壞咗。
-      window.showToast('正在準備溫習房，請稍等…', '⏳');
+      window.showToast(window.t('room.preparingRoom', '正在準備溫習房，請稍等…'), '⏳');
 
       // 曾經俾房主踢走過嘅用家唔可以再加入返呢間房（bannedUids 名單一直
       // 留喺房間文件度，唔會自動清走，見 window.kickParticipant）；
@@ -1330,16 +1330,16 @@
           // 唔係網絡問題，唔好誤導佢去檢查網絡連線
           const code = verifyErr && (verifyErr.code || '');
           if (typeof code === 'string' && code.indexOf('resource-exhausted') !== -1) {
-            window.showToast(verifyErr.message || '嘗試次數過多，請稍後再試', '⏳');
+            window.showToast(verifyErr.message || window.t('room.tooManyAttempts', '嘗試次數過多，請稍後再試'), '⏳');
           } else if (typeof code === 'string' && code.indexOf('permission-denied') !== -1) {
-            window.showToast(verifyErr.message || '你已經被移出這間房，不可以再加入', '🚫');
+            window.showToast(verifyErr.message || window.t('room.alreadyRemovedCannotRejoin', '你已經被移出這間房，不可以再加入'), '🚫');
           } else {
-            window.showToast('驗證入房資格失敗，請檢查網絡連線後再試', '❌');
+            window.showToast(window.t('room.verifyEntryFailed', '驗證入房資格失敗，請檢查網絡連線後再試'), '❌');
           }
           return false;
         }
         if (!verifyResult || !verifyResult.ok) {
-          window.showToast('密碼錯誤，未能加入這個溫習室', '🚫');
+          window.showToast(window.t('room.wrongPasswordCannotJoin', '密碼錯誤，未能加入這個溫習室'), '🚫');
           return false;
         }
       } catch (e) {
@@ -1349,7 +1349,7 @@
         // 出嚟，不如喺呢度就清楚話畀用戶知，唔好等到後面先見到一個
         // 冇解釋嘅失敗。
         console.error('入房驗證失敗:', e);
-        window.showToast('入房驗證失敗，請檢查網絡連線後再試', '❌');
+        window.showToast(window.t('room.entryVerifyFailed', '入房驗證失敗，請檢查網絡連線後再試'), '❌');
         return false;
       }
 
@@ -1369,7 +1369,7 @@
 
       const canJoin = await joinRoomParticipants(roomId);
       if (!canJoin) {
-        window.showToast(`房間已滿（${roomCapacityForThisRoom}/${roomCapacityForThisRoom}），暫時無法加入`, "🚫");
+        window.showToast(window.t('room.roomFullTemplate', `房間已滿（${roomCapacityForThisRoom}/${roomCapacityForThisRoom}），暫時無法加入`).replace(/\{count\}|\{max\}/g, roomCapacityForThisRoom), "🚫");
         return false;
       }
 
@@ -1387,7 +1387,18 @@
       state.currentRoomHostUid = isMyRoom ? window.currentUser.uid : (hostUid || null);
 
       document.getElementById('active-room-title').innerText = roomName;
-      document.getElementById('active-room-subject').innerText = subject;
+      // 科目名要跟翻譯系統轉返做英文／廣東話官方名，唔可以淨係塞返
+      // 原文（同大廳房間卡片、QA帖子等其他顯示科目名嘅地方做法一致，
+      // 見 window.translateSubjectName，i18n.js）——之前漏咗呢個位，
+      // 導致房入面個科目標籤（例如「中國語文」）無論揀咩UI語言都
+      // keep住顯示中文（Alvis截圖發現）。額外set埋data-subject屬性，
+      // 等用家入咗房之後先切換語言，applyAppLanguage()嘅
+      // [data-subject]querySelectorAll邏輯都執到呢個位，即時跟住轉。
+      const activeRoomSubjectEl = document.getElementById('active-room-subject');
+      if (activeRoomSubjectEl) {
+        activeRoomSubjectEl.setAttribute('data-subject', subject);
+        activeRoomSubjectEl.innerText = window.translateSubjectName ? window.translateSubjectName(subject) : subject;
+      }
       updateHostBadge();
 
       // 番茄鐘（專注／小休自動循環）呢個功能已經整個移除——房入面而家
@@ -1450,9 +1461,9 @@
       if (!window.db || !window.fs) return;
       try {
         await window.fs.deleteDoc(window.fs.doc(window.db, "rooms", roomId));
-        window.showToast("已刪除該溫習房", "🗑️");
+        window.showToast(window.t('room.deleteRoomSuccess', '已刪除該溫習房'), "🗑️");
       } catch (err) {
-        window.showToast("刪除失敗", "❌");
+        window.showToast(window.t('common.deleteFailed', '刪除失敗'), "❌");
       }
     };
 
@@ -1544,7 +1555,7 @@
         // 大部分瀏覽器要求音頻播放一定要響用戶手動操作（呢度即係揀 select）
         // 入面觸發先得，正常情況呢度唔會撞到，但都保留錯誤處理以防萬一
         console.warn('背景音播放失敗：', err);
-        window.showToast('背景音播放失敗，請再揀一次', '⚠️');
+        window.showToast(window.t('room.bgNoisePlayFailed', '背景音播放失敗，請再揀一次'), '⚠️');
         updateBgNoisePauseBtn();
       });
     };
@@ -1733,7 +1744,7 @@
       const newLevel = calcLevelInfo(window.currentUser.exp).level;
       if (newLevel > prevLevel) {
         const rank = getRankTitle(newLevel);
-        window.showToast(`升級了！現在是 Lv.${newLevel} ${rank.title}！`, '⬆️');
+        window.showToast(window.t('room.levelUpTemplate', `升級了！現在是 Lv.${newLevel} ${rank.title}！`).replace('{level}', newLevel).replace('{title}', rank.title), '⬆️');
       }
       if (hoursIncrement > 0) {
         const newHours = (parseFloat(window.currentUser.hours) || 0) + hoursIncrement;
@@ -1902,7 +1913,7 @@
       // 一直等到用家自己撳「是，我仍在學習」為止先恢復
       state.awardingPaused = true;
       updateTimerDisplay();
-      window.showToast('偵測到你可能不在，已暫停計分。按「是，我仍在學習」即可恢復', '⏸️');
+      window.showToast(window.t('room.presenceAutoSuspended', '偵測到你可能不在，已暫停計分。按「是，我仍在學習」即可恢復'), '⏸️');
     }
 
     // 淨係解除暫停狀態、閂返彈窗，唔會有額外 +2 PTS 獎勵——畀開返鏡頭
@@ -1921,7 +1932,7 @@
       // （獎勵PTS數值可以喺Admin後台「計分規則」分頁調整）
       const bonus = window.SCORING_RULES.presenceCheckBonus;
       awardStudyPoint(bonus);
-      window.showToast(`讚！繼續加油溫習，額外送你 +${bonus} PTS`, '💪');
+      window.showToast(window.t('room.presenceBonusTemplate', `讚！繼續加油溫習，額外送你 +${bonus} PTS`).replace('{bonus}', bonus), '💪');
     };
 
     window.leaveRoom = async function() {
@@ -1964,7 +1975,7 @@
             hostName: newHost.name,
             hostUid: newHost.uid
           }, { merge: true });
-          window.showToast(`房主已移交給 ${newHost.name}，房間繼續開放`, '👑');
+          window.showToast(window.t('room.hostTransferredAutoTemplate', `房主已移交給 ${newHost.name}，房間繼續開放`).replace('{name}', newHost.name), '👑');
         }
       } catch (e) {
         console.error("移交房主失敗:", e);
@@ -2392,15 +2403,15 @@
     // 統一將 getUserMedia 的錯誤代碼轉做用家睇得明嘅訊息
     function describeMediaError(err) {
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        return '權限被拒絕。請到瀏覽器／系統設定允許這個網站使用鏡頭與麥克風後再試一次。';
+        return window.t('room.mediaPermissionDenied', '權限被拒絕。請到瀏覽器／系統設定允許這個網站使用鏡頭與麥克風後再試一次。');
       }
       if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-        return '未偵測到鏡頭或麥克風裝置。';
+        return window.t('room.mediaDeviceNotFound', '未偵測到鏡頭或麥克風裝置。');
       }
       if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
-        return '鏡頭或麥克風正被其他 App／分頁佔用，請關閉後再試一次（或重新整理網頁）。';
+        return window.t('room.mediaDeviceBusy', '鏡頭或麥克風正被其他 App／分頁佔用，請關閉後再試一次（或重新整理網頁）。');
       }
-      return '無法存取鏡頭／麥克風，請檢查瀏覽器權限設定。';
+      return window.t('room.mediaAccessFailedGeneric', '無法存取鏡頭／麥克風，請檢查瀏覽器權限設定。');
     }
 
     window.toggleCamera = async function() {
@@ -2489,7 +2500,7 @@
                 video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
                 audio: false
               });
-              window.showToast('未能存取麥克風，僅開啟鏡頭畫面', '⚠️');
+              window.showToast(window.t('room.micAccessFailedCameraOnly', '未能存取麥克風，僅開啟鏡頭畫面'), '⚠️');
             }
 
             state.mediaStream = stream;
@@ -2555,12 +2566,12 @@
       if (!state.isMicOn && state.micCooldownUntil && Date.now() < state.micCooldownUntil) {
         const remainSec = Math.max(0, Math.ceil((state.micCooldownUntil - Date.now()) / 1000));
         const mins = Math.ceil(remainSec / 60);
-        window.showToast(`麥克風仍在冷卻中，大約 ${mins} 分鐘後才可以再開啟`, '⏳');
+        window.showToast(window.t('room.micCoolingDownTemplate', `麥克風仍在冷卻中，大約 ${mins} 分鐘後才可以再開啟`).replace('{mins}', mins), '⏳');
         return;
       }
 
       if (!state.mediaStream || state.mediaStream.getAudioTracks().length === 0) {
-        if (micBtn) micBtn.innerText = '⏳ 取得麥克風中...';
+        if (micBtn) micBtn.innerText = window.t('room.gettingMicBtn', '⏳ 取得麥克風中...');
         try {
           let audioStream;
           try {
@@ -2632,7 +2643,7 @@
           if (state.isMicOn && state.mediaStream) {
             state.isMicOn = false;
             state.mediaStream.getAudioTracks().forEach(track => track.enabled = false);
-            window.showToast('開啟麥克風已滿 3 分鐘，已為你自動關閉，請專心繼續溫習！麥克風按鈕進入 5 分鐘冷卻', '⏳');
+            window.showToast(window.t('room.micAutoOffAfter3Min', '開啟麥克風已滿 3 分鐘，已為你自動關閉，請專心繼續溫習！麥克風按鈕進入 5 分鐘冷卻'), '⏳');
             // 額外彈出一個唔會自動關閉嘅提示視窗（書面語），確保學生真正留意到，
             // 唔止係一閃即逝嘅 toast——要學生主動按掣確認先關得閉。
             openModal('modal-mic-limit-reminder');
@@ -2688,7 +2699,7 @@
         state.micUsedSeconds = 0;
         if (state.micCooldownUiTimer) { clearInterval(state.micCooldownUiTimer); state.micCooldownUiTimer = null; }
         updateMicButtonUI();
-        window.showToast('麥克風冷卻完成，可以重新開啟', '✅');
+        window.showToast(window.t('room.micCooldownDone', '麥克風冷卻完成，可以重新開啟'), '✅');
       }, MIC_COOLDOWN_SECONDS * 1000);
     }
 

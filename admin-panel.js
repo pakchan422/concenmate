@@ -1361,7 +1361,7 @@
       { key: 'home', label: '主頁', emoji: '🏠' },
       { key: 'room', label: '視訊溫習室', emoji: '📹' },
       { key: 'qa', label: '疑難解答區', emoji: '❓' },
-      { key: 'vip', label: '溫習資源', emoji: '👑' },
+      { key: 'vip', label: '教材中心', emoji: '👑' },
       { key: 'store', label: '時數扭蛋機', emoji: '🎁' },
       { key: 'social', label: '夥伴與讀書會', emoji: '👥' },
       { key: 'verification', label: '學生身份驗證', emoji: '🎓' },

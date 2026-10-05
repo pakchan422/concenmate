@@ -6,7 +6,7 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.196.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.196.8"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <meta charset="UTF-8">
@@ -1722,7 +1722,7 @@
              會自動跟住轉，其餘畫面文字暫時未轉，仍然顯示繁體中文。 -->
         <button class="nav-btn student-only-nav" id="nav-btn-room" type="button" onclick="switchTab('room', this)"><span class="nav-icon" id="nav-icon-room"></span> <span class="nav-text" data-i18n="nav.room">視訊溫習室</span></button>
         <button class="nav-btn student-only-nav" id="nav-btn-qa" type="button" onclick="switchTab('qa', this)"><span class="nav-icon" id="nav-icon-qa"></span> <span class="nav-text" data-i18n="nav.qa">疑難解答區</span></button>
-        <button class="nav-btn student-only-nav" id="nav-btn-vip" type="button" onclick="switchTab('vip', this)"><span class="nav-icon" id="nav-icon-vip"></span> <span class="nav-text" data-i18n="nav.vip">溫習資源</span></button>
+        <button class="nav-btn student-only-nav" id="nav-btn-vip" type="button" onclick="switchTab('vip', this)"><span class="nav-icon" id="nav-icon-vip"></span> <span class="nav-text" data-i18n="nav.vip">教材中心</span></button>
         <button class="nav-btn student-only-nav" id="nav-btn-store" type="button" onclick="switchTab('store', this)"><span class="nav-icon" id="nav-icon-store"></span> <span class="nav-text" data-i18n="nav.store">時數扭蛋機</span></button>
         <button class="nav-btn student-only-nav" id="nav-btn-leaderboard" type="button" onclick="switchTab('leaderboard', this)"><span class="nav-icon" id="nav-icon-leaderboard"></span> <span class="nav-text" data-i18n="nav.leaderboard">溫習排行榜</span></button>
         <button class="nav-btn student-only-nav" id="nav-btn-social" type="button" onclick="switchTab('social', this)"><span class="nav-icon" id="nav-icon-social"></span> <span class="nav-text" data-i18n="nav.social">書伴廣場</span> <span class="home-sec-badge" id="nav-social-badge" style="display:none; margin-left:auto;"></span></button>
@@ -2465,7 +2465,7 @@
              tutor-panel.js 嘅 renderTutorDirectoryTab() 產生。 -->
         <section id="tab-vip" class="tab-content">
           <div class="card" style="background: linear-gradient(135deg, #D9EBEF, #D9C9B5); color:#1E4550;">
-            <h2 style="font-size:18px; font-weight:bold;" data-i18n="vip.heading">溫習資源</h2>
+            <h2 style="font-size:18px; font-weight:bold;" data-i18n="vip.heading">教材中心</h2>
             <p style="font-size:13px; color:#3E5A63; margin-top:4px;" data-i18n="vip.subheading">瀏覽已上架的導師，點擊卡片可以查看資料並追蹤，接收最新消息</p>
           </div>
           <div id="tutor-directory-tabs" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:12px;"></div>
@@ -2809,7 +2809,7 @@
         <section id="tab-tutor-view" class="tab-content">
 
           <div style="margin-bottom:10px;">
-            <button class="btn btn-outline" type="button" style="width:100%; justify-content:center; font-size:13px;" onclick="switchTab('vip')" data-i18n="tutorview.backButton">← 返回溫習資源</button>
+            <button class="btn btn-outline" type="button" style="width:100%; justify-content:center; font-size:13px;" onclick="switchTab('vip')" data-i18n="tutorview.backButton">← 返回教材中心</button>
           </div>
 
           <div class="card" style="text-align:center;">
@@ -3411,24 +3411,24 @@
   <!-- 房間空位度撳「邀請朋友」彈出嚟嘅好友清單，揀邊個就即刻送邀請畀佢 -->
   <div class="modal-backdrop" id="modal-invite-friend" style="display:none;">
     <div class="modal-box">
-      <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); margin-bottom:4px;">邀請朋友加入溫習室</h3>
+      <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); margin-bottom:4px;" data-i18n="room.inviteFriendTitle">邀請朋友加入溫習室</h3>
 
       <!-- 分享連結邀請：唔限於已經係 ConcenMate 好友嘅人，隨時可以複製／
            分享去 WhatsApp、Instagram 等社交媒體，等對方一撳就直接入到嚟。
            見 window.shareRoomInviteLink 同 window.copyRoomInviteLink（app-features.js）。 -->
       <div style="background:#F0F6F8; border-radius:12px; padding:10px 12px; margin-bottom:14px;">
-        <p style="font-size:13px; font-weight:bold; color:var(--brand-800); margin-bottom:2px;">以連結方式邀請（WhatsApp、Instagram 等社交媒體均適用）</p>
-        <p style="font-size:13px; color:#666; margin-bottom:8px;">對方無須為閣下於本平台之朋友，按一下即可將連結傳送予任何人士</p>
+        <p style="font-size:13px; font-weight:bold; color:var(--brand-800); margin-bottom:2px;" data-i18n="room.inviteByLinkHeading">以連結方式邀請（WhatsApp、Instagram 等社交媒體均適用）</p>
+        <p style="font-size:13px; color:#666; margin-bottom:8px;" data-i18n="room.inviteByLinkDesc">對方無須為閣下於本平台之朋友，按一下即可將連結傳送予任何人士</p>
         <div style="display:flex; gap:8px;">
-          <button class="btn btn-primary" type="button" style="flex:1; justify-content:center; font-size:13px; padding:7px;" onclick="shareRoomInviteLink()">分享連結</button>
-          <button class="btn btn-outline" type="button" style="flex:1; justify-content:center; font-size:13px; padding:7px;" onclick="copyRoomInviteLink()">複製連結</button>
+          <button class="btn btn-primary" type="button" style="flex:1; justify-content:center; font-size:13px; padding:7px;" data-i18n="room.shareLinkBtn" onclick="shareRoomInviteLink()">分享連結</button>
+          <button class="btn btn-outline" type="button" style="flex:1; justify-content:center; font-size:13px; padding:7px;" data-i18n="room.copyLinkBtn" onclick="copyRoomInviteLink()">複製連結</button>
         </div>
       </div>
 
-      <p style="font-size:13px; font-weight:bold; color:var(--brand-800); margin-bottom:2px;">或邀請已加為朋友之同學：</p>
-      <p style="font-size:13px; color:#888; margin-bottom:12px;">邀請將於五分鐘內有效，逾時即告失效</p>
+      <p style="font-size:13px; font-weight:bold; color:var(--brand-800); margin-bottom:2px;" data-i18n="room.inviteFriendsHeading">或邀請已加為朋友之同學：</p>
+      <p style="font-size:13px; color:#888; margin-bottom:12px;" data-i18n="room.inviteExpiryHint">邀請將於五分鐘內有效，逾時即告失效</p>
       <div id="invite-friend-list" style="max-height:320px; overflow-y:auto; display:flex; flex-direction:column; gap:8px;"></div>
-      <button class="btn btn-outline" type="button" style="width:100%; justify-content:center; margin-top:12px;" onclick="closeModal('modal-invite-friend')">關閉</button>
+      <button class="btn btn-outline" type="button" style="width:100%; justify-content:center; margin-top:12px;" data-i18n="room.inviteFriendCloseBtn" onclick="closeModal('modal-invite-friend')">關閉</button>
     </div>
   </div>
 
@@ -3436,12 +3436,12 @@
   <div class="modal-backdrop" id="modal-room-invite-popup" style="display:none;">
     <div class="modal-box" style="text-align:center;">
       <div style="font-size:32px; margin-bottom:6px;"></div>
-      <p id="invite-popup-text" style="font-size:15px; font-weight:bold; color:var(--brand-800); line-height:1.5; margin-bottom:16px;">朋友邀請你加入溫習房</p>
+      <p id="invite-popup-text" style="font-size:15px; font-weight:bold; color:var(--brand-800); line-height:1.5; margin-bottom:16px;" data-i18n="room.inviteReceivedDefaultText">朋友邀請你加入溫習房</p>
       <div style="display:flex; gap:8px;">
-        <button class="btn btn-outline" type="button" style="flex:1; justify-content:center;" onclick="respondRoomInvite(false)">拒絕</button>
-        <button class="btn btn-primary" type="button" style="flex:1; justify-content:center;" onclick="respondRoomInvite(true)">加入</button>
+        <button class="btn btn-outline" type="button" style="flex:1; justify-content:center;" data-i18n="room.inviteDeclineBtn" onclick="respondRoomInvite(false)">拒絕</button>
+        <button class="btn btn-primary" type="button" style="flex:1; justify-content:center;" data-i18n="room.inviteJoinBtn" onclick="respondRoomInvite(true)">加入</button>
       </div>
-      <button class="btn btn-outline" type="button" style="width:100%; justify-content:center; margin-top:8px; font-size:13px;" onclick="dismissRoomInvitePopup()">遲些先想</button>
+      <button class="btn btn-outline" type="button" style="width:100%; justify-content:center; margin-top:8px; font-size:13px;" data-i18n="room.inviteLaterBtn" onclick="dismissRoomInvitePopup()">遲些先想</button>
     </div>
   </div>
 
@@ -3563,16 +3563,16 @@
   <div class="modal-backdrop" id="modal-pdf-preview" style="display:none;">
     <div class="modal-box" style="max-width:960px; width:92vw; height:88vh; display:flex; flex-direction:column; padding:16px;">
       <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; gap:8px; flex-wrap:wrap;">
-        <h3 id="pdf-preview-title" style="font-size:15px; font-weight:bold; color:var(--brand-800); margin:0; flex:1; min-width:120px;">預覽</h3>
-        <button class="btn btn-outline" type="button" style="padding:4px 10px;" onclick="window.closePdfPreviewModal()">關閉</button>
+        <h3 id="pdf-preview-title" style="font-size:15px; font-weight:bold; color:var(--brand-800); margin:0; flex:1; min-width:120px;" data-i18n="room.pdfPreviewDefaultTitle">預覽</h3>
+        <button class="btn btn-outline" type="button" style="padding:4px 10px;" data-i18n="room.pdfPreviewCloseBtn" onclick="window.closePdfPreviewModal()">關閉</button>
       </div>
       <div id="pdf-preview-canvas-wrap" style="flex:1; width:100%; overflow:auto; border:1px solid #E5EEF0; border-radius:8px; background:#f5f5f5; display:flex; align-items:flex-start; justify-content:center; -webkit-overflow-scrolling:touch;">
         <canvas id="pdf-preview-canvas" style="max-width:100%; height:auto; box-shadow:0 1px 4px rgba(0,0,0,0.15);"></canvas>
       </div>
       <div style="display:flex; align-items:center; justify-content:center; gap:14px; margin-top:10px;">
-        <button class="btn btn-outline" type="button" style="padding:6px 14px;" onclick="window.pdfPreviewPrevPage()">‹ 上一頁</button>
+        <button class="btn btn-outline" type="button" style="padding:6px 14px;" data-i18n="room.pdfPreviewPrevPage" onclick="window.pdfPreviewPrevPage()">‹ 上一頁</button>
         <span id="pdf-preview-page-label" style="font-size:13px; color:#555; min-width:64px; text-align:center;">1 / 1</span>
-        <button class="btn btn-outline" type="button" style="padding:6px 14px;" onclick="window.pdfPreviewNextPage()">下一頁 ›</button>
+        <button class="btn btn-outline" type="button" style="padding:6px 14px;" data-i18n="room.pdfPreviewNextPage" onclick="window.pdfPreviewNextPage()">下一頁 ›</button>
       </div>
     </div>
   </div>
@@ -3581,10 +3581,10 @@
        由 Admin後台「🎮 等級系統」入面每個段位嘅「升級詳情文字」欄位控制 -->
   <div class="modal-backdrop" id="modal-level-info" style="display:none;">
     <div class="modal-box" style="max-width:400px;">
-      <h3 style="font-size:17px; font-weight:bold; color:var(--brand-800); margin-bottom:4px;">等級與段位詳情</h3>
+      <h3 style="font-size:17px; font-weight:bold; color:var(--brand-800); margin-bottom:4px;" data-i18n="level.infoTitle">等級與段位詳情</h3>
       <div id="level-info-current" style="background:var(--brand-50); border:1px solid var(--brand-200); border-radius:12px; padding:10px 12px; margin:8px 0 12px;"></div>
       <div id="level-info-tiers" style="display:flex; flex-direction:column; gap:8px; max-height:320px; overflow-y:auto;"></div>
-      <button class="btn btn-outline" type="button" style="width:100%; justify-content:center; margin-top:14px;" onclick="closeModal('modal-level-info')">關閉</button>
+      <button class="btn btn-outline" type="button" style="width:100%; justify-content:center; margin-top:14px;" data-i18n="level.infoCloseBtn" onclick="closeModal('modal-level-info')">關閉</button>
     </div>
   </div>
 
@@ -3619,40 +3619,40 @@
     <div class="modal-box" style="max-width:420px;">
       <div style="text-align:center; margin-bottom:10px;">
         <div style="font-size:28px;"></div>
-        <h3 style="font-size:17px; font-weight:bold; color:#C0524A;">舉報用家</h3>
-        <p style="font-size:13px; color:#666; margin-top:2px;">舉報內容連同截圖只有管理員先看到，會用來審核是否需要停權處理。惡意亂舉報都會被追究。</p>
+        <h3 style="font-size:17px; font-weight:bold; color:#C0524A;" data-i18n="room.reportTitle">舉報用家</h3>
+        <p style="font-size:13px; color:#666; margin-top:2px;" data-i18n="room.reportDesc">舉報內容連同截圖只有管理員先看到，會用來審核是否需要停權處理。惡意亂舉報都會被追究。</p>
       </div>
 
       <div style="background:#F7F5F2; border-radius:10px; padding:8px 10px; margin-bottom:10px; font-size:13px;">
-        <b>被舉報用家：</b><span id="report-target-name">—</span>
+        <b data-i18n="room.reportTargetLabel">被舉報用家：</b><span id="report-target-name">—</span>
       </div>
 
       <div id="report-screenshot-wrap" style="margin-bottom:10px; display:none;">
-        <label style="font-size:13px; font-weight:bold; color:#555; display:block; margin-bottom:4px;">已自動截取證據截圖（會一齊交給管理員）</label>
+        <label style="font-size:13px; font-weight:bold; color:#555; display:block; margin-bottom:4px;" data-i18n="room.reportScreenshotLabel">已自動截取證據截圖（會一齊交給管理員）</label>
         <img id="report-screenshot-preview" style="width:100%; border-radius:10px; border:1px solid #ddd; display:block;">
       </div>
-      <div id="report-screenshot-missing" style="margin-bottom:10px; font-size:13px; color:#c99; display:none;">
+      <div id="report-screenshot-missing" style="margin-bottom:10px; font-size:13px; color:#c99; display:none;" data-i18n="room.reportScreenshotMissing">
         目前無法取得對方畫面（可能對方鏡頭已關閉），舉報仍然會照常送出，管理員會依其他資料處理。
       </div>
 
       <div style="margin-bottom:10px;">
-        <label style="font-size:13px; font-weight:bold; color:#555; display:block; margin-bottom:4px;">舉報原因 *</label>
+        <label style="font-size:13px; font-weight:bold; color:#555; display:block; margin-bottom:4px;" data-i18n="room.reportReasonLabel">舉報原因 *</label>
         <select id="report-reason" class="input-field">
-          <option value="不當／不雅行為">不當／不雅行為</option>
-          <option value="言語騷擾／欺凌">言語騷擾／欺凌</option>
-          <option value="要求私下聯絡／索取個人資料">要求私下聯絡／索取個人資料</option>
-          <option value="其他">其他</option>
+          <option value="不當／不雅行為" data-i18n="room.reportReasonInappropriate">不當／不雅行為</option>
+          <option value="言語騷擾／欺凌" data-i18n="room.reportReasonHarassment">言語騷擾／欺凌</option>
+          <option value="要求私下聯絡／索取個人資料" data-i18n="room.reportReasonPrivateContact">要求私下聯絡／索取個人資料</option>
+          <option value="其他" data-i18n="room.reportReasonOther">其他</option>
         </select>
       </div>
 
       <div style="margin-bottom:10px;">
-        <label style="font-size:13px; font-weight:bold; color:#555; display:block; margin-bottom:4px;">補充說明（選填）</label>
-        <textarea id="report-notes" class="input-field" rows="3" placeholder="想同管理員講的其他細節..." style="resize:vertical;"></textarea>
+        <label style="font-size:13px; font-weight:bold; color:#555; display:block; margin-bottom:4px;" data-i18n="room.reportNotesLabel">補充說明（選填）</label>
+        <textarea id="report-notes" class="input-field" rows="3" placeholder="想同管理員講的其他細節..." data-i18n-placeholder="room.reportNotesPlaceholder" style="resize:vertical;"></textarea>
       </div>
 
       <div style="display:flex; gap:8px; justify-content:flex-end;">
-        <button class="btn btn-outline" type="button" onclick="window.closeReportModal()">取消</button>
-        <button class="btn btn-red" type="button" id="report-submit-btn" onclick="window.submitReport()">確認送出舉報</button>
+        <button class="btn btn-outline" type="button" data-i18n="common.cancel" onclick="window.closeReportModal()">取消</button>
+        <button class="btn btn-red" type="button" id="report-submit-btn" data-i18n="room.reportSubmitBtn" onclick="window.submitReport()">確認送出舉報</button>
       </div>
     </div>
   </div>
@@ -3673,16 +3673,16 @@
   <div class="modal-backdrop" id="modal-host-leave" style="display:none;">
     <div class="modal-box" style="text-align:center;">
       <div style="font-size:32px; margin-bottom:8px;"></div>
-      <h3 style="font-size:16px; font-weight:bold; margin-bottom:6px;">你是房主，想點處理這個房間？</h3>
-      <p style="font-size:13px; color:#666; margin-bottom:20px;">其他成員仍然在，你可以選擇保留房間讓他們繼續使用，或者直接關閉整個房間。</p>
+      <h3 style="font-size:16px; font-weight:bold; margin-bottom:6px;" data-i18n="room.hostLeaveTitle">你是房主，想點處理這個房間？</h3>
+      <p style="font-size:13px; color:#666; margin-bottom:20px;" data-i18n="room.hostLeaveDesc">其他成員仍然在，你可以選擇保留房間讓他們繼續使用，或者直接關閉整個房間。</p>
       <div style="display:flex; flex-direction:column; gap:10px;">
-        <button class="btn btn-primary" type="button" onclick="hostLeaveKeepRoom()" style="padding:12px;">
+        <button class="btn btn-primary" type="button" onclick="hostLeaveKeepRoom()" style="padding:12px;" data-i18n="room.hostLeaveKeepBtn">
           保留房間，自己退出
         </button>
-        <button class="btn btn-red" type="button" onclick="hostLeaveDeleteRoom()" style="padding:12px;">
+        <button class="btn btn-red" type="button" onclick="hostLeaveDeleteRoom()" style="padding:12px;" data-i18n="room.hostLeaveDeleteBtn">
           關閉房間，所有人踢走
         </button>
-        <button class="btn btn-outline" type="button" onclick="closeModal('modal-host-leave')" style="padding:10px;">
+        <button class="btn btn-outline" type="button" onclick="closeModal('modal-host-leave')" style="padding:10px;" data-i18n="common.cancel">
           取消
         </button>
       </div>
@@ -3702,7 +3702,7 @@
         <button class="btn btn-outline lang-option-btn" type="button" data-lang="zh-Hant" onclick="window.setAppLanguage('zh-Hant')" style="padding:12px; justify-content:center;">繁體中文</button>
         <button class="btn btn-outline lang-option-btn" type="button" data-lang="en" onclick="window.setAppLanguage('en')" style="padding:12px; justify-content:center;">English</button>
         <button class="btn btn-outline lang-option-btn" type="button" data-lang="yue" onclick="window.setAppLanguage('yue')" style="padding:12px; justify-content:center;">廣東話</button>
-        <button class="btn btn-outline" type="button" onclick="closeModal('modal-language-switcher')" style="padding:10px; justify-content:center;">取消</button>
+        <button class="btn btn-outline" type="button" data-i18n="common.cancel" onclick="closeModal('modal-language-switcher')" style="padding:10px; justify-content:center;">取消</button>
       </div>
     </div>
   </div>
@@ -3711,9 +3711,9 @@
   <div class="modal-backdrop" id="modal-presence-check" style="display:none;">
     <div class="modal-box" style="text-align:center;">
       <div style="font-size:32px; margin-bottom:8px;"></div>
-      <h3 style="font-size:16px; font-weight:bold; margin-bottom:6px;">你仍在學習嗎？</h3>
-      <p style="font-size:13px; color:#666; margin-bottom:20px;">為了確保積分／經驗值只會給予真正專注的同學，請在 5 分鐘內按一下確認。逾時未確認會暫停計分，直至你返回為止。</p>
-      <button class="btn btn-primary" type="button" onclick="confirmStillHere()" style="width:100%; padding:12px;">
+      <h3 style="font-size:16px; font-weight:bold; margin-bottom:6px;" data-i18n="room.presenceCheckTitle">你仍在學習嗎？</h3>
+      <p style="font-size:13px; color:#666; margin-bottom:20px;" data-i18n="room.presenceCheckDesc">為了確保積分／經驗值只會給予真正專注的同學，請在 5 分鐘內按一下確認。逾時未確認會暫停計分，直至你返回為止。</p>
+      <button class="btn btn-primary" type="button" onclick="confirmStillHere()" style="width:100%; padding:12px;" data-i18n="room.presenceCheckConfirmBtn">
         是，我仍在學習
       </button>
     </div>
@@ -3725,12 +3725,12 @@
   <div class="modal-backdrop" id="modal-room-password-check" style="display:none;">
     <div class="modal-box" style="text-align:center;">
       <div style="font-size:32px; margin-bottom:8px;">🔒</div>
-      <h3 style="font-size:16px; font-weight:bold; margin-bottom:6px;">這個溫習室已上鎖</h3>
-      <p style="font-size:13px; color:#666; margin-bottom:14px;">請向房主查詢密碼，並輸入 4 位數字密碼先可以加入。</p>
+      <h3 style="font-size:16px; font-weight:bold; margin-bottom:6px;" data-i18n="room.passwordLockedTitle">這個溫習室已上鎖</h3>
+      <p style="font-size:13px; color:#666; margin-bottom:14px;" data-i18n="room.passwordLockedDesc">請向房主查詢密碼，並輸入 4 位數字密碼先可以加入。</p>
       <input type="text" id="room-password-check-input" class="input-field" maxlength="4" inputmode="numeric" pattern="[0-9]{0,4}" style="text-align:center; font-size:22px; letter-spacing:10px;" placeholder="••••" onkeydown="if(event.key==='Enter'){event.preventDefault(); window.confirmRoomPasswordCheck();}">
       <div style="display:flex; gap:8px; margin-top:14px;">
-        <button class="btn btn-outline" type="button" style="flex:1;" onclick="window.cancelRoomPasswordCheck()">取消</button>
-        <button class="btn btn-primary" type="button" style="flex:1;" onclick="window.confirmRoomPasswordCheck()">確認加入</button>
+        <button class="btn btn-outline" type="button" style="flex:1;" data-i18n="common.cancel" onclick="window.cancelRoomPasswordCheck()">取消</button>
+        <button class="btn btn-primary" type="button" style="flex:1;" data-i18n="room.passwordConfirmBtn" onclick="window.confirmRoomPasswordCheck()">確認加入</button>
       </div>
     </div>
   </div>
@@ -3741,9 +3741,9 @@
   <div class="modal-backdrop" id="modal-mic-limit-reminder" style="display:none;">
     <div class="modal-box" style="text-align:center;">
       <div style="font-size:32px; margin-bottom:8px;"></div>
-      <h3 style="font-size:16px; font-weight:bold; margin-bottom:6px;">麥克風已自動關閉</h3>
-      <p style="font-size:13px; color:#666; margin-bottom:20px; line-height:1.7;">開咪時間已達上限，系統已自動關閉麥克風。請勿再繼續交談，宜盡快回到溫習狀態，繼續努力，加油！</p>
-      <button class="btn btn-primary" type="button" onclick="closeModal('modal-mic-limit-reminder')" style="width:100%; padding:12px;">
+      <h3 style="font-size:16px; font-weight:bold; margin-bottom:6px;" data-i18n="room.micLimitTitle">麥克風已自動關閉</h3>
+      <p style="font-size:13px; color:#666; margin-bottom:20px; line-height:1.7;" data-i18n="room.micLimitDesc">開咪時間已達上限，系統已自動關閉麥克風。請勿再繼續交談，宜盡快回到溫習狀態，繼續努力，加油！</p>
+      <button class="btn btn-primary" type="button" onclick="closeModal('modal-mic-limit-reminder')" style="width:100%; padding:12px;" data-i18n="room.micLimitAckBtn">
         知道了，繼續溫習
       </button>
     </div>
@@ -3765,15 +3765,15 @@
        自己調校邊部分放喺圓形頭像入面，避免自動置中裁切裁走想要嘅部分。 -->
   <div class="modal-backdrop" id="modal-avatar-crop" style="display:none;">
     <div class="modal-box" style="max-width:340px; text-align:center;">
-      <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); margin-bottom:12px;">調整頭像位置</h3>
+      <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); margin-bottom:12px;" data-i18n="avatar.cropTitle">調整頭像位置</h3>
       <div id="avatar-crop-viewport" style="position:relative; width:260px; height:260px; margin:0 auto 14px; border-radius:50%; overflow:hidden; background:#eee; cursor:grab; touch-action:none;">
         <img id="avatar-crop-img" src="" alt="" draggable="false" style="position:absolute; left:0; top:0; transform-origin:top left; user-select:none; pointer-events:none;">
       </div>
       <input type="range" id="avatar-crop-zoom" min="100" max="300" value="100" style="width:100%; margin-bottom:4px;" oninput="onAvatarCropZoomChange(this.value)">
-      <p style="font-size:12px; color:#999; margin-bottom:16px;">拖曳相片調整位置，並使用滑桿調整縮放</p>
+      <p style="font-size:12px; color:#999; margin-bottom:16px;" data-i18n="avatar.cropHint">拖曳相片調整位置，並使用滑桿調整縮放</p>
       <div style="display:flex; gap:8px;">
-        <button class="btn btn-outline" type="button" style="flex:1; justify-content:center;" onclick="cancelAvatarCrop()">取消</button>
-        <button class="btn btn-primary" type="button" style="flex:1; justify-content:center;" onclick="confirmAvatarCrop()">確認上傳</button>
+        <button class="btn btn-outline" type="button" style="flex:1; justify-content:center;" data-i18n="common.cancel" onclick="cancelAvatarCrop()">取消</button>
+        <button class="btn btn-primary" type="button" style="flex:1; justify-content:center;" data-i18n="avatar.cropConfirmBtn" onclick="confirmAvatarCrop()">確認上傳</button>
       </div>
     </div>
   </div>
