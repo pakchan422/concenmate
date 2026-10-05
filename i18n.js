@@ -128,17 +128,17 @@
   // ── 翻譯字典（第一階段：淨係示範性咁做咗側邊選單／語言掣本身呢
   //    幾組，其餘留返第二／三階段陸續加）──
   window.I18N_DICT = {
-    'nav.home': { 'zh-Hant': '主頁', 'en': 'Home', 'yue': '' },
-    'nav.room': { 'zh-Hant': '視訊溫習室', 'en': 'Video Study Room', 'yue': '' },
-    'nav.qa': { 'zh-Hant': '疑難解答區', 'en': 'Q&A', 'yue': '' },
-    'nav.vip': { 'zh-Hant': '溫習資源', 'en': 'Study Resources', 'yue': '' },
-    'nav.store': { 'zh-Hant': '時數扭蛋機', 'en': 'Gashapon', 'yue': '' },
-    'nav.leaderboard': { 'zh-Hant': '溫習排行榜', 'en': 'Leaderboard', 'yue': '' },
-    'nav.social': { 'zh-Hant': '書伴廣場', 'en': 'Study Buddy Plaza', 'yue': '' },
-    'nav.diary': { 'zh-Hant': '溫習日記', 'en': 'Study Diary', 'yue': '' },
-    'nav.verification': { 'zh-Hant': '學生身份驗證', 'en': 'Student Verification', 'yue': '' },
-    'nav.tutorMaterials': { 'zh-Hant': '管理教材', 'en': 'Manage Materials', 'yue': '' },
-    'lang.switcher.title': { 'zh-Hant': '選擇語言', 'en': 'Choose Language', 'yue': '' },
+    'nav.home': { 'zh-Hant': '主頁', 'en': 'Home', 'yue': '主頁' },
+    'nav.room': { 'zh-Hant': '視訊溫習室', 'en': 'Video Study Room', 'yue': '視訊溫習室' },
+    'nav.qa': { 'zh-Hant': '疑難解答區', 'en': 'Q&A', 'yue': '疑難解答區' },
+    'nav.vip': { 'zh-Hant': '溫習資源', 'en': 'Study Resources', 'yue': '溫習資源' },
+    'nav.store': { 'zh-Hant': '時數扭蛋機', 'en': 'Gashapon', 'yue': '時數扭蛋機' },
+    'nav.leaderboard': { 'zh-Hant': '溫習排行榜', 'en': 'Leaderboard', 'yue': '溫習排行榜' },
+    'nav.social': { 'zh-Hant': '書伴廣場', 'en': 'Study Buddy Plaza', 'yue': '書伴廣場' },
+    'nav.diary': { 'zh-Hant': '溫習日記', 'en': 'Study Diary', 'yue': '溫習日記' },
+    'nav.verification': { 'zh-Hant': '學生身份驗證', 'en': 'Student Verification', 'yue': '學生身份驗證' },
+    'nav.tutorMaterials': { 'zh-Hant': '管理教材', 'en': 'Manage Materials', 'yue': '管理教材' },
+    'lang.switcher.title': { 'zh-Hant': '選擇語言', 'en': 'Choose Language', 'yue': '揀語言' },
 
     // ── 通用字眼（好多分頁都會用到，一次搬好，之後其他分頁轉換嗰陣
     //    可以直接重用返呢批 key，唔使逐頁重複做） ──
