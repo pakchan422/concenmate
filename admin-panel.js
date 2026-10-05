@@ -3169,6 +3169,26 @@
         }
         if (s.nameEn && window.DSE_SUBJECT_EN_NAMES) window.DSE_SUBJECT_EN_NAMES[s.name] = s.nameEn;
       });
+      // 同步加入「建立公開溫習房」彈窗嘅科目下拉選單（index.html嘅
+      // #modal-room-subject），呢個select本身係寫死嘅HTML option清單，
+      // 冇讀window.TUTOR_DSE_SUBJECTS，所以後台新增科目之前完全搵唔到。
+      // 新option插入喺「其他」選項之前，data-subject屬性交畀i18n.js嘅
+      // 共用科目翻譯系統處理（同其他內建option做法一致）。
+      const roomSubjectSelect = document.getElementById('modal-room-subject');
+      if (roomSubjectSelect) {
+        data.subjects.forEach((s) => {
+          if (!s || !s.name) return;
+          const alreadyExists = Array.from(roomSubjectSelect.options).some((opt) => opt.value === s.name);
+          if (alreadyExists) return;
+          const opt = document.createElement('option');
+          opt.value = s.name;
+          opt.setAttribute('data-subject', s.name);
+          opt.textContent = s.name;
+          const otherOpt = Array.from(roomSubjectSelect.options).find((o) => o.getAttribute('data-i18n') === 'room.subjectOther');
+          if (otherOpt) roomSubjectSelect.insertBefore(opt, otherOpt);
+          else roomSubjectSelect.appendChild(opt);
+        });
+      }
     }
 
     function loadSubjectListFromFirestore() {
