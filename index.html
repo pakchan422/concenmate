@@ -6,7 +6,7 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.195.2"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.196.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <meta charset="UTF-8">
@@ -2852,24 +2852,24 @@
 
   <div class="modal-backdrop" id="modal-login" style="display:none;">
     <div class="modal-box">
-      <h3 style="font-size:18px; font-weight:bold; color:var(--brand-800); text-align:center;">會員登入</h3>
+      <h3 style="font-size:18px; font-weight:bold; color:var(--brand-800); text-align:center;" data-i18n="auth.loginTitle">會員登入</h3>
       <form onsubmit="handleLoginSubmit(event)" style="display:flex; flex-direction:column; gap:10px; margin-top:12px;">
         <div>
-          <label style="font-size:13px; font-weight:bold; color:#555;">帳號 ID</label>
-          <input type="text" id="login-account-id" class="input-field" required placeholder="例如：student001">
+          <label style="font-size:13px; font-weight:bold; color:#555;" data-i18n="auth.accountIdLabel">帳號 ID</label>
+          <input type="text" id="login-account-id" class="input-field" required placeholder="例如：student001" data-i18n-placeholder="auth.accountIdPlaceholder">
         </div>
         <div>
-          <label style="font-size:13px; font-weight:bold; color:#555;">密碼 (Password)</label>
-          <input type="password" id="login-password" class="input-field" required placeholder="請輸入密碼">
+          <label style="font-size:13px; font-weight:bold; color:#555;" data-i18n="auth.passwordLabel">密碼 (Password)</label>
+          <input type="password" id="login-password" class="input-field" required placeholder="請輸入密碼" data-i18n-placeholder="auth.passwordPlaceholder">
         </div>
         <div style="text-align:right;">
-          <span style="font-size:12px; color:#888; cursor:pointer; text-decoration:underline;" onclick="typeof window.closeModal==='function' && window.closeModal('modal-login'); typeof window.openModal==='function' && window.openModal('modal-forgot-password');">忘記密碼？</span>
+          <span style="font-size:12px; color:#888; cursor:pointer; text-decoration:underline;" data-i18n="auth.forgotPasswordLink" onclick="typeof window.closeModal==='function' && window.closeModal('modal-login'); typeof window.openModal==='function' && window.openModal('modal-forgot-password');">忘記密碼？</span>
         </div>
         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
-          <span style="font-size:13px; color:#3E7A8A; cursor:pointer;" onclick="typeof window.closeModal==='function' && window.closeModal('modal-login'); typeof window.openModal==='function' && window.openModal('modal-register');">還沒有帳號？點此註冊</span>
+          <span style="font-size:13px; color:#3E7A8A; cursor:pointer;" data-i18n="auth.noAccountLink" onclick="typeof window.closeModal==='function' && window.closeModal('modal-login'); typeof window.openModal==='function' && window.openModal('modal-register');">還沒有帳號？點此註冊</span>
           <div style="display:flex; gap:6px;">
-            <button class="btn btn-outline" type="button" id="login-cancel-btn" onclick="closeModal('modal-login')">取消</button>
-            <button class="btn btn-primary" type="submit" id="login-submit-btn">登入</button>
+            <button class="btn btn-outline" type="button" id="login-cancel-btn" data-i18n="common.cancel" onclick="closeModal('modal-login')">取消</button>
+            <button class="btn btn-primary" type="submit" id="login-submit-btn" data-i18n="auth.loginSubmitBtn">登入</button>
           </div>
         </div>
       </form>
@@ -2878,16 +2878,16 @@
 
   <div class="modal-backdrop" id="modal-forgot-password" style="display:none;">
     <div class="modal-box">
-      <h3 style="font-size:18px; font-weight:bold; color:var(--brand-800); text-align:center;">忘記密碼</h3>
-      <p style="font-size:13px; color:#777; text-align:center; margin-top:6px;">輸入你的帳號 ID，如果此帳戶已經登記電郵，我們將寄出一個重設密碼的連結至該電郵信箱</p>
+      <h3 style="font-size:18px; font-weight:bold; color:var(--brand-800); text-align:center;" data-i18n="auth.forgotTitle">忘記密碼</h3>
+      <p style="font-size:13px; color:#777; text-align:center; margin-top:6px;" data-i18n="auth.forgotDesc">輸入你的帳號 ID，如果此帳戶已經登記電郵，我們將寄出一個重設密碼的連結至該電郵信箱</p>
       <form onsubmit="handleForgotPasswordSubmit(event)" style="display:flex; flex-direction:column; gap:10px; margin-top:12px;">
         <div>
-          <label style="font-size:13px; font-weight:bold; color:#555;">帳號 ID</label>
-          <input type="text" id="forgot-account-id" class="input-field" required placeholder="例如：student001">
+          <label style="font-size:13px; font-weight:bold; color:#555;" data-i18n="auth.accountIdLabel">帳號 ID</label>
+          <input type="text" id="forgot-account-id" class="input-field" required placeholder="例如：student001" data-i18n-placeholder="auth.accountIdPlaceholder">
         </div>
         <div style="display:flex; justify-content:flex-end; gap:6px; margin-top:10px;">
-          <button class="btn btn-outline" type="button" onclick="closeModal('modal-forgot-password')">取消</button>
-          <button class="btn btn-primary" type="submit" id="forgot-password-submit-btn">寄出重設密碼連結</button>
+          <button class="btn btn-outline" type="button" data-i18n="common.cancel" onclick="closeModal('modal-forgot-password')">取消</button>
+          <button class="btn btn-primary" type="submit" id="forgot-password-submit-btn" data-i18n="auth.forgotSubmitBtn">寄出重設密碼連結</button>
         </div>
       </form>
     </div>
@@ -2895,19 +2895,19 @@
 
   <div class="modal-backdrop" id="modal-reset-password" style="display:none;">
     <div class="modal-box">
-      <h3 style="font-size:18px; font-weight:bold; color:var(--brand-800); text-align:center;">設定新密碼</h3>
+      <h3 style="font-size:18px; font-weight:bold; color:var(--brand-800); text-align:center;" data-i18n="auth.resetTitle">設定新密碼</h3>
       <form id="reset-password-form" onsubmit="handleResetPasswordSubmit(event)" style="display:flex; flex-direction:column; gap:10px; margin-top:12px;">
         <div>
-          <label style="font-size:13px; font-weight:bold; color:#555;">新密碼</label>
-          <input type="password" id="reset-new-password" class="input-field" required minlength="6" placeholder="請輸入 6 位或以上的新密碼">
+          <label style="font-size:13px; font-weight:bold; color:#555;" data-i18n="auth.newPasswordSimpleLabel">新密碼</label>
+          <input type="password" id="reset-new-password" class="input-field" required minlength="6" placeholder="請輸入 6 位或以上的新密碼" data-i18n-placeholder="auth.newPasswordSimplePlaceholder">
         </div>
         <div>
-          <label style="font-size:13px; font-weight:bold; color:#555;">確認新密碼</label>
-          <input type="password" id="reset-confirm-password" class="input-field" required minlength="6" placeholder="再次輸入新密碼">
+          <label style="font-size:13px; font-weight:bold; color:#555;" data-i18n="profile.confirmPasswordLabel">確認新密碼</label>
+          <input type="password" id="reset-confirm-password" class="input-field" required minlength="6" placeholder="再次輸入新密碼" data-i18n-placeholder="auth.confirmNewPasswordPlaceholder">
         </div>
         <div style="display:flex; justify-content:flex-end; gap:6px; margin-top:10px;">
-          <button class="btn btn-outline" type="button" onclick="closeModal('modal-reset-password')">取消</button>
-          <button class="btn btn-primary" type="submit" id="reset-password-submit-btn">確認重設密碼</button>
+          <button class="btn btn-outline" type="button" data-i18n="common.cancel" onclick="closeModal('modal-reset-password')">取消</button>
+          <button class="btn btn-primary" type="submit" id="reset-password-submit-btn" data-i18n="auth.resetSubmitBtn">確認重設密碼</button>
         </div>
       </form>
     </div>
@@ -2915,7 +2915,7 @@
 
   <div class="modal-backdrop" id="modal-register" style="display:none;">
     <div class="modal-box">
-      <h3 style="font-size:18px; font-weight:bold; color:var(--brand-800); text-align:center;">註冊 ConcenMate 會員</h3>
+      <h3 style="font-size:18px; font-weight:bold; color:var(--brand-800); text-align:center;" data-i18n="auth.registerTitle">註冊 ConcenMate 會員</h3>
 
       <!-- 帳號類型：學生／導師 兩邊，一開始註冊就要揀，唔係先開學生
            帳號再事後申請升級。揀「導師」嗰邊會直接喺呢個表格入面收埋
@@ -2924,33 +2924,33 @@
            嘅狀態運作（審批批准之前，功能同學生帳戶一樣，唔會因為
            揀咗導師就即刻解鎖導師後台）。見 window.setRegisterAccountType()。 -->
       <div style="display:flex; gap:8px; margin-top:12px;">
-        <button type="button" id="reg-type-student-btn" class="btn btn-primary" style="flex:1; justify-content:center;" onclick="setRegisterAccountType('student')">我是學生</button>
-        <button type="button" id="reg-type-tutor-btn" class="btn btn-outline" style="flex:1; justify-content:center;" onclick="setRegisterAccountType('tutor')">我是導師</button>
+        <button type="button" id="reg-type-student-btn" class="btn btn-primary" style="flex:1; justify-content:center;" data-i18n="auth.iAmStudentBtn" onclick="setRegisterAccountType('student')">我是學生</button>
+        <button type="button" id="reg-type-tutor-btn" class="btn btn-outline" style="flex:1; justify-content:center;" data-i18n="auth.iAmTutorBtn" onclick="setRegisterAccountType('tutor')">我是導師</button>
       </div>
-      <p id="reg-type-tutor-hint" style="display:none; font-size:13px; color:#8a6d1f; background:#FFF7E6; border:1px solid #F0D9A0; border-radius:8px; padding:8px 10px; margin-top:8px;">導師帳號需要管理員審批，通過之前可以正常以學生身份使用平台其他功能，審批結果會在「我的帳戶」顯示。</p>
+      <p id="reg-type-tutor-hint" style="display:none; font-size:13px; color:#8a6d1f; background:#FFF7E6; border:1px solid #F0D9A0; border-radius:8px; padding:8px 10px; margin-top:8px;" data-i18n="auth.tutorPendingHint">導師帳號需要管理員審批，通過之前可以正常以學生身份使用平台其他功能，審批結果會在「我的帳戶」顯示。</p>
 
       <form onsubmit="handleRegisterSubmit(event)" style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">
         <input type="hidden" id="reg-account-type" value="student">
 
         <div>
-          <label style="font-size:13px; font-weight:bold; color:#555;">暱稱（顯示用）*</label>
-          <input type="text" id="reg-username" class="input-field" required placeholder="例如：Alex Wong">
+          <label style="font-size:13px; font-weight:bold; color:#555;" data-i18n="auth.nicknameLabel">暱稱（顯示用）*</label>
+          <input type="text" id="reg-username" class="input-field" required placeholder="例如：Alex Wong" data-i18n-placeholder="profile.usernamePlaceholder">
         </div>
 
         <div>
-          <label style="font-size:13px; font-weight:bold; color:#555;">帳號 ID（登入用）*</label>
-          <input type="text" id="reg-account-id" class="input-field" required placeholder="例如：alex_wong2026" pattern="[A-Za-z0-9_]{3,20}" maxlength="20">
+          <label style="font-size:13px; font-weight:bold; color:#555;" data-i18n="auth.regAccountIdLabel">帳號 ID（登入用）*</label>
+          <input type="text" id="reg-account-id" class="input-field" required placeholder="例如：alex_wong2026" pattern="[A-Za-z0-9_]{3,20}" maxlength="20" data-i18n-placeholder="auth.regAccountIdPlaceholder">
         </div>
 
         <div>
-          <label style="font-size:13px; font-weight:bold; color:#555;">設定密碼 * <span style="font-weight:normal; color:#999; font-size:12px;">（至少 6 位）</span></label>
-          <input type="password" id="reg-password" class="input-field" required placeholder="請輸入密碼" oninput="window.checkRegisterPasswordMatch && window.checkRegisterPasswordMatch()">
+          <label style="font-size:13px; font-weight:bold; color:#555;"><span data-i18n="auth.setPasswordLabel">設定密碼 *</span> <span style="font-weight:normal; color:#999; font-size:12px;" data-i18n="auth.atLeast6CharsHint">（至少 6 位）</span></label>
+          <input type="password" id="reg-password" class="input-field" required placeholder="請輸入密碼" data-i18n-placeholder="auth.passwordPlaceholder" oninput="window.checkRegisterPasswordMatch && window.checkRegisterPasswordMatch()">
         </div>
 
         <div>
-          <label style="font-size:13px; font-weight:bold; color:#555;">確認密碼 *</label>
-          <input type="password" id="reg-password-confirm" class="input-field" required placeholder="請再次輸入相同的密碼" oninput="window.checkRegisterPasswordMatch && window.checkRegisterPasswordMatch()">
-          <p id="reg-password-mismatch-hint" style="display:none; font-size:13px; color:#c0392b; margin-top:4px;">兩次輸入的密碼不一致，請重新確認</p>
+          <label style="font-size:13px; font-weight:bold; color:#555;" data-i18n="auth.confirmPasswordRegLabel">確認密碼 *</label>
+          <input type="password" id="reg-password-confirm" class="input-field" required placeholder="請再次輸入相同的密碼" data-i18n-placeholder="auth.confirmPasswordRegPlaceholder" oninput="window.checkRegisterPasswordMatch && window.checkRegisterPasswordMatch()">
+          <p id="reg-password-mismatch-hint" style="display:none; font-size:13px; color:#c0392b; margin-top:4px;" data-i18n="auth.passwordMismatchHint">兩次輸入的密碼不一致，請重新確認</p>
         </div>
 
         <!-- 出生年月：唔記錄「日」，純粹用嚟計返約數年齡顯示，畀學生
@@ -2960,13 +2960,13 @@
              #register-student-fields／#register-tutor-fields 嗰兩組
              顯隱切換。 -->
         <div>
-          <label style="font-size:13px; font-weight:bold; color:#555;">出生年月 *</label>
+          <label style="font-size:13px; font-weight:bold; color:#555;" data-i18n="auth.birthDateLabel">出生年月 *</label>
           <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <select id="reg-birth-year" class="input-field" required style="flex:1; min-width:90px;" onchange="window.updateRegBirthAgeDisplay && window.updateRegBirthAgeDisplay()">
-              <option value="">年</option>
+              <option value="" data-i18n="auth.yearOption">年</option>
             </select>
             <select id="reg-birth-month" class="input-field" required style="flex:1; min-width:80px;" onchange="window.updateRegBirthAgeDisplay && window.updateRegBirthAgeDisplay()">
-              <option value="">月</option>
+              <option value="" data-i18n="auth.monthOption">月</option>
             </select>
             <span id="reg-birth-age-display" style="font-size:13px; color:#999; white-space:nowrap;"></span>
           </div>
@@ -2978,19 +2978,19 @@
                會根據呢度揀嘅係中學定係大專／大學，去決定用邊一份院校
                清單（見 window.updateRegSchoolOptions()）。 -->
           <div>
-            <label style="font-size:13px; font-weight:bold; color:#555;">現時年級 *</label>
+            <label style="font-size:13px; font-weight:bold; color:#555;" data-i18n="auth.gradeLabelRequired">現時年級 *</label>
             <select id="reg-grade" class="input-field" required onchange="window.updateRegSchoolOptions && window.updateRegSchoolOptions()">
-              <option value="" selected disabled>請選擇年級</option>
-              <option value="中一 (S1)">中一 (S1)</option>
-              <option value="中二 (S2)">中二 (S2)</option>
-              <option value="中三 (S3)">中三 (S3)</option>
-              <option value="中四 (S4)">中四 (S4)</option>
-              <option value="中五 (S5)">中五 (S5)</option>
-              <option value="中六 (S6 DSE)">中六 (S6 DSE)</option>
-              <option value="大專/大學">大專 / 大學</option>
-              <option value="其他自修生">其他 / 自修生</option>
+              <option value="" selected disabled data-i18n="auth.selectGradePlaceholder">請選擇年級</option>
+              <option value="中一 (S1)" data-i18n="profile.gradeS1">中一 (S1)</option>
+              <option value="中二 (S2)" data-i18n="profile.gradeS2">中二 (S2)</option>
+              <option value="中三 (S3)" data-i18n="profile.gradeS3">中三 (S3)</option>
+              <option value="中四 (S4)" data-i18n="profile.gradeS4">中四 (S4)</option>
+              <option value="中五 (S5)" data-i18n="profile.gradeS5">中五 (S5)</option>
+              <option value="中六 (S6 DSE)" data-i18n="profile.gradeS6">中六 (S6 DSE)</option>
+              <option value="大專/大學" data-i18n="profile.gradeTertiary">大專 / 大學</option>
+              <option value="其他自修生" data-i18n="profile.gradeOther">其他 / 自修生</option>
             </select>
-            <span id="reg-grade-age-hint" style="display:none; font-size:12px; color:#c0392b; margin-top:4px;">根據所填出生年月，中一至中六已不可選擇。</span>
+            <span id="reg-grade-age-hint" style="display:none; font-size:12px; color:#c0392b; margin-top:4px;" data-i18n="auth.gradeAgeHint">根據所填出生年月，中一至中六已不可選擇。</span>
           </div>
 
           <!-- 「本人確認現時為中學生」剔選格：純粹自我申報，唔係身份
@@ -3003,14 +3003,14 @@
                不能剔選（見 window.updateRegBirthAgeDisplay()），減少
                擺明係成年人嘅帳戶都剔到呢個選項嘅情況。 -->
           <div style="margin-top:10px; background:#F5F7F8; border-radius:10px; padding:10px 12px;">
-            <label style="font-size:13px; font-weight:bold; color:#555; display:block; margin-bottom:6px;">本人現時是否中學生？ *</label>
+            <label style="font-size:13px; font-weight:bold; color:#555; display:block; margin-bottom:6px;" data-i18n="auth.isSecondaryLabelRequired">本人現時是否中學生？ *</label>
             <div style="display:flex; gap:8px;">
-              <button type="button" id="reg-is-secondary-student-yes-btn" class="btn btn-outline" style="flex:1; justify-content:center; padding:8px; font-size:13px;" onclick="window.setSecondaryStudentToggle('reg', 'yes')">是，我是中學生</button>
-              <button type="button" id="reg-is-secondary-student-no-btn" class="btn btn-outline" style="flex:1; justify-content:center; padding:8px; font-size:13px;" onclick="window.setSecondaryStudentToggle('reg', 'no')">否</button>
+              <button type="button" id="reg-is-secondary-student-yes-btn" class="btn btn-outline" style="flex:1; justify-content:center; padding:8px; font-size:13px;" data-i18n="profile.isSecondaryYes" onclick="window.setSecondaryStudentToggle('reg', 'yes')">是，我是中學生</button>
+              <button type="button" id="reg-is-secondary-student-no-btn" class="btn btn-outline" style="flex:1; justify-content:center; padding:8px; font-size:13px;" data-i18n="profile.isSecondaryNo" onclick="window.setSecondaryStudentToggle('reg', 'no')">否</button>
             </div>
             <input type="hidden" id="reg-is-secondary-student" value="">
-            <p style="font-size:12px; color:#888; margin-top:6px; line-height:1.6;">請如實選擇。本平台部分功能及資源日後可能僅開放予中學生使用，並可能要求核實學生身份；如發現虛報，帳戶可能會被暫停或終止使用資格。</p>
-            <span id="reg-is-secondary-student-age-hint" style="display:none; font-size:12px; color:#c0392b; margin-top:4px;">根據所填出生年月，此項現時不可以選擇「是」。</span>
+            <p style="font-size:12px; color:#888; margin-top:6px; line-height:1.6;" data-i18n="profile.isSecondaryHint">請如實選擇。本平台部分功能及資源日後可能僅開放予中學生使用，並可能要求核實學生身份；如發現虛報，帳戶可能會被暫停或終止使用資格。</p>
+            <span id="reg-is-secondary-student-age-hint" style="display:none; font-size:12px; color:#c0392b; margin-top:4px;" data-i18n="auth.isSecondaryAgeHintReg">根據所填出生年月，此項現時不可以選擇「是」。</span>
           </div>
 
           <!-- 「學校所在地區」／「學校名稱」係咪顯示、係咪必填，都要跟
@@ -3019,19 +3019,19 @@
                「院校名稱」（唔使先揀地區，直接揀院校），地區欄隱藏埋唔
                使填；其他/自修生——兩個都隱藏埋唔使填。 -->
           <div id="reg-school-district-wrap" style="margin-top:10px;">
-            <label id="reg-school-district-label" style="font-size:13px; font-weight:bold; color:#555;">學校所在地區 *</label>
+            <label id="reg-school-district-label" style="font-size:13px; font-weight:bold; color:#555;" data-i18n="auth.schoolDistrictLabel">學校所在地區 *</label>
             <select id="reg-school-district" class="input-field" required disabled onchange="window.updateRegSchoolOptions && window.updateRegSchoolOptions()">
-              <option value="">請先選擇現時年級</option>
+              <option value="" data-i18n="auth.selectGradeFirstOption">請先選擇現時年級</option>
             </select>
           </div>
 
           <div id="reg-school-wrap" style="margin-top:10px;">
-            <label id="reg-school-label" style="font-size:13px; font-weight:bold; color:#555;">學校名稱 *</label>
+            <label id="reg-school-label" style="font-size:13px; font-weight:bold; color:#555;" data-i18n="auth.schoolNameLabel">學校名稱 *</label>
             <select id="reg-school" class="input-field" required disabled onchange="window.handleRegSchoolSelectChange && window.handleRegSchoolSelectChange()">
-              <option value="">請先選擇地區</option>
+              <option value="" data-i18n="reg.chooseDistrictFirst">請先選擇地區</option>
             </select>
             <div id="reg-school-custom-wrap" style="display:none; margin-top:6px;">
-              <input type="text" id="reg-school-custom" class="input-field" placeholder="請輸入學校名稱">
+              <input type="text" id="reg-school-custom" class="input-field" placeholder="請輸入學校名稱" data-i18n-placeholder="auth.schoolNameCustomPlaceholder">
             </div>
           </div>
 
@@ -3040,13 +3040,13 @@
                揀，所以呢兩組淨係揀咗中一至中六先會顯示（見
                window.updateRegSchoolOptions()）。 -->
           <div id="reg-fav-wrap" style="margin-top:10px; display:none;">
-            <label style="font-size:13px; font-weight:bold; color:#555;">喜愛學科（可留白，最多揀 4 科）</label>
+            <label style="font-size:13px; font-weight:bold; color:#555;" data-i18n="auth.favSubjectsLabel">喜愛學科（可留白，最多揀 4 科）</label>
             <div id="reg-fav-picker"></div>
             <input type="hidden" id="reg-fav">
           </div>
 
           <div id="reg-dislike-wrap" style="margin-top:10px; display:none;">
-            <label style="font-size:13px; font-weight:bold; color:#555;">討厭學科（可留白，最多揀 4 科）</label>
+            <label style="font-size:13px; font-weight:bold; color:#555;" data-i18n="auth.dislikeSubjectsLabel">討厭學科（可留白，最多揀 4 科）</label>
             <div id="reg-dislike-picker"></div>
             <input type="hidden" id="reg-dislike">
           </div>
@@ -3055,21 +3055,21 @@
         <!-- 導師專用欄位（導師申請資料）：揀「學生」嗰陣會隱藏並取消 required -->
         <div id="register-tutor-fields" style="display:none;">
           <div>
-            <label style="font-size:13px; font-weight:bold; color:#555;">自我介紹</label>
-            <textarea id="reg-tutor-bio" class="input-field" rows="3" maxlength="500" placeholder="簡單介紹自己的教學背景、經驗" style="width:100%; resize:vertical;"></textarea>
+            <label style="font-size:13px; font-weight:bold; color:#555;" data-i18n="auth.tutorBioLabel">自我介紹</label>
+            <textarea id="reg-tutor-bio" class="input-field" rows="3" maxlength="500" placeholder="簡單介紹自己的教學背景、經驗" data-i18n-placeholder="auth.tutorBioPlaceholder" style="width:100%; resize:vertical;"></textarea>
           </div>
 
           <div style="margin-top:10px;">
-            <label style="font-size:13px; font-weight:bold; color:#555;">想教的科目 *（可選多科，亦可自行輸入）</label>
+            <label style="font-size:13px; font-weight:bold; color:#555;" data-i18n="auth.tutorSubjectsLabel">想教的科目 *（可選多科，亦可自行輸入）</label>
             <div id="reg-tutor-subjects-picker"></div>
             <input type="hidden" id="reg-tutor-subjects">
           </div>
         </div>
 
         <div>
-          <label style="font-size:13px; font-weight:bold; color:#555;">電郵地址 *</label>
-          <input type="email" id="reg-contact-email" class="input-field" required placeholder="example@school.edu.hk">
-          <p id="reg-contact-email-hint" style="font-size:13px; color:#999; margin-top:4px;">不會用作登入，但需要進行電郵驗證：提交表格後會收到一封驗證電郵，請點擊當中的連結確認</p>
+          <label style="font-size:13px; font-weight:bold; color:#555;" data-i18n="auth.contactEmailLabel">電郵地址 *</label>
+          <input type="email" id="reg-contact-email" class="input-field" required placeholder="example@school.edu.hk" data-i18n-placeholder="auth.contactEmailPlaceholder">
+          <p id="reg-contact-email-hint" style="font-size:13px; color:#999; margin-top:4px;" data-i18n="auth.contactEmailHint">不會用作登入，但需要進行電郵驗證：提交表格後會收到一封驗證電郵，請點擊當中的連結確認</p>
         </div>
 
         <!-- 同意條款：註冊前一定要剔選先可以提交（required），連結
@@ -3080,19 +3080,19 @@
         <div style="display:flex; align-items:flex-start; gap:8px; background:#F5F7F8; border-radius:10px; padding:10px 12px;">
           <input type="checkbox" id="reg-agree-terms" required style="margin-top:3px; flex-shrink:0; width:16px; height:16px;">
           <label for="reg-agree-terms" style="font-size:13px; color:#555; line-height:1.6;">
-            我已閱讀並同意
-            <span style="color:#3E7A8A; text-decoration:underline; cursor:pointer;" onclick="event.preventDefault(); typeof window.openModal==='function' && window.openModal('modal-terms');">《服務條款》</span>
-            及
-            <span style="color:#3E7A8A; text-decoration:underline; cursor:pointer;" onclick="event.preventDefault(); typeof window.openModal==='function' && window.openModal('modal-privacy-policy');">《私隱政策》</span>
+            <span data-i18n="auth.agreeTermsPrefix">我已閱讀並同意</span>
+            <span style="color:#3E7A8A; text-decoration:underline; cursor:pointer;" data-i18n="auth.termsLinkText" onclick="event.preventDefault(); typeof window.openModal==='function' && window.openModal('modal-terms');">《服務條款》</span>
+            <span data-i18n="auth.andConnector">及</span>
+            <span style="color:#3E7A8A; text-decoration:underline; cursor:pointer;" data-i18n="auth.privacyLinkText" onclick="event.preventDefault(); typeof window.openModal==='function' && window.openModal('modal-privacy-policy');">《私隱政策》</span>
             *
           </label>
         </div>
 
         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-          <span style="font-size:13px; color:#3E7A8A; cursor:pointer;" onclick="typeof window.closeModal==='function' && window.closeModal('modal-register'); typeof window.openModal==='function' && window.openModal('modal-login');">已有帳號？點此登入</span>
+          <span style="font-size:13px; color:#3E7A8A; cursor:pointer;" data-i18n="auth.alreadyHaveAccountLink" onclick="typeof window.closeModal==='function' && window.closeModal('modal-register'); typeof window.openModal==='function' && window.openModal('modal-login');">已有帳號？點此登入</span>
           <div style="display:flex; gap:6px;">
-            <button class="btn btn-outline" type="button" onclick="closeModal('modal-register')">取消</button>
-            <button class="btn btn-primary" type="submit">完成註冊並登入</button>
+            <button class="btn btn-outline" type="button" data-i18n="common.cancel" onclick="closeModal('modal-register')">取消</button>
+            <button class="btn btn-primary" type="submit" data-i18n="auth.registerSubmitBtn">完成註冊並登入</button>
           </div>
         </div>
       </form>
