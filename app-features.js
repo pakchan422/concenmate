@@ -638,7 +638,7 @@
       }
 
       const globalLevelBadge = document.getElementById('global-level-badge');
-      if (globalLevelBadge) globalLevelBadge.innerText = `Lv.${info.level} ${rank.title} · ${info.expIntoLevel}/${info.expNeededForNext} EXP`;
+      if (globalLevelBadge) globalLevelBadge.innerText = `Lv.${info.level} ${window.rankTitle(rank)} · ${info.expIntoLevel}/${info.expNeededForNext} EXP`;
       const globalExpBar = document.getElementById('global-exp-bar');
       if (globalExpBar) globalExpBar.style.width = info.pctToNext + '%';
 
@@ -648,7 +648,7 @@
       const profExpBar = document.getElementById('profile-exp-bar');
       if (profLevelNum) profLevelNum.innerText = `Lv.${info.level}`;
       if (profRankTitle) {
-        profRankTitle.innerText = `${rank.title} (${rank.titleEn})`;
+        profRankTitle.innerText = (window.getAppLanguage && window.getAppLanguage() === 'en') ? (rank.titleEn || rank.title) : `${rank.title} (${rank.titleEn})`;
         profRankTitle.style.color = rank.color;
       }
       if (profExpText) profExpText.innerText = window.t('level.expWithNextLvTotalTemplate', `${info.expIntoLevel} / ${info.expNeededForNext} EXP · 仍欠 ${info.expRemaining} EXP 就升到 Lv.${info.level + 1}（總計 ${info.exp} EXP）`)
@@ -672,7 +672,7 @@
       const currentEl = document.getElementById('level-info-current');
       if (currentEl) {
         currentEl.innerHTML = `
-          <div style="font-size:15px; font-weight:bold; color:${rank.color || 'var(--brand-800)'};">Lv.${info.level} ${escapeHtml(rank.title || '')}（${escapeHtml(rank.titleEn || '')}）</div>
+          <div style="font-size:15px; font-weight:bold; color:${rank.color || 'var(--brand-800)'};">Lv.${info.level} ${(window.getAppLanguage && window.getAppLanguage() === 'en') ? escapeHtml(rank.titleEn || rank.title || '') : `${escapeHtml(rank.title || '')}（${escapeHtml(rank.titleEn || '')}）`}</div>
           <div style="font-size:13px; color:#888; margin-top:4px;">${window.t('level.expWithNextLvTemplate', `${info.expIntoLevel} / ${info.expNeededForNext} EXP · 仍欠 ${info.expRemaining} EXP 就升到 Lv.${info.level + 1}`)
             .replace('{into}', info.expIntoLevel).replace('{needed}', info.expNeededForNext).replace('{remaining}', info.expRemaining).replace('{nextLevel}', info.level + 1)}</div>
           ${rank.desc ? `<div style="font-size:13px; color:#555; margin-top:6px; line-height:1.5;">${escapeHtml(rank.desc)}</div>` : ''}
@@ -691,7 +691,7 @@
             <div style="display:flex; gap:10px; align-items:flex-start; padding:8px 10px; border-radius:10px; border:1px solid ${isCurrent ? 'var(--brand-500)' : '#eee'}; background:${isCurrent ? 'var(--brand-50)' : (reached ? '#fff' : '#fafafa')}; opacity:${reached ? '1' : '.6'};">
               <div style="flex:1; min-width:0;">
                 <div style="font-size:13px; font-weight:bold; color:${reached ? (r.color || 'var(--brand-800)') : '#999'};">
-                  Lv.${r.minLevel || 1}+ ${escapeHtml(r.title || '')}${isCurrent ? ' <span style="font-size:13px; color:var(--brand-500);">（目前）</span>' : ''}
+                  Lv.${r.minLevel || 1}+ ${escapeHtml(window.rankTitle(r))}${isCurrent ? ` <span style="font-size:13px; color:var(--brand-500);">${escapeHtml(window.t('level.currentTag', '（目前）'))}</span>` : ''}
                 </div>
                 ${r.desc ? `<div style="font-size:13px; color:#888; margin-top:2px; line-height:1.4;">${escapeHtml(r.desc)}</div>` : ''}
               </div>
@@ -2056,7 +2056,7 @@
       const rank = getRankTitle(info.level);
       const levelBadge = document.getElementById('myacc-level-badge');
       if (levelBadge) {
-        levelBadge.innerText = `Lv.${info.level} ${rank.title}`;
+        levelBadge.innerText = `Lv.${info.level} ${window.rankTitle(rank)}`;
         levelBadge.style.color = rank.color;
       }
       const expBar = document.getElementById('myacc-exp-bar');
@@ -2719,6 +2719,14 @@
       return '';
     }
     window.escapeHtml = escapeHtml;
+    // v1.198.2：段位名稱跟介面語言顯示——English 介面顯示 titleEn
+    // （例如 Novice），繁體中文／廣東話顯示中文名（例如 溫習新手）。
+    // 段位清單可以由 Admin 後台改，冇填 titleEn 就退返顯示中文名。
+    window.rankTitle = function(r) {
+      if (!r) return '';
+      const isEn = typeof window.getAppLanguage === 'function' && window.getAppLanguage() === 'en';
+      return (isEn && r.titleEn) ? r.titleEn : (r.title || '');
+    };
     window.jsArg = jsArg;
     window.safeImgSrc = safeImgSrc;
 
@@ -4032,7 +4040,7 @@
             <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
               <div style="text-align:right; font-size:13px; color:#888; line-height:1.5;">
                 <div>${escapeHtml(u.grade ? (window.translateGradeName ? window.translateGradeName(u.grade) : u.grade) : window.t('common.notFilled', '未填寫'))}</div>
-                <div style="color:${rank.color};">Lv.${levelInfo.level} ${escapeHtml(rank.title)}</div>
+                <div style="color:${rank.color};">Lv.${levelInfo.level} ${escapeHtml(window.rankTitle(rank))}</div>
                 <div>累積溫習 ${(parseFloat(u.hours) || 0).toFixed(1)} 小時</div>
               </div>
               <button class="btn btn-outline" type="button" style="font-size:13px; padding:5px 10px;" onclick="viewUserProfile('${targetUid}')">${window.t('social.viewProfileAddFriendBtn', '看資料 / 加好友')}</button>

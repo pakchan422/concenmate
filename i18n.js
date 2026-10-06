@@ -335,6 +335,7 @@
     // ── EXP／升級進度文字（app-features.js嘅updateLevelDisplay()、
     // openLevelInfoModal()、「我的帳戶」彈窗——全部都係JS直接組template
     // literal，之前一直漏咗冇入翻譯系統）──
+    'level.currentTag': { 'zh-Hant': '（目前）', 'en': '(current)', 'yue': '（而家）' },
     'level.expShortTemplate': { 'zh-Hant': '{into} / {needed} EXP · 仍欠 {remaining} EXP 升級', 'en': '{into} / {needed} EXP · {remaining} EXP to go until you level up', 'yue': '{into} / {needed} EXP · 重差 {remaining} EXP 就升級' },
     'level.expWithNextLvTemplate': { 'zh-Hant': '{into} / {needed} EXP · 仍欠 {remaining} EXP 就升到 Lv.{nextLevel}', 'en': '{into} / {needed} EXP · {remaining} EXP to go until Lv.{nextLevel}', 'yue': '{into} / {needed} EXP · 重差 {remaining} EXP 就到 Lv.{nextLevel}' },
     'level.expWithNextLvTotalTemplate': { 'zh-Hant': '{into} / {needed} EXP · 仍欠 {remaining} EXP 就升到 Lv.{nextLevel}（總計 {total} EXP）', 'en': '{into} / {needed} EXP · {remaining} EXP to go until Lv.{nextLevel} (total {total} EXP)', 'yue': '{into} / {needed} EXP · 重差 {remaining} EXP 就到 Lv.{nextLevel}（總共 {total} EXP）' },
@@ -1168,6 +1169,8 @@
     // 唔係靠data-i18n畫出嚟，而係JS直接set innerText，要喺度額外補一句
     // 先會即時跟住轉語言（唔使閂咗再開返個人資料頁先見到新語言）。
     if (typeof window.updateProfileEmailVerifyUI === 'function') window.updateProfileEmailVerifyUI();
+    // v1.198.2：段位名稱（溫習新手／Novice）跟語言即時轉
+    if (typeof window.updateLevelDisplay === 'function' && window.currentUser) window.updateLevelDisplay();
   };
 
   // 一開波（未必已登入）都套用一次，等未登入嗰陣如果之前揀過語言，
