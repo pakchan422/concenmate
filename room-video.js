@@ -271,6 +271,7 @@
       // 全螢幕嗰陣鎖住背景頁面唔畀捲動，唔係嘅話手指喺黑色空隙度拖到
       // 都會意外拉動咗底下嗰版，畀人覺得畫面甩晒版
       document.body.style.overflow = willBeFullscreen ? 'hidden' : '';
+      document.body.classList.toggle('room-fullscreen-active', willBeFullscreen);
       if (willBeFullscreen) {
         // 等 class 切換完、CSS 已經套用、room-bar 都已經收埋咗多餘
         // 按鈕之後，先量度可用空間嚟計格仔大細，唔係就會量到轉換前
@@ -295,6 +296,7 @@
       if (roomActive) roomActive.classList.remove('video-fullscreen-mode');
       if (fsBtn) fsBtn.innerHTML = window.t('room.fullscreen', '全螢幕');
       document.body.style.overflow = '';
+      document.body.classList.remove('room-fullscreen-active');
       // 清返 inline style，唔係就會用返呢啲 px 數值蓋晒返正常（非全
       // 螢幕）嗰個 CSS 版面規則
       const grid = document.getElementById('video-grid-container');
@@ -473,7 +475,7 @@
           <div class="video-header">
             <span class="video-tag" style="cursor:pointer;" onclick="viewUserProfile('${uid}')" title="${window.t('room.viewProfile', '點擊查看資料／加好友')}">${window.escapeHtml(name || window.t('room.otherUser', '其他用家'))}</span>
             <span class="video-tag" id="remote-host-badge-${slotNum}" style="background:#D9EBEF; color:#1E4550; display:none;">${window.t('room.hostBadge', '房主')}</span>
-            <span class="video-tag" id="stream-status-${uid}" style="background:#3E7A8A; color:#fff;">${window.t('room.remoteWaitStream', '連線中...')}</span>
+            <span class="video-tag" id="stream-status-${uid}" data-conn="connecting" style="background:#3E7A8A; color:#fff;">${window.t('room.remoteWaitStream', '連線中...')}</span>
             <div class="video-more-menu-wrap">
               <span class="video-tag video-more-menu-toggle" onclick="event.stopPropagation(); window.toggleVideoMoreMenu('${uid}')" title="${window.t('room.moreOptions', '更多選項')}">⋮</span>
               <div class="video-more-menu-dropdown" id="video-more-menu-${uid}" style="display:none;">
@@ -743,16 +745,60 @@
     }
 
     // 收到對方實際的視訊畫面（track）後，把狀態標籤改成「即時串流」
-    function markSlotLive(uid) {
+    // v1.199.3：連線狀態標籤改為反映「真正」嘅連線狀態——之前一收到對方
+    // 嘅 video track（只係完成咗協商，未必真係有畫面傳到）就顯示「即時
+    // 串流」，而對方冇開鏡頭時就一直顯示「連線中...」，兩樣都會誤導。
+    // 而家：WebRTC 真正連通（connectionState === 'connected'）先會轉，
+    // 有對方畫面就「即時串流」，未有畫面就「已連線」。data-conn 屬性
+    // 畀自動化測試（Playwright）讀取用。
+    function updateSlotConnStatus(uid) {
       const statusTag = document.getElementById('stream-status-' + uid);
-      if (statusTag) {
+      if (!statusTag) return;
+      const pc = state.peerConnections[uid];
+      const connected = !!(pc && pc.connectionState === 'connected');
+      if (!connected) {
+        statusTag.style.background = '#3E7A8A';
+        statusTag.innerText = window.t('room.remoteWaitStream', '連線中...');
+        statusTag.setAttribute('data-conn', 'connecting');
+      } else if (state.peerHasVideo && state.peerHasVideo[uid]) {
         statusTag.style.background = '#D2C4AD';
         statusTag.innerText = window.t('room.remoteLiveStream', '即時串流');
+        statusTag.setAttribute('data-conn', 'live');
+      } else {
+        statusTag.style.background = '#5E8F6E';
+        statusTag.innerText = window.t('room.remoteConnected', '已連線');
+        statusTag.setAttribute('data-conn', 'connected');
       }
+    }
+    function markSlotLive(uid) {
+      if (!state.peerHasVideo) state.peerHasVideo = {};
+      state.peerHasVideo[uid] = true;
+      updateSlotConnStatus(uid);
     }
 
     // 用家離開房間時，釋放其佔用的格子
+    // v1.199.3：有人離開房間之後，刪走自己送畀佢嘅 offer／answer 文件，同埋
+    // 清走同佢有關嘅去重記錄，等佢之後再入返嚟時係由零開始重新連線，唔會
+    // 執到上一次留低嘅舊訊號（之前會令重新入房嘅人見唔到房主鏡頭）。
+    function forgetDepartedPeer(roomId, uid) {
+      if (!window.currentUser || !window.db || !roomId) return;
+      delete state.lastProcessedOfferTs[uid];
+      delete state.lastProcessedAnswerTs[uid];
+      delete state.pendingCandidates[uid];
+      if (state.connectingTo && state.connectingTo.delete) state.connectingTo.delete(uid);
+      window.fs.deleteDoc(window.fs.doc(window.db, "rooms", roomId, "signals", window.currentUser.uid + "_to_" + uid)).catch(() => {});
+    }
+
+    // v1.199.3：判斷一份 offer 係咪「我今次入房之後」先送出——早過我今次
+    // 入房（預留 5 秒時鐘誤差）嘅一定係上一次留低嘅舊 offer，處理咗只會令
+    // 新連線撞車。
+    function isFreshOfferForThisSession(data) {
+      if (!state.mySessionStartTs) return true;
+      return typeof data.timestamp === 'number' && data.timestamp >= state.mySessionStartTs - 5000;
+    }
+
     function releaseRemoteSlot(uid) {
+      if (state.peerHasVideo) delete state.peerHasVideo[uid];
       const slotNum = state.slotAssignments[uid];
       if (!slotNum) return;
       delete state.slotAssignments[uid];
@@ -947,7 +993,10 @@
 
         // 釋放已離開的用家所佔用的格子
         Object.keys(state.slotAssignments).forEach(uid => {
-          if (!currentUids.includes(uid)) releaseRemoteSlot(uid);
+          if (!currentUids.includes(uid)) {
+            releaseRemoteSlot(uid);
+            forgetDepartedPeer(roomId, uid);
+          }
         });
 
         // 為在場但尚未分配格子的用家安排格子（僅顯示佔位，鏡頭畫面待 WebRTC 連線後填入）
@@ -999,6 +1048,22 @@
       });
     }
 
+    // v1.199.0：離開房間＝刪自己 participants 紀錄＋房間人數 -1，用同一個
+    // batch 原子寫入（Firestore 規則而家會核對「人數 -1 嘅人真係啱啱離開
+    // 咗間房」，防止外人亂改人數）。如果房間文件已經唔存在（例如房主啱啱
+    // 刪咗房），batch 會失敗，就退返淨係刪自己紀錄。
+    async function leaveRoomBatch(roomId, myUid) {
+      const participantRef = window.fs.doc(window.db, "rooms", roomId, "participants", myUid);
+      try {
+        const batch = window.fs.writeBatch(window.db);
+        batch.delete(participantRef);
+        batch.update(window.fs.doc(window.db, "rooms", roomId), { participantCount: window.fs.increment(-1) });
+        await batch.commit();
+      } catch (e) {
+        await window.fs.deleteDoc(participantRef).catch(() => {});
+      }
+    }
+
     // 離開房間時，移除自己的 participants 紀錄並停止監聽
     async function leaveRoomParticipants() {
       if (state.participantsUnsubscribe) {
@@ -1008,17 +1073,13 @@
       if (state.currentRoomId && window.currentUser && window.db && window.fs) {
         const roomId = state.currentRoomId;
         try {
-          await window.fs.deleteDoc(window.fs.doc(window.db, "rooms", roomId, "participants", window.currentUser.uid));
+          await leaveRoomBatch(roomId, window.currentUser.uid);
 
           // 檢查係咪最後一個人走：如果房入面已經冇任何人，就連房間本身都一拼
           // 刪走，唔好留低一間「0/4 人但仲顯示直播中」嘅幽靈房喺大廳。
           const remainingSnap = await window.fs.getDocs(window.fs.collection(window.db, "rooms", roomId, "participants"));
           if (remainingSnap.empty) {
             await window.fs.deleteDoc(window.fs.doc(window.db, "rooms", roomId)).catch(() => {});
-          } else {
-            await window.fs.updateDoc(window.fs.doc(window.db, "rooms", roomId), {
-              participantCount: window.fs.increment(-1)
-            });
           }
         } catch (e) {
           console.error("移除房間人數紀錄失敗:", e);
@@ -1026,35 +1087,18 @@
       }
     }
 
-    // 分頁關閉 / 重新整理時盡量清理自己的 participants 紀錄。
-    // 呢個 handler 盡量重現 leaveRoomParticipants()（正式退房流程）嘅邏輯：
-    // 刪走自己個 participant 紀錄之後，check 埋房入面係咪已經冇晒人，如果
-    // 自己啱啱好係最後一個，就連房間文件本身都一拼刪走，唔好留低一間
-    // 「0/4 人但仲顯示🟢直播中」嘅幽靈房喺大廳（見用家反映嘅問題）。
-    // ⚠️ 注意：beforeunload 入面嘅 async 操作，瀏覽器唔保證一定會俾佢行
-    // 完先關閉分頁（尤其係要兩個來回嘅 getDocs→deleteDoc），所以呢度只
-    // 係盡做，唔可以完全倚賴——大廳嗰邊嘅 gcStaleRooms 快速清理（見上面
-    // EMPTY_ROOM_GRACE_MS）同埋原本嘅 5 分鐘冇心跳清理機制會做埋後備。
+    // 分頁關閉 / 重新整理時盡量清理自己的 participants 紀錄（同上面一樣用
+    // batch）。beforeunload 入面嘅 async 操作瀏覽器唔保證行得完，所以只係
+    // 盡做，大廳嘅 gcStaleRooms 同 5 分鐘冇心跳清理機制會做後備。
     window.addEventListener('beforeunload', () => {
       if (state.currentRoomId && window.currentUser && window.db && window.fs) {
         const roomId = state.currentRoomId;
         const myUid = window.currentUser.uid;
-        window.fs.deleteDoc(window.fs.doc(window.db, "rooms", roomId, "participants", myUid)).catch(() => {});
-        window.fs.getDocs(window.fs.collection(window.db, "rooms", roomId, "participants")).then(snap => {
-          const remaining = snap.docs.filter(d => d.id !== myUid);
-          if (remaining.length === 0) {
-            window.fs.deleteDoc(window.fs.doc(window.db, "rooms", roomId)).catch(() => {});
-          } else {
-            window.fs.updateDoc(window.fs.doc(window.db, "rooms", roomId), {
-              participantCount: window.fs.increment(-1)
-            }).catch(() => {});
-          }
-        }).catch(() => {
-          // 連讀取都失敗嘅話，至少退返舊做法扣返個人數
-          window.fs.updateDoc(window.fs.doc(window.db, "rooms", roomId), {
-            participantCount: window.fs.increment(-1)
-          }).catch(() => {});
-        });
+        leaveRoomBatch(roomId, myUid).then(() => {
+          return window.fs.getDocs(window.fs.collection(window.db, "rooms", roomId, "participants")).then(snap => {
+            if (snap.empty) window.fs.deleteDoc(window.fs.doc(window.db, "rooms", roomId)).catch(() => {});
+          });
+        }).catch(() => {});
       }
     });
 
@@ -1670,6 +1714,12 @@
     // 就補返差額嗰種「追落後」，所以一定要保住每一次冇寫成功嘅請求本身，
     // 逐個重試，先至真係追得返（唔係淨係等「下次」新嗰次順利就當數）。
     let awardSyncQueue = [];
+    // 伺服器嘅 failed-precondition／invalid-argument 代表「呢次唔會再成功」，
+    // 同網絡斷線（可以重試）分開處理。
+    function isAwardRejectedError(e) {
+      const code = (e && e.code) ? String(e.code) : '';
+      return code.indexOf('failed-precondition') !== -1 || code.indexOf('invalid-argument') !== -1;
+    }
     let awardSyncInFlight = false;
     let awardSyncRetryTimer = null;
 
@@ -1683,6 +1733,9 @@
             await window.callCloudFunction('awardStudyPoints', payload);
             awardSyncQueue.shift();
           } catch (e) {
+            // v1.199.0：伺服器明確拒絕（例如已經離開咗間房、派分太密），
+            // 重試都冇用，直接放棄呢次，唔好塞住成條隊。
+            if (isAwardRejectedError(e)) { awardSyncQueue.shift(); continue; }
             console.warn('積分／時數補寫仍然失敗，遲啲再試（畫面已經顯示緊最新狀態，唔影響使用）:', e);
             break; // 呢次都仲係唔得，唔使再逐個試落去，等下個重試週期先再嚟
           }
@@ -1786,6 +1839,7 @@
       const payload = {
         points: pointsAmount,
         hoursIncrement,
+        roomId: state.currentRoomId || '',
         isNewDay,
         todayDateStr: hoursIncrement > 0 ? getTodayDateStr() : undefined
       };
@@ -1793,6 +1847,7 @@
         await flushAwardSyncQueue(); // 先追返之前排隊緊嘅（保住次序），先寄呢次新嘅
         await window.callCloudFunction('awardStudyPoints', payload);
       } catch (e) {
+        if (isAwardRejectedError(e)) { console.warn('伺服器拒絕今次積分（唔會重試）:', e && e.message); return; }
         console.warn("積分同步到 Firestore 失敗，已排隊等遲啲重試（畫面已經即時更新，唔影響使用）:", e);
         awardSyncQueue.push(payload);
       }
@@ -2097,16 +2152,22 @@
       state.lastProcessedOfferTs = {};
       state.lastProcessedAnswerTs = {};
       state.connectingTo = new Set();
+      state.mySessionStartTs = null;
 
       // 主動清走自己嘅 presence 同已經送出嘅 offer/answer 文件，
       // 等其他人之後重新入返嚟嗰陣，唔會執到自己呢次留低嘅舊訊號資料
+      // v1.199.3：一定要「等」呢啲刪除完成先離開 participants——Firestore
+      // 規則要求仲係房內參與者先刪得 signals，之前冇等，好多時 participants
+      // 紀錄已經刪咗、signals 先送到伺服器，結果被拒絕，舊 offer／上線文件
+      // 一直留喺房入面，下次有人入房就執到呢啲舊資料，連線卡喺「連線中...」。
       if (state.currentRoomId && window.currentUser) {
         const myUid = window.currentUser.uid;
         const roomId = state.currentRoomId;
-        Object.keys(state.peerConnections).forEach(remoteUid => {
-          window.fs.deleteDoc(window.fs.doc(window.db, "rooms", roomId, "signals", myUid + "_to_" + remoteUid)).catch(() => {});
-        });
-        window.fs.deleteDoc(window.fs.doc(window.db, "rooms", roomId, "signals", myUid)).catch(() => {});
+        const deletions = Object.keys(state.peerConnections).map(remoteUid =>
+          window.fs.deleteDoc(window.fs.doc(window.db, "rooms", roomId, "signals", myUid + "_to_" + remoteUid)).catch(() => {})
+        );
+        deletions.push(window.fs.deleteDoc(window.fs.doc(window.db, "rooms", roomId, "signals", myUid)).catch(() => {}));
+        await Promise.all(deletions);
       }
 
       Object.values(state.peerConnections).forEach(pc => pc.close());
@@ -2707,7 +2768,8 @@
       if (!window.currentUser || !state.currentRoomId || !window.db) return;
       const myUid = window.currentUser.uid;
       const presenceRef = window.fs.doc(window.db, "rooms", state.currentRoomId, "signals", myUid);
-      
+      if (!state.mySessionStartTs) state.mySessionStartTs = Date.now();
+
       await window.fs.setDoc(presenceRef, {
         uid: myUid,
         name: window.currentUser.username || '同學',
@@ -2744,7 +2806,7 @@
           }
 
           // (b) 指名給我、但之前鏡頭未開而被略過的 Offer → 現在補上 Answer
-          if (data.to === myUid && data.offer && state.lastProcessedOfferTs[data.from] !== data.timestamp) {
+          if (data.to === myUid && data.offer && state.lastProcessedOfferTs[data.from] !== data.timestamp && isFreshOfferForThisSession(data)) {
             wrtcLog(`發現一份之前錯過的 Offer ← ${data.from}，補上處理`);
             state.lastProcessedOfferTs[data.from] = data.timestamp;
             await handleIncomingOffer(roomId, data.from, data.offer);
@@ -2766,6 +2828,18 @@
 
         snapshot.docChanges().forEach(async (change) => {
           const data = change.doc.data();
+
+          // v1.199.1：有人離開房間時，佢個「上線」訊令文件會被刪除——之前
+          // 呢度連「刪除」呢種變化都當成「有人上線」處理，即刻幫已經走咗嘅
+          // 人重新開返一格，令畫面一直顯示「連線中...」。而家任何「刪除」
+          // 變化都唔再當新訊令處理；如果嗰個人已經唔喺 participants 名單，
+          // 就順手釋放佢嗰格。
+          if (change.type === 'removed') {
+            if (data.uid && data.uid !== myUid && !state.knownParticipantUids.has(data.uid)) {
+              releaseRemoteSlot(data.uid);
+            }
+            return;
+          }
 
           // (a) 用家上線通知（presence）：發現房內其他人，並安排到四格視窗其中一格
           if (data.uid && data.uid !== myUid) {
@@ -2790,6 +2864,7 @@
           // (b) 收到指名給自己的 Offer → 建立連線並回覆 Answer
           if (data.to === myUid && data.offer) {
             if (state.lastProcessedOfferTs[data.from] === data.timestamp) return;
+            if (!isFreshOfferForThisSession(data)) return;
             state.lastProcessedOfferTs[data.from] = data.timestamp;
             await handleIncomingOffer(roomId, data.from, data.offer);
             return;
@@ -2827,6 +2902,18 @@
 
       const pc = createPeerConnection(remoteUid, remoteName);
       state.peerConnections[remoteUid] = pc;
+
+      // v1.199.5（自動化測試捉到）：自己未開鏡頭時，條連線入面一條媒體
+      // 通道（m-line）都冇，WebRTC 根本唔會開始連線，所以兩邊都冇開鏡頭
+      // 時會一直卡喺「連線中...」，要等有人開鏡頭先臨時協商，經常出事。
+      // 而家發起連線嗰邊一定預留「只收」嘅影像同聲音通道，入房即刻連通；
+      // 之後開鏡頭，renegotiateWithPeers() 會重用呢兩條通道（replaceTrack）。
+      if (pc.getTransceivers().length === 0) {
+        try {
+          pc.addTransceiver('video', { direction: 'recvonly' });
+          pc.addTransceiver('audio', { direction: 'recvonly' });
+        } catch (e) { console.warn('預留媒體通道失敗:', e); }
+      }
 
       try {
         const offer = await pc.createOffer();
@@ -3049,6 +3136,7 @@
         if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) {
           console.warn(`與 ${remoteUid} 的連線狀態變為 ${pc.connectionState}`);
         }
+        if (state.peerConnections[remoteUid] === pc) updateSlotConnStatus(remoteUid);
 
         if (pc.connectionState === 'connected') {
           // 連線好返（或者本身就一路穩定），取消任何仲排緊隊嘅自動重連
@@ -3108,6 +3196,11 @@
     async function attemptPeerReconnect(remoteUid, pc) {
       if (state.peerConnections[remoteUid] !== pc) return; // 已經俾第二條新連線取代咗，唔使處理
       if (!state.currentRoomId || !window.currentUser) return;
+      // v1.199.1：對方已經離開咗房（唔喺 participants 名單），唔使重連，清走嗰格就得
+      if (!state.knownParticipantUids.has(remoteUid)) {
+        await cleanupDeadPeerConnection(remoteUid, pc);
+        return;
+      }
       await cleanupDeadPeerConnection(remoteUid, pc);
       const remoteName = state.peerNames[remoteUid] || '同學';
       getOrCreateRemoteSlot(remoteUid, remoteName);

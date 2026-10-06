@@ -252,6 +252,7 @@
     'room.waitingUser': { 'zh-Hant': '等待用家加入...', 'en': 'Waiting for someone to join...', 'yue': '等緊人加入...' },
     'room.inviteFriend': { 'zh-Hant': '邀請朋友', 'en': 'Invite Friend', 'yue': '叫朋友嚟' },
     'room.remoteWaitStream': { 'zh-Hant': '連線中...', 'en': 'Connecting...', 'yue': '連緊線...' },
+    'room.remoteConnected': { 'zh-Hant': '已連線', 'en': 'Connected', 'yue': '連咗線' },
     'room.remoteLiveStream': { 'zh-Hant': '即時串流', 'en': 'Live', 'yue': '直播緊' },
     'room.remoteCameraOff': { 'zh-Hant': '對方鏡頭已關閉', 'en': "Their camera is off", 'yue': '對方閂咗鏡頭' },
     'room.otherUser': { 'zh-Hant': '其他用家', 'en': 'Other User', 'yue': '其他用家' },
@@ -710,7 +711,7 @@
     'room.loadErrorTitle': { 'zh-Hant': '暫時未能載入公開溫習房列表', 'en': 'Unable to load the public study room list right now', 'yue': '暫時 Load 唔到公開溫習房列表' },
     'room.loadErrorHint': { 'zh-Hant': '請檢查網絡連線，或稍後再試。', 'en': 'Please check your network connection, or try again later.', 'yue': '睇下網絡得唔得，或者遲啲再試吓' },
     'room.reload': { 'zh-Hant': '重新載入', 'en': 'Reload', 'yue': '重新 Load 過' },
-    'room.lobbyTitleSecondary': { 'zh-Hant': '公開溫習大廳（中學溫習室）', 'en': 'Public Study Lobby (Secondary School Room)', 'yue': '公開溫習大廳（中學溫習室）' },
+    'room.lobbyTitleSecondary': { 'zh-Hant': '公開溫習大廳（中學生專用）', 'en': 'Public Study Lobby (Secondary Students Only)', 'yue': '公開溫習大廳（中學生專用）' },
     'room.lobbyTitlePublic': { 'zh-Hant': '公開溫習大廳（公開溫習室）', 'en': 'Public Study Lobby (Public Room)', 'yue': '公開溫習大廳（公開溫習室）' },
     'room.adminViewSuffix': { 'zh-Hant': '（管理員檢視）', 'en': ' (Admin View)', 'yue': '（管理員檢視）' },
     'room.youAreInSecondary': { 'zh-Hant': '你目前屬於：中學溫習室', 'en': 'You currently belong to: Secondary School Room', 'yue': '你而家屬於：中學溫習室' },
@@ -1035,7 +1036,7 @@
     'features.chatListForceRefreshFailedTemplate': { 'zh-Hant': '對話清單強制重整失敗：{msg}', 'en': 'Failed to force-refresh chat list: {msg}', 'yue': '強制重整對話清單失敗：{msg}' },
     'features.sendMessageFailedTemplate': { 'zh-Hant': '訊息傳送失敗：{msg}', 'en': 'Failed to send message: {msg}', 'yue': '訊息送唔到：{msg}' },
     'features.chatSummarySyncFailedTemplate': { 'zh-Hant': '對話摘要未同步給對方（{msg}），訊息本身已送出', 'en': 'Chat summary did not sync to the other person ({msg}), but the message itself was sent', 'yue': '對話摘要未同步到對方（{msg}），但訊息本身已經送咗' },
-    'features.chatHistoryDeletedSuccess': { 'zh-Hant': '已刪除對話記錄', 'en': 'Chat history deleted', 'yue': '對話記錄刪咗喇' },
+    'features.chatHistoryDeletedSuccess': { 'zh-Hant': '已清除對話記錄', 'en': 'Conversation cleared', 'yue': '對話記錄清咗喇' },
     'features.deleteFailedTemplate': { 'zh-Hant': '刪除失敗：{msg}', 'en': 'Delete failed: {msg}', 'yue': '刪除唔到：{msg}' },
     'features.needEnterRoomToShare': { 'zh-Hant': '請先進入溫習室，方可分享連結', 'en': 'Please enter the study room first before sharing the link', 'yue': '要先入到溫習室先可以分享連結' },
     'features.needEnterRoomToCopy': { 'zh-Hant': '請先進入溫習室，方可複製連結', 'en': 'Please enter the study room first before copying the link', 'yue': '要先入到溫習室先可以複製連結' },
@@ -1047,7 +1048,7 @@
     'features.inviteExpiredAskResend': { 'zh-Hant': '這個邀請已經過期，請朋友重新發送邀請', 'en': 'This invitation has expired, please ask your friend to send a new one', 'yue': '呢個邀請已經過期喇，叫朋友再send一次啦' },
     'features.roomNoLongerExistsAlt': { 'zh-Hant': '這個房間已經不存在了', 'en': 'This room no longer exists', 'yue': '呢間房已經唔存在喇' },
     'features.joinRoomFailedTemplate': { 'zh-Hant': '加入房間失敗：{msg}', 'en': 'Failed to join room: {msg}', 'yue': '入唔到房間：{msg}' },
-    'features.confirmDeleteChatHistory': { 'zh-Hant': '確定要刪除這個對話的全部訊息記錄？這個動作會影響雙方，刪除後將無法復原。', 'en': 'Are you sure you want to delete all messages in this conversation? This affects both people and cannot be undone.', 'yue': '真係要刪除呢個對話嘅全部訊息記錄？呢個動作會影響雙方，刪除咗就冇得返轉頭。' },
+    'features.confirmDeleteChatHistory': { 'zh-Hant': '確定要清除這個對話的訊息記錄？只會清除你這邊的顯示，對方仍然可以看到。', 'en': 'Clear this conversation? Messages will only be hidden on your side; the other person can still see them.', 'yue': '確定要清走呢個對話嘅訊息？只會喺你呢邊清走，對方仍然睇到。' },
   };
 
   // 目前語言：已登入用戶存喺 users/{uid} 文件嘅 language 欄位（跨裝置
@@ -1169,6 +1170,9 @@
     // 唔係靠data-i18n畫出嚟，而係JS直接set innerText，要喺度額外補一句
     // 先會即時跟住轉語言（唔使閂咗再開返個人資料頁先見到新語言）。
     if (typeof window.updateProfileEmailVerifyUI === 'function') window.updateProfileEmailVerifyUI();
+    // v1.199.2：大廳標題（中學生專用／公開溫習室）跟語言即時轉；個 h2 已經
+    // 冇再用 data-i18n，避免切換語言時被蓋返做冇後綴嘅「公開溫習大廳」
+    if (typeof window.updateRoomLobbyTitle === 'function') window.updateRoomLobbyTitle();
     // v1.198.2：段位名稱（溫習新手／Novice）跟語言即時轉
     if (typeof window.updateLevelDisplay === 'function' && window.currentUser) window.updateLevelDisplay();
   };

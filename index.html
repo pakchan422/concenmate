@@ -6,7 +6,7 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.198.2"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.199.5"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <meta charset="UTF-8">
@@ -466,6 +466,12 @@
       overflow: hidden;
     }
     #room-active.video-fullscreen-mode .fs-hide-in-fullscreen { display: none !important; }
+    /* v1.199.1：全螢幕溫習時都要見到右下角「即時對話」掣同對話視窗——
+       全螢幕層 z-index 係 9999，所以全螢幕期間將對話相關元素提高到佢上面
+       （body 嘅 room-fullscreen-active class 由 toggleVideoFullscreenMode 加減） */
+    body.room-fullscreen-active #chat-dock-toggle { z-index: 10001 !important; }
+    body.room-fullscreen-active #chat-dock-panel { z-index: 10002 !important; }
+    body.room-fullscreen-active #chat-windows-bar { z-index: 10000 !important; }
     /* 全螢幕專用嘅「🔊 背景音」掣：平時收埋（見 .fs-bg-noise-only 個
        inline display:none），入咗全螢幕先現形，等有需要先撳開細面板揀
        背景音，唔會長期霸住全螢幕控制列嘅位置 */
@@ -2013,7 +2019,7 @@
           <div id="room-lobby">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
               <div style="display:flex; align-items:center; gap:6px;">
-                <h2 style="font-size:18px; font-weight:bold; color:var(--brand-800);" id="room-lobby-title" data-i18n="room.lobbyTitle">公開溫習大廳</h2>
+                <h2 style="font-size:18px; font-weight:bold; color:var(--brand-800);" id="room-lobby-title">公開溫習大廳</h2>
                 <!-- 撳呢粒「！」會彈出解釋大廳分咗「中學溫習室」／「公開溫習室」
                      兩池嘅彈窗（見 window.openRoomPoolInfoModal，同下面
                      #modal-room-pool-info）。 -->

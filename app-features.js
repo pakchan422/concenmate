@@ -3592,6 +3592,11 @@
       try {
         await window.fs.deleteDoc(window.fs.doc(window.db, 'users', window.currentUser.uid, 'friends', friendUid));
         await window.fs.deleteDoc(window.fs.doc(window.db, 'users', friendUid, 'friends', window.currentUser.uid));
+        // v1.199.0：將好友邀請標記為「已移除」，之後雙方都可以重新送邀請
+        // （之前會一直停留喺 accepted，令「加好友」掣顯示「已經是好友」）。
+        await window.fs.updateDoc(window.fs.doc(window.db, 'friendRequests', friendRequestDocId(window.currentUser.uid, friendUid)), {
+          status: 'removed', respondedAt: Date.now()
+        }).catch(() => {});
         window.showToast(window.t('social.friendRemovedToast', '已移除好友'), '🗑️');
         closeModal('modal-view-profile');
         if (typeof window.loadFriendsList === 'function') window.loadFriendsList();
@@ -4539,8 +4544,18 @@
     function applyChatDockSnapshot(snapshot, myUid) {
       const isBaselineSnapshot = !chatDockBaselineEstablished;
       chatDockBaselineEstablished = true;
+      if (!window.chatClearedAtMap) window.chatClearedAtMap = {};
       window.chatDockData = snapshot.docs.map(d => {
         const data = d.data();
+        // v1.199.0：「刪除對話記錄」改為只清除自己嗰邊（clearedAt.{uid}），
+        // 對方仍然睇到；記低清除時間，用嚟隱藏之前嘅訊息。
+        const clearedAt = (data.clearedAt && typeof data.clearedAt[myUid] === 'number') ? data.clearedAt[myUid] : 0;
+        if (window.chatClearedAtMap[d.id] !== clearedAt) {
+          window.chatClearedAtMap[d.id] = clearedAt;
+          if (chatOpenWindows.some(w => w.chatId === d.id) && typeof renderChatWindowMessages === 'function') {
+            setTimeout(() => { if (chatMessagesRaw[d.id]) { chatMessagesCache[d.id] = filterClearedMessages(d.id, chatMessagesRaw[d.id]); renderChatWindowMessages(d.id); } }, 0);
+          }
+        }
         const friendUid = (data.participants || []).find(u => u !== myUid);
         // 顯示名優先用返呢份文件本身存埋嘅 participantNames（傳送訊息嗰陣
         // 已經連自己個名同對方個名一齊寫落去），淨係喺舊訊息（呢個機制
@@ -4553,9 +4568,10 @@
           lastMessage: data.lastMessage || '',
           lastMessageAt: data.lastMessageAt || 0,
           lastSenderUid: data.lastSenderUid || '',
-          unread: (data.unread && data.unread[myUid]) || 0
+          unread: (data.unread && data.unread[myUid]) || 0,
+          clearedAt
         };
-      });
+      }).filter(c => !(c.clearedAt && c.lastMessageAt <= c.clearedAt));
 
       // 對方傳咗一則新訊息過嚟（唔係自己送出、亦都未見過）就主動彈個 toast
       // 通知，等用家唔使自己撳返個「💬」先知道有人搵佢；如果對應嘅對話
@@ -4720,7 +4736,7 @@
             <div class="chat-window-header" onclick="window.toggleMinimizeChatWindow('${w.chatId}')">
               <span class="presence-dot ${online ? 'online' : ''}" style="position:static;"></span>
               <span class="chat-window-title">${escapeHtml(w.friendUsername)}</span>
-              <button type="button" class="chat-window-close-btn" title="刪除對話記錄" onclick="event.stopPropagation(); window.clearChatHistory('${w.chatId}')">🗑️</button>
+              <button type="button" class="chat-window-close-btn" title="清除對話記錄" onclick="event.stopPropagation(); window.clearChatHistory('${w.chatId}')">🗑️</button>
               <button type="button" class="chat-window-close-btn" title="閂視窗" onclick="event.stopPropagation(); window.closeChatWindow('${w.chatId}')">✕</button>
             </div>
             <div class="chat-window-body" id="chat-body-${w.chatId}"></div>
@@ -4772,6 +4788,13 @@
       if (affected) renderChatWindowsBar();
     };
 
+    // v1.199.0：自己清除過嘅對話，只顯示清除時間之後嘅新訊息
+    const chatMessagesRaw = {};
+    function filterClearedMessages(chatId, msgs) {
+      const clearedAt = (window.chatClearedAtMap && window.chatClearedAtMap[chatId]) || 0;
+      return clearedAt ? msgs.filter(m => (m.createdAt || 0) > clearedAt) : msgs;
+    }
+
     function subscribeChatWindowMessages(chatId) {
       if (chatMessagesUnsubs[chatId]) return;
       if (!window.db || !window.fs) return;
@@ -4781,7 +4804,8 @@
         window.fs.limit(50)
       );
       chatMessagesUnsubs[chatId] = window.fs.onSnapshot(q, (snapshot) => {
-        chatMessagesCache[chatId] = snapshot.docs.map(d => d.data()).reverse();
+        chatMessagesRaw[chatId] = snapshot.docs.map(d => d.data()).reverse();
+        chatMessagesCache[chatId] = filterClearedMessages(chatId, chatMessagesRaw[chatId]);
         renderChatWindowMessages(chatId);
         const win = chatOpenWindows.find(w => w.chatId === chatId);
         if (win && !win.minimized) markChatRead(chatId);
@@ -4889,14 +4913,17 @@
     // 嘅所有訊息（唔係淨係自己隱藏），撳之前會 confirm 一次先，避免手震撳錯
     window.clearChatHistory = async function(chatId) {
       if (!window.currentUser || !window.db || !window.fs) return;
-      if (!confirm(window.t('features.confirmDeleteChatHistory', '確定要刪除這個對話的全部訊息記錄？這個動作會影響雙方，刪除後將無法復原。'))) return;
+      if (!confirm(window.t('features.confirmDeleteChatHistory', '確定要清除這個對話的訊息記錄？只會清除你這邊的顯示，對方仍然可以看到。'))) return;
       try {
-        const msgsSnap = await window.fs.getDocs(window.fs.collection(window.db, 'directChats', chatId, 'messages'));
-        await Promise.all(msgsSnap.docs.map(d => window.fs.deleteDoc(d.ref)));
-        // 連 directChats 呢份文件本身都一齊刪走（唔係淨係清空欄位），噉樣
-        // 個「即時對話」浮動面板嘅「最近對話」清單先會即刻冇咗呢個對話
-        // （個清單淨係顯示仲有 directChats 文件嘅好友，見 renderChatDockPanel）
-        await window.fs.deleteDoc(window.fs.doc(window.db, 'directChats', chatId));
+        // v1.199.0：唔再真正刪除訊息（對方嘅訊息唔可以由你刪走，亦要保留
+        // 作舉報證據），改為記低「你喺幾時清除咗」，之後只隱藏你嗰邊。
+        const clearNow = Date.now();
+        await window.fs.updateDoc(window.fs.doc(window.db, 'directChats', chatId), {
+          ['clearedAt.' + window.currentUser.uid]: clearNow,
+          ['unread.' + window.currentUser.uid]: 0
+        });
+        if (!window.chatClearedAtMap) window.chatClearedAtMap = {};
+        window.chatClearedAtMap[chatId] = clearNow;
         chatMessagesCache[chatId] = [];
         renderChatWindowMessages(chatId);
         // 樂觀更新本機嘅「最近對話」清單，即刻喺 dock panel 消失，唔使
@@ -4911,7 +4938,7 @@
           if (totalUnreadAfterDelete > 0) { badgeAfterDelete.style.display = 'flex'; badgeAfterDelete.innerText = totalUnreadAfterDelete > 99 ? '99+' : totalUnreadAfterDelete; }
           else { badgeAfterDelete.style.display = 'none'; }
         }
-        window.showToast(window.t('features.chatHistoryDeletedSuccess', '已刪除對話記錄'), '🗑️');
+        window.showToast(window.t('features.chatHistoryDeletedSuccess', '已清除對話記錄'), '🗑️');
       } catch (e) {
         window.showToast(window.t('features.deleteFailedTemplate', '刪除失敗：{msg}').replace('{msg}', (e.message || e)), '❌');
       }
