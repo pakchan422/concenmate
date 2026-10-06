@@ -934,7 +934,7 @@
               <td>${r.participantCount || 0}/${(typeof window.resolveRoomCapacity === 'function') ? window.resolveRoomCapacity(r) : (window.ROOM_CAPACITY || 4)}</td>
               <td>${r.duration || 30} 分鐘</td>
               <td>${created}</td>
-              <td><button class="btn btn-red" style="font-size:13px; padding:3px 8px;" onclick="adminDeleteRoom('${docSnap.id}', '${(r.name || '').replace(/'/g, "\\'")}')">強制關閉</button></td>
+              <td><button class="btn btn-red" style="font-size:13px; padding:3px 8px;" onclick="adminDeleteRoom('${docSnap.id}', ${window.jsArg(r.name || '')})">強制關閉</button></td>
             </tr>
           `;
         }).join('');

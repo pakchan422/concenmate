@@ -471,15 +471,15 @@
             <p style="font-size:13px; color:#ccc; margin-top:6px;">${window.t('room.remoteCameraOff', '對方鏡頭已關閉')}</p>
           </div>
           <div class="video-header">
-            <span class="video-tag" style="cursor:pointer;" onclick="viewUserProfile('${uid}')" title="${window.t('room.viewProfile', '點擊查看資料／加好友')}">${name || window.t('room.otherUser', '其他用家')}</span>
+            <span class="video-tag" style="cursor:pointer;" onclick="viewUserProfile('${uid}')" title="${window.t('room.viewProfile', '點擊查看資料／加好友')}">${window.escapeHtml(name || window.t('room.otherUser', '其他用家'))}</span>
             <span class="video-tag" id="remote-host-badge-${slotNum}" style="background:#D9EBEF; color:#1E4550; display:none;">${window.t('room.hostBadge', '房主')}</span>
             <span class="video-tag" id="stream-status-${uid}" style="background:#3E7A8A; color:#fff;">${window.t('room.remoteWaitStream', '連線中...')}</span>
             <div class="video-more-menu-wrap">
               <span class="video-tag video-more-menu-toggle" onclick="event.stopPropagation(); window.toggleVideoMoreMenu('${uid}')" title="${window.t('room.moreOptions', '更多選項')}">⋮</span>
               <div class="video-more-menu-dropdown" id="video-more-menu-${uid}" style="display:none;">
-                <button type="button" class="video-more-menu-item" id="transfer-host-btn-${uid}" style="display:none;" onclick="event.stopPropagation(); window.toggleVideoMoreMenu('${uid}'); window.transferHostTo('${uid}', '${(name||'呢位同學').replace(/'/g, "\\'")}')">${window.t('room.transferHost', '轉移房主給他')}</button>
-                <button type="button" class="video-more-menu-item danger" id="kick-btn-${uid}" style="display:none;" onclick="event.stopPropagation(); window.toggleVideoMoreMenu('${uid}'); window.kickParticipant('${uid}', '${(name||'呢位同學').replace(/'/g, "\\'")}')">${window.t('room.kickUser', '踢走呢位同學')}</button>
-                <button type="button" class="video-more-menu-item danger" onclick="event.stopPropagation(); window.toggleVideoMoreMenu('${uid}'); window.openReportModal('${uid}', '${(name||'呢位同學').replace(/'/g, "\\'")}')">${window.t('room.reportUser', '舉報呢位同學')}</button>
+                <button type="button" class="video-more-menu-item" id="transfer-host-btn-${uid}" style="display:none;" onclick="event.stopPropagation(); window.toggleVideoMoreMenu('${uid}'); window.transferHostTo('${uid}', ${window.jsArg(name||'這位同學')})">${window.t('room.transferHost', '轉移房主給他')}</button>
+                <button type="button" class="video-more-menu-item danger" id="kick-btn-${uid}" style="display:none;" onclick="event.stopPropagation(); window.toggleVideoMoreMenu('${uid}'); window.kickParticipant('${uid}', ${window.jsArg(name||'這位同學')})">${window.t('room.kickUser', '踢走呢位同學')}</button>
+                <button type="button" class="video-more-menu-item danger" onclick="event.stopPropagation(); window.toggleVideoMoreMenu('${uid}'); window.openReportModal('${uid}', ${window.jsArg(name||'這位同學')})">${window.t('room.reportUser', '舉報呢位同學')}</button>
               </div>
             </div>
           </div>

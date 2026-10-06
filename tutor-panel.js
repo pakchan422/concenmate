@@ -157,7 +157,7 @@ window.applyRoleBasedSidebar = function() {
 
     const makeTabBtn = (label, value) => {
       const active = tutorDirectorySelectedSubject === value;
-      return `<button type="button" class="btn ${active ? 'btn-primary' : 'btn-outline'}" style="font-size:13px; padding:5px 12px;" onclick="window.selectTutorDirectorySubject(${value === null ? 'null' : `'${escapeHtmlLocal(value).replace(/'/g, "\\'")}'`})">${escapeHtmlLocal(label)}</button>`;
+      return `<button type="button" class="btn ${active ? 'btn-primary' : 'btn-outline'}" style="font-size:13px; padding:5px 12px;" onclick="window.selectTutorDirectorySubject(${value === null ? 'null' : window.jsArg(value)})">${escapeHtmlLocal(label)}</button>`;
     };
 
     tabsContainer.innerHTML = [makeTabBtn(window.t('room.filterAll', '全部'), null), ...orderedSubjects.map((s) => makeTabBtn(window.translateSubjectName ? window.translateSubjectName(s) : s, s))].join('');

@@ -6,7 +6,7 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.196.8"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.198.1"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <meta charset="UTF-8">
@@ -162,7 +162,7 @@
        會影響現有功能。 -->
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js" crossorigin="anonymous"></script>
   <script>
-    window.EMAILJS_PUBLIC_KEY = 'E0MyD_oGUm6yVjJKe';
+    window.EMAILJS_PUBLIC_KEY = '1J-O_m3KYXCpUQEY7';
     window.EMAILJS_SERVICE_ID = 'service_armrtdv';
     window.EMAILJS_TEMPLATE_ID = 'template_nms9igc';
     window.EMAILJS_PASSWORD_RESET_TEMPLATE_ID = 'template_m2u8ioh'; // 忘記密碼專用範本 ID（可選，留空會 fallback 用返上面嗰個）
@@ -1538,7 +1538,7 @@
           <img class="landing-hero-logo" id="landing-nav-logo-img" src="logo-hero.png" alt="ConcenMate">
           <div class="landing-eyebrow" data-i18n="landing.eyebrow">認識 ConcenMate 書伴</div>
           <h1 class="landing-hero-h1"><span data-i18n="landing.heroH1Line1">相遇你的書伴，陪你走過</span><span data-i18n="landing.heroH1Line2">每一段溫習時光</span></h1>
-          <p class="landing-hero-slogan" data-i18n="landing.slogan">Always By Your Side</p>
+          <p class="landing-hero-slogan" data-i18n="landing.slogan">Concentrate with a Mate.</p>
           <p class="landing-hero-sub" data-i18n="landing.heroSub">ConcenMate 書伴是專為學生設計的線上溫習室，讓你尋找志同道合的夥伴，結合專注力計時、溫習社群與成長獎勵機制，陪伴你建立持續而穩定的學習習慣。</p>
           <div class="landing-hero-ctas">
             <button type="button" class="landing-btn landing-btn-primary" data-i18n="landing.registerBtn" onclick="typeof window.openModal==='function' && window.openModal('modal-register')">註冊帳號</button>
@@ -2340,7 +2340,7 @@
               <form id="profile-form" onsubmit="saveUserProfile(event)" style="display:flex; flex-direction:column; gap:12px;">
                 <div>
                   <label style="font-size:13px; font-weight:bold; color:#555; display:block;" data-i18n="profile.usernameLabel">會員帳號名稱 (Username)</label>
-                  <input type="text" id="prof-username" class="input-field" placeholder="例如：Alex Wong" data-i18n-placeholder="profile.usernamePlaceholder">
+                  <input type="text" id="prof-username" class="input-field" maxlength="30" placeholder="例如：Alex Wong" data-i18n-placeholder="profile.usernamePlaceholder">
                 </div>
 
                 <div style="display:none;">
@@ -2934,7 +2934,7 @@
 
         <div>
           <label style="font-size:13px; font-weight:bold; color:#555;" data-i18n="auth.nicknameLabel">暱稱（顯示用）*</label>
-          <input type="text" id="reg-username" class="input-field" required placeholder="例如：Alex Wong" data-i18n-placeholder="profile.usernamePlaceholder">
+          <input type="text" id="reg-username" class="input-field" required maxlength="30" placeholder="例如：Alex Wong" data-i18n-placeholder="profile.usernamePlaceholder">
         </div>
 
         <div>
@@ -3495,25 +3495,25 @@
        就要等管理員喺後台審批，暫時未有任何後續功能（上傳筆記等）。 -->
   <div class="modal-backdrop" id="modal-tutor-apply" style="display:none;">
     <div class="modal-box" style="max-width:420px;">
-      <h3 style="font-size:17px; font-weight:bold; color:var(--brand-800); margin-bottom:4px;">申請成為導師</h3>
-      <p style="font-size:13px; color:#888; margin-bottom:14px;">通過審批之後，您就可以在導師後台管理科目、上傳付費筆記給其他同學購買。請填好以下資料交給管理員審批。</p>
+      <h3 style="font-size:17px; font-weight:bold; color:var(--brand-800); margin-bottom:4px;" data-i18n="tutorapply.title">申請成為導師</h3>
+      <p style="font-size:13px; color:#888; margin-bottom:14px;" data-i18n="tutorapply.subtitle">通過審批之後，您就可以在導師後台管理科目、上傳付費筆記給其他同學購買。請填好以下資料交給管理員審批。</p>
 
-      <label style="font-size:13px; font-weight:bold; color:var(--brand-800); display:block; margin-bottom:4px;">顯示名稱</label>
-      <input id="tutor-apply-name" class="input-field" type="text" maxlength="40" placeholder="學生會見到的導師名稱" style="width:100%; margin-bottom:10px;">
+      <label style="font-size:13px; font-weight:bold; color:var(--brand-800); display:block; margin-bottom:4px;" data-i18n="tutorapply.displayNameLabel">顯示名稱</label>
+      <input id="tutor-apply-name" class="input-field" type="text" maxlength="40" placeholder="學生會見到的導師名稱" data-i18n-placeholder="tutorapply.displayNamePlaceholder" style="width:100%; margin-bottom:10px;">
 
-      <label style="font-size:13px; font-weight:bold; color:var(--brand-800); display:block; margin-bottom:4px;">自我介紹</label>
-      <textarea id="tutor-apply-bio" class="input-field" rows="3" maxlength="500" placeholder="簡單介紹自己的教學背景、經驗" style="width:100%; margin-bottom:10px; resize:vertical;"></textarea>
+      <label style="font-size:13px; font-weight:bold; color:var(--brand-800); display:block; margin-bottom:4px;" data-i18n="tutorapply.bioLabel">自我介紹</label>
+      <textarea id="tutor-apply-bio" class="input-field" rows="3" maxlength="500" placeholder="簡單介紹自己的教學背景、經驗" data-i18n-placeholder="tutorapply.bioPlaceholder" style="width:100%; margin-bottom:10px; resize:vertical;"></textarea>
 
-      <label style="font-size:13px; font-weight:bold; color:var(--brand-800); display:block; margin-bottom:4px;">想教的科目（可選多科，亦可自行輸入）</label>
+      <label style="font-size:13px; font-weight:bold; color:var(--brand-800); display:block; margin-bottom:4px;" data-i18n="tutorapply.subjectsLabel">想教的科目（可選多科，亦可自行輸入）</label>
       <div id="tutor-apply-subjects-picker" style="margin-bottom:10px;"></div>
       <input id="tutor-apply-subjects" type="hidden">
 
-      <label style="font-size:13px; font-weight:bold; color:var(--brand-800); display:block; margin-bottom:4px;">聯絡方式（管理員審批用，不會公開）</label>
-      <input id="tutor-apply-contact" class="input-field" type="text" maxlength="200" placeholder="例如電郵或電話" style="width:100%; margin-bottom:14px;">
+      <label style="font-size:13px; font-weight:bold; color:var(--brand-800); display:block; margin-bottom:4px;" data-i18n="tutorapply.contactLabel">聯絡方式（管理員審批用，不會公開）</label>
+      <input id="tutor-apply-contact" class="input-field" type="text" maxlength="200" placeholder="例如電郵或電話" data-i18n-placeholder="tutorapply.contactPlaceholder" style="width:100%; margin-bottom:14px;">
 
       <div style="display:flex; gap:8px;">
-        <button class="btn btn-outline" type="button" style="flex:1; justify-content:center;" onclick="closeModal('modal-tutor-apply')">取消</button>
-        <button class="btn btn-primary" type="button" id="tutor-apply-submit-btn" style="flex:1; justify-content:center;" onclick="submitTutorApplication()">送出申請</button>
+        <button class="btn btn-outline" type="button" style="flex:1; justify-content:center;" onclick="closeModal('modal-tutor-apply')" data-i18n="common.cancel">取消</button>
+        <button class="btn btn-primary" type="button" id="tutor-apply-submit-btn" style="flex:1; justify-content:center;" onclick="submitTutorApplication()" data-i18n="tutorapply.submitBtn">送出申請</button>
       </div>
     </div>
   </div>
@@ -3523,16 +3523,16 @@
        文字輸入格。清單由 tutor-panel.js 嘅 TUTOR_DSE_SUBJECTS 產生。 -->
   <div class="modal-backdrop" id="modal-tutor-add-subject" style="display:none;">
     <div class="modal-box" style="max-width:380px;">
-      <h3 style="font-size:17px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;">新增科目</h3>
-      <label style="font-size:13px; font-weight:bold; color:#555; display:block; margin-bottom:4px;">科目名稱</label>
+      <h3 style="font-size:17px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;" data-i18n="tutormat.addSubjectTitle">新增科目</h3>
+      <label style="font-size:13px; font-weight:bold; color:#555; display:block; margin-bottom:4px;" data-i18n="tutormat.subjectNameLabel">科目名稱</label>
       <select id="tutor-add-subject-select" class="input-field" style="width:100%; margin-bottom:10px;" onchange="window.onTutorAddSubjectSelectChange()"></select>
       <div id="tutor-add-subject-custom-wrap" style="display:none;">
-        <label style="font-size:13px; font-weight:bold; color:#555; display:block; margin-bottom:4px;">自訂科目名稱</label>
-        <input id="tutor-add-subject-custom" class="input-field" type="text" maxlength="30" style="width:100%; margin-bottom:10px;" placeholder="例如：法文">
+        <label style="font-size:13px; font-weight:bold; color:#555; display:block; margin-bottom:4px;" data-i18n="tutormat.customSubjectNameLabel">自訂科目名稱</label>
+        <input id="tutor-add-subject-custom" class="input-field" type="text" maxlength="30" style="width:100%; margin-bottom:10px;" placeholder="例如：法文" data-i18n-placeholder="tutormat.customSubjectPlaceholder">
       </div>
       <div style="display:flex; gap:8px; margin-top:6px;">
-        <button class="btn btn-outline" type="button" style="flex:1; justify-content:center;" onclick="closeModal('modal-tutor-add-subject')">取消</button>
-        <button class="btn btn-primary" type="button" style="flex:1; justify-content:center;" onclick="window.confirmTutorAddSubject()">新增</button>
+        <button class="btn btn-outline" type="button" style="flex:1; justify-content:center;" onclick="closeModal('modal-tutor-add-subject')" data-i18n="common.cancel">取消</button>
+        <button class="btn btn-primary" type="button" style="flex:1; justify-content:center;" onclick="window.confirmTutorAddSubject()" data-i18n="tutormat.addBtn">新增</button>
       </div>
     </div>
   </div>
@@ -3540,16 +3540,16 @@
   <!-- 🎓 導師「編輯教材」：修改標題／簡介／定價，取代原本逐個 prompt() 彈窗嘅做法 -->
   <div class="modal-backdrop" id="modal-tutor-edit-note" style="display:none;">
     <div class="modal-box" style="max-width:420px;">
-      <h3 style="font-size:17px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;">編輯教材</h3>
-      <label style="font-size:13px; font-weight:bold; color:#555; display:block; margin-bottom:4px;">標題 *</label>
+      <h3 style="font-size:17px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;" data-i18n="tutormat.editNoteTitle">編輯教材</h3>
+      <label style="font-size:13px; font-weight:bold; color:#555; display:block; margin-bottom:4px;" data-i18n="tutormat.noteTitleLabel">標題 *</label>
       <input id="tutor-edit-note-title" class="input-field" type="text" maxlength="80" style="width:100%; margin-bottom:10px;">
-      <label style="font-size:13px; font-weight:bold; color:#555; display:block; margin-bottom:4px;">簡介</label>
+      <label style="font-size:13px; font-weight:bold; color:#555; display:block; margin-bottom:4px;" data-i18n="tutormat.noteDescLabel">簡介</label>
       <textarea id="tutor-edit-note-desc" class="input-field" rows="3" maxlength="1000" style="width:100%; margin-bottom:10px; resize:vertical;"></textarea>
-      <label style="font-size:13px; font-weight:bold; color:#555; display:block; margin-bottom:4px;">定價（港幣，最低 $10，只能為整數）*</label>
+      <label style="font-size:13px; font-weight:bold; color:#555; display:block; margin-bottom:4px;" data-i18n="tutormat.notePriceLabel">定價（港幣，最低 $10，只能為整數）*</label>
       <input id="tutor-edit-note-price" class="input-field" type="number" min="10" step="1" style="width:100%; margin-bottom:14px;">
       <div style="display:flex; gap:8px;">
-        <button class="btn btn-outline" type="button" style="flex:1; justify-content:center;" onclick="closeModal('modal-tutor-edit-note')">取消</button>
-        <button class="btn btn-primary" type="button" style="flex:1; justify-content:center;" onclick="window.confirmTutorEditNote()">儲存</button>
+        <button class="btn btn-outline" type="button" style="flex:1; justify-content:center;" onclick="closeModal('modal-tutor-edit-note')" data-i18n="common.cancel">取消</button>
+        <button class="btn btn-primary" type="button" style="flex:1; justify-content:center;" onclick="window.confirmTutorEditNote()" data-i18n="common.save">儲存</button>
       </div>
     </div>
   </div>
