@@ -6,7 +6,7 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.199.5"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.200.1"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <meta charset="UTF-8">
@@ -1385,12 +1385,11 @@
     .landing-nav-actions { display: flex; align-items: center; gap: 20px; flex-shrink: 0; }
     .landing-nav-login { font-size: 15px; font-weight: 700; color: var(--brand-700); text-decoration: none; white-space: nowrap; cursor: pointer; background: #fff; border: 1px solid var(--brand-300); border-radius: 10px; padding: 8px 16px; font-family: inherit; }
     .landing-nav-login:hover { background: var(--brand-50); }
-    .landing-hero-logo { width: 160px; height: auto; object-fit: contain; display: block; margin: 0 0 20px; }
+    .landing-hero-logo { width: 280px; max-width: 100%; height: auto; object-fit: contain; display: block; margin: 0 0 24px; }
 
     .landing-hero { padding: 36px 0 104px; overflow: hidden; }
     .landing-hero-inner { display: flex; align-items: center; gap: 56px; }
     .landing-hero-text { flex: 1 1 480px; min-width: 0; }
-    .landing-eyebrow { display: inline-flex; align-items: center; gap: 8px; background: var(--brand-100); color: var(--brand-700); font-size: 15px; font-weight: 800; padding: 8px 16px; border-radius: 999px; margin-bottom: 24px; }
     .landing-hero-h1 { font-size: 44px; line-height: 1.32; font-weight: 800; color: var(--brand-800); letter-spacing: -.01em; margin: 0 0 16px; }
     .landing-hero-h1 span { display: block; white-space: nowrap; }
     .landing-hero-slogan { font-size: 16px; font-weight: 800; letter-spacing: .04em; color: var(--brand-500); margin: 0 0 22px; }
@@ -1449,7 +1448,7 @@
     }
     @media (max-width: 430px) {
       .landing-nav-inner { padding-left: 16px; padding-right: 16px; gap: 8px; }
-      .landing-hero-logo { width: 120px; margin-bottom: 14px; }
+      .landing-hero-logo { width: 210px; margin-bottom: 18px; }
       .landing-nav-actions { gap: 6px; }
       /* 手機窄畫面下都要保留「登入」按鈕，之前設定咗 display:none 會令
          登入前主頁完全冇入口去登入畫面，只剩返「免費開始使用」（註冊），
@@ -1542,7 +1541,6 @@
       <div class="landing-container landing-hero-inner">
         <div class="landing-hero-text">
           <img class="landing-hero-logo" id="landing-nav-logo-img" src="logo-hero.png" alt="ConcenMate">
-          <div class="landing-eyebrow" data-i18n="landing.eyebrow">認識 ConcenMate 書伴</div>
           <h1 class="landing-hero-h1"><span data-i18n="landing.heroH1Line1">相遇你的書伴，陪你走過</span><span data-i18n="landing.heroH1Line2">每一段溫習時光</span></h1>
           <p class="landing-hero-slogan" data-i18n="landing.slogan">Concentrate with a Mate.</p>
           <p class="landing-hero-sub" data-i18n="landing.heroSub">ConcenMate 書伴是專為學生設計的線上溫習室，讓你尋找志同道合的夥伴，結合專注力計時、溫習社群與成長獎勵機制，陪伴你建立持續而穩定的學習習慣。</p>

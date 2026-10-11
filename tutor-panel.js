@@ -189,7 +189,7 @@ window.applyRoleBasedSidebar = function() {
     try {
       const [tutorSnap, userSnap] = await Promise.all([
         window.fs.getDoc(window.fs.doc(window.db, 'tutors', uid)),
-        window.fs.getDoc(window.fs.doc(window.db, 'users', uid)),
+        window.fs.getDoc(window.publicProfileRef(uid)),
       ]);
       if (!tutorSnap.exists()) {
         if (nameEl) nameEl.innerText = window.t('tutorview.notFound', '找不到這位導師');

@@ -1354,7 +1354,7 @@
 
       if (!window.db || !window.fs) return;
       try {
-        const snap = await window.fs.getDoc(window.fs.doc(window.db, 'users', _diaryViewUid));
+        const snap = await window.fs.getDoc(window.publicProfileRef(_diaryViewUid));
         if (!snap.exists()) {
           if (usernameEl) usernameEl.innerText = window.t('diary.userNotFound', '找不到這位使用者');
           return;
@@ -1407,7 +1407,7 @@
         const counterpartUids = snap.docs.map(d => d.data()[counterpartField]).filter(Boolean);
 
         const userSnaps = await Promise.all(
-          counterpartUids.map(cuid => window.fs.getDoc(window.fs.doc(window.db, 'users', cuid)))
+          counterpartUids.map(cuid => window.fs.getDoc(window.publicProfileRef(cuid)))
         );
 
         let html = '';
@@ -1688,17 +1688,11 @@
       if (!window.currentUser) return;
       const today = getTodayDateStr();
       if (window.currentUser.todayDate === today) return;
+      // v1.199.6：淨係喺本機畫面歸零。Firestore 嘅 todayMinutes／todayDate
+      // 只可以由 awardStudyPoints（伺服器用香港時間判斷新一日）寫入，前端
+      // 寫一定被規則擋（之前每次開網頁都會喺 console 見到「權限不足」）。
       window.currentUser.todayMinutes = 0;
       window.currentUser.todayDate = today;
-      if (!window.db || !window.fs || !window.currentUser.uid) return;
-      try {
-        await window.fs.updateDoc(window.fs.doc(window.db, 'users', window.currentUser.uid), {
-          todayMinutes: 0,
-          todayDate: today
-        });
-      } catch (e) {
-        console.warn('重置「今日目標」失敗（唔影響使用）:', e);
-      }
     }
 
     // ===================== 溫習日曆／連續溫習日數 =====================
@@ -2728,6 +2722,17 @@
       return (isEn && r.titleEn) ? r.titleEn : (r.title || '');
     };
     window.jsArg = jsArg;
+
+    // v1.200.0 私隱修補：users/{uid} 而家淨係帳戶本人同管理員讀得到（入面有
+    // 真實電郵、出生年月等私人資料）。睇第二個用戶嘅公開資料（用戶名、頭像、
+    // 學校、年級、粉絲數等），一律改讀 publicProfiles/{uid}——由 Cloud
+    // Function（syncPublicProfileOnUserWrite）自動同步，淨係有公開欄位。
+    window.publicProfileRef = function(uid) {
+      if (window.currentUser && uid === window.currentUser.uid) {
+        return window.fs.doc(window.db, 'users', uid);
+      }
+      return window.fs.doc(window.db, 'publicProfiles', uid);
+    };
     window.safeImgSrc = safeImgSrc;
 
     function formatTime(ts) {
@@ -3436,7 +3441,7 @@
 
       if (!window.db || !window.fs) return;
       try {
-        const snap = await window.fs.getDoc(window.fs.doc(window.db, 'users', uid));
+        const snap = await window.fs.getDoc(window.publicProfileRef(uid));
         if (!snap.exists()) {
           if (nameEl) nameEl.innerText = window.t('viewprofile.userNotFound', '找不到這位使用者');
           return;
@@ -4018,7 +4023,7 @@
           resultEl.innerHTML = `<p style="font-size:13px; color:#999;">${window.t('social.thisIsYourOwnAccount', '這個是你自己的帳號 ID')}</p>`;
           return;
         }
-        const userSnap = await window.fs.getDoc(window.fs.doc(window.db, 'users', targetUid));
+        const userSnap = await window.fs.getDoc(window.publicProfileRef(targetUid));
         if (!userSnap.exists()) {
           resultEl.innerHTML = `<p style="font-size:13px; color:#D9764A;">${window.t('social.userDataNotFoundText', '找不到這位使用者的資料')}</p>`;
           return;
@@ -4198,7 +4203,9 @@
 
     function sendPresenceHeartbeat() {
       if (!window.currentUser || !window.db || !window.fs) return;
-      window.fs.updateDoc(window.fs.doc(window.db, 'users', window.currentUser.uid), { lastSeenAt: Date.now() }).catch(() => {});
+      // v1.200.0：在線心跳改寫入獨立嘅 presence/{uid}（唔再寫 users 文件），
+      // 因為 users 文件而家淨係自己同管理員讀得到。
+      window.fs.setDoc(window.fs.doc(window.db, 'presence', window.currentUser.uid), { lastSeenAt: Date.now() }).catch(() => {});
     }
 
     function handlePresenceVisibilityChange() {
@@ -4245,7 +4252,7 @@
       if (!window.db || !window.fs) return;
       (uids || []).forEach(uid => {
         if (!uid || friendPresenceUnsubs[uid]) return;
-        friendPresenceUnsubs[uid] = window.fs.onSnapshot(window.fs.doc(window.db, 'users', uid), (snap) => {
+        friendPresenceUnsubs[uid] = window.fs.onSnapshot(window.fs.doc(window.db, 'presence', uid), (snap) => {
           window.friendPresenceMap[uid] = snap.exists() ? (snap.data().lastSeenAt || null) : null;
           if (document.getElementById('friends-list-container')) renderFriendsListRows();
           if (typeof window.renderChatDockPanel === 'function') window.renderChatDockPanel();

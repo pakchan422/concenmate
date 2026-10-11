@@ -848,7 +848,6 @@
     'landing.navLogin': { 'zh-Hant': '登入', 'en': 'Log In', 'yue': '登入' },
     'landing.registerBtn': { 'zh-Hant': '註冊帳號', 'en': 'Sign Up', 'yue': '註冊帳號' },
     'landing.slogan': { 'zh-Hant': 'Concentrate with a Mate.', 'en': 'Concentrate with a Mate.', 'yue': 'Concentrate with a Mate.' },
-    'landing.eyebrow': { 'zh-Hant': '認識 ConcenMate 書伴', 'en': 'Meet ConcenMate', 'yue': '認識吓 ConcenMate 書伴' },
     'landing.heroH1Line1': { 'zh-Hant': '相遇你的書伴，陪你走過', 'en': 'Meet your study companion, by your side through', 'yue': '遇到你嘅書伴，陪你行過' },
     'landing.heroH1Line2': { 'zh-Hant': '每一段溫習時光', 'en': 'every moment of studying', 'yue': '每一段溫書時光' },
     'landing.heroSub': { 'zh-Hant': 'ConcenMate 書伴是專為學生設計的線上溫習室，讓你尋找志同道合的夥伴，結合專注力計時、溫習社群與成長獎勵機制，陪伴你建立持續而穩定的學習習慣。', 'en': 'ConcenMate is an online study room designed for students, helping you find like-minded study partners. It combines focus timers, a study community, and a growth reward system to help you build a consistent study habit.', 'yue': 'ConcenMate 書伴係專為學生設計嘅線上溫習室，等你搵到志同道合嘅夥伴，結合專注力計時、溫習社群同成長獎勵機制，陪你養成持續而穩定嘅學習習慣。' },
