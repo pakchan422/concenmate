@@ -750,7 +750,7 @@ window.applyRoleBasedSidebar = function() {
     const label = document.getElementById('pdf-preview-page-label');
     if (label) label.innerText = '載入中…';
     try {
-      if (!window.pdfjsLib) throw new Error('PDF 顯示元件未載入，請重新整理頁面再試');
+      await window.ensurePdfJs();
       pdfPreviewDoc = await window.pdfjsLib.getDocument(url).promise;
       await renderPdfPreviewPage(1);
     } catch (err) {
@@ -886,7 +886,7 @@ window.applyRoleBasedSidebar = function() {
   const thumbCache = {};
 
   async function loadTutorNoteThumbnails(docs) {
-    if (!window.pdfjsLib) return;
+    try { await window.ensurePdfJs(); } catch (e) { console.warn(e); return; }
     for (const docSnap of docs) {
       const n = docSnap.data();
       const id = docSnap.id;

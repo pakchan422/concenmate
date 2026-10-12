@@ -596,50 +596,13 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
     // 啱唔啱，啱先寫 emailVerified: true。因為冇後端，寫入呢步一定要
     // 用戶本人登入緊先做得到（Firestore 規則淨係俾用戶自己改自己嘅
     // users/{uid} 文件）。
-    function generateVerifyToken() {
-      const bytes = new Uint8Array(24);
-      (window.crypto || window.msCrypto).getRandomValues(bytes);
-      return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
-    }
 
-    window.sendVerificationEmail = async function(toEmail, username, uid, token) {
-      if (!toEmail) return;
-      if (!window.EMAILJS_CONFIGURED || typeof emailjs === 'undefined') {
-        console.warn('EmailJS 未設定，沒有寄到驗證電郵給', toEmail, '（見 index.html 頭段「電郵驗證設定」）');
-        return;
-      }
-      const verifyLink = `${window.location.origin}${window.location.pathname}#verify-email=${uid}:${token}`;
-      try {
-        await emailjs.send(window.EMAILJS_SERVICE_ID, window.EMAILJS_TEMPLATE_ID, {
-          to_email: toEmail,
-          to_name: username || '同學',
-          verify_link: verifyLink
-        });
-      } catch (e) {
-        console.error('寄驗證電郵失敗:', e);
-      }
-    };
-
-    // 如果喺 index.html 頭段填咗 EMAILJS_PASSWORD_RESET_TEMPLATE_ID（忘記
-    // 密碼專用範本），就用嗰個；未填（留空）就 fallback 沿用返電郵驗證
-    // 嗰個共用範本，確保冇填新範本之前呢個功能都繼續正常運作。
-    window.sendPasswordResetEmail = async function(toEmail, username, token) {
-      if (!toEmail) return;
-      if (!window.EMAILJS_CONFIGURED || typeof emailjs === 'undefined') {
-        console.warn('EmailJS 未設定，沒有寄到重設密碼電郵給', toEmail, '（見 index.html 頭段「電郵驗證設定」）');
-        return;
-      }
-      const resetLink = `${window.location.origin}${window.location.pathname}#reset-password=${token}`;
-      const templateId = window.EMAILJS_PASSWORD_RESET_TEMPLATE_ID || window.EMAILJS_TEMPLATE_ID;
-      try {
-        await emailjs.send(window.EMAILJS_SERVICE_ID, templateId, {
-          to_email: toEmail,
-          to_name: username || '同學',
-          verify_link: resetLink
-        });
-      } catch (e) {
-        console.error('寄重設密碼電郵失敗:', e);
-      }
+    // ⚠️ v1.201.0：驗證電郵改由伺服器（sendVerificationEmail Cloud Function）
+    // 產生 token 同寄出，前端唔再自己寫 emailVerifyToken，亦唔再載入
+    // EmailJS 瀏覽器 SDK——咁 EmailJS 後台先可以開「Use Private Key」。
+    // 舊參數保留但唔再使用，方便其他地方照舊呼叫。
+    window.sendVerificationEmail = async function() {
+      return window.callCloudFunction('sendVerificationEmail', {});
     };
 
     // 撳完驗證連結、開返網站之後嘅處理——特登唔要求撳連結嗰部裝置一定要
@@ -841,11 +804,15 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       const btn = document.getElementById('resend-verify-email-btn');
       if (btn) { btn.disabled = true; btn.innerText = '發送中...'; }
       try {
-        const token = generateVerifyToken();
-        await updateDoc(doc(db, 'users', auth.currentUser.uid), { emailVerifyToken: token, emailVerified: false });
-        window.currentUser.emailVerifyToken = token;
+        const res = await window.sendVerificationEmail();
+        if (res && res.alreadyVerified) {
+          window.currentUser.emailVerified = true;
+          window.showToast(window.t('core.emailAlreadyVerified', '這個電郵地址已經驗證過了'), 'ℹ️');
+          if (typeof window.updateProfileEmailVerifyUI === 'function') window.updateProfileEmailVerifyUI();
+          if (typeof window.updateUserAuthUI === 'function') window.updateUserAuthUI();
+          return;
+        }
         window.currentUser.emailVerified = false;
-        await window.sendVerificationEmail(toEmail, window.currentUser.username, auth.currentUser.uid, token);
         window.showToast(window.t('core.resendVerifyEmailSuccess', '已重新發送驗證電郵，請查看你的信箱（包括垃圾郵件夾）'), '📧');
         if (typeof window.updateProfileEmailVerifyUI === 'function') window.updateProfileEmailVerifyUI();
       } catch (e) {
@@ -1018,7 +985,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       try {
         await setDoc(doc(db, 'usernames', idLower), { uid, authEmail, createdAt: Date.now() });
 
-        const verifyToken = generateVerifyToken();
         // ⚠️ 導師帳號（accountType === 'tutor'）喺呢一步都係先建立一個
         // 同學生帳號結構完全一樣嘅 users/{uid} 文件（school／grade 呢類
         // 學生專屬欄位留空就得，唔係硬性需要）——「導師」呢個身份本身
@@ -1033,7 +999,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
           loginId: loginId,
           contactEmail: profileData.contactEmail || '',
           emailVerified: false,
-          emailVerifyToken: verifyToken,
+          emailVerifyToken: null,
           username: profileData.username,
           school: profileData.school || '',
           // 「學校所在地區」——排行榜功能（分區溫習排行榜）用嚟將同學
@@ -1069,7 +1035,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
         // 用戶網絡有問題）都唔應該擋住成個註冊流程，所以特登唔用
         // await、亦都唔理佢嘅失敗
         if (newProfile.contactEmail) {
-          window.sendVerificationEmail(newProfile.contactEmail, newProfile.username, uid, verifyToken);
+          window.sendVerificationEmail().catch(e => console.error('寄驗證電郵失敗:', e));
         }
 
         // 揀咗「🎓 我是導師」嗰邊嘅話，帳戶一建立好就即刻連同表格填低
@@ -2028,12 +1994,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       try {
         const userDocRef = doc(db, "users", auth.currentUser.uid);
         const updates = { username, school, district, grade, favSubjects, dislikeSubjects, contactEmail, isSecondaryStudent };
-        let newToken = null;
-        if (emailChanged) {
-          newToken = contactEmail ? generateVerifyToken() : null;
-          updates.emailVerified = false;
-          updates.emailVerifyToken = newToken;
-        }
         await updateDoc(userDocRef, updates);
         window.currentUser.username = username;
         window.currentUser.school = school;
@@ -2045,9 +2005,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
         window.currentUser.isSecondaryStudent = isSecondaryStudent;
         if (emailChanged) {
           window.currentUser.emailVerified = false;
-          window.currentUser.emailVerifyToken = newToken;
           if (contactEmail) {
-            window.sendVerificationEmail(contactEmail, username, auth.currentUser.uid, newToken);
+            window.sendVerificationEmail().catch(e => console.error('寄驗證電郵失敗:', e));
           }
         }
 

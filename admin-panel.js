@@ -1752,7 +1752,6 @@
         fields: [
           { key: 'landing.heroH1Line1', label: '主標題　第一行' },
           { key: 'landing.heroH1Line2', label: '主標題　第二行' },
-          { key: 'landing.slogan', label: '品牌標語（主標題下面嗰句）' },
           { key: 'landing.heroSub', label: '說明文字' },
           { key: 'landing.subjectChinese', label: '科目裝飾格：中文' },
           { key: 'landing.subjectEnglish', label: '科目裝飾格：英文' },

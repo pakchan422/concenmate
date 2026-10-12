@@ -6,7 +6,7 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.200.1"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.201.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <meta charset="UTF-8">
@@ -132,55 +132,9 @@
     crossorigin="anonymous"
   ></script>
 
-  <!-- ========================================
-       📧 電郵驗證設定（EmailJS）
-       ========================================
-       呢個 app 冇自己嘅後端伺服器，冇辦法好似一般網站咁自己寄電郵。
-       用緊 EmailJS——一個俾靜態網站都可以直接（喺瀏覽器度）寄電郵嘅
-       免費第三方服務，唔使自己起後端。用法：
-         1. 去 https://www.emailjs.com 免費開個帳號
-         2. 喺 "Email Services" 度連接一個電郵帳戶（例如你個 Gmail），
-            會攞到一個 Service ID
-         3. 喺 "Email Templates" 度整一個新範本，範本入面要用到
-            {{to_email}}、{{to_name}}、{{verify_link}} 呢三個變數
-            （例如內文寫：「{{to_name}} 你好，撳呢個連結驗證你嘅
-            ConcenMate 帳戶：{{verify_link}}」），會攞到一個 Template ID
-         4. 喺 "Account" → "General" 度攞到你個 Public Key
-         5. 將呢三個值填落下面對應嘅位置
-       填咗之後，新註冊嘅同學一提交表格就會即刻收到驗證電郵。冇填之前
-       （即係仲係下面嘅 PASTE_ 開頭嗰啲預設值），註冊流程完全唔受影響、
-       唔會出錯畀用戶睇到，淨係唔會有電郵寄出（瀏覽器 console 度會見到
-       一句提示，方便你自己核對設定咗未）。
-
-       ⚠️ 忘記密碼專用範本（可選）：EMAILJS_PASSWORD_RESET_TEMPLATE_ID
-       —— 「忘記密碼」寄出嘅重設密碼連結，預設沿用返上面嗰個驗證電郵
-       範本（文字寫緊「驗證電郵」，措辭上唔完全貼切）。如果想要一個文
-       字更貼切嘅獨立範本，喺 EmailJS 度另開一個新範本（一樣要用到
-       {{to_email}}、{{to_name}}、{{verify_link}} 呢三個變數），攞到新
-       嘅 Template ID 之後填落下面 EMAILJS_PASSWORD_RESET_TEMPLATE_ID
-       嗰行就得；留空（''）嘅話會自動 fallback 用返上面嘅共用範本，唔
-       會影響現有功能。 -->
-  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js" crossorigin="anonymous"></script>
-  <script>
-    window.EMAILJS_PUBLIC_KEY = '1J-O_m3KYXCpUQEY7';
-    window.EMAILJS_SERVICE_ID = 'service_armrtdv';
-    window.EMAILJS_TEMPLATE_ID = 'template_nms9igc';
-    window.EMAILJS_PASSWORD_RESET_TEMPLATE_ID = 'template_m2u8ioh'; // 忘記密碼專用範本 ID（可選，留空會 fallback 用返上面嗰個）
-    window.EMAILJS_CONFIGURED = false; // 呢個由下面自動判斷，唔使手動改
-    (function initEmailJS() {
-      try {
-        if (typeof emailjs === 'undefined') { console.warn('EmailJS SDK 未載入成功'); return; }
-        if (window.EMAILJS_PUBLIC_KEY.indexOf('PASTE_YOUR_') === 0) {
-          console.warn('⚠️ EmailJS 尚未設定（見 index.html 頭段「電郵驗證設定」），註冊時將不會寄出驗證電郵。');
-          return;
-        }
-        emailjs.init({ publicKey: window.EMAILJS_PUBLIC_KEY });
-        window.EMAILJS_CONFIGURED = true;
-      } catch (e) {
-        console.error('EmailJS 初始化失敗:', e);
-      }
-    })();
-  </script>
+  <!-- 📧 電郵（驗證電郵、忘記密碼）由 v1.201.0 起全部由 Cloud Functions
+       經 EmailJS REST API 寄出（見 functions/index.js 的 sendVerificationEmail／
+       requestPasswordReset），前端不再載入 EmailJS SDK。 -->
 
 <style>
     :root {
@@ -1390,9 +1344,8 @@
     .landing-hero { padding: 36px 0 104px; overflow: hidden; }
     .landing-hero-inner { display: flex; align-items: center; gap: 56px; }
     .landing-hero-text { flex: 1 1 480px; min-width: 0; }
-    .landing-hero-h1 { font-size: 44px; line-height: 1.32; font-weight: 800; color: var(--brand-800); letter-spacing: -.01em; margin: 0 0 16px; }
+    .landing-hero-h1 { font-size: 44px; line-height: 1.32; font-weight: 800; color: var(--brand-800); letter-spacing: -.01em; margin: 0 0 22px; }
     .landing-hero-h1 span { display: block; white-space: nowrap; }
-    .landing-hero-slogan { font-size: 16px; font-weight: 800; letter-spacing: .04em; color: var(--brand-500); margin: 0 0 22px; }
     .landing-hero-sub { font-size: 20px; line-height: 1.75; color: var(--brand-700); max-width: 520px; margin: 0 0 36px; }
     .landing-hero-ctas { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
 
@@ -1542,7 +1495,6 @@
         <div class="landing-hero-text">
           <img class="landing-hero-logo" id="landing-nav-logo-img" src="logo-hero.png" alt="ConcenMate">
           <h1 class="landing-hero-h1"><span data-i18n="landing.heroH1Line1">相遇你的書伴，陪你走過</span><span data-i18n="landing.heroH1Line2">每一段溫習時光</span></h1>
-          <p class="landing-hero-slogan" data-i18n="landing.slogan">Concentrate with a Mate.</p>
           <p class="landing-hero-sub" data-i18n="landing.heroSub">ConcenMate 書伴是專為學生設計的線上溫習室，讓你尋找志同道合的夥伴，結合專注力計時、溫習社群與成長獎勵機制，陪伴你建立持續而穩定的學習習慣。</p>
           <div class="landing-hero-ctas">
             <button type="button" class="landing-btn landing-btn-primary" data-i18n="landing.registerBtn" onclick="typeof window.openModal==='function' && window.openModal('modal-register')">註冊帳號</button>
@@ -3902,11 +3854,27 @@
        縮圖，都用呢個 library 自己畫落 <canvas>，唔再靠瀏覽器內建嘅PDF
        viewer（手機Safari個內建viewer塞喺iframe度揭唔到第二頁）。淨係
        tutor-panel.js 用到，所以擺喺佢之前載入就得。 -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous"></script>
+  <!-- v1.201.0：pdf.js 改為「有需要先載入」——大部分學生從來唔會打開
+       導師教材，唔使每次開網站都下載呢個約 300KB 嘅程式。第一次預覽／
+       顯示教材縮圖時先由 window.ensurePdfJs() 載入。 -->
   <script>
-    if (window.pdfjsLib) {
-      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    }
+    window.ensurePdfJs = function() {
+      if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+      if (window._pdfJsLoading) return window._pdfJsLoading;
+      window._pdfJsLoading = new Promise(function(resolve, reject) {
+        var s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+        s.crossOrigin = 'anonymous';
+        s.onload = function() {
+          if (!window.pdfjsLib) { window._pdfJsLoading = null; reject(new Error('PDF 顯示元件載入失敗')); return; }
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+          resolve(window.pdfjsLib);
+        };
+        s.onerror = function() { window._pdfJsLoading = null; reject(new Error('PDF 顯示元件載入失敗，請檢查網絡後再試')); };
+        document.head.appendChild(s);
+      });
+      return window._pdfJsLoading;
+    };
   </script>
   <script src="tutor-panel.js"></script>
 

@@ -2768,17 +2768,6 @@
 
     const GACHA_COST = { normal: 30, lucky: 270 }; // lucky 而家係「連續抽十次」嘅一次過總收費
 
-    function stickerRoll() {
-      const pool = GACHA_STICKERS;
-      const total = pool.reduce((s, p) => s + (parseFloat(p.weight) || 0), 0);
-      let rand = Math.random() * total;
-      for (const st of pool) {
-        rand -= (parseFloat(st.weight) || 0);
-        if (rand <= 0) return st;
-      }
-      return pool[pool.length - 1];
-    }
-
     // ---------- 貼紙擁有狀態（儲喺 users/{uid} 文件嘅 ownedStickers 呢個
     // map 度，key 係貼紙 id，value 係擁有數量）----------
     function getOwnedStickerCount(id) {
@@ -2791,21 +2780,22 @@
       return Object.keys(owned).filter(k => (owned[k] || 0) > 0).length;
     }
 
-    // 一次過將幾隻貼紙（可以係同一隻抽中好多次，會 aggregate 埋一齊）
-    // 寫返落 window.currentUser（畫面即刻反映）同 Firestore（背景同步，
-    // 用 dotted-path + increment，唔存在嘅話會自動由 0 開始計）。
+    // ⚠️ v1.201.0：抽貼紙同寫入 ownedStickers 已經改喺伺服器
+    // （spendGachaPoints）做，呢度淨係將伺服器抽中嘅結果更新返本機畫面，
+    // 唔再自己寫 Firestore（firestore.rules 亦已經禁止前端改 ownedStickers）。
     function awardStickers(list) {
       if (!window.currentUser) window.currentUser = {};
       if (!window.currentUser.ownedStickers) window.currentUser.ownedStickers = {};
-      const payload = {};
       list.forEach(({ id, count }) => {
         window.currentUser.ownedStickers[id] = (window.currentUser.ownedStickers[id] || 0) + count;
-        if (window.fs) payload['ownedStickers.' + id] = window.fs.increment(count);
       });
-      if (window.currentUser.uid && window.db && window.fs && Object.keys(payload).length) {
-        window.fs.updateDoc(window.fs.doc(window.db, 'users', window.currentUser.uid), payload)
-          .catch((e) => console.warn('貼紙收藏未能同步去 Firestore：', e));
-      }
+    }
+
+    // 用伺服器回傳嘅貼紙 id 搵返貼紙資料；如果本機設定未載入／對唔上，
+    // 就用預設樣式顯示，唔會因此出錯。
+    function findGachaStickerById(id) {
+      return GACHA_STICKERS.find(st => String(st.id) === String(id)) ||
+        { id, name: `Ottiee 貼紙 #${String(id).padStart(2, '0')}`, emoji: '🦦', photo: null, weight: 1 };
     }
 
     function updateStickerProgressUI() {
@@ -2950,9 +2940,11 @@
       // 再直接 increment(-cost)）喺多分頁／手快連撳兩下掣嘅情況下，「檢查」
       // 同「扣分」之間唔夠原子性，會導致分數扣到負數（見用家報告）。
       let newPoints;
+      let serverStickerIds = [];
       try {
         const result = await window.callCloudFunction('spendGachaPoints', { type });
         newPoints = result.points;
+        serverStickerIds = Array.isArray(result.stickerIds) ? result.stickerIds : [];
       } catch (error) {
         if (error.code === 'functions/failed-precondition' || error.code === 'failed-precondition') {
           window.showToast(error.message, '❌');
@@ -2985,7 +2977,7 @@
 
       // 抽獎：而家全部改成 Ottiee 貼紙，抽之前先記低呢隻之前擁有幾多張
       // （0 即係「新貼紙」），抽完即刻寫返擁有狀態（畫面 + Firestore）。
-      const sticker = stickerRoll();
+      const sticker = findGachaStickerById(serverStickerIds[0]);
       const wasOwnedCount = getOwnedStickerCount(sticker.id);
       const isNew = wasOwnedCount === 0;
       awardStickers([{ id: sticker.id, count: 1 }]);
@@ -3093,9 +3085,11 @@
       // 扣分邏輯同 doGacha 一樣，改用 Cloud Function 做原子性驗證，
       // 詳細原因見 doGacha 入面嘅註解。
       let newPoints;
+      let serverStickerIds = [];
       try {
         const result = await window.callCloudFunction('spendGachaPoints', { type: 'lucky' });
         newPoints = result.points;
+        serverStickerIds = Array.isArray(result.stickerIds) ? result.stickerIds : [];
       } catch (error) {
         if (error.code === 'functions/failed-precondition' || error.code === 'failed-precondition') {
           window.showToast(error.message, '❌');
@@ -3129,8 +3123,8 @@
       // 寫入，唔使開 10 次連線。
       const localOwned = Object.assign({}, (window.currentUser && window.currentUser.ownedStickers) || {});
       const rolls = [];
-      for (let i = 0; i < 10; i++) {
-        const sticker = stickerRoll();
+      for (let i = 0; i < serverStickerIds.length; i++) {
+        const sticker = findGachaStickerById(serverStickerIds[i]);
         const wasOwnedCount = localOwned[sticker.id] || 0;
         const isNew = wasOwnedCount === 0;
         localOwned[sticker.id] = wasOwnedCount + 1;
