@@ -6,7 +6,7 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.202.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.203.1"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <meta charset="UTF-8">
@@ -1346,6 +1346,8 @@
     .landing-hero-text { flex: 1 1 480px; min-width: 0; }
     .landing-hero-h1 { font-size: 44px; line-height: 1.32; font-weight: 800; color: var(--brand-800); letter-spacing: -.01em; margin: 0 0 22px; }
     .landing-hero-h1 span { display: block; white-space: nowrap; }
+    html[lang="en"] .landing-hero-h1 { font-size: 40px; }
+    html[lang="en"] .landing-hero-h1 span { white-space: normal; }
     .landing-hero-sub { font-size: 20px; line-height: 1.75; color: var(--brand-700); max-width: 520px; margin: 0 0 36px; }
     .landing-hero-ctas { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
 
@@ -1384,6 +1386,7 @@
       .landing-hero-sub { margin-left: auto; margin-right: auto; font-size: 18px; }
       .landing-hero-ctas { justify-content: center; }
       .landing-hero-h1 { font-size: 32px; }
+      html[lang="en"] .landing-hero-h1 { font-size: 30px; }
       .landing-hero-h1 span { white-space: normal; }
       .landing-hero-art-visual { width: 280px; height: 280px; }
       .landing-hero-art-blob { width: 260px; height: 260px; }
@@ -3618,6 +3621,180 @@
        app-features.js／app-core.js 之前載入，等呢兩個檔案用到
        window.t／window.applyAppLanguage 嗰陣已經有得用（詳見
        i18n.js 檔案頭嘅說明） -->
+  <!-- ===================== ⏳ 載入中提示（v1.203.0） =====================
+       三種：(1) 正中間 loading 畫面——登入、註冊、建立／進入溫習室、上載頭像、
+       發佈溫習相片；(2) 按鈕細轉圈——任何按鈕停用中而文字以「…中…」結尾
+       （例如「登入中...」「發送中...」「⏳ 扭蛋中…」）會自動加轉圈，唔使逐個改；
+       (3) 列表「載入中…」文字前面自動加細轉圈。 -->
+  <style>
+    @keyframes cm-spin { to { transform: rotate(360deg); } }
+    @keyframes cm-bar { 0% { transform: translateX(-110%); } 100% { transform: translateX(260%); } }
+    @keyframes cm-fade-in { from { opacity: 0; } to { opacity: 1; } }
+    #cm-loading-overlay { position: fixed; inset: 0; z-index: 30000; display: none; align-items: center; justify-content: center; background: rgba(20, 45, 55, .38); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); animation: cm-fade-in .15s ease; }
+    #cm-loading-overlay.show { display: flex; }
+    #cm-loading-overlay .cm-loading-card { background: #fff; border-radius: 18px; padding: 26px 30px 22px; width: 260px; max-width: 86vw; text-align: center; box-shadow: 0 14px 40px rgba(0,0,0,.25); }
+    #cm-loading-overlay .cm-spinner { width: 46px; height: 46px; margin: 0 auto 14px; border-radius: 50%; border: 4px solid var(--brand-100, #D9EBEF); border-top-color: var(--brand-500, #4A8FA0); animation: cm-spin .8s linear infinite; }
+    #cm-loading-overlay .cm-loading-text { font-size: 16px; font-weight: 700; color: var(--brand-800, #1E4550); }
+    #cm-loading-overlay .cm-loading-sub { font-size: 13px; color: #7a8b90; margin-top: 8px; min-height: 0; }
+    #cm-loading-overlay .cm-loading-bar { height: 5px; margin-top: 16px; border-radius: 5px; overflow: hidden; background: var(--brand-100, #D9EBEF); }
+    #cm-loading-overlay .cm-loading-bar::after { content: ''; display: block; width: 40%; height: 100%; border-radius: 5px; background: var(--brand-500, #4A8FA0); animation: cm-bar 1.3s ease-in-out infinite; }
+    #cm-loading-overlay .cm-loading-close { display: none; margin-top: 14px; padding: 6px 18px; border-radius: 999px; border: 1px solid var(--brand-500, #4A8FA0); background: #fff; color: var(--brand-700, #2F6070); font-size: 13px; font-weight: 700; cursor: pointer; }
+    .cm-btn-loading::before { content: ''; display: inline-block; width: .95em; height: .95em; margin-right: 6px; vertical-align: -0.15em; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: cm-spin .7s linear infinite; }
+    .cm-text-loading::before { content: ''; display: inline-block; width: 14px; height: 14px; margin-right: 8px; vertical-align: -2px; border-radius: 50%; border: 2px solid var(--brand-100, #D9EBEF); border-top-color: var(--brand-500, #4A8FA0); animation: cm-spin .8s linear infinite; }
+    @media (prefers-reduced-motion: reduce) {
+      #cm-loading-overlay .cm-spinner, .cm-btn-loading::before, .cm-text-loading::before { animation-duration: 2s; }
+      #cm-loading-overlay .cm-loading-bar::after { animation-duration: 3s; }
+    }
+  </style>
+  <script>
+    (function () {
+      var t = function (k, f) { return (typeof window.t === 'function') ? window.t(k, f) : f; };
+      var count = 0, showTimer = null, slowTimer = null, stuckTimer = null, paused = false, overlay = null;
+
+      function ensureOverlay() {
+        if (overlay) return overlay;
+        overlay = document.createElement('div');
+        overlay.id = 'cm-loading-overlay';
+        overlay.setAttribute('role', 'status');
+        overlay.setAttribute('aria-live', 'polite');
+        overlay.innerHTML = '<div class="cm-loading-card"><div class="cm-spinner"></div>' +
+          '<div class="cm-loading-text"></div><div class="cm-loading-sub"></div>' +
+          '<div class="cm-loading-bar"></div><button type="button" class="cm-loading-close"></button></div>';
+        overlay.querySelector('.cm-loading-close').addEventListener('click', function () { window.forceHideLoading(); });
+        document.body.appendChild(overlay);
+        return overlay;
+      }
+      function clearTimers() { clearTimeout(showTimer); clearTimeout(slowTimer); clearTimeout(stuckTimer); }
+      function render(visible) {
+        var o = ensureOverlay();
+        o.classList.toggle('show', !!visible && !paused);
+      }
+
+      // 正中間 loading：等 0.3 秒仍未完成先顯示（避免好快完成嘅操作閃一閃）。
+      // 12 秒未完成顯示「網絡較慢」，30 秒未完成顯示「關閉」掣，唔會卡死。
+      window.showLoading = function (text) {
+        var o = ensureOverlay();
+        count++;
+        o.querySelector('.cm-loading-text').textContent = text || t('loading.default', '處理中，請稍候…');
+        o.querySelector('.cm-loading-sub').textContent = '';
+        var closeBtn = o.querySelector('.cm-loading-close');
+        closeBtn.style.display = 'none';
+        closeBtn.textContent = t('loading.close', '關閉');
+        clearTimers();
+        showTimer = setTimeout(function () { if (count > 0) render(true); }, 300);
+        slowTimer = setTimeout(function () { if (count > 0) o.querySelector('.cm-loading-sub').textContent = t('loading.slow', '網絡較慢，請稍候…'); }, 12000);
+        stuckTimer = setTimeout(function () {
+          if (count > 0) {
+            o.querySelector('.cm-loading-sub').textContent = t('loading.stuck', '仍未完成？可以先關閉此提示，稍後再試。');
+            closeBtn.style.display = 'inline-block';
+          }
+        }, 30000);
+      };
+      window.hideLoading = function () {
+        count = Math.max(0, count - 1);
+        if (count === 0) { clearTimers(); paused = false; render(false); }
+      };
+      window.forceHideLoading = function () { count = 0; paused = false; clearTimers(); render(false); };
+      // 等待用戶輸入（例如房間密碼）期間暫時收起，輸入完再顯示
+      window.pauseLoading = function () { paused = true; render(false); };
+      window.resumeLoading = function () { paused = false; if (count > 0) render(true); };
+
+      window.withLoading = function (textKey, fallback, fn) {
+        var wrapped = async function () {
+          window.showLoading(t(textKey, fallback));
+          try { return await fn.apply(this, arguments); }
+          finally { window.hideLoading(); }
+        };
+        wrapped.__cmLoading = true;
+        return wrapped;
+      };
+
+      // 自動包住需要正中間 loading 嘅功能（佢哋喺其他檔案定義，要等載入完先包得到）
+      var GLOBAL_TARGETS = [
+        ['loginWithFirebase', 'loading.login', '正在登入…'],
+        ['registerWithFirebase', 'loading.register', '正在建立帳戶…'],
+        ['handleCreateRoomSubmit', 'loading.createRoom', '正在建立溫習室…'],
+        ['joinPublicRoom', 'loading.joinRoom', '正在進入溫習室…']
+      ];
+      var CLOUD_TARGETS = {
+        uploadAvatar: ['loading.uploadAvatar', '正在上載頭像…'],
+        postStudyPhoto: ['loading.postPhoto', '正在發佈溫習相片…']
+      };
+      function applyWraps() {
+        var allDone = true;
+        GLOBAL_TARGETS.forEach(function (g) {
+          var f = window[g[0]];
+          if (typeof f !== 'function') { allDone = false; return; }
+          if (!f.__cmLoading) window[g[0]] = window.withLoading(g[1], g[2], f);
+        });
+        var cf = window.callCloudFunction;
+        if (typeof cf !== 'function') { allDone = false; }
+        else if (!cf.__cmLoading) {
+          var wrappedCf = async function (name, data) {
+            var target = CLOUD_TARGETS[name];
+            if (!target) return cf.apply(this, arguments);
+            window.showLoading(t(target[0], target[1]));
+            try { return await cf.apply(this, arguments); }
+            finally { window.hideLoading(); }
+          };
+          wrappedCf.__cmLoading = true;
+          window.callCloudFunction = wrappedCf;
+        }
+        return allDone;
+      }
+      var tries = 0;
+      (function retry() { if (!applyWraps() && ++tries < 40) setTimeout(retry, 250); })();
+      document.addEventListener('DOMContentLoaded', applyWraps);
+      window.addEventListener('load', applyWraps);
+
+      // 按鈕細轉圈＋列表「載入中」細轉圈：觀察畫面變化自動加／移除
+      var BTN_RE = /(中|ing)\s*(\.\.\.|…)\s*$/;
+      var TEXT_RE = /^\s*(載入中|正在載入|Loading)/i;
+      function checkButton(btn) {
+        var on = btn.disabled && BTN_RE.test((btn.textContent || '').trim());
+        btn.classList.toggle('cm-btn-loading', on);
+      }
+      function checkTextEl(el) {
+        if (el.children.length > 0) return;
+        var on = TEXT_RE.test(el.textContent || '');
+        if (on !== el.classList.contains('cm-text-loading')) el.classList.toggle('cm-text-loading', on);
+      }
+      function scan(root) {
+        if (!root || root.nodeType !== 1) return;
+        if (root.tagName === 'BUTTON') checkButton(root);
+        else if (/^(P|DIV|SPAN|TD|LI)$/.test(root.tagName)) checkTextEl(root);
+        if (root.children.length) {
+          root.querySelectorAll('button').forEach(checkButton);
+          root.querySelectorAll('p, div, span, td, li').forEach(function (el) { if (el.children.length === 0) checkTextEl(el); });
+        }
+      }
+      var pending = new Set(), scheduled = false;
+      function flush() {
+        scheduled = false;
+        pending.forEach(function (n) { if (n.isConnected) scan(n); });
+        pending.clear();
+      }
+      function queue(node) {
+        if (!node) return;
+        if (node.nodeType === 3) node = node.parentElement;
+        if (!node || node.nodeType !== 1 || node.id === 'cm-loading-overlay') return;
+        var btn = node.closest ? node.closest('button') : null;
+        pending.add(btn || node);
+        if (!scheduled) { scheduled = true; requestAnimationFrame(flush); }
+      }
+      function startObserver() {
+        new MutationObserver(function (muts) {
+          muts.forEach(function (m) {
+            if (m.type === 'attributes') queue(m.target);
+            else if (m.type === 'characterData') queue(m.target);
+            else { queue(m.target); m.addedNodes.forEach(queue); }
+          });
+        }).observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['disabled'] });
+        scan(document.body);
+      }
+      if (document.body) startObserver(); else document.addEventListener('DOMContentLoaded', startObserver);
+    })();
+  </script>
   <script src="i18n.js"></script>
 
   <script src="app-features.js"></script>

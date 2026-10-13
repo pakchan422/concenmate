@@ -1350,7 +1350,10 @@
         // 唔會扣住房間座位（joinRoomParticipants 仲未叫）。
         let enteredPassword = '';
         if (roomCheckData && roomCheckData.hasPassword && !isMyRoom) {
+          // v1.203.0：輸入密碼期間暫時收起「進入溫習室」嘅 loading 畫面，唔好遮住輸入框
+          if (window.pauseLoading) window.pauseLoading();
           const entered = await promptRoomPassword();
+          if (window.resumeLoading) window.resumeLoading();
           if (entered === null) {
             return false; // 用戶自己撳咗「取消」，唔使額外提示錯誤
           }

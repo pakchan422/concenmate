@@ -844,6 +844,18 @@
     'ptsExp.expBullet2': { 'zh-Hant': 'EXP 只升不跌，記錄你的總溫習成就', 'en': 'EXP only goes up, and records your total study achievement', 'yue': 'EXP 淨係升唔跌，記錄晒你總溫習成就' },
     'ptsExp.expBullet3': { 'zh-Hant': '累積足夠即可升級', 'en': 'Level up once you have enough', 'yue': '儲夠就會升級' },
 
+    // ── 載入中提示（v1.203.0）──
+    'loading.default': { 'zh-Hant': '處理中，請稍候…', 'en': 'Working on it…', 'yue': '處理緊，請等等…' },
+    'loading.login': { 'zh-Hant': '正在登入…', 'en': 'Logging in…', 'yue': '登入緊…' },
+    'loading.register': { 'zh-Hant': '正在建立帳戶…', 'en': 'Creating your account…', 'yue': '建立緊帳戶…' },
+    'loading.createRoom': { 'zh-Hant': '正在建立溫習室…', 'en': 'Creating study room…', 'yue': '開緊溫習室…' },
+    'loading.joinRoom': { 'zh-Hant': '正在進入溫習室…', 'en': 'Joining study room…', 'yue': '入緊溫習室…' },
+    'loading.uploadAvatar': { 'zh-Hant': '正在上載頭像…', 'en': 'Uploading profile photo…', 'yue': '上載緊頭像…' },
+    'loading.postPhoto': { 'zh-Hant': '正在發佈溫習相片…', 'en': 'Posting study photo…', 'yue': '發佈緊溫習相…' },
+    'loading.slow': { 'zh-Hant': '網絡較慢，請稍候…', 'en': 'The network is slow, please wait…', 'yue': '網絡慢咗少少，請等等…' },
+    'loading.stuck': { 'zh-Hant': '仍未完成？可以先關閉此提示，稍後再試。', 'en': 'Still not done? You can close this and try again later.', 'yue': '仲未搞掂？可以先閂咗呢個提示，遲啲再試。' },
+    'loading.close': { 'zh-Hant': '關閉', 'en': 'Close', 'yue': '關閉' },
+
     // ── Landing page（未登入主頁）──
     'landing.navLogin': { 'zh-Hant': '登入', 'en': 'Log In', 'yue': '登入' },
     'landing.registerBtn': { 'zh-Hant': '註冊帳號', 'en': 'Sign Up', 'yue': '註冊帳號' },
@@ -1112,6 +1124,8 @@
   // 喺登入狀態改變／揀完新語言之後都要叫一次。
   window.applyAppLanguage = function () {
     const lang = window.getAppLanguage();
+    // v1.203.1：記低而家嘅語言，等 CSS 可以按語言調整排版（例如英文標題要自動換行）
+    document.documentElement.setAttribute('lang', lang === 'en' ? 'en' : (lang === 'yue' ? 'zh-HK' : 'zh-Hant'));
     document.querySelectorAll('[data-i18n]').forEach((el) => {
       const key = el.getAttribute('data-i18n');
       el.textContent = window.t(key, el.textContent);
