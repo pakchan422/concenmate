@@ -974,11 +974,14 @@
       return `${dd}/${mm}/${yyyy}`;
     }
 
-    function photoTileHtml(photoUrl, dateStr) {
+    function photoTileHtml(photoUrl, dateStr, photoId) {
       const dateLabel = formatPhotoDateLabel(dateStr);
       const safeUrl = jsArg(safeImgSrc(photoUrl));
+      const idAttr = photoId && /^[A-Za-z0-9]+$/.test(photoId) ? ` data-photo-id="${photoId}"` : '';
+      const delBtn = idAttr ? `<button type="button" class="diary-photo-del-btn" onclick="event.stopPropagation(); window.deleteMyStudyPhoto('${photoId}', this)">${window.t('diary.deletePhotoBtn', '刪除')}</button>` : '';
       return `
-        <div style="position:relative; aspect-ratio:1; border-radius:8px; overflow:hidden; background:#eee; cursor:zoom-in;" onclick="openLightbox(${safeUrl})">
+        <div class="diary-photo-tile"${idAttr} style="position:relative; aspect-ratio:1; border-radius:8px; overflow:hidden; background:#eee; cursor:zoom-in;" onclick="openLightbox(${safeUrl})">
+          ${delBtn}
           <img src="${photoUrl}" loading="lazy" style="width:100%; height:100%; object-fit:cover;" alt="${window.t('diary.photoAlt', '溫習相片')}">
           <span style="position:absolute; right:4px; bottom:4px; background:rgba(0,0,0,.55); color:#fff; font-size:10px; padding:1px 5px; border-radius:4px;">${dateLabel}</span>
         </div>`;
@@ -1033,7 +1036,8 @@
         let html = '';
         snap.forEach(docSnap => {
           const p = docSnap.data();
-          html += photoTileHtml(p.photoUrl, p.dateStr);
+          const own = context === 'diary' && window.currentUser && uid === window.currentUser.uid;
+          html += photoTileHtml(p.photoUrl, p.dateStr, own ? docSnap.id : null);
         });
         if (grid) grid.insertAdjacentHTML('beforeend', html);
 
@@ -1047,6 +1051,44 @@
       }
     }
     window.loadUserPhotos = loadUserPhotos;
+
+    // v1.206.0：溫習日記「編輯」模式——撳「編輯」後每張相出現「刪除」掣
+    window.toggleDiaryPhotoEdit = function() {
+      const grid = document.getElementById('diary-photo-grid');
+      const btn = document.getElementById('diary-photo-edit-btn');
+      if (!grid) return;
+      const on = !grid.classList.contains('diary-edit-mode');
+      grid.classList.toggle('diary-edit-mode', on);
+      if (btn) btn.innerText = on ? window.t('diary.editDoneBtn', '完成') : window.t('diary.editBtn', '編輯');
+    };
+    window.updateDiaryEditButton = function(isOwn) {
+      const btn = document.getElementById('diary-photo-edit-btn');
+      const grid = document.getElementById('diary-photo-grid');
+      if (btn) { btn.style.display = isOwn ? '' : 'none'; btn.innerText = window.t('diary.editBtn', '編輯'); }
+      if (grid) grid.classList.remove('diary-edit-mode');
+    };
+    window.deleteMyStudyPhoto = async function(photoId, btnEl) {
+      if (!confirm(window.t('diary.deletePhotoConfirm', '確定刪除這張溫習相片？刪除後不能復原。如刪除的是今日的相片，今日可以重新發佈一張。'))) return;
+      if (btnEl) btnEl.disabled = true;
+      try {
+        const res = await window.callCloudFunction('deleteStudyPhoto', { photoId });
+        const tile = document.querySelector(`#diary-photo-grid [data-photo-id="${photoId}"]`);
+        if (tile) tile.remove();
+        window.currentUser.photoCount = Math.max(0, (window.currentUser.photoCount || 0) - 1);
+        if (res && res.wasToday) window.currentUser.lastPhotoPostDate = '';
+        const setText = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
+        setText('myacc-photo-count', window.currentUser.photoCount);
+        setText('diary-photo-count', window.currentUser.photoCount);
+        const grid = document.getElementById('diary-photo-grid');
+        const emptyEl = document.getElementById('diary-photo-empty');
+        if (grid && !grid.children.length && emptyEl) emptyEl.style.display = 'block';
+        updatePhotoUploadButtonState();
+        window.showToast(res && res.wasToday ? window.t('diary.photoDeletedToday', '已刪除，今日可以重新發佈一張溫習相片') : window.t('diary.photoDeleted', '已刪除相片'), '');
+      } catch (e) {
+        if (btnEl) btnEl.disabled = false;
+        window.showToast(window.t('diary.deleteFailedTemplate', '刪除失敗：{msg}').replace('{msg}', e.message || e), '');
+      }
+    };
 
     window.loadMorePhotos = function(context) {
       const state = _photoPaging[context];
@@ -1193,7 +1235,7 @@
         setText('diary-photo-count', window.currentUser.photoCount);
 
         const grid = document.getElementById('diary-photo-grid');
-        if (grid) grid.insertAdjacentHTML('afterbegin', photoTileHtml(result.photoUrl, today));
+        if (grid) grid.insertAdjacentHTML('afterbegin', photoTileHtml(result.photoUrl, today, result.photoId));
         const emptyEl = document.getElementById('diary-photo-empty');
         if (emptyEl) emptyEl.style.display = 'none';
 
@@ -1328,6 +1370,7 @@
         if (typeof window.renderUserAvatar === 'function') window.renderUserAvatar();
         if (typeof window.updateMyAccountPhotoStats === 'function') window.updateMyAccountPhotoStats();
         if (typeof window.loadUserPhotos === 'function') window.loadUserPhotos('diary', window.currentUser.uid, true);
+        if (typeof window.updateDiaryEditButton === 'function') window.updateDiaryEditButton(true);
         return;
       }
 
@@ -1373,6 +1416,7 @@
         setText('diary-following-count', u.followingCount || 0);
         if (typeof window.renderFollowButton === 'function') await renderFollowButton(_diaryViewUid, u, 'diary-follow-btn-wrap');
         if (typeof window.loadUserPhotos === 'function') window.loadUserPhotos('diary', _diaryViewUid, true);
+        if (typeof window.updateDiaryEditButton === 'function') window.updateDiaryEditButton(!!(window.currentUser && _diaryViewUid === window.currentUser.uid));
       } catch (e) {
         console.error('讀取溫習日記失敗:', e);
         if (usernameEl) usernameEl.innerText = window.t('tutorview.loadFailed', '載入失敗');
@@ -1984,6 +2028,8 @@
         document.getElementById('prof-grade').value = window.currentUser.grade || '中六 (S6 DSE)';
         document.getElementById('prof-fav').value = window.currentUser.favSubjects || '';
         document.getElementById('prof-dislike').value = window.currentUser.dislikeSubjects || '';
+        const allowPhotoCb = document.getElementById('prof-allow-group-photo');
+        if (allowPhotoCb) allowPhotoCb.checked = window.currentUser.allowGroupPhoto === true;
         if (typeof window.setSecondaryStudentToggle === 'function') {
           window.setSecondaryStudentToggle('prof', window.currentUser.isSecondaryStudent ? 'yes' : 'no');
         }

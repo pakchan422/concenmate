@@ -105,7 +105,7 @@
     const SUPER_ADMIN_ONLY_TABS = [
       'gacha', 'level', 'icons', 'landing', 'scoring', 'roomsettings',
       'antiidle', 'announcement', 'adminlist', 'auditlog',
-      'subjects', 'districts', 'schools', 'legal'
+      'subjects', 'districts', 'schools', 'legal', 'snapshotbg'
     ];
 
     // 操作紀錄（第四階段第10項）：將重要嘅管治／高風險操作（停權、
@@ -273,6 +273,7 @@
       else if (tab === 'districts') renderAdminDistrictsTab();
       else if (tab === 'schools') renderAdminSchoolsTab();
       else if (tab === 'legal') renderAdminLegalTab();
+      else if (tab === 'snapshotbg') renderAdminSnapshotBgTab();
     };
 
     // ---------- 扭蛋機貼紙管理 ----------
@@ -3646,7 +3647,8 @@
 （三）以任何方式（包括但不限於利用瀏覽器開發者工具）試圖繞過、破壞或篡改本服務之計分及經驗值機制；
 （四）干擾或破壞本服務之正常運作，包括但不限於發動阻斷服務（DDoS）攻擊、大量發送垃圾訊息、濫用系統資源（例如無故大量開設溫習室）；
 （五）未經授權存取其他使用者之帳戶或個人資料；
-（六）將本服務用於任何違反香港特別行政區現行法例之用途。
+（六）將本服務用於任何違反香港特別行政區現行法例之用途；
+（七）未經其他使用者同意，以截圖、拍照、錄影、錄音或任何其他方式記錄其他使用者於視訊溫習室內之鏡頭畫面或聲音，或將該等內容發佈、轉載或分享至本服務以外之任何平台（包括但不限於社交媒體）。使用本服務之「合照」功能時，未有開啟「容許合照」之使用者畫面將自動以馬賽克遮蓋，使用者不得以任何方式移除或規避該遮蓋。
 
 使用者如違反上述任何守則，本公司有權暫停或終止該使用者之帳戶，情節嚴重者，本公司保留追究相關法律責任之一切權利。本服務已設有舉報機制，供使用者就違規內容或行為作出舉報，由本公司管理團隊進行審查及處理。
 
@@ -3859,3 +3861,152 @@
 
     // 頁面一載入就檢查一次（處理直接開 #admin 網址嘅情況）
     checkAdminHashRoute();
+
+
+    // ===================== 合照背景（v1.205.0） =====================
+    // 溫習室「合照」可以按人數（1／2／3／4 人）各自設定一張背景圖。
+    // 圖片會壓縮成 1080×1350 JPEG，存喺 admin_config/snapshotBg1～4
+    // （data URL，唔經 Firebase Storage，避免跨域讀取限制令合照畫唔到）。
+    // 冇上載嘅人數就用預設米白相紙底。
+    const SNAPSHOT_BG_W = 1080, SNAPSHOT_BG_H = 1350;
+
+    async function renderAdminSnapshotBgTab() {
+      const panel = document.getElementById('admin-tab-snapshotbg');
+      if (!panel) return;
+      panel.innerHTML = `
+        <div class="card" style="padding:16px;">
+          <h3 style="margin:0 0 6px;">合照背景</h3>
+          <p style="font-size:13px; color:#666; line-height:1.7; margin:0 0 14px;">
+            溫習室「合照」可按人數使用不同背景。冇上載的人數會使用預設米白相紙背景。<br>
+            給設計師的規格：尺寸 <b>1080 × 1350 像素</b>（直身 4:5）；底部 120 像素會顯示「今日溫習時數」及 ConcenMate 標誌，請保留空位；
+            每個人數的相片位置是固定的，請先下載對應的「設計範本」：灰色方框是相片位置（會被遮蓋），斜線範圍是文字及標誌位置，其餘地方可以自由設計。上載後會自動裁切及壓縮。
+          </p>
+          <div id="admin-snapshotbg-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:14px;"></div>
+        </div>`;
+      const grid = document.getElementById('admin-snapshotbg-grid');
+      for (let n = 1; n <= 4; n++) {
+        const card = document.createElement('div');
+        card.style.cssText = 'border:1px solid #D9EBEF; border-radius:12px; padding:10px; text-align:center; background:#fff;';
+        card.innerHTML = `
+          <div style="font-weight:bold; color:#1E4550; margin-bottom:8px;">${n} 人合照背景</div>
+          <div id="admin-snapshotbg-preview-${n}" style="aspect-ratio:4/5; border-radius:8px; background:#F7F4EE; display:flex; align-items:center; justify-content:center; color:#999; font-size:13px; overflow:hidden;">載入中…</div>
+          <div style="display:flex; gap:6px; justify-content:center; margin-top:8px; flex-wrap:wrap;">
+            <label class="btn btn-primary" style="font-size:13px; padding:5px 10px; cursor:pointer;">上載圖片
+              <input type="file" accept="image/png,image/jpeg,image/webp" style="display:none;" onchange="window.adminUploadSnapshotBg(${n}, this)">
+            </label>
+            <button type="button" class="btn btn-outline" style="font-size:13px; padding:5px 10px;" onclick="window.adminDownloadSnapshotTemplate(${n})">下載設計範本</button>
+            <button type="button" class="btn btn-outline" style="font-size:13px; padding:5px 10px;" onclick="window.adminDeleteSnapshotBg(${n})">移除</button>
+          </div>`;
+        grid.appendChild(card);
+        loadAdminSnapshotBgPreview(n);
+      }
+    }
+
+    async function loadAdminSnapshotBgPreview(n) {
+      const el = document.getElementById('admin-snapshotbg-preview-' + n);
+      if (!el) return;
+      try {
+        const snap = await window.fs.getDoc(window.fs.doc(window.db, 'admin_config', 'snapshotBg' + n));
+        const img = snap.exists() ? snap.data().image : null;
+        el.innerHTML = img ? `<img src="${img}" alt="" style="width:100%; height:100%; object-fit:cover;">` : '使用預設背景';
+      } catch (e) {
+        el.innerText = '讀取失敗';
+      }
+    }
+
+    function fileToSnapshotBgDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = SNAPSHOT_BG_W; canvas.height = SNAPSHOT_BG_H;
+          const ctx = canvas.getContext('2d');
+          const scale = Math.max(SNAPSHOT_BG_W / img.width, SNAPSHOT_BG_H / img.height);
+          const dw = img.width * scale, dh = img.height * scale;
+          ctx.drawImage(img, (SNAPSHOT_BG_W - dw) / 2, (SNAPSHOT_BG_H - dh) / 2, dw, dh);
+          URL.revokeObjectURL(url);
+          // Firestore 單一文件上限 1MB，壓到大約 850KB 以下
+          let q = 0.88, data = canvas.toDataURL('image/jpeg', q);
+          while (data.length > 850000 && q > 0.4) { q -= 0.08; data = canvas.toDataURL('image/jpeg', q); }
+          if (data.length > 850000) reject(new Error('圖片太複雜，壓縮後仍然太大，請提供較簡單的設計'));
+          else resolve(data);
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('無法讀取此圖片檔案')); };
+        img.src = url;
+      });
+    }
+
+    window.adminUploadSnapshotBg = async function(n, input) {
+      const file = input && input.files && input.files[0];
+      if (input) input.value = '';
+      if (!file) return;
+      if (file.size > 15 * 1024 * 1024) { window.showToast('圖片不可以超過 15MB', ''); return; }
+      try {
+        if (window.showLoading) window.showLoading('正在上載背景…');
+        const data = await fileToSnapshotBgDataUrl(file);
+        await window.fs.setDoc(window.fs.doc(window.db, 'admin_config', 'snapshotBg' + n), {
+          image: data, updatedAt: Date.now(), updatedBy: window.currentUser ? window.currentUser.email : null
+        });
+        window.showToast(`已更新 ${n} 人合照背景`, '');
+        loadAdminSnapshotBgPreview(n);
+      } catch (e) {
+        window.showToast('上載失敗：' + (e.message || e), '');
+      } finally {
+        if (window.hideLoading) window.hideLoading();
+      }
+    };
+
+    window.adminDeleteSnapshotBg = async function(n) {
+      if (!confirm(`確定移除 ${n} 人合照背景？移除後會使用預設背景。`)) return;
+      try {
+        await window.fs.deleteDoc(window.fs.doc(window.db, 'admin_config', 'snapshotBg' + n));
+        window.showToast(`已移除 ${n} 人合照背景`, '');
+        loadAdminSnapshotBgPreview(n);
+      } catch (e) {
+        window.showToast('移除失敗：' + (e.message || e), '');
+      }
+    };
+
+
+    // v1.205.1：設計範本——按實際合照排版畫出相片位置同文字位置，俾設計師
+    // 直接喺上面設計（PNG，1080×1350）。
+    window.adminDownloadSnapshotTemplate = function(n) {
+      if (typeof window.getSnapshotLayout !== 'function') { window.showToast('範本未能產生，請重新整理頁面再試', ''); return; }
+      const L = window.getSnapshotLayout(n);
+      const c = document.createElement('canvas');
+      c.width = L.width; c.height = L.height;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, c.width, c.height);
+      // 底部文字範圍（斜線）
+      const fy = c.height - L.footerHeight;
+      ctx.save();
+      ctx.beginPath(); ctx.rect(0, fy, c.width, L.footerHeight); ctx.clip();
+      ctx.fillStyle = '#FFF4E5'; ctx.fillRect(0, fy, c.width, L.footerHeight);
+      ctx.strokeStyle = '#F0B27A'; ctx.lineWidth = 2;
+      for (let x = -L.footerHeight; x < c.width; x += 18) { ctx.beginPath(); ctx.moveTo(x, c.height); ctx.lineTo(x + L.footerHeight, fy); ctx.stroke(); }
+      ctx.restore();
+      ctx.fillStyle = '#B9682B'; ctx.font = 'bold 26px sans-serif'; ctx.textBaseline = 'middle';
+      ctx.textAlign = 'left'; ctx.fillText('今日溫習時數（文字）', 52, fy + L.footerHeight / 2);
+      ctx.textAlign = 'right'; ctx.fillText('ConcenMate 標誌＋網址', c.width - 52, fy + L.footerHeight / 2);
+      // 相片位置
+      L.slots.forEach((r, i) => {
+        ctx.fillStyle = '#C9CED3'; ctx.fillRect(r.x, r.y, r.w, r.h);
+        ctx.strokeStyle = '#7A848C'; ctx.lineWidth = 3; ctx.strokeRect(r.x + 1.5, r.y + 1.5, r.w - 3, r.h - 3);
+        ctx.fillStyle = '#4F5961'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.font = `bold ${Math.round(Math.min(48, r.h / 6))}px sans-serif`;
+        ctx.fillText(`相片 ${i + 1}`, r.x + r.w / 2, r.y + r.h / 2 - 18);
+        ctx.font = `${Math.round(Math.min(26, r.h / 10))}px sans-serif`;
+        ctx.fillText(`${r.w} × ${r.h} px（左上角 ${r.x}, ${r.y}）`, r.x + r.w / 2, r.y + r.h / 2 + 26);
+      });
+      ctx.fillStyle = '#9AA3AA'; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.font = '22px sans-serif';
+      ctx.fillText(`ConcenMate ${n} 人合照背景範本　1080 × 1350 px`, c.width / 2, 12);
+      c.toBlob((b) => {
+        if (!b) return;
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(b);
+        a.download = `ConcenMate-合照背景範本-${n}人.png`;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      }, 'image/png');
+    };

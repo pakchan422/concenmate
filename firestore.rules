@@ -41,6 +41,27 @@ function isAdmin(database) {
     get(userPath).data.loginId in get(adminIdsPath).data.ids;
 }
 
+// 管理員權限分級（第四階段第9項，連埋呢次嘅DB層硬性補鑊）：喺
+// isAdmin() 嘅基礎上，再核對 admin_config/adminIds 文件入面嘅 roles
+// map（loginId -> 'super' | 'support'）。同 admin-panel.js 前端嘅
+// getCurrentAdminRole() 一致：冇出現喺 roles map 入面嘅管理員（包括
+// 呢個功能推出之前已經存在嘅舊帳戶）一律當『super』處理，確保舊帳戶
+// 唔會因為呢次改動突然乜都寫唔到。網站設定／管治類文件（扭蛋機、等級
+// 系統、功能圖示、Landing page文案、計分規則、房間設定、防掛機參數、
+// 全站公告、管理員名單）同操作紀錄嘅讀取，而家就係靠呢個 function
+// 喺資料庫層鎖死，唔再淨係靠前端UI唔顯示嗰粒掣——就算『support』帳戶
+// 開瀏覽器開發者工具直接用 Firestore SDK 寫，一樣會被伺服器拒絕。
+function isSuperAdmin(database) {
+  let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
+  let adminIdsPath = /databases/$(database)/documents/admin_config/adminIds;
+  return isAdmin(database) &&
+    (
+      !('roles' in get(adminIdsPath).data) ||
+      !(get(userPath).data.loginId in get(adminIdsPath).data.roles) ||
+      get(adminIdsPath).data.roles[get(userPath).data.loginId] == 'super'
+    );
+}
+
 // Phase B（導師後台：科目／課題／教材管理）用嘅輔助 function——判斷
 // 「呢個請求者係咪一位仲喺正常狀態嘅導師」。淨係讀返自己嗰份
 // tutors/{uid} 文件嘅 status 欄位，一定要係 'active' 先算數（申請緊、
@@ -115,6 +136,17 @@ function isRoomParticipant(database, roomId) {
     exists(/databases/$(database)/documents/rooms/$(roomId)/participants/$(request.auth.uid));
 }
 
+// 「是否中學生」嘅年齡把關：揀「是」嘅話，出生年份計落一定要 20 歲
+// 以下（同前端 REG_SECONDARY_STUDENT_MAX_AGE = 19 一致，年份相差 20
+// 已經包埋「今年仲未生日」嘅情況）。requireBirthYear = true（新註冊）
+// 時一定要有出生年份；舊帳戶冇填過出生年份就唔強制（同前端一致）。
+function secondaryAgeOk(data, requireBirthYear) {
+  return !('isSecondaryStudent' in data) || data.isSecondaryStudent != true ||
+    (('birthYear' in data) && data.birthYear is int &&
+      request.time.year() - data.birthYear <= 20) ||
+    (!requireBirthYear && (!('birthYear' in data) || data.birthYear == null));
+}
+
 // ⚠️ 用戶自己更新自己個 users/{uid} 文件嗰陣（例如個人資料修改）嘅止血
 // 檢查。
 //
@@ -131,8 +163,7 @@ function isRoomParticipant(database, roomId) {
 //    唔受呢份 rules 約束），所以呢度可以直接完全禁止用戶端寫，徹底杜
 //    絕呢類作弊，唔再需要止血式嘅幅度上限。
 //
-// 未受管制嘅欄位（例如 ownedStickers）依然係用戶想點寫都得——純粹係
-// 收集狀態用，冇實質「分數」價值，唔使收緊。
+// （v1.201.0 起 ownedStickers 都一律經伺服器寫，見下面白名單。）
 function selfUserUpdateOk() {
   let before = resource.data;
   let after = request.resource.data;
@@ -167,12 +198,121 @@ function selfUserUpdateOk() {
     // 呢個 Cloud Function 先寫得入，前端唔可以直接改（雖然單靠呢個
     // 欄位唔會攞到任何實質權限，但都係鎖死佢，避免用戶自己隨便扮成
     // 「導師審批中」畫面搞亂自己個介面）。
-    !changed.hasAny([
-      'loginId', 'exp', 'hours', 'points', 'avatarBase64', 'avatarUpdatedAt',
-      'todayMinutes', 'todayDate',
-      'photoCount', 'followerCount', 'followingCount', 'lastPhotoPostDate',
-      'role', 'accountType'
-    ]);
+    // contactEmail／school／grade——「我的帳戶」畫面已經改做唯讀
+    // （disabled），前端亦都已經唔會再送呢三個欄位嘅改動，呢度加多一重
+    // 伺服器端把關，防止有人繞過畫面直接用 devtools／Firebase SDK
+    // 打 updateDoc() 自己改。如用戶想更改，須電郵 support@concenmate.com
+    // 聯絡本公司，由管理員經後台代為更正（管理員走嘅係 isAdmin(database)
+    // 呢個分支，唔受呢個 blocklist 約束）。
+    // ⚠️ v1.198.0 安全修補：由「黑名單」改做「白名單」。
+    // 舊做法係列出「唔准改」嘅欄位，但漏咗 suspended（停權用戶可以自己
+    // 解封）、emailVerified（跳過電郵驗證）、monthlyHours／monthlyPeriod
+    // （「本月」排行榜作弊）等等——黑名單一日唔記得加新欄位就會有漏洞。
+    // 而家反過嚟，淨係列出前端真正需要自己改嘅欄位，其他一律拒絕。
+    // 日後前端新增「用戶自己改自己」嘅欄位，記得要加落呢個名單度。
+    changed.hasOnly([
+      'username', 'favSubjects', 'dislikeSubjects', 'isSecondaryStudent',
+      'otterName', 'otterAvatarStickerId', 'studyDays',
+      'lastSeenAt', 'lastLoginAt', 'language', 'district', 'allowGroupPhoto'
+    ]) &&
+    // v1.204.0：「容許被合照」只可以係 true／false
+    (!changed.hasAny(['allowGroupPhoto']) || after.allowGroupPhoto is bool) &&
+    // ⚠️ v1.201.0：ownedStickers 已移出白名單，貼紙一定要經
+    // spendGachaPoints（伺服器扣分＋抽貼紙）先會增加。
+    // 用戶名長度上限
+    (!changed.hasAny(['username']) ||
+      (after.username is string && after.username.size() >= 1 && after.username.size() <= 30)) &&
+    // ⚠️ v1.201.0：emailVerified／emailVerifyToken 已經移出白名單——
+    // token 改由 sendVerificationEmail Cloud Function 產生，驗證由
+    // verifyEmailToken 完成，前端完全唔可以自己寫（之前用戶可以自己寫
+    // 一個已知 token，再自己呼叫 verifyEmailToken，跳過電郵驗證）。
+    // district 淨係「之前未有」先可以由前端補填（舊帳戶自動補返地區），
+    // 已經有地區就唔可以自己改，防止轉區洗分區排行榜。
+    (!changed.hasAny(['district']) || !('district' in before) || before.district == '') &&
+    // 「是否中學生」：20 歲或以上唔可以自稱中學生入中學溫習室池
+    // （之前淨係前端 disable 個掣，devtools 一樣繞過到）。
+    (!changed.hasAny(['isSecondaryStudent']) || secondaryAgeOk(after, false));
+}
+
+// ⚠️ v1.198.0 安全修補：新帳戶建立 users/{uid} 文件嘅內容檢查。
+// 之前 create 淨係檢查 uid，任何人都可以開個新帳戶，將 loginId 寫成
+// 管理員嘅帳號 ID（admin_config/adminIds 對所有登入用戶公開），即刻
+// 通過 isAdmin() 變成管理員；亦可以一開始就寫入幾萬分、停權狀態、
+// 已驗證電郵、頭像等等。而家逐項核對：
+//   - 欄位一定要係註冊表格會寫嘅嗰幾個（hasOnly）
+//   - loginId 一定要對應返 usernames/{loginId 細楷} 而嗰份文件屬於自己
+//   - loginId 唔可以係管理員名單入面嘅 ID
+//   - 分數／EXP／時數一定由 0 開始，emailVerified 一定係 false
+function newUserProfileOk(database, uid) {
+  let d = request.resource.data;
+  let adminIdsPath = /databases/$(database)/documents/admin_config/adminIds;
+  return d.keys().hasOnly([
+      'uid', 'email', 'loginId', 'contactEmail', 'emailVerified', 'emailVerifyToken',
+      'username', 'school', 'district', 'grade', 'favSubjects', 'dislikeSubjects',
+      'birthYear', 'birthMonth', 'isSecondaryStudent', 'accountType',
+      'hours', 'points', 'exp', 'createdAt'
+    ]) &&
+    d.uid == uid &&
+    d.loginId is string && d.loginId.size() >= 3 && d.loginId.size() <= 20 &&
+    exists(/databases/$(database)/documents/usernames/$(d.loginId.lower())) &&
+    get(/databases/$(database)/documents/usernames/$(d.loginId.lower())).data.uid == request.auth.uid &&
+    (!exists(adminIdsPath) || !('ids' in get(adminIdsPath).data) ||
+      !(d.loginId in get(adminIdsPath).data.ids)) &&
+    d.username is string && d.username.size() >= 1 && d.username.size() <= 30 &&
+    d.points == 0 && d.exp == 0 && (d.hours == '0.0' || d.hours == 0) &&
+    d.emailVerified == false &&
+    // v1.201.0：註冊時唔可以自帶 token（一定要由伺服器產生）
+    (!('emailVerifyToken' in d) || d.emailVerifyToken == null) &&
+    d.accountType in ['student', 'tutor'] &&
+    secondaryAgeOk(d, true);
+}
+
+// ⚠️ v1.199.0：非房主改房間文件（人數／心跳）嘅檢查。之前任何登入用戶
+// 都可以改任何房間嘅 participantCount／lastActiveAt——將 lastActiveAt 改做
+// 好耐之前，就可以觸發「5 分鐘冇心跳可刪」條件刪走任何人嘅房。而家：
+//   - lastActiveAt 只可以由房內參與者更新，而且只可以向前（唔可以改舊），
+//     亦唔可以超過伺服器時間 1 分鐘以上
+//   - participantCount +1：一定要同「建立自己 participants 紀錄」喺同一個
+//     transaction 入面發生（加入房間）
+//   - participantCount -1：一定要同「刪除自己 participants 紀錄」喺同一個
+//     batch 入面發生（離開房間）
+function roomCounterUpdateOk(database, roomId) {
+  let before = resource.data;
+  let after = request.resource.data;
+  let changed = after.diff(before).affectedKeys();
+  let pPath = /databases/$(database)/documents/rooms/$(roomId)/participants/$(request.auth.uid);
+  return changed.hasOnly(['participantCount', 'lastActiveAt']) &&
+    (!changed.hasAny(['lastActiveAt']) || (
+      after.lastActiveAt is number &&
+      after.lastActiveAt <= request.time.toMillis() + 60000 &&
+      (!(before.lastActiveAt is number) || after.lastActiveAt >= before.lastActiveAt) &&
+      existsAfter(pPath)
+    )) &&
+    (!changed.hasAny(['participantCount']) || (
+      before.participantCount is int && after.participantCount is int && (
+        (after.participantCount == before.participantCount + 1 && !exists(pPath) && existsAfter(pPath)) ||
+        (after.participantCount == before.participantCount - 1 && exists(pPath) && !existsAfter(pPath))
+      )
+    ));
+}
+
+// v1.199.0：兩個用戶之間嘅好友邀請文件 ID（同前端 friendRequestDocId()
+// 一樣：兩個 uid 排序後用底線連接）。
+function pairDocId(a, b) {
+  return a < b ? a + '_' + b : b + '_' + a;
+}
+
+// v1.199.0：兩個用戶之間嘅好友邀請已經被接受。寫入好友名單之前一定要
+// 核對呢樣，防止有人未經對方同意就將自己加入對方嘅好友名單。
+function friendshipAccepted(database, a, b) {
+  let p = /databases/$(database)/documents/friendRequests/$(pairDocId(a, b));
+  return exists(p) && get(p).data.status == 'accepted';
+}
+
+// v1.199.0：私訊對象（chatId 入面唔係自己嗰個 uid）
+function chatOtherUid(chatId) {
+  let parts = chatId.split('_');
+  return parts[0] == request.auth.uid ? parts[1] : parts[0];
 }
 
 service cloud.firestore {
@@ -188,10 +328,28 @@ service cloud.firestore {
     // 呢類批量洩漏未成年人資料嘅風險一定要擋死。所以 list 淨係開放
     // 俾管理員（管理後台「用戶管理」分頁要用到），一般用戶淨係可以
     // 逐個已知 uid 咁讀（get），唔可以成個 collection 咁掃。
+    // ===================== 公開個人資料／在線狀態（v1.200.0） =====================
+    // publicProfiles 由 Cloud Function（syncPublicProfileOnUserWrite）同步，
+    // 淨係有用戶名、頭像、學校、年級等公開欄位；前端完全唔寫得。
+    match /publicProfiles/{uid} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+    // 好友在線狀態心跳：自己寫自己，淨係一個 lastSeenAt 數字欄位
+    match /presence/{uid} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == uid &&
+        request.resource.data.keys().hasOnly(['lastSeenAt']) &&
+        request.resource.data.lastSeenAt is number;
+    }
     match /users/{uid} {
-      allow get: if request.auth != null;
+      // ⚠️ v1.200.0 私隱修補：之前任何登入用戶都可以讀任何人成份 users 文件
+      // （真實電郵、出生年月、電郵驗證 token），而 uid 喺排行榜就見到。
+      // 而家淨係本人同管理員讀得到；其他人改讀 publicProfiles。
+      allow get: if request.auth != null && (request.auth.uid == uid || isAdmin(database));
       allow list: if isAdmin(database);
-      allow create: if request.auth != null && request.auth.uid == uid;
+      allow create: if request.auth != null && request.auth.uid == uid &&
+        newUserProfileOk(database, uid);
       // update 分開兩種情況：(1) 帳號主人自己——要通過上面
       // selfUserUpdateOk() 嗰幾條止血檢查（唔可以自己改 loginId，
       // exp／hours／points 嘅改動方向同幅度都要合理）；(2) 管理員——
@@ -206,7 +364,9 @@ service cloud.firestore {
       // 兩種情況先會喺「互加好友」嗰下同時出現，缺一唔可但又唔可以撞第三方。
       match /friends/{friendUid} {
         allow read: if request.auth != null && request.auth.uid == uid;
-        allow create: if request.auth != null && (request.auth.uid == uid || request.auth.uid == friendUid);
+        // v1.199.0：一定要雙方嘅好友邀請已經「接受」先寫得入
+        allow create: if request.auth != null && (request.auth.uid == uid || request.auth.uid == friendUid) &&
+          uid != friendUid && friendshipAccepted(database, uid, friendUid);
         allow delete: if request.auth != null && (request.auth.uid == uid || request.auth.uid == friendUid);
       }
       // 扭蛋／抽獎中獎記錄：淨係自己睇到/寫到自己嘅記錄
@@ -279,9 +439,26 @@ service cloud.firestore {
          resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
       allow create: if request.auth != null &&
         request.resource.data.fromUid == request.auth.uid &&
-        request.resource.data.status == 'pending';
+        request.resource.data.toUid is string &&
+        request.resource.data.toUid != request.auth.uid &&
+        request.resource.data.status == 'pending' &&
+        reqId == pairDocId(request.auth.uid, request.resource.data.toUid);
+      // v1.199.0：之前送出邀請嘅人可以自己將邀請改做「已接受」。而家分三種：
+      //   (1) 收到邀請嘅人：pending → accepted／declined
+      //   (2) 任何一方：accepted → removed（移除好友）
+      //   (3) 任何一方重新送出邀請（變返 pending，送出者一定係自己）
       allow update: if request.auth != null &&
-        (resource.data.toUid == request.auth.uid || resource.data.fromUid == request.auth.uid);
+        (resource.data.toUid == request.auth.uid || resource.data.fromUid == request.auth.uid) && (
+          (resource.data.toUid == request.auth.uid && resource.data.status == 'pending' &&
+            request.resource.data.status in ['accepted', 'declined'] &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'respondedAt'])) ||
+          (resource.data.status == 'accepted' && request.resource.data.status == 'removed' &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'respondedAt'])) ||
+          (request.resource.data.status == 'pending' &&
+            request.resource.data.fromUid == request.auth.uid &&
+            request.resource.data.toUid is string &&
+            reqId == pairDocId(request.auth.uid, request.resource.data.toUid))
+        );
       allow delete: if false;
     }
     // ===================== 視訊溫習房 =====================
@@ -329,12 +506,18 @@ service cloud.firestore {
         (resource.data.hostUid == request.auth.uid &&
          (!('roomPool' in resource.data) || !('roomPool' in request.resource.data) ||
           request.resource.data.roomPool == resource.data.roomPool)) ||
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['participantCount', 'lastActiveAt'])
+        roomCounterUpdateOk(database, roomId)
       );
+      // v1.199.0：多咗「房間已經冇人（人數 0）而且建立咗超過 20 秒」都可以刪
+      // （最後一位非房主離開時清走空房）；因為人數而家改唔到假，呢個條件安全。
       allow delete: if request.auth != null && (
         resource.data.hostUid == request.auth.uid ||
         (resource.data.lastActiveAt is number &&
-         request.time.toMillis() - resource.data.lastActiveAt > 5 * 60 * 1000)
+         request.time.toMillis() - resource.data.lastActiveAt > 5 * 60 * 1000) ||
+        (resource.data.participantCount is int && resource.data.participantCount <= 0 &&
+         resource.data.createdAt is number &&
+         request.time.toMillis() - resource.data.createdAt > 20 * 1000) ||
+        isAdmin(database)
       );
       match /participants/{uid} {
         allow read: if request.auth != null;
@@ -399,8 +582,15 @@ service cloud.firestore {
       match /candidates/{candidateId} {
         allow read, write: if isRoomParticipant(database, roomId);
       }
+      // v1.199.0：表情反應淨係房內參與者先讀寫得到，之前任何登入用戶都可以
+      // 向任何房間洗表情。
       match /reactions/{reactionId} {
-        allow read, write: if request.auth != null;
+        allow read: if isRoomParticipant(database, roomId);
+        allow create: if isRoomParticipant(database, roomId) &&
+          request.resource.data.uid == request.auth.uid &&
+          request.resource.data.emoji is string && request.resource.data.emoji.size() <= 16;
+        allow update: if false;
+        allow delete: if request.auth != null && resource.data.uid == request.auth.uid;
       }
     }
     // ===================== 房間邀請（邀請朋友入視訊溫習房） =====================
@@ -409,9 +599,12 @@ service cloud.firestore {
     match /roomInvites/{inviteId} {
       allow read: if request.auth != null &&
         (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
+      // v1.199.0：淨係可以邀請自己好友名單入面嘅人
       allow create: if request.auth != null &&
         request.resource.data.fromUid == request.auth.uid &&
-        request.resource.data.status == 'pending';
+        request.resource.data.status == 'pending' &&
+        request.resource.data.toUid is string &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)/friends/$(request.resource.data.toUid));
       allow update: if request.auth != null &&
         (resource.data.toUid == request.auth.uid || resource.data.fromUid == request.auth.uid);
       allow delete: if false;
@@ -442,21 +635,37 @@ service cloud.firestore {
     match /directChats/{chatId} {
       allow get: if request.auth != null && request.auth.uid in chatId.split('_');
       allow list: if request.auth != null && request.auth.uid in resource.data.participants;
-      allow write: if request.auth != null && request.auth.uid in chatId.split('_');
+      // v1.199.0：對話摘要文件嘅 participants 一定要同 chatId 入面兩個 uid
+      // 一致；唔可以刪除（「清除對話記錄」改為只係記低 clearedAt）。
+      allow create, update: if request.auth != null && request.auth.uid in chatId.split('_') &&
+        request.resource.data.participants is list &&
+        request.resource.data.participants.hasOnly(chatId.split('_'));
+      allow delete: if isAdmin(database);
       // 訊息內容一經送出就唔可以再改，但雙方之中任何一個都可以刪除
       // （撳「🗑️ 刪除對話記錄」會成批刪晒），保持對話私隱可以自己清理
       match /messages/{messageId} {
         allow read: if request.auth != null && request.auth.uid in chatId.split('_');
+        // v1.199.0：淨係好友之間先可以傳訊息（之前任何人都可以私訊任何人，
+        // 包括陌生成年人私訊中學生），訊息最長 1000 字。
+        // 訊息唔可以由用戶刪除（防止刪走被舉報嘅騷擾證據），管理員除外。
         allow create: if request.auth != null && request.auth.uid in chatId.split('_') &&
-          request.resource.data.fromUid == request.auth.uid;
+          request.resource.data.fromUid == request.auth.uid &&
+          request.resource.data.toUid == chatOtherUid(chatId) &&
+          request.resource.data.text is string &&
+          request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 1000 &&
+          exists(/databases/$(database)/documents/users/$(request.auth.uid)/friends/$(chatOtherUid(chatId)));
         allow update: if false;
-        allow delete: if request.auth != null && request.auth.uid in chatId.split('_');
+        allow delete: if isAdmin(database);
       }
     }
     // ===================== 疑難解答區 =====================
     match /qa_posts/{postId} {
       allow read: if request.auth != null;
-      allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.uid == request.auth.uid &&
+        request.resource.data.commentCount == 0 &&
+        request.resource.data.title is string && request.resource.data.title.size() <= 100 &&
+        request.resource.data.subject is string && request.resource.data.subject.size() <= 50 &&
+        (!('photos' in request.resource.data) || (request.resource.data.photos is list && request.resource.data.photos.size() <= 6));
       // ⚠️ update 之前係 request.auth != null 就得，即係任何已登入用戶
       // 都可以改任何一篇貼文嘅內容（唔淨止 commentCount），變成任何人
       // 都可以塗改／破壞第二方發表嘅貼文。而家分開兩種情況：(1) 版主
@@ -465,7 +674,10 @@ service cloud.firestore {
       // 要更新緊個計數器），改唔到內容本身。
       allow update: if request.auth != null && (
         resource.data.uid == request.auth.uid || isAdmin(database) ||
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['commentCount'])
+        // v1.199.0：其他人淨係可以將回答數 +1／-1，唔可以亂改做任何數字
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['commentCount']) &&
+          (request.resource.data.commentCount == resource.data.commentCount + 1 ||
+           request.resource.data.commentCount == resource.data.commentCount - 1))
       );
       allow delete: if request.auth != null && (resource.data.uid == request.auth.uid || isAdmin(database));
       match /comments/{commentId} {
@@ -475,10 +687,74 @@ service cloud.firestore {
       }
     }
     // ===================== 後台設定（扭蛋機／等級系統） =====================
-    // 所有已登入用戶都要讀到先計到自己嘅獎勵/等級，但淨係管理員先可以改
+    // 所有已登入用戶都要讀到先計到自己嘅獎勵/等級，但寫入淨係「超級
+    // 管理員」先可以改（見上面 isSuperAdmin()）——呢個collection底下
+    // 嘅文件（gacha、levelSystem、navIcons、scoringRules、roomSettings、
+    // antiIdleRules、adminIds等）全部都係Admin後台「網站設定／管治類」
+    // 分頁用嘅，對應前端 SUPER_ADMIN_ONLY_TABS 嗰張清單，一般『support』
+    // 管理員喺畫面見唔到呢幾頁，呢度喺資料庫層再鎖多一次，唔淨係靠
+    // 前端唔顯示嗰粒掣。
     match /admin_config/{configId} {
       allow read: if request.auth != null;
-      allow write: if isAdmin(database);
+      allow write: if isSuperAdmin(database);
+    }
+    // Landing page（未登入主頁）文案／圖片設定——同上面 admin_config
+    // 嘅其他文件一樣淨係超級管理員寫得入，但讀取要額外開放俾未登入嘅
+    // 訪客（request.auth == null 都得），因為 Landing page 本身就係畀
+    // 未登入嘅人睇嘅，上面嗰條「要已登入先讀得到」嘅規則唔啱用喺呢份
+    // 文件。Firestore 規則入面，針對同一個路徑嘅多個 match 區塊會逐個
+    // 評估，只要其中一個話 allow 就得，所以呢度加多一個更specific嘅
+    // 例外規則，唔使改動返上面嗰條通用規則。
+    match /admin_config/landingContent {
+      allow read: if true;
+      allow write: if isSuperAdmin(database);
+    }
+    // 全站公告橫幅（見 admin-panel.js 嘅 loadSiteAnnouncementFromFirestore）：
+    // 同Landing page文案一樣，登入前訪客都要見到公告，所以要開放俾未
+    // 登入用戶讀取，但寫入一樣淨係超級管理員先得。
+    match /admin_config/announcement {
+      allow read: if true;
+      allow write: if isSuperAdmin(database);
+    }
+    // 科目清單／地區清單（低優先第11、12項，改用「淨係新增」模式）：
+    // 兩者都要喺未登入嗰陣都讀得到（科目清單喺註冊表格「申請做導師」
+    // 已經會用到，地區清單喺註冊表格揀學校都要用到，兩者都早過登入
+    // 發生），所以同Landing page文案一樣要開放公開讀取。
+    match /admin_config/subjectList {
+      allow read: if true;
+      allow write: if isSuperAdmin(database);
+    }
+    match /admin_config/districtList {
+      allow read: if true;
+      allow write: if isSuperAdmin(database);
+    }
+    // 學校名單（中學／大專大學，跟科目清單／地區清單一樣「淨係新增」
+    // 模式）：學校名一樣會存落users.school、schoolLeaderboard等地方
+    // 做資料值，唔開放改名／刪除。註冊表格揀學校發生喺登入之前，所以
+    // 一樣要公開讀取。
+    match /admin_config/schoolList {
+      allow read: if true;
+      allow write: if isSuperAdmin(database);
+    }
+    // 服務條款／私隱政策內容（低優先第13項）：一樣要喺未登入嗰陣都讀
+    // 得到（註冊表格嘅同意checkbox連結、footer連結都可以喺未登入時
+    // 撳到）。
+    match /admin_config/legalContent {
+      allow read: if true;
+      allow write: if isSuperAdmin(database);
+    }
+    // 操作紀錄（Audit Log，第四階段第10項）：記錄管理員喺後台做過嘅
+    // 敏感操作（例如停權用戶、改管理員名單）。讀取淨係超級管理員先
+    // 得（同前端「操作紀錄」分頁嘅可見範圍一致）；寫入（create）就
+    // 任何已登入嘅管理員都得——因為『support』帳戶做嘅日常操作（例如
+    // 停權用戶、補發PTS）一樣要寫得入呢份紀錄先追蹤得到，唔應該因為
+    // 睇唔到呢頁就連寫紀錄都寫唔到。寫入只開「create」唔開
+    // 「update/delete」，確保呢份紀錄一寫咗落去就唔會被人事後靜雞雞
+    // 改過或刪走，保持紀錄嘅可信性。
+    match /adminAuditLog/{logId} {
+      allow read: if isSuperAdmin(database);
+      allow create: if isAdmin(database);
+      allow update, delete: if false;
     }
     // ===================== 忘記密碼（重設 token） =====================
     // 存放喺呢度嘅一次性重設 token（見 functions/index.js 嘅
