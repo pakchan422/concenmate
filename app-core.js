@@ -639,7 +639,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
         } else if (e.code === 'functions/not-found' || e.code === 'not-found') {
           window.showToast(window.t('core.accountNotFoundMaybeDeleted', '找不到這個帳戶，可能已經被刪除'), '❌');
         } else {
-          window.showToast(window.t('core.verifyFailedTemplate', '驗證失敗：{error}').replace('{error}', e.message || e), '❌');
+          window.showToast(window.t('core.verifyFailedTemplate', '驗證失敗：{error}').replace('{error}', window.friendlyErrorText(e)), '❌');
         }
       }
     };
@@ -735,7 +735,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
         window.showToast(window.t('core.resetPasswordEmailSentGeneric', '如果此帳號 ID 存在並已登記電郵，重設密碼連結已經寄至該電郵信箱，請查看垃圾郵件夾'), '📧');
         window.closeModal('modal-forgot-password');
       } catch (error) {
-        window.showToast(window.t('core.processFailedTemplate', '處理失敗：{error}').replace('{error}', error.message || error), '❌');
+        window.showToast(window.t('core.processFailedTemplate', '處理失敗：{error}').replace('{error}', window.friendlyErrorText(error)), '❌');
       } finally {
         if (btn) { btn.disabled = false; btn.innerText = '寄出重設密碼連結'; }
       }
@@ -788,7 +788,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
         } else if (error.code === 'functions/deadline-exceeded' || error.message === '連結已過期') {
           window.showToast(window.t('core.resetLinkExpired30Min', '連結已經過期（30 分鐘內有效），請重新申請一次'), '⚠️');
         } else {
-          window.showToast(window.t('core.resetPasswordFailedTemplate', '重設密碼失敗：{error}').replace('{error}', error.message || error), '❌');
+          window.showToast(window.t('core.resetPasswordFailedTemplate', '重設密碼失敗：{error}').replace('{error}', window.friendlyErrorText(error)), '❌');
         }
       } finally {
         if (btn) { btn.disabled = false; btn.innerText = '確認重設密碼'; }
@@ -816,7 +816,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
         window.showToast(window.t('core.resendVerifyEmailSuccess', '已重新發送驗證電郵，請查看你的信箱（包括垃圾郵件夾）'), '📧');
         if (typeof window.updateProfileEmailVerifyUI === 'function') window.updateProfileEmailVerifyUI();
       } catch (e) {
-        window.showToast(window.t('core.sendFailedTemplate', '發送失敗：{error}').replace('{error}', e.message || e), '❌');
+        window.showToast(window.t('core.sendFailedTemplate', '發送失敗：{error}').replace('{error}', window.friendlyErrorText(e)), '❌');
       } finally {
         if (btn) { btn.disabled = false; btn.innerText = '重新發送驗證電郵'; }
       }
@@ -839,7 +839,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
         }
         window.updateUserAuthUI();
       } catch (e) {
-        window.showToast(window.t('core.checkFailedTemplate', '檢查失敗：{error}').replace('{error}', e.message || e), '❌');
+        window.showToast(window.t('core.checkFailedTemplate', '檢查失敗：{error}').replace('{error}', window.friendlyErrorText(e)), '❌');
       }
     };
 
@@ -944,7 +944,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
         } else if (error.code === 'auth/too-many-requests') {
           window.showToast(window.t('core.tooManyAttemptsRetryLater', '嘗試次數太多，請稍後再試'), '⚠️');
         } else {
-          window.showToast(window.t('core.changePasswordFailedTemplate', '更改密碼失敗：{error}').replace('{error}', error.message || error), '❌');
+          window.showToast(window.t('core.changePasswordFailedTemplate', '更改密碼失敗：{error}').replace('{error}', window.friendlyErrorText(error)), '❌');
         }
       } finally {
         if (btn) { btn.disabled = false; btn.innerText = '更改密碼'; }
@@ -977,7 +977,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
       try {
         userCredential = await createUserWithEmailAndPassword(auth, authEmail, password);
       } catch (error) {
-        window.showToast(window.t('core.registerFailedTemplate', "註冊失敗: {error}").replace('{error}', error.message), "❌");
+        window.showToast(window.t('core.registerFailedTemplate', "註冊失敗：{error}").replace('{error}', window.friendlyErrorText(error)), "❌");
         return;
       }
       const uid = userCredential.user.uid;
@@ -1078,7 +1078,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
         // 嗰個 Auth 帳號，否則會留低一個冇對應 Firestore 資料嘅「孤兒」帳號
         console.error('註冊寫入 Firestore 失敗，清理返啱啱建立的 Auth 帳號:', error);
         try { await deleteUser(userCredential.user); } catch (e2) { /* 清理失敗都唔緊要，唔好擋住原本嘅錯誤訊息 */ }
-        window.showToast(window.t('core.registerFailedIdTakenTemplate', "註冊失敗，帳號 ID 可能剛被使用，請換一個再試：{error}").replace('{error}', error.message), "❌");
+        window.showToast(window.t('core.registerFailedIdTakenTemplate', "註冊失敗，帳號 ID 可能剛被使用，請換一個再試：{error}").replace('{error}', window.friendlyErrorText(error)), "❌");
       }
     };
 
@@ -1092,7 +1092,9 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
         const idLower = idOrEmail.toLowerCase();
         const mapSnap = await getDoc(doc(db, 'usernames', idLower));
         if (!mapSnap.exists()) {
-          window.showToast(window.t('core.accountIdNotFoundCheckTypo', '找不到這個帳號 ID，請檢查有沒有打錯'), '❌');
+          // v1.207.1：帳號 ID 唔存在同密碼錯用同一句提示，避免有人逐個 ID
+          // 試，靠提示分辨邊個帳號存在（帳號探測）。
+          window.showToast(window.t('core.loginFailedTemplate', '登入失敗：{error}').replace('{error}', window.friendlyErrorText({ code: 'auth/invalid-credential' })), '❌');
           return;
         }
         const authEmail = mapSnap.data().authEmail;
@@ -1134,7 +1136,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
         window.showToast(window.t('core.welcomeBack', "歡迎回來 ConcenMate！"), "👋");
         window.switchTab('home');
       } catch (error) {
-        window.showToast(window.t('core.loginFailedTemplate', "登入失敗: {error}").replace('{error}', error.message), "❌");
+        window.showToast(window.t('core.loginFailedTemplate', "登入失敗：{error}").replace('{error}', window.friendlyErrorText(error)), "❌");
       }
     };
 
@@ -2017,8 +2019,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
         if (secondaryStudentChanged && typeof listenToPublicRooms === 'function') {
           listenToPublicRooms();
         }
-        window.showToast(emailChanged && contactEmail ? window.t('core.profileUpdatedWithVerifyEmail', "已更新資料，並寄出新的驗證電郵") : window.t('core.profileUpdatedSynced', "個人檔案已同步更新至 Firebase！"), "✅");
+        window.showToast(emailChanged && contactEmail ? window.t('core.profileUpdatedWithVerifyEmail', "已更新資料，並寄出新的驗證電郵") : window.t('core.profileUpdatedSynced', "個人檔案已更新！"), "✅");
       } catch (err) {
-        window.showToast(window.t('core.profileUpdateFailedTemplate', "更新失敗: {error}").replace('{error}', err.message), "❌");
+        window.showToast(window.t('core.profileUpdateFailedTemplate', "更新失敗：{error}").replace('{error}', window.friendlyErrorText(err)), "❌");
       }
     };

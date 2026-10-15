@@ -48,9 +48,64 @@
 
     window.currentUser = null;
 
+    // v1.207.1：將 Firebase 原始錯誤（例如「Firebase: Error (auth/invalid-
+    // credential).」）轉做用戶睇得明嘅字眼。Cloud Function 自己 throw 嘅
+    // HttpsError 本身已經係中文訊息，呢度會原封不動保留。
+    const FRIENDLY_ERROR_KEYS = {
+      'invalid-credential': ['err.wrongCredential', '帳號 ID 或密碼不正確，請再試一次'],
+      'invalid-login-credentials': ['err.wrongCredential', '帳號 ID 或密碼不正確，請再試一次'],
+      'wrong-password': ['err.wrongCredential', '帳號 ID 或密碼不正確，請再試一次'],
+      'user-not-found': ['err.wrongCredential', '帳號 ID 或密碼不正確，請再試一次'],
+      'invalid-email': ['err.wrongCredential', '帳號 ID 或密碼不正確，請再試一次'],
+      'too-many-requests': ['err.tooManyRequests', '嘗試次數太多，請稍後再試'],
+      'resource-exhausted': ['err.tooManyRequests', '嘗試次數太多，請稍後再試'],
+      'network-request-failed': ['err.network', '網絡連線出現問題，請檢查網絡後再試'],
+      'unavailable': ['err.network', '網絡連線出現問題，請檢查網絡後再試'],
+      'deadline-exceeded': ['err.network', '網絡連線出現問題，請檢查網絡後再試'],
+      'weak-password': ['err.weakPassword', '密碼強度不足，請使用至少 6 個字元，並混合英文字母和數字'],
+      'email-already-in-use': ['err.idTaken', '這個帳號 ID 已經有人使用，請更換一個'],
+      'user-disabled': ['err.userDisabled', '此帳戶已被停用，如有疑問請聯絡管理員'],
+      'requires-recent-login': ['err.recentLogin', '為保障帳戶安全，請先登出再重新登入，然後再試'],
+      'permission-denied': ['err.permission', '沒有權限進行此操作，請重新登入後再試'],
+      'unauthenticated': ['err.permission', '沒有權限進行此操作，請重新登入後再試']
+    };
+    function friendlyByCode(code) {
+      const hit = FRIENDLY_ERROR_KEYS[code];
+      if (!hit) return null;
+      return window.t ? window.t(hit[0], hit[1]) : hit[1];
+    }
+    function genericErrorText() {
+      return window.t ? window.t('err.unknown', '系統暫時未能處理你的要求，請稍後再試') : '系統暫時未能處理你的要求，請稍後再試';
+    }
+    const TECH_ERROR_RE = /firebase|\((auth|firestore|functions|storage|app-check)\/[\w-]+\)|missing or insufficient permissions|^internal$|failed to fetch/i;
+
+    window.friendlyErrorText = function(err) {
+      if (!err) return genericErrorText();
+      const raw = typeof err === 'string' ? err : String(err.message || err);
+      const code = String((err && err.code) || '').replace(/^[a-z-]+\//, '');
+      const byCode = code && friendlyByCode(code);
+      if (byCode) return byCode;
+      const m = raw.match(/\((?:auth|firestore|functions|storage|app-check)\/([\w-]+)\)/);
+      if (m && friendlyByCode(m[1])) return friendlyByCode(m[1]);
+      if (/missing or insufficient permissions/i.test(raw)) return friendlyByCode('permission-denied');
+      if (/failed to fetch|network/i.test(raw)) return friendlyByCode('network-request-failed');
+      if (TECH_ERROR_RE.test(raw)) return genericErrorText();
+      return raw;
+    };
+
+    // 最後一道防線：任何 toast 入面如果仲夾住 Firebase 技術字眼，都換走
+    function sanitizeToastText(msg) {
+      const s = String(msg == null ? '' : msg);
+      if (!TECH_ERROR_RE.test(s)) return s;
+      const cleaned = s
+        .replace(/(FirebaseError:\s*)?Firebase:\s*[^()]*\(((?:auth|firestore|functions|storage|app-check)\/[\w-]+)\)\.?/gi, (all, p, code) => window.friendlyErrorText({ code }))
+        .replace(/FirebaseError:\s*Missing or insufficient permissions\.?|Missing or insufficient permissions\.?/gi, () => friendlyByCode('permission-denied'));
+      return TECH_ERROR_RE.test(cleaned) ? genericErrorText() : cleaned;
+    }
+
     function showToast(msg, icon = 'ℹ️') {
       const toast = document.getElementById('toast-box');
-      document.getElementById('toast-msg').innerText = msg;
+      document.getElementById('toast-msg').innerText = sanitizeToastText(msg);
       document.getElementById('toast-icon').innerText = icon;
       toast.classList.add('show');
       setTimeout(() => { toast.classList.remove('show'); }, 3200);
