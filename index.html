@@ -6,7 +6,7 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.206.1"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.207.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <meta charset="UTF-8">
@@ -310,6 +310,10 @@
 
     .nav-btn { width: 100%; text-align: left; padding: 10px; border-radius: 10px; border: none; background: transparent; color: #555; font-size: 15px; font-weight: 600; cursor: pointer; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; justify-content: flex-start; transition: 0.15s; }
     .nav-btn.active, .nav-btn:hover { background: var(--brand-500); color: white; }
+    /* v1.207.0：後台「功能表顯示」關閉咗嘅功能——一般用戶完全隱藏；管理員半透明＋「已關閉」標籤 */
+    .nav-feature-off { display: none !important; }
+    .nav-btn.nav-feature-off-admin { opacity: .55; }
+    .nav-off-tag { margin-left: auto; font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 6px; background: #E5E7EB; color: #555; }
     /* 側邊功能表圖示：預設純粹顯示 emoji 文字；管理員喺後台上傳咗自訂
        圖片之後，JS 會將呢個 span 嘅內容換做一張 <img>，用呢個固定
        20x20 嘅盒仔確保換咗圖之後排位唔會走樣。 */
@@ -4008,6 +4012,7 @@
           <button class="btn btn-outline admin-tab-btn" data-tab="schools" onclick="switchAdminTab('schools')">學校名單</button>
           <button class="btn btn-outline admin-tab-btn" data-tab="legal" onclick="switchAdminTab('legal')">條款內容</button>
           <button class="btn btn-outline admin-tab-btn" data-tab="snapshotbg" onclick="switchAdminTab('snapshotbg')">合照背景</button>
+          <button class="btn btn-outline admin-tab-btn" data-tab="navmenu" onclick="switchAdminTab('navmenu')">功能表顯示</button>
         </div>
         </div>
         <div id="admin-tab-group-governance">
@@ -4041,6 +4046,7 @@
       <div id="admin-tab-schools" class="admin-tab-panel" style="display:none;"></div>
       <div id="admin-tab-legal" class="admin-tab-panel" style="display:none;"></div>
       <div id="admin-tab-snapshotbg" class="admin-tab-panel" style="display:none;"></div>
+      <div id="admin-tab-navmenu" class="admin-tab-panel" style="display:none;"></div>
 
     </div>
   </div>

@@ -116,6 +116,13 @@
         return;
       }
 
+      // v1.207.0：後台「功能表顯示」關閉咗嘅功能，一般用戶由任何入口
+      // （功能表、主頁卡片、通知連結等）都入唔到；管理員照入得，方便測試。
+      if (typeof window.isNavFeatureBlocked === 'function' && window.isNavFeatureBlocked(tabId)) {
+        if (typeof window.showToast === 'function') window.showToast(window.t ? window.t('nav.featureOff', '此功能暫時關閉') : '此功能暫時關閉', '');
+        return;
+      }
+
       // 窄螢幕嗰陣側邊選單係浮層（見 window.toggleMobileNav），揀咗
       // 邊個分頁之後應該自動收返去，唔使用家自己再撳一次☰先睇到個
       // 分頁內容；闊螢幕嗰陣側邊欄本身冇開過呢個浮層狀態，呢句冇效果。
@@ -182,6 +189,80 @@
       }
     }
     window.switchTab = switchTab;
+
+    // ===================== 功能表顯示設定（v1.207.0） =====================
+    // 超級管理員可以喺後台「功能表顯示」逐個功能關閉，設定存喺
+    // admin_config/navVisibility 嘅 hidden: { qa: true, ... }。
+    // 關閉咗嘅功能：一般用戶功能表見唔到、亦入唔到（見 switchTab 開頭）；
+    // 管理員仍然見到（半透明＋「已關閉」標籤）。主頁固定唔可以關。
+    // 用 onSnapshot，管理員一改，所有在線用戶即時生效。
+    // ⚠️ 正喺度用緊嗰個功能嘅用戶唔會被踢走（例如溫習緊嘅人唔會俾人
+    // 強制退出溫習室），只係之後入唔返。
+    window.NAV_FEATURE_LIST = [
+      { id: 'room', key: 'nav.room', label: '視訊溫習室' },
+      { id: 'qa', key: 'nav.qa', label: '疑難解答區' },
+      { id: 'vip', key: 'nav.vip', label: '教材中心' },
+      { id: 'store', key: 'nav.store', label: '時數扭蛋機' },
+      { id: 'leaderboard', key: 'nav.leaderboard', label: '溫習排行榜' },
+      { id: 'social', key: 'nav.social', label: '書伴廣場' },
+      { id: 'diary', key: 'nav.diary', label: '溫習日記' },
+      { id: 'verification', key: 'nav.verification', label: '學生身份驗證' }
+    ];
+    window.navHiddenFeatures = window.navHiddenFeatures || {};
+
+    function navViewerIsAdmin() {
+      return typeof window.isCurrentUserAdmin === 'function' && window.isCurrentUserAdmin();
+    }
+
+    window.isNavFeatureBlocked = function(tabId) {
+      return !!(window.navHiddenFeatures && window.navHiddenFeatures[tabId]) && !navViewerIsAdmin();
+    };
+
+    window.applyNavVisibility = function() {
+      const isAdmin = navViewerIsAdmin();
+      const hidden = window.navHiddenFeatures || {};
+      window.NAV_FEATURE_LIST.forEach((f) => {
+        const btn = document.getElementById('nav-btn-' + f.id);
+        if (!btn) return;
+        const off = !!hidden[f.id];
+        btn.classList.toggle('nav-feature-off', off && !isAdmin);
+        btn.classList.toggle('nav-feature-off-admin', off && isAdmin);
+        let tag = btn.querySelector('.nav-off-tag');
+        if (off && isAdmin) {
+          if (!tag) { tag = document.createElement('span'); tag.className = 'nav-off-tag'; btn.appendChild(tag); }
+          tag.textContent = window.t ? window.t('nav.offTag', '已關閉') : '已關閉';
+        } else if (tag) {
+          tag.remove();
+        }
+      });
+      // 主頁嗰張「視訊溫習室」大卡片都跟埋隱藏
+      const roomCard = document.getElementById('home-video-room-card');
+      if (roomCard) roomCard.classList.toggle('nav-feature-off', !!hidden.room && !isAdmin);
+    };
+
+    let navVisibilityUnsub = null;
+    window.startNavVisibilityListener = function() {
+      if (navVisibilityUnsub || !window.db || !window.fs || !window.fs.onSnapshot) return;
+      try {
+        navVisibilityUnsub = window.fs.onSnapshot(
+          window.fs.doc(window.db, 'admin_config', 'navVisibility'),
+          (snap) => {
+            const data = snap.exists() ? snap.data() : null;
+            window.navHiddenFeatures = (data && data.hidden && typeof data.hidden === 'object') ? data.hidden : {};
+            window.applyNavVisibility();
+            if (typeof window.onNavVisibilityChanged === 'function') window.onNavVisibilityChanged();
+          },
+          (err) => {
+            // 登出之後會因為冇權限讀而斷線，清返，下次登入再開過
+            console.warn('功能表顯示設定監聽中斷:', err && err.code);
+            navVisibilityUnsub = null;
+          }
+        );
+      } catch (e) {
+        console.warn('未能讀取功能表顯示設定:', e);
+        navVisibilityUnsub = null;
+      }
+    };
 
     // ===================== EXP / Level / 段位系統 =====================
     // EXP 只升不跌，代表用家「總溫習成就」；PTS 會升會跌，用嚟扭蛋消費。
@@ -2043,6 +2124,9 @@
         // 得返「主頁」＋「管理教材」——呢個 function 定義喺
         // tutor-panel.js，負責隱藏晒其他學生專屬分頁、顯示返「管理教材」。
         if (typeof window.applyRoleBasedSidebar === 'function') window.applyRoleBasedSidebar();
+        // v1.207.0：後台「功能表顯示」設定
+        if (typeof window.startNavVisibilityListener === 'function') window.startNavVisibilityListener();
+        if (typeof window.applyNavVisibility === 'function') window.applyNavVisibility();
 
         switchTab('home');
       } else {

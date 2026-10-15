@@ -169,6 +169,8 @@
     'nav.diary': { 'zh-Hant': '溫習日記', 'en': 'Study Diary', 'yue': '溫習日記' },
     'nav.verification': { 'zh-Hant': '學生身份驗證', 'en': 'Student Verification', 'yue': '學生身份驗證' },
     'nav.tutorMaterials': { 'zh-Hant': '管理教材', 'en': 'Manage Materials', 'yue': '管理教材' },
+    'nav.offTag': { 'zh-Hant': '已關閉', 'en': 'Off', 'yue': '已關閉' },
+    'nav.featureOff': { 'zh-Hant': '此功能暫時關閉', 'en': 'This feature is temporarily unavailable', 'yue': '呢個功能暫時關閉咗' },
     'lang.switcher.title': { 'zh-Hant': '選擇語言', 'en': 'Choose Language', 'yue': '揀語言' },
 
     // ── 通用字眼（好多分頁都會用到，一次搬好，之後其他分頁轉換嗰陣

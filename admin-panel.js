@@ -76,6 +76,8 @@
       // 要補顯示返）。
       if (typeof window.updateAdminEntryButton === 'function') window.updateAdminEntryButton();
       if (typeof window.checkAdminHashRoute === 'function') window.checkAdminHashRoute();
+      // 管理員身份啱啱確認咗，重新套用功能表顯示（管理員見到已關閉嘅項目）
+      if (typeof window.applyNavVisibility === 'function') window.applyNavVisibility();
       // 管理員名單啱啱攞到／更新，順便刷新一次大廳標題，等「🛠️ 查看
       // 邊個池」嗰個管理員專用選單可以喺呢一刻先顯示出嚟（見
       // window.updateRoomLobbyTitle，定義喺 app-core.js）。
@@ -105,7 +107,7 @@
     const SUPER_ADMIN_ONLY_TABS = [
       'gacha', 'level', 'icons', 'landing', 'scoring', 'roomsettings',
       'antiidle', 'announcement', 'adminlist', 'auditlog',
-      'subjects', 'districts', 'schools', 'legal', 'snapshotbg'
+      'subjects', 'districts', 'schools', 'legal', 'snapshotbg', 'navmenu'
     ];
 
     // 操作紀錄（第四階段第10項）：將重要嘅管治／高風險操作（停權、
@@ -274,6 +276,7 @@
       else if (tab === 'schools') renderAdminSchoolsTab();
       else if (tab === 'legal') renderAdminLegalTab();
       else if (tab === 'snapshotbg') renderAdminSnapshotBgTab();
+      else if (tab === 'navmenu') renderAdminNavMenuTab();
     };
 
     // ---------- 扭蛋機貼紙管理 ----------
@@ -3862,6 +3865,70 @@
     // 頁面一載入就檢查一次（處理直接開 #admin 網址嘅情況）
     checkAdminHashRoute();
 
+
+    // ===================== 功能表顯示（v1.207.0） =====================
+    // 逐個功能開／關，寫入 admin_config/navVisibility（hidden map）。
+    // 前端監聽同套用喺 app-features.js（startNavVisibilityListener）。
+    function renderAdminNavMenuTab() {
+      const panel = document.getElementById('admin-tab-navmenu');
+      if (!panel) return;
+      const list = window.NAV_FEATURE_LIST || [];
+      panel.innerHTML = `
+        <div class="card" style="padding:16px;">
+          <h3 style="margin:0 0 6px;">功能表顯示</h3>
+          <p style="font-size:13px; color:#666; line-height:1.7; margin:0 0 14px;">
+            取消勾選即可暫時關閉該功能：一般用戶的功能表會即時隱藏該項目，亦無法從其他入口（例如主頁卡片、通知）進入。<br>
+            管理員仍可看到已關閉的項目（半透明並顯示「已關閉」），方便測試。「主頁」固定顯示，不可關閉。<br>
+            正在使用該功能的用戶不會被強制退出，例如正在溫習室溫習的同學可以繼續，離開後才無法再進入。
+          </p>
+          <div id="admin-navmenu-list" style="display:flex; flex-direction:column; gap:8px; max-width:520px;"></div>
+        </div>`;
+      const box = document.getElementById('admin-navmenu-list');
+      const rowHome = document.createElement('div');
+      rowHome.style.cssText = 'display:flex; align-items:center; gap:12px; padding:10px 14px; border:1px solid #D9EBEF; border-radius:10px; background:#F7FAFB;';
+      rowHome.innerHTML = '<input type="checkbox" checked disabled style="width:18px; height:18px;"><span style="font-weight:bold; color:#1E4550; flex:1;">主頁</span><span style="font-size:12px; color:#999;">固定顯示</span>';
+      box.appendChild(rowHome);
+      list.forEach((f) => {
+        const hidden = !!(window.navHiddenFeatures && window.navHiddenFeatures[f.id]);
+        const row = document.createElement('label');
+        row.style.cssText = 'display:flex; align-items:center; gap:12px; padding:10px 14px; border:1px solid #D9EBEF; border-radius:10px; background:#fff; cursor:pointer;';
+        row.innerHTML = `
+          <input type="checkbox" ${hidden ? '' : 'checked'} style="width:18px; height:18px; cursor:pointer;" onchange="window.adminSetNavFeature('${f.id}', this.checked, this)">
+          <span style="font-weight:bold; color:#1E4550; flex:1;">${f.label}</span>
+          <span id="admin-navmenu-status-${f.id}" style="font-size:12px; font-weight:bold; padding:2px 8px; border-radius:6px; ${hidden ? 'background:#F3F4F6; color:#6B7280;' : 'background:#E6F4EA; color:#1E7B3A;'}">${hidden ? '已關閉' : '顯示中'}</span>`;
+        box.appendChild(row);
+      });
+    }
+
+    window.adminSetNavFeature = async function(id, show, input) {
+      if (!(window.isCurrentUserSuperAdmin && window.isCurrentUserSuperAdmin())) { window.showToast('只有超級管理員可以修改此設定', ''); if (input) input.checked = !show; return; }
+      const f = (window.NAV_FEATURE_LIST || []).find((x) => x.id === id);
+      const label = f ? f.label : id;
+      if (input) input.disabled = true;
+      try {
+        await window.fs.setDoc(window.fs.doc(window.db, 'admin_config', 'navVisibility'), {
+          hidden: { [id]: !show },
+          updatedAt: Date.now(),
+          updatedBy: window.currentUser ? window.currentUser.email : null
+        }, { merge: true });
+        if (!window.navHiddenFeatures) window.navHiddenFeatures = {};
+        window.navHiddenFeatures[id] = !show;
+        if (typeof window.applyNavVisibility === 'function') window.applyNavVisibility();
+        const st = document.getElementById('admin-navmenu-status-' + id);
+        if (st) {
+          st.textContent = show ? '顯示中' : '已關閉';
+          st.style.background = show ? '#E6F4EA' : '#F3F4F6';
+          st.style.color = show ? '#1E7B3A' : '#6B7280';
+        }
+        window.showToast(show ? `已開啟「${label}」` : `已關閉「${label}」`, '');
+        if (typeof window.logAdminAction === 'function') window.logAdminAction(show ? '開啟功能' : '關閉功能', { feature: id, label });
+      } catch (e) {
+        if (input) input.checked = !show;
+        window.showToast('儲存失敗：' + (e.message || e), '');
+      } finally {
+        if (input) input.disabled = false;
+      }
+    };
 
     // ===================== 合照背景（v1.205.0） =====================
     // 溫習室「合照」可以按人數（1／2／3／4 人）各自設定一張背景圖。
