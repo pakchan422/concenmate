@@ -209,7 +209,7 @@ window.applyRoleBasedSidebar = function() {
       }
       if (subjectsEl) {
         subjectsEl.innerHTML = (t.subjectsIntended || [])
-          .map((s) => `<span class="tag" style="background:#F0F6F8; color:#1E4550;">${escapeHtmlLocal(window.translateSubjectName ? window.translateSubjectName(s) : s)}</span>`)
+          .map((s) => `<span class="tag" style="background:#F4F5F8; color:#3D4456;">${escapeHtmlLocal(window.translateSubjectName ? window.translateSubjectName(s) : s)}</span>`)
           .join('');
       }
       if (followerCountEl) followerCountEl.innerText = u.followerCount || 0;
@@ -247,7 +247,7 @@ window.applyRoleBasedSidebar = function() {
     listContainer.innerHTML = filtered.map((t) => {
       const uid = t.uid;
       const subjectsHtml = (t.subjectsIntended || [])
-        .map((s) => `<span class="tag" style="background:#F0F6F8; color:#1E4550; margin-right:4px;">${escapeHtmlLocal(window.translateSubjectName ? window.translateSubjectName(s) : s)}</span>`)
+        .map((s) => `<span class="tag" style="background:#F4F5F8; color:#3D4456; margin-right:4px;">${escapeHtmlLocal(window.translateSubjectName ? window.translateSubjectName(s) : s)}</span>`)
         .join('');
       // 撳頭像／導師名稱：只開細細張「資料卡」（window.viewUserProfile()），
       // 純顯示基本身份資訊；撳卡片其他位置（簡介、科目標籤、「查看 ›」、
@@ -629,12 +629,12 @@ window.applyRoleBasedSidebar = function() {
           ${dragEnabled ? '<span style="color:#bbb; font-size:14px;" title="拖曳可調整排序">⠿</span>' : ''}
           <div style="font-size:12px; color:#999;">${escapeHtmlLocal(statusLabel)}</div>
         </div>
-        <div id="tutor-note-thumb-${id}" class="tutor-note-thumb" style="width:100%; aspect-ratio:3/4; max-height:160px; border-radius:6px; background:#eef3f4; display:flex; align-items:center; justify-content:center; margin-bottom:6px; overflow:hidden;">
+        <div id="tutor-note-thumb-${id}" class="tutor-note-thumb" style="width:100%; aspect-ratio:3/4; max-height:160px; border-radius:6px; background:#EFF0F4; display:flex; align-items:center; justify-content:center; margin-bottom:6px; overflow:hidden;">
           <span style="font-size:11px; color:#bbb;">縮圖載入中…</span>
         </div>
         <div style="font-weight:700; font-size:14px; color:var(--brand-800); margin-bottom:2px;">${escapeHtmlLocal(n.title)}</div>
         <div style="font-size:12px; color:#888; margin-bottom:6px; min-height:16px;">${escapeHtmlLocal(n.description || '')}</div>
-        <div style="font-size:13px; color:#3E7A8A; font-weight:700;">${centsToDollarStr(n.priceCents)}</div>
+        <div style="font-size:13px; color:#646D83; font-weight:700;">${centsToDollarStr(n.priceCents)}</div>
         <div style="font-size:12px; color:#aaa; margin:4px 0;">${n.pageCount ? (n.pageCount + ' 頁') : '頁數計算中…'}${n.previewPages && n.previewPages.length ? '　預覽頁：' + n.previewPages.join(', ') : ''}</div>
         <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;">
           ${n.fullStoragePath
@@ -843,7 +843,7 @@ window.applyRoleBasedSidebar = function() {
                   <div style="font-weight:700; font-size:14px; color:var(--brand-800); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtmlLocal(n.title)}</div>
                   ${topicNameMap[n.topicId] ? `<div style="font-size:12px; color:#888; margin-top:2px;">${escapeHtmlLocal(topicNameMap[n.topicId])}</div>` : ''}
                 </div>
-                <div style="font-size:13px; color:#3E7A8A; font-weight:700; flex-shrink:0; white-space:nowrap;">${centsToDollarStr(n.priceCents)}</div>
+                <div style="font-size:13px; color:#646D83; font-weight:700; flex-shrink:0; white-space:nowrap;">${centsToDollarStr(n.priceCents)}</div>
               </div>
               <div style="display:flex; gap:6px; margin-top:8px;">
                 ${n.previewStoragePath
@@ -1036,7 +1036,7 @@ window.applyRoleBasedSidebar = function() {
     if (!panel) return;
 
     const checkboxes = Array.from({ length: pageCount }, (_, i) => i + 1).map((p) => `
-      <label style="display:inline-flex; align-items:center; gap:4px; font-size:13px; border:1px solid #E5EEF0; border-radius:6px; padding:4px 8px; margin:2px;">
+      <label style="display:inline-flex; align-items:center; gap:4px; font-size:13px; border:1px solid #E6E8EE; border-radius:6px; padding:4px 8px; margin:2px;">
         <input type="checkbox" value="${p}" class="tutor-preview-page-checkbox" onchange="window.enforceTutorPreviewPageLimit()"> 第 ${p} 頁
       </label>
     `).join('');

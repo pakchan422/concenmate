@@ -891,6 +891,12 @@
 
     // ── 載入中提示（v1.203.0）──
     'loading.default': { 'zh-Hant': '處理中，請稍候…', 'en': 'Working on it…', 'yue': '處理緊，請等等…' },
+    'pwa.title': { 'zh-Hant': '將書伴加至主畫面', 'en': 'Add ConcenMate to your Home Screen', 'yue': '將書伴加到主畫面' },
+    'pwa.iosHint': { 'zh-Hant': '點擊瀏覽器的「分享」按鈕 {icon}，再選擇「加至主畫面」', 'en': 'Tap the Share button {icon}, then choose "Add to Home Screen"', 'yue': '撳瀏覽器嘅「分享」掣 {icon}，再揀「加至主畫面」' },
+    'pwa.iosChromeHint': { 'zh-Hant': '點擊網址列右邊的「分享」按鈕 {icon}，再選擇「加至主畫面」', 'en': 'Tap the Share button {icon} in the address bar, then choose "Add to Home Screen"', 'yue': '撳網址列右邊嘅「分享」掣 {icon}，再揀「加至主畫面」' },
+    'pwa.androidHint': { 'zh-Hant': '安裝後可從主畫面直接開啟，使用更方便', 'en': 'Install it to open straight from your home screen', 'yue': '裝咗之後可以喺主畫面直接開，方便啲' },
+    'pwa.install': { 'zh-Hant': '安裝', 'en': 'Install', 'yue': '安裝' },
+    'pwa.close': { 'zh-Hant': '關閉', 'en': 'Close', 'yue': '關閉' },
     'loading.login': { 'zh-Hant': '正在登入…', 'en': 'Logging in…', 'yue': '登入緊…' },
     'loading.register': { 'zh-Hant': '正在建立帳戶…', 'en': 'Creating your account…', 'yue': '建立緊帳戶…' },
     'loading.createRoom': { 'zh-Hant': '正在建立溫習室…', 'en': 'Creating study room…', 'yue': '開緊溫習室…' },

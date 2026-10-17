@@ -474,8 +474,8 @@
           </div>
           <div class="video-header">
             <span class="video-tag" style="cursor:pointer;" onclick="viewUserProfile('${uid}')" title="${window.t('room.viewProfile', '點擊查看資料／加好友')}">${window.escapeHtml(name || window.t('room.otherUser', '其他用家'))}</span>
-            <span class="video-tag" id="remote-host-badge-${slotNum}" style="background:#D9EBEF; color:#1E4550; display:none;">${window.t('room.hostBadge', '房主')}</span>
-            <span class="video-tag" id="stream-status-${uid}" data-conn="connecting" style="background:#3E7A8A; color:#fff;">${window.t('room.remoteWaitStream', '連線中...')}</span>
+            <span class="video-tag" id="remote-host-badge-${slotNum}" style="background:#E8EAF0; color:#3D4456; display:none;">${window.t('room.hostBadge', '房主')}</span>
+            <span class="video-tag" id="stream-status-${uid}" data-conn="connecting" style="background:#646D83; color:#fff;">${window.t('room.remoteWaitStream', '連線中...')}</span>
             <div class="video-more-menu-wrap">
               <span class="video-tag video-more-menu-toggle" onclick="event.stopPropagation(); window.toggleVideoMoreMenu('${uid}')" title="${window.t('room.moreOptions', '更多選項')}">⋮</span>
               <div class="video-more-menu-dropdown" id="video-more-menu-${uid}" style="display:none;">
@@ -757,7 +757,7 @@
       const pc = state.peerConnections[uid];
       const connected = !!(pc && pc.connectionState === 'connected');
       if (!connected) {
-        statusTag.style.background = '#3E7A8A';
+        statusTag.style.background = '#646D83';
         statusTag.innerText = window.t('room.remoteWaitStream', '連線中...');
         statusTag.setAttribute('data-conn', 'connecting');
       } else if (state.peerHasVideo && state.peerHasVideo[uid]) {
@@ -2427,7 +2427,7 @@
         if (micTag) {
           micTag.style.display = state.isCameraOn ? 'flex' : 'none';
           micTag.innerText = window.t('room.micCooldownTag', '咪冷卻中 {n}').replace('{n}', countdown);
-          micTag.style.background = 'rgba(125,184,197,0.7)';
+          micTag.style.background = 'rgba(154,162,180,0.7)';
         }
         return;
       }
@@ -2451,7 +2451,7 @@
         if (micTag) {
           micTag.style.display = state.isCameraOn ? 'flex' : 'none';
           micTag.innerText = window.t('room.micMuted', '已靜音');
-          micTag.style.background = 'rgba(125,184,197,0.7)';
+          micTag.style.background = 'rgba(154,162,180,0.7)';
         }
       }
     }
@@ -3333,7 +3333,7 @@
       }
       async function drawPlaceholder(ctx, x, y, w, h) {
         const g = ctx.createLinearGradient(x, y, x, y + h);
-        g.addColorStop(0, '#CFE3E8'); g.addColorStop(1, '#B3D6DE');
+        g.addColorStop(0, '#CFE3E8'); g.addColorStop(1, '#D3D7E0');
         ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
         const otter = await loadImg('ottie-wave.png');
         if (otter) {
@@ -3451,7 +3451,7 @@
         ctx.fillText(tt('snapshot.studiedLine', '今日溫習 {t}').replace('{t}', formatMinutes(todayMinutes())), MARGIN + 4, fy);
         const logo = await loadImg('logo-snapshot.png');
         ctx.textAlign = 'right';
-        ctx.fillStyle = '#4A8FA0';
+        ctx.fillStyle = '#7C869C';
         ctx.font = `700 24px ${font}`;
         const urlText = 'concenmate.com';
         const urlW = ctx.measureText(urlText).width;
@@ -3476,9 +3476,9 @@
         m.style.cssText = 'position:fixed; inset:0; z-index:25000; display:none; align-items:center; justify-content:center; background:rgba(20,45,55,.55); padding:16px; box-sizing:border-box;';
         m.innerHTML = `
           <div style="background:#fff; border-radius:18px; padding:18px; width:420px; max-width:100%; max-height:100%; overflow-y:auto; box-shadow:0 14px 40px rgba(0,0,0,.3); text-align:center;">
-            <div style="font-size:18px; font-weight:800; color:#1E4550; margin-bottom:10px;" id="room-snapshot-title"></div>
-            <img id="room-snapshot-preview" alt="" style="width:100%; max-height:56vh; object-fit:contain; border-radius:12px; display:block; background:#F3F9FA;">
-            <p id="room-snapshot-hint" style="font-size:12px; color:#7a8b90; margin:8px 0 0;"></p>
+            <div style="font-size:18px; font-weight:800; color:#3D4456; margin-bottom:10px;" id="room-snapshot-title"></div>
+            <img id="room-snapshot-preview" alt="" style="width:100%; max-height:56vh; object-fit:contain; border-radius:12px; display:block; background:#F4F5F8;">
+            <p id="room-snapshot-hint" style="font-size:12px; color:#7E8496; margin:8px 0 0;"></p>
             <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:12px;">
               <button type="button" class="btn btn-primary" id="room-snapshot-share-btn" style="display:none;"></button>
               <button type="button" class="btn btn-primary" id="room-snapshot-save-btn"></button>

@@ -6,7 +6,7 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.207.1"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.208.1"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <meta charset="UTF-8">
@@ -57,7 +57,13 @@
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
-  <meta name="theme-color" content="#4A8FA0">
+  <meta name="theme-color" content="#7C869C">
+  <!-- v1.208.0：PWA（加至主畫面後以全螢幕 App 形式開啟） -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="書伴">
 
   <!-- ========================================
        🧪 環境判斷（正式站 vs 開發／測試站）
@@ -138,24 +144,24 @@
 
 <style>
     :root {
-      /* ConcenMate 品牌色 — 源自 Logo 嘅鋼青色系 */
-      --brand-50:  #F0F6F8;   /* 頁面底色：帶藍嘅近白 */
-      --brand-100: #D9EBEF;   /* 卡片底色、輸入框 */
-      --brand-200: #B3D6DE;   /* border、分隔線 */
-      --brand-300: #7DB8C5;   /* 較深 border */
-      --brand-500: #4A8FA0;   /* 主按鈕、active nav */
-      --brand-600: #3E7A8A;   /* hover 狀態 */
-      --brand-700: #2F6070;   /* 深色，副標題 */
-      --brand-800: #1E4550;   /* 最深，標題文字 */
-      --text-dark: #1A3A44;   /* 正文主色 */
+      /* ConcenMate 品牌色 — v1.208.0 起改用灰藍色系（主色 #7C869C） */
+      --brand-50:  #F4F5F8;   /* 頁面底色：帶藍嘅近白 */
+      --brand-100: #E8EAF0;   /* 卡片底色、輸入框 */
+      --brand-200: #D3D7E0;   /* border、分隔線 */
+      --brand-300: #9AA2B4;   /* 較深 border */
+      --brand-500: #7C869C;   /* 主按鈕、active nav */
+      --brand-600: #646D83;   /* hover 狀態 */
+      --brand-700: #4F576B;   /* 深色，副標題 */
+      --brand-800: #3D4456;   /* 最深，標題文字 */
+      --text-dark: #2E3442;   /* 正文主色 */
 
       /* 功能按鈕色調 — 交替使用 Logo 嘅兩個主色：暖灰棕（水獺身體）同鋼青（文字色） */
       --tone-a: #EAE6E1;  --tone-a-d: #CFC9C1;  /* 暖灰棕淺 — 視訊溫習室 */
-      --tone-b: #D9EBEF;  --tone-b-d: #A8CFDA;  /* 鋼青淺   — 扭蛋兌換所 */
+      --tone-b: #E8EAF0;  --tone-b-d: #BCC2CF;  /* 鋼青淺   — 扭蛋兌換所 */
       --tone-c: #E6E2DC;  --tone-c-d: #CBBFB5;  /* 暖灰棕中 — 疑難解答區 */
-      --tone-d: #C8DFE6;  --tone-d-d: #96BEC9;  /* 鋼青中   — 溫習資源VIP */
+      --tone-d: #D6DAE3;  --tone-d-d: #A9B0C0;  /* 鋼青中   — 溫習資源VIP */
       --tone-e: #DDD9D3;  --tone-e-d: #C2BAB0;  /* 暖灰棕深 — 夥伴讀書會 */
-      --tone-f: #B8D4DC;  --tone-f-d: #89B3BE;  /* 鋼青深   — 個人檔案 */
+      --tone-f: #C9CEDA;  --tone-f-d: #9AA2B4;  /* 鋼青深   — 個人檔案 */
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
@@ -175,10 +181,10 @@
     .btn { border: none; border-radius: 10px; padding: 6px 12px; font-size: 14px; font-weight: bold; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 4px; }
     .btn-primary { background: var(--brand-500); color: white; }
     .btn-primary:hover { background: var(--brand-600); transform: translateY(-1px); }
-    .btn-amber { background: #D9C9B5; color: #1E4550; }
-    .btn-amber:hover { background: #7DB8C5; color: white; }
-    .btn-red { background: #DDCABB; color: #1E4550; }
-    .btn-red:hover { background: #7DB8C5; color: white; }
+    .btn-amber { background: #D9C9B5; color: #3D4456; }
+    .btn-amber:hover { background: #9AA2B4; color: white; }
+    .btn-red { background: #DDCABB; color: #3D4456; }
+    .btn-red:hover { background: #9AA2B4; color: white; }
     .btn-outline { background: white; border: 1px solid var(--brand-300); color: var(--brand-800); }
     .btn-outline:hover { background: var(--brand-50); }
 
@@ -202,7 +208,7 @@
     main { flex: 1; padding: 12px; overflow-y: auto; }
 
     /* ☰ 選單掣：預設收埋，淨係窄螢幕（見下面 900px 斷面）先顯示。 */
-    .mobile-nav-toggle { display: none; background: none; border: none; font-size: 22px; line-height: 1; cursor: pointer; padding: 4px 8px; margin-right: 2px; color: var(--brand-800, #1E4550); flex-shrink: 0; align-items: center; justify-content: center; }
+    .mobile-nav-toggle { display: none; background: none; border: none; font-size: 22px; line-height: 1; cursor: pointer; padding: 4px 8px; margin-right: 2px; color: var(--brand-800, #3D4456); flex-shrink: 0; align-items: center; justify-content: center; }
     /* 揭開側邊選單嗰陣嘅背景遮罩：撳一下就會關返個選單（見
        window.toggleMobileNav），同手機系統嘅慣常做法一致。 */
     #mobile-nav-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 65; }
@@ -709,7 +715,7 @@
       border-radius: 8px;
       font-size: 13px;
     }
-    .room-capacity-tag.full { color: #B3D6DE; }
+    .room-capacity-tag.full { color: #D3D7E0; }
     .avatar-circle { width: 56px; height: 56px; border-radius: 50%; background: #444; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; border: 2px solid #666; margin-bottom: 8px; }
 
     .video-header {
@@ -765,7 +771,7 @@
       width: 100%;
       background: #fff;
       border: none;
-      color: #3E7A8A;
+      color: #646D83;
       font-size: 13px;
       font-weight: 700;
       padding: 9px 12px;
@@ -773,7 +779,7 @@
       cursor: pointer;
       white-space: nowrap;
     }
-    .video-more-menu-item:hover { background: #EEF6F8; }
+    .video-more-menu-item:hover { background: #EFF1F5; }
     .video-more-menu-item.danger { color: #C0524A; }
     .video-more-menu-item.danger:hover { background: #FBEAEA; }
 
@@ -841,7 +847,7 @@
       background: white; border: 1px solid var(--brand-200); border-radius: 14px;
       padding: 14px; margin-bottom: 10px; cursor: pointer; transition: box-shadow .15s;
     }
-    .qa-post-card:hover { box-shadow: 0 4px 16px rgba(74,143,160,.15); }
+    .qa-post-card:hover { box-shadow: 0 4px 16px rgba(124,134,156,.15); }
     .qa-subject-label {
       display: inline-block; padding: 2px 8px; border-radius: 20px;
       font-size: 13px; font-weight: bold; background: var(--brand-100); color: var(--brand-700);
@@ -941,7 +947,7 @@
     /* ── 主頁 Hero ── */
     .home-hero {
       display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
-      background: linear-gradient(135deg, #4A8FA0, #2F6070);
+      background: linear-gradient(135deg, #7C869C, #4F576B);
       border-radius: 20px; padding: 18px 24px; margin-bottom: 16px; color: white;
     }
     .home-hero-left { display: flex; align-items: center; gap: 14px; }
@@ -999,7 +1005,7 @@
       font-weight: bold;
     }
     .study-calendar-day.today {
-      box-shadow: 0 0 0 1.5px var(--brand-700, #2F6070);
+      box-shadow: 0 0 0 1.5px var(--brand-700, #4F576B);
       font-weight: bold;
     }
     /* ── 主體兩欄 ── */
@@ -1020,12 +1026,12 @@
       border-radius: 18px; padding: 18px 20px;
       transition: transform .15s, box-shadow .15s;
     }
-    .home-primary-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(74,143,160,.18); }
+    .home-primary-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(124,134,156,.18); }
     .home-primary-icon { font-size: 36px; flex-shrink: 0; }
     .home-primary-title { font-size: 17px; font-weight: 800; color: var(--brand-800); }
     .home-primary-desc { font-size: 13px; color: var(--brand-600); margin-top: 3px; }
     .home-primary-badge {
-      margin-left: auto; flex-shrink: 0; background: #4A8FA0; color: white;
+      margin-left: auto; flex-shrink: 0; background: #7C869C; color: white;
       font-size: 13px; font-weight: 700; padding: 6px 14px; border-radius: 20px;
       display: flex; align-items: center; gap: 5px;
     }
@@ -1046,7 +1052,7 @@
       transition: transform .15s, box-shadow .15s, border-color .15s;
       display: flex; flex-direction: column; gap: 6px;
     }
-    .home-sec-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(74,143,160,.14); border-color: var(--brand-300); }
+    .home-sec-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(124,134,156,.14); border-color: var(--brand-300); }
     .home-sec-head { display: flex; align-items: center; gap: 6px; }
     .home-sec-icon { font-size: 24px; }
     .home-sec-badge { font-size: 13px; font-weight: 700; padding: 2px 7px; border-radius: 10px; background: #FDA4AF; color: #881337; }
@@ -1070,7 +1076,7 @@
       .home-primary-badge { display: none; }
       .home-side-col { grid-template-columns: 1fr; }
     }
-    .clickable-user { text-decoration: underline; cursor: pointer; color: #3E7A8A; }
+    .clickable-user { text-decoration: underline; cursor: pointer; color: #646D83; }
 
     #toast-box {
       position: fixed;
@@ -1129,7 +1135,7 @@
       bottom: 38px;
       right: 0;
       background: rgba(15, 23, 42, 0.95);
-      color: #B3D6DE;
+      color: #D3D7E0;
       font-size: 14px;
       padding: 12px 16px;
       border-radius: 12px;
@@ -1284,7 +1290,7 @@
       overflow: hidden;
     }
     .chat-window .chat-window-header {
-      background: var(--brand-700, #2F6070);
+      background: var(--brand-700, #4F576B);
       color: #fff;
       padding: 10px 10px;
       display: flex; align-items: center; gap: 8px;
@@ -1302,7 +1308,7 @@
       overflow-y: auto;
       padding: 10px;
       display: flex; flex-direction: column; gap: 6px;
-      background: #F7FAFB;
+      background: #F7F8FA;
     }
     .chat-window.minimized .chat-window-body,
     .chat-window.minimized .chat-window-input-row { display: none; }
@@ -1334,8 +1340,8 @@
 
     /* ══════════ 未登入訪客 Landing Page（登入前主頁）══════════ */
     .landing-btn { border: none; border-radius: 12px; padding: 15px 28px; font-size: 17px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: transform .15s ease, box-shadow .15s ease, background .15s ease; text-decoration: none; }
-    .landing-btn-primary { background: var(--brand-500); color: #fff; box-shadow: 0 4px 14px rgba(74,143,160,.32); }
-    .landing-btn-primary:hover { background: var(--brand-600); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(74,143,160,.4); }
+    .landing-btn-primary { background: var(--brand-500); color: #fff; box-shadow: 0 4px 14px rgba(124,134,156,.32); }
+    .landing-btn-primary:hover { background: var(--brand-600); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(124,134,156,.4); }
 
     .landing-container { max-width: 1160px; margin: 0 auto; padding: 0 40px; }
 
@@ -1363,9 +1369,9 @@
     .landing-hero-art { flex: 1 1 380px; min-width: 0; display: flex; flex-direction: column; align-items: center; }
     .landing-hero-art-visual { position: relative; display: flex; align-items: center; justify-content: center; width: 440px; height: 440px; max-width: 100%; margin: 0 auto; }
     .landing-hero-art-blob { position: absolute; width: 420px; height: 420px; border-radius: 50%; background: radial-gradient(circle at 34% 30%, var(--brand-100), var(--brand-50) 70%); z-index: 0; }
-    .landing-hero-art img { position: relative; z-index: 1; width: 480px; max-width: 114%; filter: drop-shadow(0 18px 30px rgba(30,69,80,.16)); }
+    .landing-hero-art img { position: relative; z-index: 1; width: 480px; max-width: 114%; filter: drop-shadow(0 18px 30px rgba(61,68,86,.16)); }
     .landing-hero-subjects { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
-    .landing-hero-subject-tile { position: absolute; width: 64px; height: 64px; border-radius: 16px; background: #fff; border: 1px solid var(--brand-200); box-shadow: 0 8px 20px rgba(30,69,80,.12); display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; color: var(--brand-800); }
+    .landing-hero-subject-tile { position: absolute; width: 64px; height: 64px; border-radius: 16px; background: #fff; border: 1px solid var(--brand-200); box-shadow: 0 8px 20px rgba(61,68,86,.12); display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; color: var(--brand-800); }
     .landing-hero-subject-tile:nth-child(1) { top: 16%; left: 4%; transform: rotate(-10deg); }
     .landing-hero-subject-tile:nth-child(2) { top: 48%; right: -4%; transform: rotate(8deg); }
     .landing-hero-subject-tile:nth-child(3) { bottom: 4%; left: 30%; transform: rotate(-6deg); }
@@ -1376,7 +1382,7 @@
     .landing-steps-h2 { font-size: 38px; font-weight: 800; color: var(--brand-800); margin: 0 0 14px; }
     .landing-steps-sub { font-size: 18px; color: var(--brand-700); line-height: 1.65; margin: 0; }
     .landing-steps-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 26px; }
-    .landing-step-card { position: relative; background: #fff; border: 1px solid var(--brand-200); border-radius: 20px; padding: 34px 28px; box-shadow: 0 4px 16px rgba(30,69,80,.05); display: flex; flex-direction: column; gap: 16px; }
+    .landing-step-card { position: relative; background: #fff; border: 1px solid var(--brand-200); border-radius: 20px; padding: 34px 28px; box-shadow: 0 4px 16px rgba(61,68,86,.05); display: flex; flex-direction: column; gap: 16px; }
     .landing-step-num { position: absolute; top: -15px; left: 28px; width: 32px; height: 32px; border-radius: 50%; background: var(--brand-800); color: #fff; font-size: 15px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
     .landing-step-icon { width: 62px; height: 62px; border-radius: 16px; background: linear-gradient(135deg, var(--brand-500), var(--brand-700)); display: flex; align-items: center; justify-content: center; font-size: 30px; margin-top: 6px; }
     .landing-step-title { font-size: 21px; font-weight: 800; color: var(--brand-800); margin: 0; }
@@ -1451,13 +1457,13 @@
          面板嗰粒 ✕）就閂返 -->
     <button type="button" id="dev-build-badge-toggle" title="除錯面板（點擊開啟／關閉）" onclick="window.toggleDevBuildBadge()">🔧</button>
     <div id="dev-build-badge-content" class="hidden" title="每次推送到 GitHub 前請修改靜態版號，以確認是否載入最新版本">
-      <div style="border-bottom: 1px dashed #3E7A8A; padding-bottom: 4px; margin-bottom: 4px; font-weight: bold; color: white; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+      <div style="border-bottom: 1px dashed #646D83; padding-bottom: 4px; margin-bottom: 4px; font-weight: bold; color: white; display:flex; align-items:center; justify-content:space-between; gap:10px;">
         <span><span class="pulse-dot"></span>環境除錯面板</span>
         <span style="cursor:pointer; opacity:.7; font-size:13px;" onclick="window.toggleDevBuildBadge()">✕</span>
       </div>
-      靜態版號: <span id="version-display" style="color:#4A8FA0; font-weight:bold;"></span> <span style="font-size:13px; color:#888;">(於檔案頂部修改)</span><br>
-      載入時間: <span id="load-timestamp" style="color:#7DB8C5;">讀取中...</span><br>
-      對話清單: <span id="chat-dock-debug" style="color:#7DB8C5;">未載入</span>
+      靜態版號: <span id="version-display" style="color:#7C869C; font-weight:bold;"></span> <span style="font-size:13px; color:#888;">(於檔案頂部修改)</span><br>
+      載入時間: <span id="load-timestamp" style="color:#9AA2B4;">讀取中...</span><br>
+      對話清單: <span id="chat-dock-debug" style="color:#9AA2B4;">未載入</span>
     </div>
   </div>
 
@@ -1626,7 +1632,7 @@
     </div>
 
     <div class="user-stats" id="header-user-stats" style="display:none;">
-      <span id="header-level-badge" style="font-weight:bold; color:#4A8FA0;">Lv.1</span>
+      <span id="header-level-badge" style="font-weight:bold; color:#7C869C;">Lv.1</span>
       <span style="color:#ccc">|</span>
       <span><span id="stat-hours">0.0</span>h</span>
       <span style="color:#ccc">|</span>
@@ -1649,7 +1655,7 @@
   </header>
 
   <!-- 全站置頂嘅「今日目標 + 等級／EXP」合併狀態列：唔理揭緊邊個分頁都見到，登入先顯示 -->
-  <div id="global-status-bar" style="display:none; background:linear-gradient(135deg, #4A8FA0, #7DB8C5); padding:6px 16px;">
+  <div id="global-status-bar" style="display:none; background:linear-gradient(135deg, #7C869C, #9AA2B4); padding:6px 16px;">
     <div style="max-width:480px; margin:0 auto; display:flex; align-items:stretch; gap:10px;">
       <div style="flex:1; min-width:0;">
         <div style="display:flex; align-items:baseline; justify-content:space-between; gap:6px;">
@@ -1832,7 +1838,7 @@
                    原本呢個卡通版闊，而家搬咗入左欄，同「視訊溫習室」
                    卡對齊，闊度一致 -->
               <div class="card" id="otter-pet-card" style="text-align:center; position:relative;">
-                <button type="button" onclick="openOtterRenameModal()" title="自訂我的水獺" style="position:absolute; top:8px; right:8px; background:none; border:none; cursor:pointer; font-size:16px; padding:4px; color:#7DB8C5; line-height:1;">✏️</button>
+                <button type="button" onclick="openOtterRenameModal()" title="自訂我的水獺" style="position:absolute; top:8px; right:8px; background:none; border:none; cursor:pointer; font-size:16px; padding:4px; color:#9AA2B4; line-height:1;">✏️</button>
                 <h3 style="font-size:15px; font-weight:bold; margin-bottom:6px; color:var(--brand-800); display:flex; align-items:center; justify-content:center; gap:6px;">
                   <span id="otter-name-display">Ottiee</span>
                 </h3>
@@ -1890,23 +1896,23 @@
                      統一更新（見下面 JS）。 -->
                 <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:4px; margin-top:10px; max-width:520px; margin-left:auto; margin-right:auto;">
                   <div style="min-width:0;">
-                    <div id="otter-stat-level" style="font-size:clamp(13px,3.8vw,17px); font-weight:bold; color:#1E4550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Lv.1</div>
+                    <div id="otter-stat-level" style="font-size:clamp(13px,3.8vw,17px); font-weight:bold; color:#3D4456; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Lv.1</div>
                     <div style="font-size:11px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" data-i18n="otter.stat.level">等級</div>
                   </div>
                   <div style="min-width:0;">
-                    <div id="otter-stat-exp-remaining" style="font-size:clamp(13px,3.8vw,17px); font-weight:bold; color:#1E4550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">0/20</div>
+                    <div id="otter-stat-exp-remaining" style="font-size:clamp(13px,3.8vw,17px); font-weight:bold; color:#3D4456; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">0/20</div>
                     <div style="font-size:11px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" data-i18n="otter.stat.expRemaining">升級所需 EXP</div>
                   </div>
                   <div style="min-width:0;">
-                    <div id="otter-stat-hours" style="font-size:clamp(13px,3.8vw,17px); font-weight:bold; color:#1E4550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">0.0h</div>
+                    <div id="otter-stat-hours" style="font-size:clamp(13px,3.8vw,17px); font-weight:bold; color:#3D4456; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">0.0h</div>
                     <div style="font-size:11px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" data-i18n="otter.stat.hours">已累計時數</div>
                   </div>
                   <div style="min-width:0;">
-                    <div id="otter-stat-streak" style="font-size:clamp(13px,3.8vw,17px); font-weight:bold; color:#1E4550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">0</div>
+                    <div id="otter-stat-streak" style="font-size:clamp(13px,3.8vw,17px); font-weight:bold; color:#3D4456; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">0</div>
                     <div style="font-size:11px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" data-i18n="otter.stat.streak">連續天數</div>
                   </div>
                   <div style="min-width:0;">
-                    <div id="otter-stat-stickers" style="font-size:clamp(13px,3.8vw,17px); font-weight:bold; color:#1E4550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">0/0</div>
+                    <div id="otter-stat-stickers" style="font-size:clamp(13px,3.8vw,17px); font-weight:bold; color:#3D4456; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">0/0</div>
                     <div style="font-size:11px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" data-i18n="otter.stat.stickers">圖鑑完成度</div>
                   </div>
                 </div>
@@ -1936,7 +1942,7 @@
                   <span style="font-size:13px; color:var(--brand-600);" id="home-goal-label">0 / 60 分鐘</span>
                 </div>
                 <div style="background:var(--brand-200); border-radius:99px; height:8px; overflow:hidden;">
-                  <div id="home-goal-bar" style="height:100%; background:linear-gradient(90deg,#4A8FA0,#7DB8C5); border-radius:99px; width:0%; transition:width .6s ease;"></div>
+                  <div id="home-goal-bar" style="height:100%; background:linear-gradient(90deg,#7C869C,#9AA2B4); border-radius:99px; width:0%; transition:width .6s ease;"></div>
                 </div>
                 <div style="display:flex; justify-content:space-between; margin-top:6px; font-size:13px; color:#aaa;">
                   <span>0 min</span><span>60 min</span>
@@ -2022,7 +2028,7 @@
             <div class="room-bar">
               <div class="fs-hide-in-fullscreen" style="display:flex; align-items:center; gap:6px;">
                 <span style="font-weight:bold; font-size:16px;" id="active-room-title">DSE 衝刺專注房</span>
-                <span class="tag" style="background:#F0E9DF; color:#1E4550;" id="active-room-subject">數學</span>
+                <span class="tag" style="background:#F0E9DF; color:#3D4456;" id="active-room-subject">數學</span>
               </div>
 
               <!-- 呢間房有設密碼鎖先會顯示（見 room-video.js 嘅 enterRoomSetup），撳一下
@@ -2040,8 +2046,8 @@
               <div class="room-bar-btn-group" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
                 <button class="btn btn-primary" type="button" id="btn-camera" onclick="toggleCamera()" data-i18n="room.cameraOn">開啟鏡頭</button>
                 <button class="btn btn-red" type="button" id="btn-mic" onclick="toggleMic()" data-i18n="room.micMuted">已靜音</button>
-                <button class="btn btn-outline" type="button" id="btn-room-snapshot" onclick="openRoomSnapshot()" style="border-color:#B3D6DE; color:#1E4550;" data-i18n="room.snapshotBtn">合照</button>
-                <label class="btn btn-outline" for="room-allow-photo-cb" title="勾選後，其他同學拍攝合照時會清楚顯示你的鏡頭；未勾選時以馬賽克遮蓋" style="border-color:#B3D6DE; color:#1E4550; gap:6px; cursor:pointer;">
+                <button class="btn btn-outline" type="button" id="btn-room-snapshot" onclick="openRoomSnapshot()" style="border-color:#D3D7E0; color:#3D4456;" data-i18n="room.snapshotBtn">合照</button>
+                <label class="btn btn-outline" for="room-allow-photo-cb" title="勾選後，其他同學拍攝合照時會清楚顯示你的鏡頭；未勾選時以馬賽克遮蓋" style="border-color:#D3D7E0; color:#3D4456; gap:6px; cursor:pointer;">
                   <input type="checkbox" id="room-allow-photo-cb" onchange="window.setAllowGroupPhoto && window.setAllowGroupPhoto(this.checked)" style="width:16px; height:16px; margin:0; cursor:pointer;">
                   <span data-i18n="room.allowPhotoShort">容許合照</span>
                 </label>
@@ -2054,7 +2060,7 @@
                      擺喺呢個位置（開鏡頭／靜音之後）係跟返用家
                      喺全螢幕控制列想要嘅第 3 個位置。 -->
                 <div class="fs-bg-noise-only" style="display:none; position:relative;">
-                  <button class="btn btn-outline" type="button" id="fs-bg-noise-toggle-btn" onclick="toggleFsBgNoisePanel()" title="選擇背景音" style="border-color:#DDCABB; color:#1E4550;" data-i18n="room.bgNoise">背景音</button>
+                  <button class="btn btn-outline" type="button" id="fs-bg-noise-toggle-btn" onclick="toggleFsBgNoisePanel()" title="選擇背景音" style="border-color:#DDCABB; color:#3D4456;" data-i18n="room.bgNoise">背景音</button>
                   <!-- ⚠️ position:fixed（唔係 absolute）：room-bar 喺橫向全螢幕
                        嗰陣係個 148px 闊嘅直向窄條，仲有 overflow-y:auto（會連
                        帶令 overflow-x 都變成 auto），如果個面板用 absolute
@@ -2104,9 +2110,9 @@
                   <button type="button" id="bg-noise-pause-btn" onclick="toggleBgNoisePause()" disabled title="暫停／繼續背景音" style="background:#333; color:#fff; border:1px solid #555; border-radius:6px; font-size:13px; padding:2px 6px; cursor:pointer; opacity:.4; line-height:1.4;">⏸️</button>
                 </div>
 
-                <button class="btn btn-outline" type="button" id="video-fullscreen-btn" style="border-color:#DDCABB; color:#1E4550;" onclick="toggleVideoFullscreenMode()" title="四格鏡頭放到全螢幕，一次過看清楚晒所有人" data-i18n="room.fullscreen">全螢幕</button>
+                <button class="btn btn-outline" type="button" id="video-fullscreen-btn" style="border-color:#DDCABB; color:#3D4456;" onclick="toggleVideoFullscreenMode()" title="四格鏡頭放到全螢幕，一次過看清楚晒所有人" data-i18n="room.fullscreen">全螢幕</button>
 
-                <button class="btn btn-outline fs-hide-in-fullscreen" type="button" style="border-color:#DDCABB; color:#1E4550;" onclick="leaveRoom()" data-i18n="room.leaveRoom">退出房間</button>
+                <button class="btn btn-outline fs-hide-in-fullscreen" type="button" style="border-color:#DDCABB; color:#3D4456;" onclick="leaveRoom()" data-i18n="room.leaveRoom">退出房間</button>
               </div>
 
               <!-- 全螢幕控制列收埋掣：平時收埋（inline display:none），入咗
@@ -2134,12 +2140,12 @@
                   <span class="video-tag">
                     <span id="room-user-name-tag">Alex Wong (你)</span> ✓
                   </span>
-                  <span class="video-tag" style="background:#D9EBEF; color:#1E4550;" id="room-host-tag" data-i18n="room.hostFocusing">房主專注中</span>
+                  <span class="video-tag" style="background:#E8EAF0; color:#3D4456;" id="room-host-tag" data-i18n="room.hostFocusing">房主專注中</span>
                 </div>
 
                 <div class="video-footer">
-                  <span class="video-tag" id="camera-status-tag" style="background:rgba(134,239,172,0.9); color:#1E4550; display:none;" data-i18n="room.cameraLive">鏡頭即時串流中</span>
-                  <span class="video-tag" id="mic-status-tag" style="background:rgba(134,239,172,0.9); color:#1E4550; display:none; margin-left:4px;" data-i18n="room.micOn">已開啟麥克風</span>
+                  <span class="video-tag" id="camera-status-tag" style="background:rgba(134,239,172,0.9); color:#3D4456; display:none;" data-i18n="room.cameraLive">鏡頭即時串流中</span>
+                  <span class="video-tag" id="mic-status-tag" style="background:rgba(134,239,172,0.9); color:#3D4456; display:none; margin-left:4px;" data-i18n="room.micOn">已開啟麥克風</span>
                 </div>
 
                 <!-- 表情反應：平時收埋（唔常用），撳個細圓掣先彈出嚟揀，
@@ -2219,7 +2225,7 @@
 
           <!-- 問題列表 -->
           <div id="qa-post-list">
-            <div style="text-align:center; padding:30px; color:#7DB8C5; font-size:15px;" data-i18n="qa.loading">載入中…</div>
+            <div style="text-align:center; padding:30px; color:#9AA2B4; font-size:15px;" data-i18n="qa.loading">載入中…</div>
           </div>
 
         </section>
@@ -2319,26 +2325,26 @@
 
                 <div style="display:none;">
                   <label style="font-size:13px; font-weight:bold; color:#555; display:block;">電子郵件 (Email)</label>
-                  <input type="email" id="prof-email" class="input-field" disabled style="background:#B3D6DE; cursor:not-allowed;">
+                  <input type="email" id="prof-email" class="input-field" disabled style="background:#D3D7E0; cursor:not-allowed;">
                 </div>
 
                 <div>
                   <label style="font-size:13px; font-weight:bold; color:#555; display:block;" data-i18n="profile.contactEmailLabel">聯絡電郵 (用於驗證身份 / 日後接收通知)</label>
-                  <input type="email" id="prof-contact-email" class="input-field" placeholder="例如：abc@gmail.com" disabled style="background:#B3D6DE; cursor:not-allowed;" data-i18n-placeholder="profile.contactEmailPlaceholder">
+                  <input type="email" id="prof-contact-email" class="input-field" placeholder="例如：abc@gmail.com" disabled style="background:#D3D7E0; cursor:not-allowed;" data-i18n-placeholder="profile.contactEmailPlaceholder">
                   <div style="margin-top:6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                     <span id="prof-email-verify-badge" style="font-size:13px; font-weight:bold; padding:3px 8px; border-radius:12px;"></span>
-                    <button type="button" id="resend-verify-email-btn" onclick="resendVerificationEmail()" class="btn" style="display:none; font-size:13px; padding:4px 10px; background:#E5EEF0; color:var(--brand-800);" data-i18n="profile.resendVerifyBtn">重新發送驗證電郵</button>
+                    <button type="button" id="resend-verify-email-btn" onclick="resendVerificationEmail()" class="btn" style="display:none; font-size:13px; padding:4px 10px; background:#E6E8EE; color:var(--brand-800);" data-i18n="profile.resendVerifyBtn">重新發送驗證電郵</button>
                   </div>
                 </div>
 
                 <div>
                   <label style="font-size:13px; font-weight:bold; color:#555; display:block;" data-i18n="profile.schoolLabel">學校名稱</label>
-                  <input type="text" id="prof-school" class="input-field" disabled style="background:#B3D6DE; cursor:not-allowed;">
+                  <input type="text" id="prof-school" class="input-field" disabled style="background:#D3D7E0; cursor:not-allowed;">
                 </div>
 
                 <div>
                   <label style="font-size:13px; font-weight:bold; color:#555; display:block;" data-i18n="profile.gradeLabel">現時年級</label>
-                  <select id="prof-grade" class="input-field" disabled style="background:#B3D6DE; cursor:not-allowed;">
+                  <select id="prof-grade" class="input-field" disabled style="background:#D3D7E0; cursor:not-allowed;">
                     <option value="中一 (S1)" data-i18n="profile.gradeS1">中一 (S1)</option>
                     <option value="中二 (S2)" data-i18n="profile.gradeS2">中二 (S2)</option>
                     <option value="中三 (S3)" data-i18n="profile.gradeS3">中三 (S3)</option>
@@ -2430,8 +2436,8 @@
             <h3 style="font-size:15px; font-weight:bold; margin-bottom:10px;" data-i18n="profile.levelCardTitle">溫習等級</h3>
             <div id="profile-level-num" style="font-size:32px; font-weight:900; color:var(--brand-800);">Lv.1</div>
             <div id="profile-rank-title" style="font-size:14px; font-weight:bold; margin-top:2px;">溫習新手 (Novice)</div>
-            <div style="background:#E5EEF0; border-radius:8px; height:10px; margin-top:12px; overflow:hidden;">
-              <div id="profile-exp-bar" style="background:linear-gradient(90deg,#4A8FA0,#7DB8C5); height:100%; width:0%; transition:width .4s ease;"></div>
+            <div style="background:#E6E8EE; border-radius:8px; height:10px; margin-top:12px; overflow:hidden;">
+              <div id="profile-exp-bar" style="background:linear-gradient(90deg,#7C869C,#9AA2B4); height:100%; width:0%; transition:width .4s ease;"></div>
             </div>
             <div id="profile-exp-text" style="font-size:13px; color:#999; margin-top:4px;">0 / 20 EXP</div>
             <p style="font-size:13px; color:#aaa; margin-top:8px;" data-i18n="profile.expHint">每溫習 1 分鐘就會獲得 1 點 EXP，EXP 只升不跌，記錄你的總溫習成就；PTS 則用作扭蛋。</p>
@@ -2449,9 +2455,9 @@
              掣同粉絲人數），等學生揾到導師先追蹤到佢。實際列表由
              tutor-panel.js 嘅 renderTutorDirectoryTab() 產生。 -->
         <section id="tab-vip" class="tab-content">
-          <div class="card" style="background: linear-gradient(135deg, #D9EBEF, #D9C9B5); color:#1E4550;">
+          <div class="card" style="background: linear-gradient(135deg, #E8EAF0, #D9C9B5); color:#3D4456;">
             <h2 style="font-size:18px; font-weight:bold;" data-i18n="vip.heading">教材中心</h2>
-            <p style="font-size:13px; color:#3E5A63; margin-top:4px;" data-i18n="vip.subheading">瀏覽已上架的導師，點擊卡片可以查看資料並追蹤，接收最新消息</p>
+            <p style="font-size:13px; color:#4A5164; margin-top:4px;" data-i18n="vip.subheading">瀏覽已上架的導師，點擊卡片可以查看資料並追蹤，接收最新消息</p>
           </div>
           <div id="tutor-directory-tabs" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:12px;"></div>
           <div id="tutor-directory-list" style="display:flex; flex-direction:column; gap:10px; margin-top:10px;"></div>
@@ -2467,9 +2473,9 @@
              內容全部由 app-features.js 嘅 window.loadLeaderboardTab()
              動態產生，呢度淨係擺容器。 -->
         <section id="tab-leaderboard" class="tab-content">
-          <div class="card" style="background: linear-gradient(135deg, #D9EBEF, #D9C9B5); color:#1E4550;">
+          <div class="card" style="background: linear-gradient(135deg, #E8EAF0, #D9C9B5); color:#3D4456;">
             <h2 style="font-size:18px; font-weight:bold;" data-i18n="lb.pageTitle">溫習排行榜（僅中學適用）</h2>
-            <p style="font-size:13px; color:#3E5A63; margin-top:4px;" data-i18n="lb.pageDesc">可切換「本月」或「累積」時數排名，只顯示首 50 名，你的名次會在清單最底另外顯示；每個月 1 號「本月排行榜」會自動重新計算</p>
+            <p style="font-size:13px; color:#4A5164; margin-top:4px;" data-i18n="lb.pageDesc">可切換「本月」或「累積」時數排名，只顯示首 50 名，你的名次會在清單最底另外顯示；每個月 1 號「本月排行榜」會自動重新計算</p>
           </div>
 
           <div class="card" style="margin-top:12px;">
@@ -2505,9 +2511,9 @@
              tutor-panel.js 嘅 renderTutorMaterialsTab() 動態產生，呢度
              淨係擺幾個掛勾用嘅容器。 -->
         <section id="tab-tutor-materials" class="tab-content">
-          <div class="card" style="background: linear-gradient(135deg, #D9EBEF, #D9C9B5); color:#1E4550;">
+          <div class="card" style="background: linear-gradient(135deg, #E8EAF0, #D9C9B5); color:#3D4456;">
             <h2 style="font-size:18px; font-weight:bold;">管理教材</h2>
-            <p style="font-size:13px; color:#3E5A63; margin-top:4px;">管理您的科目、課題分類，以及上架給學生購買的 PDF 筆記</p>
+            <p style="font-size:13px; color:#4A5164; margin-top:4px;">管理您的科目、課題分類，以及上架給學生購買的 PDF 筆記</p>
           </div>
 
           <!-- 未批核／被拒嗰陣顯示（role !== 'tutor'），內容由
@@ -2553,7 +2559,7 @@
         <section id="tab-store" class="tab-content">
 
           <!-- 頁首卡片 -->
-          <div class="card" style="background: linear-gradient(135deg, #D9EBEF, #D9C9B5); color:#1E4550; text-align:center;">
+          <div class="card" style="background: linear-gradient(135deg, #E8EAF0, #D9C9B5); color:#3D4456; text-align:center;">
             <div style="font-size:28px; margin-bottom:4px;"></div>
             <h2 style="font-size:18px; font-weight:bold;" data-i18n="gacha.pageTitle">Ottiee 時數幸運扭蛋機</h2>
             <div style="margin-top:10px; background:rgba(255,255,255,0.2); border-radius:10px; padding:8px; display:inline-block;">
@@ -2573,11 +2579,11 @@
                    區（唔連側邊欄）嘅實際位置置中，唔係淨係得成個瀏覽器
                    視窗嘅正中央。 -->
               <div id="gacha-result-backdrop" style="display:none; position:fixed; inset:0; z-index:1999; background:rgba(0,0,0,.4);" onclick="closeGachaSingleResult()"></div>
-              <div id="gacha-result-box" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:2000; width:240px; max-width:88vw; padding:18px; border-radius:16px; background:rgba(240,246,248,.98); border:2px solid #B3D6DE; box-shadow:0 8px 32px rgba(0,0,0,.35); animation: gacha-pop-center .4s ease; text-align:center;">
+              <div id="gacha-result-box" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:2000; width:240px; max-width:88vw; padding:18px; border-radius:16px; background:rgba(244,245,248,.98); border:2px solid #D3D7E0; box-shadow:0 8px 32px rgba(0,0,0,.35); animation: gacha-pop-center .4s ease; text-align:center;">
                 <div id="gacha-result-emoji" style="font-size:36px;"></div>
                 <div id="gacha-result-tier" style="font-size:13px; font-weight:bold; margin-top:4px;"></div>
                 <div id="gacha-result-name" style="font-size:15px; font-weight:bold; margin-top:2px;"></div>
-                <div id="gacha-result-desc" style="font-size:13px; color:#2F6070; margin-top:4px;"></div>
+                <div id="gacha-result-desc" style="font-size:13px; color:#4F576B; margin-top:4px;"></div>
               </div>
 
               <!-- 「連續抽十次」結果彈出視窗：一次過顯示 10 個獎品，分兩行
@@ -2594,8 +2600,8 @@
                    呼叫）按 <main> 呢個內容區（唔連左邊側邊欄）嘅實際闊度
                    計算，先至係「扭蛋頁面部分」視覺上嘅正中央，唔係成個
                    瀏覽器視窗（連側邊欄）嘅正中央。 -->
-              <div id="gacha-result-box-batch" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:2000; width:400px; max-width:94vw; padding:18px; border-radius:16px; background:rgba(240,246,248,.98); border:2px solid #B3D6DE; box-shadow:0 8px 32px rgba(0,0,0,.35); animation: gacha-pop-center .4s ease; text-align:center;">
-                <div style="font-size:17px; font-weight:bold; color:#1E4550; margin-bottom:12px;" data-i18n="gacha.batchResultTitle">連續抽十次結果</div>
+              <div id="gacha-result-box-batch" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:2000; width:400px; max-width:94vw; padding:18px; border-radius:16px; background:rgba(244,245,248,.98); border:2px solid #D3D7E0; box-shadow:0 8px 32px rgba(0,0,0,.35); animation: gacha-pop-center .4s ease; text-align:center;">
+                <div style="font-size:17px; font-weight:bold; color:#3D4456; margin-bottom:12px;" data-i18n="gacha.batchResultTitle">連續抽十次結果</div>
                 <div id="gacha-result-batch-grid" style="display:grid; grid-template-columns:repeat(5, 1fr); gap:10px;"></div>
               </div>
               <!-- 扭蛋機外殼 SVG -->
@@ -2639,9 +2645,9 @@
             <p style="font-size:13px; color:#666; margin-bottom:10px;" data-i18n="gacha.stickerBookDesc">扭蛋抽到的都是 Ottiee 貼紙，集齊一套為目標！</p>
             <div style="margin-bottom:12px;">
               <div style="background:#EEE; border-radius:99px; height:10px; overflow:hidden;">
-                <div id="sticker-progress-bar" style="background:linear-gradient(90deg,#7DB8C5,#2F6070); height:100%; width:0%; transition:width .3s;"></div>
+                <div id="sticker-progress-bar" style="background:linear-gradient(90deg,#9AA2B4,#4F576B); height:100%; width:0%; transition:width .3s;"></div>
               </div>
-              <p style="font-size:13px; color:#2F6070; margin-top:6px; font-weight:bold;"><span data-i18n="gacha.collectedLabel">已收集</span> <span id="sticker-progress-text">0/0</span></p>
+              <p style="font-size:13px; color:#4F576B; margin-top:6px; font-weight:bold;"><span data-i18n="gacha.collectedLabel">已收集</span> <span id="sticker-progress-text">0/0</span></p>
             </div>
             <button type="button" class="btn btn-outline" style="display:inline-block; padding:8px 24px;" onclick="openStickerCollection()" data-i18n="gacha.openStickerBookBtn">開啟我的貼紙圖鑑</button>
           </div>
@@ -2662,10 +2668,10 @@
         <div id="sticker-collection-modal" style="display:none; position:fixed; inset:0; z-index:2500; background:rgba(0,0,0,.55); align-items:center; justify-content:center; padding:16px;" onclick="if(event.target===this) closeStickerCollection();">
           <div style="background:#fff; border-radius:16px; padding:18px; max-width:520px; width:100%; max-height:82vh; overflow-y:auto;" onclick="event.stopPropagation();">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-              <h3 style="font-size:16px; font-weight:bold; color:#1E4550;" data-i18n="gacha.myStickerBookTitle">我的貼紙圖鑑</h3>
+              <h3 style="font-size:16px; font-weight:bold; color:#3D4456;" data-i18n="gacha.myStickerBookTitle">我的貼紙圖鑑</h3>
               <button type="button" onclick="closeStickerCollection()" class="btn btn-outline" style="padding:2px 10px; font-size:13px;">✕</button>
             </div>
-            <p style="font-size:13px; color:#2F6070; margin-bottom:10px; font-weight:bold;"><span data-i18n="gacha.collectedLabel">已收集</span> <span id="sticker-modal-progress-text">0/0</span></p>
+            <p style="font-size:13px; color:#4F576B; margin-bottom:10px; font-weight:bold;"><span data-i18n="gacha.collectedLabel">已收集</span> <span id="sticker-modal-progress-text">0/0</span></p>
             <div id="sticker-collection-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(64px, 1fr)); gap:8px;"></div>
           </div>
         </div>
@@ -2677,8 +2683,8 @@
           <div style="background:#fff; border-radius:16px; padding:24px; max-width:440px; width:92vw; max-height:90vh; overflow-y:auto; text-align:center;" onclick="event.stopPropagation();">
             <div id="gacha-lightbox-emoji" style="font-size:56px; display:flex; align-items:center; justify-content:center;"></div>
             <div id="gacha-lightbox-tier" style="font-size:14px; font-weight:bold; margin-top:10px;"></div>
-            <div id="gacha-lightbox-name" style="font-size:18px; font-weight:bold; margin-top:4px; color:#1E4550;"></div>
-            <div id="gacha-lightbox-desc" style="font-size:13px; color:#2F6070; margin-top:8px;"></div>
+            <div id="gacha-lightbox-name" style="font-size:18px; font-weight:bold; margin-top:4px; color:#3D4456;"></div>
+            <div id="gacha-lightbox-desc" style="font-size:13px; color:#4F576B; margin-top:8px;"></div>
             <button type="button" onclick="closeGachaPrizeLightbox()" class="btn btn-outline" style="margin-top:16px; width:100%;" data-i18n="common.close">關閉</button>
           </div>
         </div>
@@ -2824,7 +2830,7 @@
           <div style="text-align:center; padding:60px 20px;">
             <div style="font-size:64px; margin-bottom:16px;"></div>
             <h2 style="font-size:20px; font-weight:800; color:var(--brand-800); margin-bottom:10px;" data-i18n="verify.heading">學生身份驗證</h2>
-            <p style="font-size:15px; color:#7DB8C5; font-weight:600; margin-bottom:8px;" data-i18n="verify.comingSoon">期待日後更新</p>
+            <p style="font-size:15px; color:#9AA2B4; font-weight:600; margin-bottom:8px;" data-i18n="verify.comingSoon">期待日後更新</p>
             <p style="font-size:13px; color:#aaa; line-height:1.7; max-width:320px; margin:0 auto;" data-i18n="verify.inDevelopment">
               功能仍在開發中，敬請期待！
             </p>
@@ -2854,7 +2860,7 @@
           <span style="font-size:12px; color:#888; cursor:pointer; text-decoration:underline;" data-i18n="auth.forgotPasswordLink" onclick="typeof window.closeModal==='function' && window.closeModal('modal-login'); typeof window.openModal==='function' && window.openModal('modal-forgot-password');">忘記密碼？</span>
         </div>
         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
-          <span style="font-size:13px; color:#3E7A8A; cursor:pointer;" data-i18n="auth.noAccountLink" onclick="typeof window.closeModal==='function' && window.closeModal('modal-login'); typeof window.openModal==='function' && window.openModal('modal-register');">還沒有帳號？點此註冊</span>
+          <span style="font-size:13px; color:#646D83; cursor:pointer;" data-i18n="auth.noAccountLink" onclick="typeof window.closeModal==='function' && window.closeModal('modal-login'); typeof window.openModal==='function' && window.openModal('modal-register');">還沒有帳號？點此註冊</span>
           <div style="display:flex; gap:6px;">
             <button class="btn btn-outline" type="button" id="login-cancel-btn" data-i18n="common.cancel" onclick="closeModal('modal-login')">取消</button>
             <button class="btn btn-primary" type="submit" id="login-submit-btn" data-i18n="auth.loginSubmitBtn">登入</button>
@@ -3069,15 +3075,15 @@
           <input type="checkbox" id="reg-agree-terms" required style="margin-top:3px; flex-shrink:0; width:16px; height:16px;">
           <label for="reg-agree-terms" style="font-size:13px; color:#555; line-height:1.6;">
             <span data-i18n="auth.agreeTermsPrefix">我已閱讀並同意</span>
-            <span style="color:#3E7A8A; text-decoration:underline; cursor:pointer;" data-i18n="auth.termsLinkText" onclick="event.preventDefault(); typeof window.openModal==='function' && window.openModal('modal-terms');">《服務條款》</span>
+            <span style="color:#646D83; text-decoration:underline; cursor:pointer;" data-i18n="auth.termsLinkText" onclick="event.preventDefault(); typeof window.openModal==='function' && window.openModal('modal-terms');">《服務條款》</span>
             <span data-i18n="auth.andConnector">及</span>
-            <span style="color:#3E7A8A; text-decoration:underline; cursor:pointer;" data-i18n="auth.privacyLinkText" onclick="event.preventDefault(); typeof window.openModal==='function' && window.openModal('modal-privacy-policy');">《私隱政策》</span>
+            <span style="color:#646D83; text-decoration:underline; cursor:pointer;" data-i18n="auth.privacyLinkText" onclick="event.preventDefault(); typeof window.openModal==='function' && window.openModal('modal-privacy-policy');">《私隱政策》</span>
             *
           </label>
         </div>
 
         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-          <span style="font-size:13px; color:#3E7A8A; cursor:pointer;" data-i18n="auth.alreadyHaveAccountLink" onclick="typeof window.closeModal==='function' && window.closeModal('modal-register'); typeof window.openModal==='function' && window.openModal('modal-login');">已有帳號？點此登入</span>
+          <span style="font-size:13px; color:#646D83; cursor:pointer;" data-i18n="auth.alreadyHaveAccountLink" onclick="typeof window.closeModal==='function' && window.closeModal('modal-register'); typeof window.openModal==='function' && window.openModal('modal-login');">已有帳號？點此登入</span>
           <div style="display:flex; gap:6px;">
             <button class="btn btn-outline" type="button" data-i18n="common.cancel" onclick="closeModal('modal-register')">取消</button>
             <button class="btn btn-primary" type="submit" data-i18n="auth.registerSubmitBtn">完成註冊並登入</button>
@@ -3405,7 +3411,7 @@
       <!-- 分享連結邀請：唔限於已經係 ConcenMate 好友嘅人，隨時可以複製／
            分享去 WhatsApp、Instagram 等社交媒體，等對方一撳就直接入到嚟。
            見 window.shareRoomInviteLink 同 window.copyRoomInviteLink（app-features.js）。 -->
-      <div style="background:#F0F6F8; border-radius:12px; padding:10px 12px; margin-bottom:14px;">
+      <div style="background:#F4F5F8; border-radius:12px; padding:10px 12px; margin-bottom:14px;">
         <p style="font-size:13px; font-weight:bold; color:var(--brand-800); margin-bottom:2px;" data-i18n="room.inviteByLinkHeading">以連結方式邀請（WhatsApp、Instagram 等社交媒體均適用）</p>
         <p style="font-size:13px; color:#666; margin-bottom:8px;" data-i18n="room.inviteByLinkDesc">對方無須為閣下於本平台之朋友，按一下即可將連結傳送予任何人士</p>
         <div style="display:flex; gap:8px;">
@@ -3452,8 +3458,8 @@
 
       <div style="margin-bottom:12px;">
         <div id="myacc-level-badge" style="font-size:15px; font-weight:bold;">Lv.1 溫習新手</div>
-        <div style="background:#E5EEF0; border-radius:8px; height:8px; margin-top:6px; overflow:hidden;">
-          <div id="myacc-exp-bar" style="background:linear-gradient(90deg,#4A8FA0,#7DB8C5); height:100%; width:0%; transition:width .4s ease;"></div>
+        <div style="background:#E6E8EE; border-radius:8px; height:8px; margin-top:6px; overflow:hidden;">
+          <div id="myacc-exp-bar" style="background:linear-gradient(90deg,#7C869C,#9AA2B4); height:100%; width:0%; transition:width .4s ease;"></div>
         </div>
         <div id="myacc-exp-text" style="font-size:13px; color:#999; margin-top:3px;"></div>
       </div>
@@ -3555,7 +3561,7 @@
         <h3 id="pdf-preview-title" style="font-size:15px; font-weight:bold; color:var(--brand-800); margin:0; flex:1; min-width:120px;" data-i18n="room.pdfPreviewDefaultTitle">預覽</h3>
         <button class="btn btn-outline" type="button" style="padding:4px 10px;" data-i18n="room.pdfPreviewCloseBtn" onclick="window.closePdfPreviewModal()">關閉</button>
       </div>
-      <div id="pdf-preview-canvas-wrap" style="flex:1; width:100%; overflow:auto; border:1px solid #E5EEF0; border-radius:8px; background:#f5f5f5; display:flex; align-items:flex-start; justify-content:center; -webkit-overflow-scrolling:touch;">
+      <div id="pdf-preview-canvas-wrap" style="flex:1; width:100%; overflow:auto; border:1px solid #E6E8EE; border-radius:8px; background:#f5f5f5; display:flex; align-items:flex-start; justify-content:center; -webkit-overflow-scrolling:touch;">
         <canvas id="pdf-preview-canvas" style="max-width:100%; height:auto; box-shadow:0 1px 4px rgba(0,0,0,0.15);"></canvas>
       </div>
       <div style="display:flex; align-items:center; justify-content:center; gap:14px; margin-top:10px;">
@@ -3663,14 +3669,14 @@
     #cm-loading-overlay { position: fixed; inset: 0; z-index: 30000; display: none; align-items: center; justify-content: center; background: rgba(20, 45, 55, .38); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); animation: cm-fade-in .15s ease; }
     #cm-loading-overlay.show { display: flex; }
     #cm-loading-overlay .cm-loading-card { background: #fff; border-radius: 18px; padding: 26px 30px 22px; width: 260px; max-width: 86vw; text-align: center; box-shadow: 0 14px 40px rgba(0,0,0,.25); }
-    #cm-loading-overlay .cm-spinner { width: 46px; height: 46px; margin: 0 auto 14px; border-radius: 50%; border: 4px solid var(--brand-100, #D9EBEF); border-top-color: var(--brand-500, #4A8FA0); animation: cm-spin .8s linear infinite; }
-    #cm-loading-overlay .cm-loading-text { font-size: 16px; font-weight: 700; color: var(--brand-800, #1E4550); }
-    #cm-loading-overlay .cm-loading-sub { font-size: 13px; color: #7a8b90; margin-top: 8px; min-height: 0; }
-    #cm-loading-overlay .cm-loading-bar { height: 5px; margin-top: 16px; border-radius: 5px; overflow: hidden; background: var(--brand-100, #D9EBEF); }
-    #cm-loading-overlay .cm-loading-bar::after { content: ''; display: block; width: 40%; height: 100%; border-radius: 5px; background: var(--brand-500, #4A8FA0); animation: cm-bar 1.3s ease-in-out infinite; }
-    #cm-loading-overlay .cm-loading-close { display: none; margin-top: 14px; padding: 6px 18px; border-radius: 999px; border: 1px solid var(--brand-500, #4A8FA0); background: #fff; color: var(--brand-700, #2F6070); font-size: 13px; font-weight: 700; cursor: pointer; }
+    #cm-loading-overlay .cm-spinner { width: 46px; height: 46px; margin: 0 auto 14px; border-radius: 50%; border: 4px solid var(--brand-100, #E8EAF0); border-top-color: var(--brand-500, #7C869C); animation: cm-spin .8s linear infinite; }
+    #cm-loading-overlay .cm-loading-text { font-size: 16px; font-weight: 700; color: var(--brand-800, #3D4456); }
+    #cm-loading-overlay .cm-loading-sub { font-size: 13px; color: #7E8496; margin-top: 8px; min-height: 0; }
+    #cm-loading-overlay .cm-loading-bar { height: 5px; margin-top: 16px; border-radius: 5px; overflow: hidden; background: var(--brand-100, #E8EAF0); }
+    #cm-loading-overlay .cm-loading-bar::after { content: ''; display: block; width: 40%; height: 100%; border-radius: 5px; background: var(--brand-500, #7C869C); animation: cm-bar 1.3s ease-in-out infinite; }
+    #cm-loading-overlay .cm-loading-close { display: none; margin-top: 14px; padding: 6px 18px; border-radius: 999px; border: 1px solid var(--brand-500, #7C869C); background: #fff; color: var(--brand-700, #4F576B); font-size: 13px; font-weight: 700; cursor: pointer; }
     .cm-btn-loading::before { content: ''; display: inline-block; width: .95em; height: .95em; margin-right: 6px; vertical-align: -0.15em; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: cm-spin .7s linear infinite; }
-    .cm-text-loading::before { content: ''; display: inline-block; width: 14px; height: 14px; margin-right: 8px; vertical-align: -2px; border-radius: 50%; border: 2px solid var(--brand-100, #D9EBEF); border-top-color: var(--brand-500, #4A8FA0); animation: cm-spin .8s linear infinite; }
+    .cm-text-loading::before { content: ''; display: inline-block; width: 14px; height: 14px; margin-right: 8px; vertical-align: -2px; border-radius: 50%; border: 2px solid var(--brand-100, #E8EAF0); border-top-color: var(--brand-500, #7C869C); animation: cm-spin .8s linear infinite; }
     @media (prefers-reduced-motion: reduce) {
       #cm-loading-overlay .cm-spinner, .cm-btn-loading::before, .cm-text-loading::before { animation-duration: 2s; }
       #cm-loading-overlay .cm-loading-bar::after { animation-duration: 3s; }
@@ -3825,6 +3831,96 @@
       if (document.body) startObserver(); else document.addEventListener('DOMContentLoaded', startObserver);
     })();
   </script>
+  <!-- v1.208.0：PWA——註冊 Service Worker ＋「加至主畫面」提示 -->
+  <style>
+    #cm-install-hint { position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 900; background: #fff; border: 1px solid var(--brand-200); border-radius: 16px; box-shadow: 0 10px 30px rgba(61,68,86,.18); padding: 14px 14px 14px 12px; display: none; gap: 12px; align-items: center; max-width: 520px; margin: 0 auto; }
+    #cm-install-hint.show { display: flex; }
+    #cm-install-hint img { width: 48px; height: 48px; border-radius: 12px; flex: none; }
+    #cm-install-hint .t { font-weight: bold; color: var(--brand-800); font-size: 15px; }
+    #cm-install-hint .d { color: #666; font-size: 13px; line-height: 1.5; margin-top: 2px; }
+    #cm-install-hint .d svg { width: 15px; height: 15px; vertical-align: -2px; margin: 0 2px; }
+    #cm-install-hint .x { background: none; border: none; color: #999; font-size: 20px; line-height: 1; cursor: pointer; padding: 4px; align-self: flex-start; }
+  </style>
+  <script>
+  (function () {
+    // Service Worker：令網站可以「安裝」做 PWA。只喺 https（或者本機）註冊。
+    if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('sw.js').catch(function (e) { console.warn('Service Worker 註冊失敗:', e); });
+      });
+    }
+
+    // 顯示頻率（避免煩擾）：
+    //  · 只向已登入用戶顯示（第一次睇 Landing page 嘅訪客唔會見到）
+    //  · 每次顯示後 7 日內唔會再出（就算冇撳 ×）；15 秒後自動收起
+    //  · 撳 × 之後 30 日內唔會再出；撳過 3 次 × 就永遠唔再出
+    var KEY_SHOWN = 'cm_install_hint_shown_at', KEY_DISMISS = 'cm_install_hint_dismissed_at', KEY_COUNT = 'cm_install_hint_dismiss_count';
+    var DAY = 86400000;
+    var isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+    if (isStandalone) return;
+    function lsGet(k) { try { return Number(localStorage.getItem(k) || 0); } catch (e) { return 0; } }
+    function lsSet(k, v) { try { localStorage.setItem(k, String(v)); } catch (e) {} }
+    if (lsGet(KEY_COUNT) >= 3) return;
+    if (Date.now() - lsGet(KEY_DISMISS) < 30 * DAY) return;
+    if (Date.now() - lsGet(KEY_SHOWN) < 7 * DAY) return;
+
+    var ua = navigator.userAgent || '';
+    var isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    // Instagram／Facebook／Line 等 App 內置瀏覽器加唔到主畫面，所以唔顯示
+    var isInApp = /Line|FBAN|FBAV|Instagram|MicroMessenger/.test(ua);
+    var isIOSSafari = isIOS && /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua) && !isInApp;
+    var isIOSChrome = isIOS && /CriOS/.test(ua) && !isInApp;
+    var deferredPrompt = null;
+    var tr = function (k, f) { return (window.t ? window.t(k, f) : f); };
+    var SHARE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13"/><path d="M7 8l5-5 5 5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>';
+
+    function hide() { var el = document.getElementById('cm-install-hint'); if (el) el.classList.remove('show'); }
+    function dismiss() { lsSet(KEY_DISMISS, Date.now()); lsSet(KEY_COUNT, lsGet(KEY_COUNT) + 1); hide(); }
+    function render(mode) {
+      var el = document.getElementById('cm-install-hint');
+      if (!el) { el = document.createElement('div'); el.id = 'cm-install-hint'; document.body.appendChild(el); }
+      var desc = mode === 'ios'
+        ? tr('pwa.iosHint', '點擊瀏覽器的「分享」按鈕 {icon}，再選擇「加至主畫面」').replace('{icon}', SHARE_SVG)
+        : mode === 'ioschrome'
+        ? tr('pwa.iosChromeHint', '點擊網址列右邊的「分享」按鈕 {icon}，再選擇「加至主畫面」').replace('{icon}', SHARE_SVG)
+        : tr('pwa.androidHint', '安裝後可從主畫面直接開啟，使用更方便');
+      el.innerHTML = '<img src="icon-192.png" alt="">'
+        + '<div style="flex:1;min-width:0;"><div class="t">' + tr('pwa.title', '將書伴加至主畫面') + '</div><div class="d">' + desc + '</div></div>'
+        + (mode === 'android' ? '<button type="button" class="btn btn-primary" id="cm-install-btn" style="flex:none;">' + tr('pwa.install', '安裝') + '</button>' : '')
+        + '<button type="button" class="x" aria-label="' + tr('pwa.close', '關閉') + '">×</button>';
+      el.querySelector('.x').onclick = dismiss;
+      var b = document.getElementById('cm-install-btn');
+      if (b) b.onclick = function () {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.finally(function () { deferredPrompt = null; dismiss(); });
+      };
+      el.classList.add('show');
+      lsSet(KEY_SHOWN, Date.now());
+      setTimeout(hide, 15000);
+    }
+    // 喺溫習室入面唔好彈出，避免遮住控制按鈕；遲啲再試
+    function tryShow(mode, tries) {
+      if (window.innerWidth > 900) return;
+      // 未登入就遲啲再試（最多等大約 10 分鐘）
+      if (!window.currentUser) { if (tries < 60) setTimeout(function () { tryShow(mode, tries + 1); }, 10000); return; }
+      var inRoom = document.querySelector('#tab-room.active .remote-video-element, #tab-room.active .canvas-stream-display');
+      var modalOpen = Array.prototype.some.call(document.querySelectorAll('.modal-backdrop'), function (m) { return m.style.display && m.style.display !== 'none'; });
+      if (inRoom || modalOpen) {
+        if (tries < 60) setTimeout(function () { tryShow(mode, tries + 1); }, 20000);
+        return;
+      }
+      render(mode);
+    }
+    window.addEventListener('beforeinstallprompt', function (e) {
+      e.preventDefault(); deferredPrompt = e;
+      setTimeout(function () { tryShow('android', 0); }, 6000);
+    });
+    window.addEventListener('appinstalled', dismiss);
+    if (isIOSSafari || isIOSChrome) window.addEventListener('load', function () { setTimeout(function () { tryShow(isIOSSafari ? 'ios' : 'ioschrome', 0); }, 6000); });
+  })();
+  </script>
+
   <script src="i18n.js"></script>
 
   <script src="app-features.js"></script>
@@ -3963,8 +4059,8 @@
     .admin-tab-btn.active { font-weight: 700; }
     .admin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
     .admin-table th, .admin-table td { padding: 8px 10px; border-bottom: 1px solid #eee; text-align: left; vertical-align: middle; }
-    .admin-table th { background: #F7FAFB; color: #555; font-weight: 700; white-space: nowrap; }
-    .admin-card { background: #fff; border: 1px solid #E5EEF0; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+    .admin-table th { background: #F7F8FA; color: #555; font-weight: 700; white-space: nowrap; }
+    .admin-card { background: #fff; border: 1px solid #E6E8EE; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
     .admin-input-sm { border: 1px solid #ccc; border-radius: 6px; padding: 4px 8px; font-size: 13px; width: 100%; box-sizing: border-box; }
   </style>
 
