@@ -107,7 +107,7 @@
     const SUPER_ADMIN_ONLY_TABS = [
       'gacha', 'level', 'icons', 'landing', 'scoring', 'roomsettings',
       'antiidle', 'announcement', 'adminlist', 'auditlog',
-      'subjects', 'districts', 'schools', 'legal', 'snapshotbg', 'navmenu'
+      'subjects', 'districts', 'schools', 'legal', 'snapshotbg', 'navmenu', 'turn'
     ];
 
     // 操作紀錄（第四階段第10項）：將重要嘅管治／高風險操作（停權、
@@ -277,6 +277,7 @@
       else if (tab === 'legal') renderAdminLegalTab();
       else if (tab === 'snapshotbg') renderAdminSnapshotBgTab();
       else if (tab === 'navmenu') renderAdminNavMenuTab();
+      else if (tab === 'turn') renderAdminTurnTab();
     };
 
     // ---------- 扭蛋機貼紙管理 ----------
@@ -3865,6 +3866,88 @@
     // 頁面一載入就檢查一次（處理直接開 #admin 網址嘅情況）
     checkAdminHashRoute();
 
+
+    // ===================== 中轉伺服器（TURN，v1.209.0） =====================
+    // 顯示每月連線方式統計（直接連線／經中轉／失敗）同估算中轉用量，
+    // 並可以即時關閉中轉、調整每月上限。設定存 admin_config/turnSettings；
+    // 統計由 Cloud Function reportRtcResult 寫入 admin_config/rtcStats_YYYYMM。
+    const TURN_GB_PER_RELAY_MINUTE = 0.0075; // 要同 functions/index.js 一致
+    function rtcMonthKeyLocal(offset) {
+      const hk = new Date(Date.now() + 8 * 3600 * 1000);
+      const d = new Date(Date.UTC(hk.getUTCFullYear(), hk.getUTCMonth() - (offset || 0), 1));
+      return `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+    }
+    async function renderAdminTurnTab() {
+      const panel = document.getElementById('admin-tab-turn');
+      if (!panel) return;
+      panel.innerHTML = '<div class="card" style="padding:16px;">載入中…</div>';
+      let settings = { enabled: true, monthlyCapGB: 900 };
+      try {
+        const s = await window.fs.getDoc(window.fs.doc(window.db, 'admin_config', 'turnSettings'));
+        if (s.exists()) settings = Object.assign(settings, s.data());
+      } catch (e) {}
+      const months = [];
+      for (let i = 0; i < 3; i++) {
+        const key = rtcMonthKeyLocal(i);
+        let d = {};
+        try { const s = await window.fs.getDoc(window.fs.doc(window.db, 'admin_config', 'rtcStats_' + key)); if (s.exists()) d = s.data(); } catch (e) {}
+        months.push({ key, d });
+      }
+      const row = (m) => {
+        const direct = m.d.direct || 0, relay = m.d.relay || 0, failed = m.d.failed || 0, total = direct + relay + failed;
+        const pct = (n) => total ? Math.round(n / total * 100) + '%' : '—';
+        const gb = (m.d.relayMinutes || 0) * TURN_GB_PER_RELAY_MINUTE;
+        const cost = Math.max(0, gb - 1000) * 0.05;
+        return `<tr><td>${m.key.slice(0, 4)} 年 ${Number(m.key.slice(4))} 月</td><td>${total}</td><td>${direct}（${pct(direct)}）</td><td>${relay}（${pct(relay)}）</td><td>${failed}（${pct(failed)}）</td><td>${gb.toFixed(1)} GB</td><td>US$${cost.toFixed(2)}</td></tr>`;
+      };
+      const cur = months[0];
+      const curGB = (cur.d.relayMinutes || 0) * TURN_GB_PER_RELAY_MINUTE;
+      const capReached = curGB >= settings.monthlyCapGB;
+      panel.innerHTML = `
+        <div class="card" style="padding:16px;">
+          <h3 style="margin:0 0 6px;">中轉伺服器（TURN）</h3>
+          <p style="font-size:13px; color:#666; line-height:1.7; margin:0 0 14px;">
+            學生在學校 Wi-Fi 或部分流動網絡下，未必能夠直接連線，需要經 Cloudflare 中轉伺服器轉送畫面。<br>
+            Cloudflare 每月首 1,000 GB 免費，其後每 GB 收費 US$0.05。以下用量為系統估算，實際以 Cloudflare 帳單為準。<br>
+            本月估算用量達到上限時，系統會自動暫停中轉，直至下個月；暫停期間大部分同學仍可直接連線，只有需要中轉的同學會連線失敗。
+          </p>
+          <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom:16px;">
+            <label style="display:flex; align-items:center; gap:8px; font-weight:bold; color:var(--brand-800); cursor:pointer;">
+              <input type="checkbox" id="turn-enabled" ${settings.enabled !== false ? 'checked' : ''} style="width:18px; height:18px;"> 啟用中轉伺服器
+            </label>
+            <label style="display:flex; align-items:center; gap:8px; font-size:14px;">每月上限
+              <input type="number" id="turn-cap" min="1" step="50" value="${settings.monthlyCapGB}" style="width:90px; padding:6px 8px; border:1px solid var(--brand-200); border-radius:8px;"> GB
+            </label>
+            <button type="button" class="btn btn-primary" onclick="window.adminSaveTurnSettings()">儲存設定</button>
+          </div>
+          <div style="padding:12px 14px; border-radius:10px; background:${capReached ? '#FDECEA' : 'var(--brand-50)'}; color:${capReached ? '#8A2F2F' : 'var(--brand-800)'}; font-size:14px; margin-bottom:14px;">
+            本月估算中轉用量：<b>${curGB.toFixed(1)} GB</b>／上限 ${settings.monthlyCapGB} GB${capReached ? '（已達上限，中轉已自動暫停）' : ''}
+          </div>
+          <div style="overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:13px;" class="admin-simple-table">
+              <thead><tr style="text-align:left; color:#666;"><th>月份</th><th>連線總數</th><th>直接連線</th><th>經中轉</th><th>連線失敗</th><th>估算中轉用量</th><th>估算費用</th></tr></thead>
+              <tbody>${months.map(row).join('')}</tbody>
+            </table>
+          </div>
+        </div>`;
+      panel.querySelectorAll('td,th').forEach((c) => { c.style.padding = '8px 6px'; c.style.borderBottom = '1px solid var(--brand-100)'; });
+    }
+    window.adminSaveTurnSettings = async function() {
+      if (!(window.isCurrentUserSuperAdmin && window.isCurrentUserSuperAdmin())) { window.showToast('只有超級管理員可以修改此設定', ''); return; }
+      const enabled = !!(document.getElementById('turn-enabled') || {}).checked;
+      const cap = Number((document.getElementById('turn-cap') || {}).value);
+      if (!(cap > 0)) { window.showToast('請輸入有效的每月上限', ''); return; }
+      try {
+        await window.fs.setDoc(window.fs.doc(window.db, 'admin_config', 'turnSettings'), {
+          enabled, monthlyCapGB: cap, updatedAt: Date.now(), updatedBy: window.currentUser ? window.currentUser.email : null
+        }, { merge: true });
+        if (typeof window.logAdminAction === 'function') window.logAdminAction('更新中轉伺服器設定', { enabled, monthlyCapGB: cap });
+        window.showToast('已儲存中轉伺服器設定', '');
+        renderAdminTurnTab();
+      } catch (e) {
+        window.showToast('儲存失敗：' + window.friendlyErrorText(e), '');
+      }
+    };
 
     // ===================== 功能表顯示（v1.207.0） =====================
     // 逐個功能開／關，寫入 admin_config/navVisibility（hidden map）。

@@ -375,6 +375,85 @@
       });
     };
 
+    // v1.209.0：中轉伺服器（TURN）改用 Cloudflare。入房前由 Cloud Function
+    // getTurnCredentials 攞一組有時限嘅臨時密碼；攞唔到（例如管理員關咗、
+    // 本月用量到咗上限、網絡問題）就沿用下面嘅後備設定。
+    let turnFetchedAt = 0;
+    async function ensureTurnServers() {
+      if (Date.now() - turnFetchedAt < 5 * 60 * 60 * 1000 && rtcConfig._usingCloudflare) return;
+      if (typeof window.callCloudFunction !== 'function') return;
+      try {
+        const res = await Promise.race([
+          window.callCloudFunction('getTurnCredentials', {}),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 4000))
+        ]);
+        if (res && Array.isArray(res.iceServers) && res.iceServers.length) {
+          rtcConfig.iceServers = [
+            { urls: 'stun:stun.l.google.com:19302' },
+            ...res.iceServers
+          ];
+          rtcConfig._usingCloudflare = true;
+          turnFetchedAt = Date.now();
+          wrtcLog('已取得 Cloudflare 中轉伺服器設定');
+        } else {
+          wrtcLog(`未有使用 Cloudflare 中轉伺服器（${(res && res.disabled) || '冇資料'}），沿用後備設定`);
+        }
+      } catch (e) {
+        wrtcLog(`攞中轉伺服器設定失敗（${e.message || e}），沿用後備設定`);
+      }
+    }
+
+    // v1.209.0：限制每條畫面嘅傳送速度（解像度維持 640×480），
+    // 慳學生流量，亦減低中轉伺服器用量。網絡唔好時優先保持解像度
+    // （寧願每秒少幾格），令畫面唔會變朦。
+    const VIDEO_MAX_BITRATE = 500000; // 500 kbps
+    const VIDEO_MAX_FRAMERATE = 15;
+    async function applySendLimits(pc) {
+      for (const sender of pc.getSenders()) {
+        if (!sender.track || sender.track.kind !== 'video') continue;
+        try {
+          const params = sender.getParameters();
+          if (!params.encodings || !params.encodings.length) params.encodings = [{}];
+          const enc = params.encodings[0];
+          if (enc.maxBitrate === VIDEO_MAX_BITRATE && enc.maxFramerate === VIDEO_MAX_FRAMERATE && params.degradationPreference === 'maintain-resolution') continue;
+          enc.maxBitrate = VIDEO_MAX_BITRATE;
+          enc.maxFramerate = VIDEO_MAX_FRAMERATE;
+          params.degradationPreference = 'maintain-resolution';
+          await sender.setParameters(params);
+        } catch (e) { /* 部分瀏覽器未協商完唔俾設定，下次再試 */ }
+      }
+    }
+
+    // v1.209.0：回報連線結果（直接連線／經中轉／失敗），後台用嚟顯示比例同估算中轉用量。
+    // 淨係由 UID 較細嗰邊回報，避免同一條連線報兩次。
+    function reportRtc(payload) {
+      if (typeof window.callCloudFunction !== 'function') return;
+      window.callCloudFunction('reportRtcResult', payload).catch(() => {});
+    }
+    async function reportConnectionType(remoteUid, pc) {
+      if (pc._rtcReported || !window.currentUser || window.currentUser.uid > remoteUid) return;
+      pc._rtcReported = true;
+      try {
+        const stats = await pc.getStats();
+        let pair = null;
+        stats.forEach((r) => {
+          if (r.type === 'transport' && r.selectedCandidatePairId) pair = stats.get(r.selectedCandidatePairId);
+        });
+        if (!pair) stats.forEach((r) => { if (r.type === 'candidate-pair' && r.nominated && r.state === 'succeeded') pair = r; });
+        const local = pair && stats.get(pair.localCandidateId);
+        const remote = pair && stats.get(pair.remoteCandidateId);
+        const relay = !!((local && local.candidateType === 'relay') || (remote && remote.candidateType === 'relay'));
+        wrtcLog(`與 ${remoteUid} 的連線方式：${relay ? '經中轉伺服器' : '直接連線'}`);
+        reportRtc({ result: relay ? 'relay' : 'direct' });
+        if (relay) {
+          pc._relayTimer = setInterval(() => {
+            if (pc.connectionState === 'connected') reportRtc({ type: 'relayTick' });
+            else if (pc.connectionState === 'closed' || pc.connectionState === 'failed') clearInterval(pc._relayTimer);
+          }, 5 * 60 * 1000);
+        }
+      } catch (e) { /* 統計唔到唔緊要 */ }
+    }
+
     const rtcConfig = {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
@@ -1482,6 +1561,7 @@
         }
       });
 
+      await ensureTurnServers();
       startTimer();
       listenToRoomSignaling(roomId);
       listenToParticipants(roomId);
@@ -2386,8 +2466,11 @@
         }
 
         try {
+          pc._makingOffer = true;
           const offer = await pc.createOffer();
+          if (pc.signalingState !== 'stable') { pc._makingOffer = false; continue; }
           await pc.setLocalDescription(offer);
+          pc._makingOffer = false;
           await window.fs.setDoc(window.fs.doc(window.db, "rooms", roomId, "signals", myUid + "_to_" + remoteUid), {
             from: myUid,
             to: remoteUid,
@@ -2396,6 +2479,7 @@
           });
           wrtcLog(`重新協商 Offer 已送出 → ${remoteUid}`);
         } catch (err) {
+          pc._makingOffer = false;
           console.error(`重新協商失敗 (${remoteUid}):`, err);
         }
       }
@@ -2925,8 +3009,17 @@
         } catch (e) { console.warn('預留媒體通道失敗:', e); }
       }
 
+      // v1.209.0：記住「發緊 Offer」，等 handleIncomingOffer 知道撞正（glare）
+      let offerDone;
+      pc._makingOffer = true;
+      pc._offerDone = new Promise((res) => { offerDone = res; });
       try {
         const offer = await pc.createOffer();
+        if (pc.signalingState !== 'stable') {
+          // 喺準備 Offer 期間已經收咗對方嘅 Offer（雙方同時發起），讓對方嗰個繼續
+          wrtcLog(`與 ${remoteUid} 同時發起連線，改為接受對方的 Offer`);
+          return;
+        }
         await pc.setLocalDescription(offer);
 
         await window.fs.setDoc(window.fs.doc(window.db, "rooms", roomId, "signals", window.currentUser.uid + "_to_" + remoteUid), {
@@ -2937,9 +3030,16 @@
         });
         wrtcLog(`Offer 已送出 → ${remoteUid}`);
       } catch (err) {
-        console.error("建立 WebRTC Offer 失敗:", err);
-        delete state.peerConnections[remoteUid];
+        if (pc.remoteDescription && pc.remoteDescription.type) {
+          // 對方嘅 Offer 已經接手呢條連線，唔係真正失敗，唔好刪走
+          wrtcLog(`與 ${remoteUid} 同時發起連線，已改用對方的 Offer`);
+        } else {
+          console.error("建立 WebRTC Offer 失敗:", err);
+          if (state.peerConnections[remoteUid] === pc) delete state.peerConnections[remoteUid];
+        }
       } finally {
+        pc._makingOffer = false;
+        offerDone();
         state.connectingTo.delete(remoteUid);
       }
     }
@@ -2968,13 +3068,14 @@
         }
         pc = createPeerConnection(fromUid, null);
         state.peerConnections[fromUid] = pc;
-      } else if (pc.signalingState === 'have-local-offer') {
+      } else if (pc.signalingState === 'have-local-offer' || pc._makingOffer) {
         if (!polite) {
           wrtcLog(`⚠️ 與 ${fromUid} 的重新協商撞正，我方 UID 較細，忽略對方這個 Offer`);
           return;
         }
         wrtcLog(`⚠️ 與 ${fromUid} 的重新協商撞正，我方讓步，捨棄自己未完成的 Offer`);
-        await pc.setLocalDescription({ type: 'rollback' });
+        if (pc._makingOffer && pc._offerDone) { try { await pc._offerDone; } catch (e) {} }
+        if (pc.signalingState === 'have-local-offer') await pc.setLocalDescription({ type: 'rollback' });
       }
 
       try {
@@ -3140,6 +3241,7 @@
       };
       pc.onsignalingstatechange = () => {
         wrtcLog(`與 ${remoteUid} 的 signaling 狀態: ${pc.signalingState}`);
+        if (pc.signalingState === 'stable') applySendLimits(pc);
       };
       pc.onconnectionstatechange = () => {
         wrtcLog(`與 ${remoteUid} 的整體連線狀態: ${pc.connectionState}`);
@@ -3149,6 +3251,8 @@
         if (state.peerConnections[remoteUid] === pc) updateSlotConnStatus(remoteUid);
 
         if (pc.connectionState === 'connected') {
+          applySendLimits(pc);
+          setTimeout(() => reportConnectionType(remoteUid, pc), 1500);
           // 連線好返（或者本身就一路穩定），取消任何仲排緊隊嘅自動重連
           if (state.peerReconnectTimers[remoteUid]) {
             clearTimeout(state.peerReconnectTimers[remoteUid]);
@@ -3184,6 +3288,11 @@
         if (state.peerReconnectTimers[remoteUid]) {
           clearTimeout(state.peerReconnectTimers[remoteUid]);
           delete state.peerReconnectTimers[remoteUid];
+        }
+        if (pc._relayTimer && (pc.connectionState === 'failed' || pc.connectionState === 'closed')) clearInterval(pc._relayTimer);
+        if (pc.connectionState === 'failed' && !pc._rtcReported && window.currentUser && window.currentUser.uid < remoteUid) {
+          pc._rtcReported = true;
+          reportRtc({ result: 'failed' });
         }
         if (pc.connectionState === 'failed') {
           // 已經確定死咗，唔使再等，直接試下自動重新連線，好過就咁擺爛
