@@ -6,7 +6,7 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.209.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.210.1"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <meta charset="UTF-8">
@@ -37,19 +37,19 @@
   <!-- Open Graph（Facebook／WhatsApp／Telegram 等分享連結時顯示嘅卡片） -->
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="ConcenMate 書伴">
-  <meta property="og:title" content="ConcenMate 書伴 - 香港中學生線上溫習空間">
-  <meta property="og:description" content="視訊溫習室、專注計時器及溫習夥伴配對，助你保持專注、遠離分心，與同學一起高效溫習。">
+  <meta property="og:title" content="ConcenMate 書伴 - 開鏡頭，一齊溫習">
+  <meta property="og:description" content="以 Body Doubling 心理學為核心的線上溫習室：開鏡頭與書伴一起溫習，溫習時數可兌換禮物，免費加入。適合中學生及大學生。">
   <meta property="og:url" content="https://concenmate.com/">
-  <meta property="og:image" content="https://concenmate.com/og-image.png">
+  <meta property="og:image" content="https://concenmate.com/og-image.png?v=2">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:locale" content="zh_HK">
 
   <!-- Twitter/X 分享卡片 -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="ConcenMate 書伴 - 香港中學生線上溫習空間">
-  <meta name="twitter:description" content="視訊溫習室、專注計時器及溫習夥伴配對，助你保持專注、遠離分心，與同學一起高效溫習。">
-  <meta name="twitter:image" content="https://concenmate.com/og-image.png">
+  <meta name="twitter:title" content="ConcenMate 書伴 - 開鏡頭，一齊溫習">
+  <meta name="twitter:description" content="以 Body Doubling 心理學為核心的線上溫習室：開鏡頭與書伴一起溫習，溫習時數可兌換禮物，免費加入。適合中學生及大學生。">
+  <meta name="twitter:image" content="https://concenmate.com/og-image.png?v=2">
 
   <!-- Favicon／瀏覽器分頁圖示、手機主畫面圖示 -->
   <link rel="icon" href="favicon.ico" sizes="any">
@@ -325,6 +325,8 @@
        20x20 嘅盒仔確保換咗圖之後排位唔會走樣。 */
     .nav-icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; flex-shrink: 0; }
     .nav-icon img { width: 100%; height: 100%; object-fit: contain; border-radius: 4px; }
+    .nav-icon svg { width: 20px; height: 20px; display: block; }
+    .nav-btn:not(.active):not(:hover) .nav-icon { color: var(--brand-600); }
 
     .auth-wall-container {
       max-width: 480px;
@@ -1705,7 +1707,7 @@
         <button class="nav-btn student-only-nav" id="nav-btn-verification" type="button" onclick="switchTab('verification', this)"><span class="nav-icon" id="nav-icon-verification"></span> <span class="nav-text" data-i18n="nav.verification">學生身份驗證</span></button>
         <!-- 導師帳戶專用：淨係批核通過（role==='tutor'）先會顯示，見
              applyRoleBasedSidebar()。 -->
-        <button class="nav-btn" id="nav-btn-tutor-materials" type="button" onclick="switchTab('tutor-materials', this)" style="display:none;"><span class="nav-icon"></span> <span class="nav-text" data-i18n="nav.tutorMaterials">管理教材</span></button>
+        <button class="nav-btn" id="nav-btn-tutor-materials" type="button" onclick="switchTab('tutor-materials', this)" style="display:none;"><span class="nav-icon" id="nav-icon-tutorMaterials"></span> <span class="nav-text" data-i18n="nav.tutorMaterials">管理教材</span></button>
       </div>
     </aside>
 
@@ -1725,7 +1727,7 @@
       </div>
 
       <div id="verify-email-screen" class="auth-wall-container" style="display:none;">
-        <div style="font-size:52px; margin-bottom:12px;">🔒</div>
+        <div style="margin-bottom:12px; display:flex; justify-content:center; color:var(--brand-500);"><svg viewBox="0 0 24 24" width="52" height="52" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 13a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
         <h2 style="font-size:22px; font-weight:bold; color:var(--brand-800);">請先驗證你的電郵地址</h2>
         <p style="font-size:14px; color:#666; margin-top:6px; line-height:1.5;">
           我們已經寄了一封驗證電郵去 <strong id="verify-gate-email">-</strong><br>
@@ -2040,7 +2042,7 @@
                    會俾 .fs-hide-in-fullscreen 個 CSS 規則隱藏晒，個鎖 icon 會跟埋一齊
                    唔見咗。 -->
               <button type="button" id="room-password-lock-btn" onclick="window.showRoomPasswordPopup()" title="查看房間密碼" style="display:none; align-items:center; justify-content:center; background:none; border:none; cursor:pointer; padding:2px;">
-                <span class="nav-icon" id="nav-icon-roomLock" style="width:20px; height:20px; font-size:18px;">🔒</span>
+                <span class="nav-icon" id="nav-icon-roomLock" style="width:20px; height:20px;"></span>
               </button>
 
               <div class="room-bar-btn-group" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
@@ -3160,7 +3162,7 @@
   <!-- ===== 私隱政策 Modal ===== -->
   <div class="modal-backdrop" id="modal-privacy-policy" style="display:none; align-items:flex-start; padding-top:40px;">
     <div class="modal-box" style="max-width:640px; max-height:85vh; overflow-y:auto;">
-      <h3 style="font-size:17px; font-weight:bold; color:var(--brand-800); margin-bottom:4px;">🔒 私隱政策</h3>
+      <h3 style="font-size:17px; font-weight:bold; color:var(--brand-800); margin-bottom:4px;">私隱政策</h3>
       <p style="font-size:12px; color:#999; margin-bottom:14px;">生效日期：2026 年 9 月 1 日　最後更新日期：2026 年 9 月</p>
       <!-- 同上面modal-terms一樣，內容可以由Admin後台「條款內容」分頁
            編輯，未編輯之前保持顯示下面呢份寫死嘅繁體中文版本做預設。 -->
@@ -3919,6 +3921,36 @@
     window.addEventListener('appinstalled', dismiss);
     if (isIOSSafari || isIOSChrome) window.addEventListener('load', function () { setTimeout(function () { tryShow(isIOSSafari ? 'ios' : 'ioschrome', 0); }, 6000); });
   })();
+  </script>
+
+  <!-- v1.210.0：功能表線條圖示（Lucide，MIT 授權）。取代原本嘅 emoji；
+       管理員喺後台「功能圖示」上傳咗自訂圖片嘅話，會由 admin-panel.js 優先套用。 -->
+  <script>
+  // Lucide 風格線條圖示（MIT 授權），24×24，stroke = currentColor
+  window.CM_NAV_SVGS = {
+    home: '<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+    room: '<path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/>',
+    qa: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+    vip: '<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>',
+    store: '<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"/>',
+    leaderboard: '<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>',
+    social: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+    diary: '<path d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4"/><path d="M2 6h4"/><path d="M2 10h4"/><path d="M2 14h4"/><path d="M2 18h4"/><path d="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"/>',
+    verification: '<path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/>',
+    roomLock: '<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+    tutorMaterials: '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>'
+  };
+  window.cmNavSvg = function (key) {
+    var p = window.CM_NAV_SVGS[key]; if (!p) return '';
+    return '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + p + '</svg>';
+  };
+  // 頁面一載入就先畫好預設圖示（唔使等 Firestore）
+  document.addEventListener('DOMContentLoaded', function () {
+    Object.keys(window.CM_NAV_SVGS).forEach(function (k) {
+      var el = document.getElementById('nav-icon-' + k);
+      if (el && !el.innerHTML.trim()) el.innerHTML = window.cmNavSvg(k);
+    });
+  });
   </script>
 
   <script src="i18n.js"></script>

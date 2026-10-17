@@ -1363,14 +1363,18 @@
     // 唔使額外寫套邏輯——文件名 admin_config/navIcons 因為歷史原因冇改
     // 名，但已經涵蓋所有「可自訂圖示」，唔止側邊欄。
     const NAV_ICON_ITEMS = [
-      { key: 'home', label: '主頁', emoji: '🏠' },
-      { key: 'room', label: '視訊溫習室', emoji: '📹' },
-      { key: 'qa', label: '疑難解答區', emoji: '❓' },
-      { key: 'vip', label: '教材中心', emoji: '👑' },
-      { key: 'store', label: '時數扭蛋機', emoji: '🎁' },
-      { key: 'social', label: '夥伴與讀書會', emoji: '👥' },
-      { key: 'verification', label: '學生身份驗證', emoji: '🎓' },
-      { key: 'roomLock', label: '房間密碼鎖（房內查看密碼按鈕）', emoji: '🔒' }
+      // v1.210.0：預設圖示改為線條 SVG（見 index.html 嘅 window.cmNavSvg），唔再用 emoji
+      { key: 'home', label: '主頁' },
+      { key: 'room', label: '視訊溫習室' },
+      { key: 'qa', label: '疑難解答區' },
+      { key: 'vip', label: '教材中心' },
+      { key: 'store', label: '時數扭蛋機' },
+      { key: 'leaderboard', label: '溫習排行榜' },
+      { key: 'social', label: '書伴廣場' },
+      { key: 'diary', label: '溫習日記' },
+      { key: 'verification', label: '學生身份驗證' },
+      { key: 'tutorMaterials', label: '管理教材（導師）' },
+      { key: 'roomLock', label: '房間密碼鎖（房內查看密碼按鈕）' }
     ];
 
     // 全站共用嘅「目前生效緊嘅圖示連結」——冇自訂圖嘅 key 就唔會出現喺
@@ -1387,7 +1391,7 @@
         const url = window.NAV_ICON_URLS[item.key];
         el.innerHTML = url
           ? `<img src="${url}" alt="${escapeHtml(item.label)}">`
-          : escapeHtml(item.emoji);
+          : (typeof window.cmNavSvg === 'function' ? window.cmNavSvg(item.key) : '');
       });
     }
     window.applyNavIconsToSidebar = applyNavIconsToSidebar;
@@ -1413,7 +1417,7 @@
         const inputId = `admin-navicon-input-${item.key}`;
         const thumbInner = url
           ? `<img src="${url}" style="width:100%; height:100%; object-fit:contain;">`
-          : `<span style="font-size:22px;">${escapeHtml(item.emoji)}</span>`;
+          : `<span style="color:var(--brand-600); display:inline-flex;">${typeof window.cmNavSvg === 'function' ? window.cmNavSvg(item.key) : ''}</span>`;
         return `
           <div style="display:flex; align-items:center; gap:14px; padding:10px 0; border-bottom:1px solid #F0F0F0;">
             <div id="${thumbId}" onclick="document.getElementById('${inputId}').click()" title="點擊這裡上傳圖片" style="width:52px; height:52px; border-radius:10px; background:#F4F5F8; border:1px dashed #D3D7E0; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden; flex-shrink:0;">${thumbInner}</div>

@@ -1264,7 +1264,7 @@
       overlay.style.cssText = 'position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); z-index:600; pointer-events:none; opacity:0; transition:opacity .25s ease, transform .25s ease;';
       overlay.innerHTML = `
         <div style="background:rgba(20,20,20,0.85); color:#fff; padding:22px 32px; border-radius:16px; text-align:center; box-shadow:0 6px 24px rgba(0,0,0,0.35); backdrop-filter:blur(4px);">
-          <div style="font-size:30px; margin-bottom:8px;">🔒</div>
+          <div style="margin-bottom:8px; display:flex; justify-content:center; color:#fff;"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 13a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
           <div style="font-size:14px; opacity:0.85; margin-bottom:6px;">此溫習室的密碼為</div>
           <div style="font-size:32px; font-weight:bold; letter-spacing:10px;">${window.escapeHtml(password)}</div>
         </div>
