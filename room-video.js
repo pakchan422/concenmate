@@ -379,6 +379,8 @@
     // getTurnCredentials 攞一組有時限嘅臨時密碼；攞唔到（例如管理員關咗、
     // 本月用量到咗上限、網絡問題）就沿用下面嘅後備設定。
     let turnFetchedAt = 0;
+    // v1.211.0：俾「有新版本」提示判斷學生係咪溫習緊（溫習緊就唔好彈出打擾）
+    window.isInStudyRoom = function () { return !!state.currentRoomId; };
     async function ensureTurnServers() {
       if (Date.now() - turnFetchedAt < 5 * 60 * 60 * 1000 && rtcConfig._usingCloudflare) return;
       if (typeof window.callCloudFunction !== 'function') return;

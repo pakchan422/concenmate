@@ -2181,6 +2181,8 @@
         if (typeof window.applyRoleBasedSidebar === 'function') window.applyRoleBasedSidebar();
         // v1.207.0：後台「功能表顯示」設定
         if (typeof window.startNavVisibilityListener === 'function') window.startNavVisibilityListener();
+        // v1.211.0：新用戶第一次登入顯示導覽
+        if (typeof window.maybeShowOnboarding === 'function') setTimeout(window.maybeShowOnboarding, 900);
         if (typeof window.applyNavVisibility === 'function') window.applyNavVisibility();
 
         switchTab('home');
