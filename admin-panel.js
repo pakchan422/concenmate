@@ -324,7 +324,7 @@
             <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;">扭蛋機外觀圖片</h3>
             <p style="font-size:13px; color:#888; margin-bottom:10px;">這張是扭蛋機本身的外殼圖（不是貼紙），顯示在學生點擊扭蛋的頁面。上傳新圖會即時取代畫面上顯示的圖案，不上傳則繼續使用程式碼內建的預設圖。</p>
             <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-              <div id="admin-gacha-machine-thumb" onclick="document.getElementById('admin-gacha-machine-input').click()" title="點擊這裡上傳圖片" style="width:80px; height:80px; border-radius:10px; background:#F4F5F8; border:1px dashed #D3D7E0; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden;">${previewInner}</div>
+              <div id="admin-gacha-machine-thumb" onclick="document.getElementById('admin-gacha-machine-input').click()" title="點擊這裡上傳圖片" style="width:80px; height:80px; border-radius:10px; background:#F6F7FB; border:1px dashed #D2D9E9; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden;">${previewInner}</div>
               <input type="file" accept="image/*" id="admin-gacha-machine-input" style="display:none;" onchange="adminUploadGachaMachineImage(this)">
               <div style="display:flex; flex-direction:column; gap:6px;">
                 <button type="button" class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="document.getElementById('admin-gacha-machine-input').click()">上傳新圖片</button>
@@ -351,7 +351,7 @@
             <td style="text-align:center; color:#888; font-size:13px;">#${p.id}</td>
             <td>
               <div style="display:flex; flex-direction:column; align-items:center; gap:3px;">
-                <div id="${thumbId}" onclick="document.getElementById('${inputId}').click()" title="點擊這裡上傳圖片" style="width:44px; height:44px; border-radius:8px; background:#F4F5F8; border:1px dashed #D3D7E0; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden;">${thumbInner}</div>
+                <div id="${thumbId}" onclick="document.getElementById('${inputId}').click()" title="點擊這裡上傳圖片" style="width:44px; height:44px; border-radius:8px; background:#F6F7FB; border:1px dashed #D2D9E9; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden;">${thumbInner}</div>
                 <input type="file" accept="image/*" id="${inputId}" style="display:none;" onchange="adminUploadGachaPhoto(${idx},this)">
                 ${p.photo ? `<button type="button" class="btn btn-outline" style="font-size:13px; padding:1px 6px;" onclick="adminRemoveGachaPhoto(${idx})">移除圖片</button>` : ''}
               </div>
@@ -756,7 +756,7 @@
               <input class="admin-input-sm" style="width:100px;" value="${escapeHtml(r.titleEn || '')}" onchange="adminLevelDraft.ranks[${idx}].titleEn = this.value">
             </label>
             <label style="font-size:13px; color:#555; display:flex; align-items:center; gap:4px;">顏色
-              <input type="color" style="width:36px; height:26px; padding:1px; border:1px solid #ccc; border-radius:4px;" value="${r.color || '#7C869C'}" onchange="adminLevelDraft.ranks[${idx}].color = this.value">
+              <input type="color" style="width:36px; height:26px; padding:1px; border:1px solid #ccc; border-radius:4px;" value="${r.color || '#4A68A8'}" onchange="adminLevelDraft.ranks[${idx}].color = this.value">
             </label>
             <label style="font-size:13px; color:#555; display:flex; align-items:flex-start; gap:4px; width:100%;">升級詳情文字（用戶點擊「Lv.」列會彈出視窗顯示）
               <textarea class="admin-input-sm" rows="2" style="flex:1; min-width:200px; resize:vertical;" oninput="adminLevelDraft.ranks[${idx}].desc = this.value">${escapeHtml(r.desc || '')}</textarea>
@@ -780,7 +780,7 @@
             </label>
           </div>
           <p style="font-size:13px; color:#888;">公式：升到第 L 級總共需要的 EXP = 難度係數 × L × (L−1)。難度係數越大，升級越慢。</p>
-          <p id="admin-level-preview" style="font-size:13px; color:#7C869C; font-weight:bold; margin-top:6px;"></p>
+          <p id="admin-level-preview" style="font-size:13px; color:#4A68A8; font-weight:bold; margin-top:6px;"></p>
         </div>
 
         <div class="admin-card" style="margin-top:12px;">
@@ -815,7 +815,7 @@
 
     window.adminAddLevelRank = function() {
       if (!adminLevelDraft) return;
-      adminLevelDraft.ranks.push({ minLevel: 1, emoji: '🌟', title: '新段位', titleEn: 'NewRank', color: '#7C869C', desc: '' });
+      adminLevelDraft.ranks.push({ minLevel: 1, emoji: '🌟', title: '新段位', titleEn: 'NewRank', color: '#4A68A8', desc: '' });
       renderAdminLevelTab();
     };
 
@@ -1420,7 +1420,7 @@
           : `<span style="color:var(--brand-600); display:inline-flex;">${typeof window.cmNavSvg === 'function' ? window.cmNavSvg(item.key) : ''}</span>`;
         return `
           <div style="display:flex; align-items:center; gap:14px; padding:10px 0; border-bottom:1px solid #F0F0F0;">
-            <div id="${thumbId}" onclick="document.getElementById('${inputId}').click()" title="點擊這裡上傳圖片" style="width:52px; height:52px; border-radius:10px; background:#F4F5F8; border:1px dashed #D3D7E0; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden; flex-shrink:0;">${thumbInner}</div>
+            <div id="${thumbId}" onclick="document.getElementById('${inputId}').click()" title="點擊這裡上傳圖片" style="width:52px; height:52px; border-radius:10px; background:#F6F7FB; border:1px dashed #D2D9E9; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden; flex-shrink:0;">${thumbInner}</div>
             <input type="file" accept="image/*" id="${inputId}" style="display:none;" onchange="adminUploadNavIcon('${item.key}',this)">
             <div style="flex:1; font-size:14px; font-weight:600; color:#333;">${escapeHtml(item.label)}</div>
             <div style="display:flex; gap:6px;">
@@ -1575,7 +1575,7 @@
       const statusColor = status === 'pending' ? '#C0524A' : (status === 'approved' ? '#2F6B3A' : '#999');
       const when = a.submittedAt ? new Date(a.submittedAt).toLocaleString('zh-HK') : '—';
       const subjectsHtml = (a.subjectsIntended || [])
-        .map(s => `<span class="tag" style="background:#F4F5F8; color:#3D4456; margin-right:4px;">${escapeHtml(s)}</span>`)
+        .map(s => `<span class="tag" style="background:#F6F7FB; color:#29395C; margin-right:4px;">${escapeHtml(s)}</span>`)
         .join('');
       return `
         <div class="admin-card" style="${status !== 'pending' ? 'opacity:.65;' : ''}">
@@ -1606,7 +1606,7 @@
       const statusLabel = status === 'active' ? '正常' : '已停權';
       const statusColor = status === 'active' ? '#2F6B3A' : '#C0524A';
       const subjectsHtml = (t.subjectsIntended || [])
-        .map(s => `<span class="tag" style="background:#F4F5F8; color:#3D4456; margin-right:4px;">${escapeHtml(s)}</span>`)
+        .map(s => `<span class="tag" style="background:#F6F7FB; color:#29395C; margin-right:4px;">${escapeHtml(s)}</span>`)
         .join('');
       return `
         <div class="admin-card">
@@ -1811,7 +1811,7 @@
           <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;">${title}</h3>
           <p style="font-size:13px; color:#888; margin-bottom:10px;">${desc}</p>
           <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-            <div id="admin-landing-${imgKey}-thumb" onclick="document.getElementById('admin-landing-${imgKey}-input').click()" title="點擊這裡上傳圖片" style="width:80px; height:80px; border-radius:10px; background:#F4F5F8; border:1px dashed #D3D7E0; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden;">${previewInner}</div>
+            <div id="admin-landing-${imgKey}-thumb" onclick="document.getElementById('admin-landing-${imgKey}-input').click()" title="點擊這裡上傳圖片" style="width:80px; height:80px; border-radius:10px; background:#F6F7FB; border:1px dashed #D2D9E9; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden;">${previewInner}</div>
             <input type="file" accept="image/*" id="admin-landing-${imgKey}-input" style="display:none;" onchange="adminUploadLandingImage('${imgKey}', this)">
             <div style="display:flex; flex-direction:column; gap:6px;">
               <button type="button" class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="document.getElementById('admin-landing-${imgKey}-input').click()">上傳新圖片</button>
@@ -1855,17 +1855,17 @@
         const fieldsHtml = group.fields.map(f => {
           const v = adminLandingDraft.texts[f.key];
           return `
-            <div style="margin-bottom:16px; padding-bottom:14px; border-bottom:1px solid #EFF0F4;">
+            <div style="margin-bottom:16px; padding-bottom:14px; border-bottom:1px solid #EEF3FA;">
               <p style="font-size:13px; font-weight:bold; color:var(--brand-700); margin-bottom:6px;">${f.label}</p>
               <div style="display:grid; grid-template-columns:1fr; gap:6px;">
                 <label style="font-size:12px; color:#999;">繁體中文
-                  <textarea rows="1" style="width:100%; font-size:14px; padding:6px 8px; border:1px solid #DFE2E9; border-radius:6px; font-family:inherit; resize:vertical;" oninput="adminUpdateLandingText('${f.key}','zh-Hant',this.value)">${v['zh-Hant']}</textarea>
+                  <textarea rows="1" style="width:100%; font-size:14px; padding:6px 8px; border:1px solid #DCE5F4; border-radius:6px; font-family:inherit; resize:vertical;" oninput="adminUpdateLandingText('${f.key}','zh-Hant',this.value)">${v['zh-Hant']}</textarea>
                 </label>
                 <label style="font-size:12px; color:#999;">English
-                  <textarea rows="1" style="width:100%; font-size:14px; padding:6px 8px; border:1px solid #DFE2E9; border-radius:6px; font-family:inherit; resize:vertical;" oninput="adminUpdateLandingText('${f.key}','en',this.value)">${v['en']}</textarea>
+                  <textarea rows="1" style="width:100%; font-size:14px; padding:6px 8px; border:1px solid #DCE5F4; border-radius:6px; font-family:inherit; resize:vertical;" oninput="adminUpdateLandingText('${f.key}','en',this.value)">${v['en']}</textarea>
                 </label>
                 <label style="font-size:12px; color:#999;">廣東話
-                  <textarea rows="1" style="width:100%; font-size:14px; padding:6px 8px; border:1px solid #DFE2E9; border-radius:6px; font-family:inherit; resize:vertical;" oninput="adminUpdateLandingText('${f.key}','yue',this.value)">${v['yue']}</textarea>
+                  <textarea rows="1" style="width:100%; font-size:14px; padding:6px 8px; border:1px solid #DCE5F4; border-radius:6px; font-family:inherit; resize:vertical;" oninput="adminUpdateLandingText('${f.key}','yue',this.value)">${v['yue']}</textarea>
                 </label>
               </div>
             </div>
@@ -2047,11 +2047,11 @@
           <p style="font-size:13px; color:#888; margin-bottom:16px;">呢度嘅數值會即時影響全站學生喺視訊溫習室可以賺到幾多PTS，改完記得核實清楚先撳儲存。</p>
           <div style="margin-bottom:18px;">
             <label style="font-size:13px; font-weight:bold; color:var(--brand-700); display:block; margin-bottom:6px;">每專注溫習 1 分鐘，可獲得幾多 PTS</label>
-            <input type="number" min="1" step="1" value="${adminScoringDraft.ptsPerMinute}" style="width:120px; font-size:15px; padding:8px 10px; border:1px solid #DFE2E9; border-radius:6px;" oninput="adminUpdateScoringDraft('ptsPerMinute', this.value)">
+            <input type="number" min="1" step="1" value="${adminScoringDraft.ptsPerMinute}" style="width:120px; font-size:15px; padding:8px 10px; border:1px solid #DCE5F4; border-radius:6px;" oninput="adminUpdateScoringDraft('ptsPerMinute', this.value)">
           </div>
           <div style="margin-bottom:10px;">
             <label style="font-size:13px; font-weight:bold; color:var(--brand-700); display:block; margin-bottom:6px;">確認「仍在學習」彈窗，額外可獲得幾多 PTS</label>
-            <input type="number" min="1" step="1" value="${adminScoringDraft.presenceCheckBonus}" style="width:120px; font-size:15px; padding:8px 10px; border:1px solid #DFE2E9; border-radius:6px;" oninput="adminUpdateScoringDraft('presenceCheckBonus', this.value)">
+            <input type="number" min="1" step="1" value="${adminScoringDraft.presenceCheckBonus}" style="width:120px; font-size:15px; padding:8px 10px; border:1px solid #DCE5F4; border-radius:6px;" oninput="adminUpdateScoringDraft('presenceCheckBonus', this.value)">
           </div>
         </div>
         <div style="text-align:center; margin-top:16px;">
@@ -2168,7 +2168,7 @@
           </label>
           <div>
             <label style="font-size:13px; font-weight:bold; color:var(--brand-700); display:block; margin-bottom:6px;">預設人數上限（表格一開啟時預先揀好嗰個）</label>
-            <select style="width:160px; font-size:15px; padding:8px 10px; border:1px solid #DFE2E9; border-radius:6px;" onchange="adminUpdateRoomSettingsDraft('defaultCapacity', this.value)">
+            <select style="width:160px; font-size:15px; padding:8px 10px; border:1px solid #DCE5F4; border-radius:6px;" onchange="adminUpdateRoomSettingsDraft('defaultCapacity', this.value)">
               ${capacityChoicesNow.map(n => `<option value="${n}" ${d.defaultCapacity === n ? 'selected' : ''}>${n} 人房</option>`).join('') || '<option value="">（請先開放最少一個選項）</option>'}
             </select>
           </div>
@@ -2178,11 +2178,11 @@
           <p style="font-size:13px; color:#888; margin-bottom:16px;">呢個時間純粹顯示喺公開大廳嘅房間列表，畀其他同學參考，房間唔會因為時間到而自動結束。可以自由加減分鐘數選項。</p>
           <div style="margin-bottom:16px;">
             <label style="font-size:13px; font-weight:bold; color:var(--brand-700); display:block; margin-bottom:6px;">分鐘數選項（用逗號分隔，例如：15, 30, 40, 45, 60）</label>
-            <input type="text" value="${d.durationOptionsText}" style="width:100%; max-width:420px; font-size:15px; padding:8px 10px; border:1px solid #DFE2E9; border-radius:6px;" oninput="adminUpdateRoomSettingsDraft('durationOptionsText', this.value)">
+            <input type="text" value="${d.durationOptionsText}" style="width:100%; max-width:420px; font-size:15px; padding:8px 10px; border:1px solid #DCE5F4; border-radius:6px;" oninput="adminUpdateRoomSettingsDraft('durationOptionsText', this.value)">
           </div>
           <div>
             <label style="font-size:13px; font-weight:bold; color:var(--brand-700); display:block; margin-bottom:6px;">預設溫習時間（分鐘，表格一開啟時預先揀好嗰個）</label>
-            <input type="number" min="1" step="1" value="${d.defaultDuration}" style="width:160px; font-size:15px; padding:8px 10px; border:1px solid #DFE2E9; border-radius:6px;" oninput="adminUpdateRoomSettingsDraft('defaultDuration', this.value)">
+            <input type="number" min="1" step="1" value="${d.defaultDuration}" style="width:160px; font-size:15px; padding:8px 10px; border:1px solid #DCE5F4; border-radius:6px;" oninput="adminUpdateRoomSettingsDraft('defaultDuration', this.value)">
           </div>
         </div>
         <div style="text-align:center; margin-top:16px;">
@@ -2336,7 +2336,7 @@
           ${ANTI_IDLE_FIELDS.map(f => `
             <div style="margin-bottom:16px;">
               <label style="font-size:13px; font-weight:bold; color:var(--brand-700); display:block; margin-bottom:6px;">${f.label}</label>
-              <input type="number" min="1" step="1" value="${d[f.key]}" style="width:120px; font-size:15px; padding:8px 10px; border:1px solid #DFE2E9; border-radius:6px;" oninput="adminUpdateAntiIdleDraft('${f.key}', this.value)"> 分鐘
+              <input type="number" min="1" step="1" value="${d[f.key]}" style="width:120px; font-size:15px; padding:8px 10px; border:1px solid #DCE5F4; border-radius:6px;" oninput="adminUpdateAntiIdleDraft('${f.key}', this.value)"> 分鐘
             </div>
           `).join('')}
         </div>
@@ -2599,21 +2599,21 @@
           </label>
           <div style="margin-bottom:18px;">
             <label style="font-size:13px; font-weight:bold; color:var(--brand-700); display:block; margin-bottom:6px;">顏色／緊急程度</label>
-            <select style="width:220px; font-size:15px; padding:8px 10px; border:1px solid #DFE2E9; border-radius:6px;" onchange="adminUpdateAnnouncementDraft('type', this.value)">
+            <select style="width:220px; font-size:15px; padding:8px 10px; border:1px solid #DCE5F4; border-radius:6px;" onchange="adminUpdateAnnouncementDraft('type', this.value)">
               ${typeOptions.map(o => `<option value="${o.v}" ${d.type === o.v ? 'selected' : ''}>${o.label}</option>`).join('')}
             </select>
           </div>
           <div style="margin-bottom:14px;">
             <label style="font-size:13px; font-weight:bold; color:var(--brand-700); display:block; margin-bottom:6px;">公告內容（繁體中文）</label>
-            <textarea rows="2" style="width:100%; max-width:560px; font-size:15px; padding:8px 10px; border:1px solid #DFE2E9; border-radius:6px; font-family:inherit;" oninput="adminUpdateAnnouncementMessage('zh-Hant', this.value)">${escapeHtml(d.message['zh-Hant'])}</textarea>
+            <textarea rows="2" style="width:100%; max-width:560px; font-size:15px; padding:8px 10px; border:1px solid #DCE5F4; border-radius:6px; font-family:inherit;" oninput="adminUpdateAnnouncementMessage('zh-Hant', this.value)">${escapeHtml(d.message['zh-Hant'])}</textarea>
           </div>
           <div style="margin-bottom:14px;">
             <label style="font-size:13px; font-weight:bold; color:var(--brand-700); display:block; margin-bottom:6px;">公告內容（English）</label>
-            <textarea rows="2" style="width:100%; max-width:560px; font-size:15px; padding:8px 10px; border:1px solid #DFE2E9; border-radius:6px; font-family:inherit;" oninput="adminUpdateAnnouncementMessage('en', this.value)">${escapeHtml(d.message['en'])}</textarea>
+            <textarea rows="2" style="width:100%; max-width:560px; font-size:15px; padding:8px 10px; border:1px solid #DCE5F4; border-radius:6px; font-family:inherit;" oninput="adminUpdateAnnouncementMessage('en', this.value)">${escapeHtml(d.message['en'])}</textarea>
           </div>
           <div>
             <label style="font-size:13px; font-weight:bold; color:var(--brand-700); display:block; margin-bottom:6px;">公告內容（廣東話）</label>
-            <textarea rows="2" style="width:100%; max-width:560px; font-size:15px; padding:8px 10px; border:1px solid #DFE2E9; border-radius:6px; font-family:inherit;" oninput="adminUpdateAnnouncementMessage('yue', this.value)">${escapeHtml(d.message['yue'])}</textarea>
+            <textarea rows="2" style="width:100%; max-width:560px; font-size:15px; padding:8px 10px; border:1px solid #DCE5F4; border-radius:6px; font-family:inherit;" oninput="adminUpdateAnnouncementMessage('yue', this.value)">${escapeHtml(d.message['yue'])}</textarea>
           </div>
           <p style="font-size:13px; color:#999; margin-top:6px;">某種語言留空嘅話，揀咗嗰種語言嘅訪客會自動退返顯示繁體中文版本。</p>
         </div>
@@ -2810,7 +2810,7 @@
             <h4 style="font-size:14px; font-weight:bold; color:var(--brand-700); margin-bottom:8px;">補發／扣減 PTS</h4>
             <p style="font-size:13px; color:#999; margin-bottom:8px;">正數係補發，負數係扣減（例如處理爭議或者錯誤發放）。</p>
             <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-              <input type="number" step="1" value="${adminSupportPointsGrantAmount}" style="width:120px; font-size:15px; padding:8px 10px; border:1px solid #DFE2E9; border-radius:6px;" oninput="adminUpdateSupportPointsAmount(this.value)">
+              <input type="number" step="1" value="${adminSupportPointsGrantAmount}" style="width:120px; font-size:15px; padding:8px 10px; border:1px solid #DCE5F4; border-radius:6px;" oninput="adminUpdateSupportPointsAmount(this.value)">
               <button type="button" class="btn btn-primary" style="font-size:13px; padding:6px 16px;" onclick="adminGrantSupportPoints('${uid}')">確認</button>
             </div>
           </div>
@@ -2818,8 +2818,8 @@
           <div style="border-top:1px solid #F0F0F0; padding-top:14px;">
             <h4 style="font-size:14px; font-weight:bold; color:var(--brand-700); margin-bottom:8px;">補發貼紙</h4>
             <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-              <select style="font-size:15px; padding:8px 10px; border:1px solid #DFE2E9; border-radius:6px; max-width:240px;" onchange="adminUpdateSupportStickerDraft('stickerId', this.value)">${stickerOptions}</select>
-              <input type="number" min="1" step="1" value="${adminSupportStickerGrantDraft.qty}" style="width:90px; font-size:15px; padding:8px 10px; border:1px solid #DFE2E9; border-radius:6px;" oninput="adminUpdateSupportStickerDraft('qty', this.value)">
+              <select style="font-size:15px; padding:8px 10px; border:1px solid #DCE5F4; border-radius:6px; max-width:240px;" onchange="adminUpdateSupportStickerDraft('stickerId', this.value)">${stickerOptions}</select>
+              <input type="number" min="1" step="1" value="${adminSupportStickerGrantDraft.qty}" style="width:90px; font-size:15px; padding:8px 10px; border:1px solid #DCE5F4; border-radius:6px;" oninput="adminUpdateSupportStickerDraft('qty', this.value)">
               <button type="button" class="btn btn-primary" style="font-size:13px; padding:6px 16px;" onclick="adminGrantSupportSticker('${uid}')">確認</button>
             </div>
           </div>
@@ -2853,7 +2853,7 @@
         <div class="admin-card" style="margin-bottom:16px;">
           <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;">搜尋用戶</h3>
           <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-            <input type="text" placeholder="輸入帳號ID／用戶名／Email（部分符合都得）" value="${escapeHtml(adminSupportQuery)}" style="flex:1; min-width:220px; font-size:15px; padding:8px 10px; border:1px solid #DFE2E9; border-radius:6px;" oninput="adminUpdateSupportQuery(this.value)">
+            <input type="text" placeholder="輸入帳號ID／用戶名／Email（部分符合都得）" value="${escapeHtml(adminSupportQuery)}" style="flex:1; min-width:220px; font-size:15px; padding:8px 10px; border:1px solid #DCE5F4; border-radius:6px;" oninput="adminUpdateSupportQuery(this.value)">
             <button type="button" class="btn btn-outline" style="font-size:13px; padding:6px 14px;" onclick="window.adminRefreshSupportUsers()">🔄 重新整理資料</button>
           </div>
           <p style="font-size:13px; color:#999; margin-top:8px;">資料讀取於你打開／重新整理呢頁嗰一刻，現共 ${adminSupportUsersCache.length} 位用戶。</p>
@@ -2993,7 +2993,7 @@
         <tr>
           <td>${escapeHtml(e.loginId)}${e.loginId === myLoginId ? ' <span style="color:#999; font-size:12px;">（你自己）</span>' : ''}</td>
           <td>
-            <select style="font-size:14px; padding:5px 8px; border:1px solid #DFE2E9; border-radius:6px;" onchange="adminUpdateAdminListRole(${idx}, this.value)">
+            <select style="font-size:14px; padding:5px 8px; border:1px solid #DCE5F4; border-radius:6px;" onchange="adminUpdateAdminListRole(${idx}, this.value)">
               <option value="super" ${e.role === 'super' ? 'selected' : ''}>超級管理員</option>
               <option value="support" ${e.role === 'support' ? 'selected' : ''}>客服／支援管理員</option>
             </select>
@@ -3017,8 +3017,8 @@
         <div class="admin-card" style="margin-bottom:16px;">
           <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;">新增管理員</h3>
           <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-            <input type="text" placeholder="帳號ID（即係用戶登入用嗰個ID，唔係Email）" value="${escapeHtml(d.newLoginId)}" style="flex:1; min-width:220px; font-size:15px; padding:8px 10px; border:1px solid #DFE2E9; border-radius:6px;" oninput="adminUpdateAdminListNewField('newLoginId', this.value)">
-            <select style="font-size:15px; padding:8px 10px; border:1px solid #DFE2E9; border-radius:6px;" onchange="adminUpdateAdminListNewField('newRole', this.value)">
+            <input type="text" placeholder="帳號ID（即係用戶登入用嗰個ID，唔係Email）" value="${escapeHtml(d.newLoginId)}" style="flex:1; min-width:220px; font-size:15px; padding:8px 10px; border:1px solid #DCE5F4; border-radius:6px;" oninput="adminUpdateAdminListNewField('newLoginId', this.value)">
+            <select style="font-size:15px; padding:8px 10px; border:1px solid #DCE5F4; border-radius:6px;" onchange="adminUpdateAdminListNewField('newRole', this.value)">
               <option value="super" ${d.newRole === 'super' ? 'selected' : ''}>超級管理員</option>
               <option value="support" ${d.newRole === 'support' ? 'selected' : ''}>客服／支援管理員</option>
             </select>
@@ -3249,7 +3249,7 @@
       const rows = (window.TUTOR_DSE_SUBJECTS || []).filter((s) => s !== '其他（自行輸入）').map((s) => {
         const isAdded = addedNames.has(s);
         const enName = (window.DSE_SUBJECT_EN_NAMES && window.DSE_SUBJECT_EN_NAMES[s]) || '—';
-        return `<tr><td>${escapeHtml(s)}</td><td style="color:#888;">${escapeHtml(enName)}</td><td>${isAdded ? '<span style="color:#646D83;">後台新增</span>' : '<span style="color:#999;">內建</span>'}</td></tr>`;
+        return `<tr><td>${escapeHtml(s)}</td><td style="color:#888;">${escapeHtml(enName)}</td><td>${isAdded ? '<span style="color:#3F588F;">後台新增</span>' : '<span style="color:#999;">內建</span>'}</td></tr>`;
       }).join('');
 
       container.innerHTML = `
@@ -3371,7 +3371,7 @@
         const rows = g.districts.map((d) => {
           const isAdded = addedNames.has(d);
           const enName = (window.HK_DISTRICT_EN_NAMES && window.HK_DISTRICT_EN_NAMES[d]) || '—';
-          return `<tr><td>${escapeHtml(d)}</td><td style="color:#888;">${escapeHtml(enName)}</td><td>${isAdded ? '<span style="color:#646D83;">後台新增</span>' : '<span style="color:#999;">內建</span>'}</td></tr>`;
+          return `<tr><td>${escapeHtml(d)}</td><td style="color:#888;">${escapeHtml(enName)}</td><td>${isAdded ? '<span style="color:#3F588F;">後台新增</span>' : '<span style="color:#999;">內建</span>'}</td></tr>`;
         }).join('');
         return `<p style="font-size:13px; font-weight:bold; margin:12px 0 6px;">${escapeHtml(g.region)}</p><table class="admin-table"><thead><tr><th>地區</th><th>English</th><th>來源</th></tr></thead><tbody>${rows}</tbody></table>`;
       }).join('');
@@ -3972,16 +3972,16 @@
         </div>`;
       const box = document.getElementById('admin-navmenu-list');
       const rowHome = document.createElement('div');
-      rowHome.style.cssText = 'display:flex; align-items:center; gap:12px; padding:10px 14px; border:1px solid #E8EAF0; border-radius:10px; background:#F7F8FA;';
-      rowHome.innerHTML = '<input type="checkbox" checked disabled style="width:18px; height:18px;"><span style="font-weight:bold; color:#3D4456; flex:1;">主頁</span><span style="font-size:12px; color:#999;">固定顯示</span>';
+      rowHome.style.cssText = 'display:flex; align-items:center; gap:12px; padding:10px 14px; border:1px solid #E9EDF5; border-radius:10px; background:#F7FAFD;';
+      rowHome.innerHTML = '<input type="checkbox" checked disabled style="width:18px; height:18px;"><span style="font-weight:bold; color:#29395C; flex:1;">主頁</span><span style="font-size:12px; color:#999;">固定顯示</span>';
       box.appendChild(rowHome);
       list.forEach((f) => {
         const hidden = !!(window.navHiddenFeatures && window.navHiddenFeatures[f.id]);
         const row = document.createElement('label');
-        row.style.cssText = 'display:flex; align-items:center; gap:12px; padding:10px 14px; border:1px solid #E8EAF0; border-radius:10px; background:#fff; cursor:pointer;';
+        row.style.cssText = 'display:flex; align-items:center; gap:12px; padding:10px 14px; border:1px solid #E9EDF5; border-radius:10px; background:#fff; cursor:pointer;';
         row.innerHTML = `
           <input type="checkbox" ${hidden ? '' : 'checked'} style="width:18px; height:18px; cursor:pointer;" onchange="window.adminSetNavFeature('${f.id}', this.checked, this)">
-          <span style="font-weight:bold; color:#3D4456; flex:1;">${f.label}</span>
+          <span style="font-weight:bold; color:#29395C; flex:1;">${f.label}</span>
           <span id="admin-navmenu-status-${f.id}" style="font-size:12px; font-weight:bold; padding:2px 8px; border-radius:6px; ${hidden ? 'background:#F3F4F6; color:#6B7280;' : 'background:#E6F4EA; color:#1E7B3A;'}">${hidden ? '已關閉' : '顯示中'}</span>`;
         box.appendChild(row);
       });
@@ -4040,9 +4040,9 @@
       const grid = document.getElementById('admin-snapshotbg-grid');
       for (let n = 1; n <= 4; n++) {
         const card = document.createElement('div');
-        card.style.cssText = 'border:1px solid #E8EAF0; border-radius:12px; padding:10px; text-align:center; background:#fff;';
+        card.style.cssText = 'border:1px solid #E9EDF5; border-radius:12px; padding:10px; text-align:center; background:#fff;';
         card.innerHTML = `
-          <div style="font-weight:bold; color:#3D4456; margin-bottom:8px;">${n} 人合照背景</div>
+          <div style="font-weight:bold; color:#29395C; margin-bottom:8px;">${n} 人合照背景</div>
           <div id="admin-snapshotbg-preview-${n}" style="aspect-ratio:4/5; border-radius:8px; background:#F7F4EE; display:flex; align-items:center; justify-content:center; color:#999; font-size:13px; overflow:hidden;">載入中…</div>
           <div style="display:flex; gap:6px; justify-content:center; margin-top:8px; flex-wrap:wrap;">
             <label class="btn btn-primary" style="font-size:13px; padding:5px 10px; cursor:pointer;">上載圖片

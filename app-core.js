@@ -197,8 +197,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
         <div class="room-item-card">
           <div>
             <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
-              <span class="tag" style="background:#F4F5F8; color:#3D4456;">${window.escapeHtml(window.translateSubjectName ? window.translateSubjectName(room.subject || '數學') : (room.subject || '數學'))}</span>
-              <span style="font-size:13px; color:#646D83; font-weight:bold;">${window.t('room.liveNow', '直播中')}</span>
+              <span class="tag" style="background:#F6F7FB; color:#29395C;">${window.escapeHtml(window.translateSubjectName ? window.translateSubjectName(room.subject || '數學') : (room.subject || '數學'))}</span>
+              <span style="font-size:13px; color:#3F588F; font-weight:bold;">${window.t('room.liveNow', '直播中')}</span>
             </div>
             <h4 style="font-size:14px; font-weight:bold; color:var(--brand-800); margin-bottom:4px;">${room.hasPassword ? '🔒 ' : ''}${window.escapeHtml(room.name)}</h4>
             <p style="font-size:13px; color:#666;">${window.t('room.hostPrefix', '房主：')}<strong>${window.escapeHtml(room.hostName || window.t('room.anonymousStudent', '匿名同學'))}</strong></p>

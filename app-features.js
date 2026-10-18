@@ -329,7 +329,7 @@
       levelCurveFactor: 10, // 公式：升到 Level L 總共需要嘅 EXP = 難度係數 × L × (L−1)
       ranks: [
         { minLevel: 1,  title: '溫習新手', titleEn: 'Novice',     color: '#6FA96F', desc: '剛剛起步，每一分鐘的溫習都算數，慢慢累積 EXP！' },
-        { minLevel: 10, title: '專注學徒', titleEn: 'Apprentice', color: '#7C869C', desc: '已經養成溫習習慣，繼續保持專注，向下一個段位進發。' },
+        { minLevel: 10, title: '專注學徒', titleEn: 'Apprentice', color: '#4A68A8', desc: '已經養成溫習習慣，繼續保持專注，向下一個段位進發。' },
         { minLevel: 20, title: '自律達人', titleEn: 'Expert',     color: '#D9764A', desc: '自律力爆錶，是身邊同學的榜樣！' },
         { minLevel: 40, title: '專注大師', titleEn: 'Master',     color: '#D9A441', desc: '長期堅持先可以去到這個段位，值得驕傲！' },
         { minLevel: 60, title: '傳說學霸', titleEn: 'Legend',     color: '#8B5FBF', desc: '傳說級別的溫習量，少數人先去到的頂尖段位。' }
@@ -471,7 +471,7 @@
             ${avatarHtml}
             <div${clickAttr} style="font-size:14px; font-weight:bold; color:var(--brand-800); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(primaryText)}${isMe ? ` <span style="font-size:12px; color:var(--brand-600); font-weight:normal;">${window.t('lb.youSuffix', '（你）')}</span>` : ''}</div>
           </div>
-          <div style="font-size:13px; color:#646D83; font-weight:700; white-space:nowrap; flex-shrink:0;">${escapeHtml(secondaryText)}</div>
+          <div style="font-size:13px; color:#3F588F; font-weight:700; white-space:nowrap; flex-shrink:0;">${escapeHtml(secondaryText)}</div>
         </div>
       `;
     }
@@ -2114,7 +2114,7 @@
         headerAuthBtn.style.borderRadius = "20px";
         headerAuthBtn.style.padding = "4px 10px";
         headerAuthBtn.style.fontSize = "11px";
-        headerAuthBtn.innerHTML = `<span>${window.currentUser.username || window.currentUser.email}</span> <span style="color:#7C869C; font-weight:bold;">✓</span>`;
+        headerAuthBtn.innerHTML = `<span>${window.currentUser.username || window.currentUser.email}</span> <span style="color:#4A68A8; font-weight:bold;">✓</span>`;
 
         document.getElementById('room-user-name-tag').innerText = (window.currentUser.username || '使用者') + " (你)";
         document.getElementById('room-self-avatar').innerText = (window.currentUser.username || 'U').charAt(0).toUpperCase();
@@ -2547,7 +2547,7 @@
       if (qaUnsubscribe) { renderQAPostsList(); return; }
 
       const list = document.getElementById('qa-post-list');
-      if (list) list.innerHTML = `<div style="text-align:center; padding:30px; color:#9AA2B4; font-size:13px;">${window.t('qa.loading', '載入中…')}</div>`;
+      if (list) list.innerHTML = `<div style="text-align:center; padding:30px; color:#A4B4D4; font-size:13px;">${window.t('qa.loading', '載入中…')}</div>`;
 
       let ref = window.fs.collection(window.db, 'qa_posts');
       qaUnsubscribe = window.fs.onSnapshot(ref, (snapshot) => {
@@ -2733,7 +2733,7 @@
           ).join('');
           const isOwn = myUid && c.uid === myUid;
           const editedNote = c.editedAt
-            ? `<span style="font-size:13px; color:#9AA2B4; margin-left:6px;">${window.t('qa.editedAtTemplate', '已編輯 {time}').replace('{time}', formatTime(c.editedAt))}</span>`
+            ? `<span style="font-size:13px; color:#A4B4D4; margin-left:6px;">${window.t('qa.editedAtTemplate', '已編輯 {time}').replace('{time}', formatTime(c.editedAt))}</span>`
             : '';
           const actions = isOwn ? `
             <div style="display:flex; gap:6px; margin-top:8px;">
@@ -3009,10 +3009,10 @@
             ? `<img src="${st.photo}" style="width:100%; aspect-ratio:1; object-fit:cover; border-radius:8px;">`
             : `<div style="font-size:28px;">${escapeHtml(st.emoji || '🦦')}</div>`;
           return `
-            <div onclick="showStickerCollectionDetail(${st.id})" title="${escapeHtml(window.t('gacha.clickToEnlargeTemplate', `點擊放大查看：${st.name || ''}`).replace('{name}', st.name || ''))}" style="cursor:pointer; text-align:center; background:#F4F5F8; border:2px solid #9AA2B4; border-radius:10px; padding:6px 4px;">
+            <div onclick="showStickerCollectionDetail(${st.id})" title="${escapeHtml(window.t('gacha.clickToEnlargeTemplate', `點擊放大查看：${st.name || ''}`).replace('{name}', st.name || ''))}" style="cursor:pointer; text-align:center; background:#F6F7FB; border:2px solid #A4B4D4; border-radius:10px; padding:6px 4px;">
               ${thumb}
-              <div style="font-size:12px; font-weight:bold; color:#4F576B; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(st.name || '')}</div>
-              <div style="font-size:11px; color:#9AA2B4;">×${count}</div>
+              <div style="font-size:12px; font-weight:bold; color:#344976; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(st.name || '')}</div>
+              <div style="font-size:11px; color:#A4B4D4;">×${count}</div>
             </div>`;
         }
         return `
@@ -3056,14 +3056,14 @@
 
       const emojiEl = document.getElementById('gacha-lightbox-emoji');
       if (st.photo) {
-        emojiEl.innerHTML = `<img src="${st.photo}" alt="${escapeHtml(st.name || '')}" style="width:100%; max-width:340px; aspect-ratio:1/1; object-fit:contain; background:#F4F5F8; border-radius:16px; border:2px solid #9AA2B4;">`;
+        emojiEl.innerHTML = `<img src="${st.photo}" alt="${escapeHtml(st.name || '')}" style="width:100%; max-width:340px; aspect-ratio:1/1; object-fit:contain; background:#F6F7FB; border-radius:16px; border:2px solid #A4B4D4;">`;
       } else {
         emojiEl.innerHTML = '';
         emojiEl.innerText = st.emoji || '🦦';
       }
       const tierEl = document.getElementById('gacha-lightbox-tier');
       tierEl.innerText = window.t('gacha.collectedCountTemplate', `已收集 ×${count}`).replace('{n}', count);
-      tierEl.style.color = '#4F576B';
+      tierEl.style.color = '#344976';
       document.getElementById('gacha-lightbox-name').innerText = st.name || '';
       document.getElementById('gacha-lightbox-desc').innerText = window.t('gacha.collectionProgressTemplate', `貼紙圖鑑收集進度：${getOwnedStickerTypeCount()}/${GACHA_STICKERS.length}`).replace('{a}', getOwnedStickerTypeCount()).replace('{b}', GACHA_STICKERS.length);
       document.getElementById('gacha-prize-lightbox').style.display = 'flex';
@@ -3170,19 +3170,19 @@
       awardStickers([{ id: sticker.id, count: 1 }]);
 
       // 顯示結果（唔再有膠囊彈出/旋轉動畫，震動完即刻顯示結果）
-      resultBox.style.background = isNew ? '#FBEAE8' : '#F4F5F8';
-      resultBox.style.borderColor = isNew ? '#C0524A' : '#D3D7E0';
+      resultBox.style.background = isNew ? '#FBEAE8' : '#F6F7FB';
+      resultBox.style.borderColor = isNew ? '#C0524A' : '#D2D9E9';
       // 如果管理員有幫呢隻貼紙上傳圖片，優先展示相片；沒有的話就繼續用返 emoji
       const resultEmojiEl = document.getElementById('gacha-result-emoji');
       if (sticker.photo) {
-        resultEmojiEl.innerHTML = `<img src="${sticker.photo}" alt="${escapeHtml(sticker.name || '')}" style="width:88px; height:88px; object-fit:contain; background:#F4F5F8; border-radius:12px; border:2px solid #9AA2B4; box-shadow:0 2px 8px rgba(0,0,0,.15);">`;
+        resultEmojiEl.innerHTML = `<img src="${sticker.photo}" alt="${escapeHtml(sticker.name || '')}" style="width:88px; height:88px; object-fit:contain; background:#F6F7FB; border-radius:12px; border:2px solid #A4B4D4; box-shadow:0 2px 8px rgba(0,0,0,.15);">`;
       } else {
         resultEmojiEl.innerHTML = '';
         resultEmojiEl.innerText = sticker.emoji || '🦦';
       }
       const tierEl = document.getElementById('gacha-result-tier');
       tierEl.innerText = isNew ? window.t('gacha.newStickerLabel', '新貼紙！') : window.t('gacha.alreadyOwnedTemplate', `已擁有 ×${wasOwnedCount + 1}`).replace('{n}', wasOwnedCount + 1);
-      tierEl.style.color = isNew ? '#C0524A' : '#4F576B';
+      tierEl.style.color = isNew ? '#C0524A' : '#344976';
       document.getElementById('gacha-result-name').innerText = sticker.name;
       document.getElementById('gacha-result-desc').innerText = window.t('gacha.collectionProgressTemplate', `貼紙圖鑑收集進度：${getOwnedStickerTypeCount()}/${GACHA_STICKERS.length}`).replace('{a}', getOwnedStickerTypeCount()).replace('{b}', GACHA_STICKERS.length);
 
@@ -3330,10 +3330,10 @@
         const thumb = sticker.photo
           ? `<img src="${sticker.photo}" alt="${escapeHtml(sticker.name || '')}" style="width:38px; height:38px; object-fit:cover; border-radius:8px;">`
           : `<span style="font-size:30px;">${escapeHtml(sticker.emoji || '🦦')}</span>`;
-        const badgeColor = isNew ? '#C0524A' : '#4F576B';
+        const badgeColor = isNew ? '#C0524A' : '#344976';
         const badgeText = isNew ? window.t('gacha.newStickerShort', '新貼紙') : `×${ownedCountAfter}`;
         return `
-          <div onclick="showGachaPrizeDetail(${idx})" style="cursor:pointer; background:${isNew ? '#FBEAE8' : '#F4F5F8'}; border:2px solid ${badgeColor}; border-radius:12px; padding:8px 4px; text-align:center;" title="${escapeHtml(window.t('gacha.clickToEnlargeTemplate', `點擊放大查看：${sticker.name || ''}`).replace('{name}', sticker.name || ''))}">
+          <div onclick="showGachaPrizeDetail(${idx})" style="cursor:pointer; background:${isNew ? '#FBEAE8' : '#F6F7FB'}; border:2px solid ${badgeColor}; border-radius:12px; padding:8px 4px; text-align:center;" title="${escapeHtml(window.t('gacha.clickToEnlargeTemplate', `點擊放大查看：${sticker.name || ''}`).replace('{name}', sticker.name || ''))}">
             <div>${thumb}</div>
             <div style="font-size:13px; font-weight:bold; color:${badgeColor}; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${badgeText}</div>
           </div>`;
@@ -3370,14 +3370,14 @@
 
       const emojiEl = document.getElementById('gacha-lightbox-emoji');
       if (sticker.photo) {
-        emojiEl.innerHTML = `<img src="${sticker.photo}" alt="${escapeHtml(sticker.name || '')}" style="width:100%; max-width:340px; aspect-ratio:1/1; object-fit:contain; background:#F4F5F8; border-radius:16px; border:2px solid #9AA2B4;">`;
+        emojiEl.innerHTML = `<img src="${sticker.photo}" alt="${escapeHtml(sticker.name || '')}" style="width:100%; max-width:340px; aspect-ratio:1/1; object-fit:contain; background:#F6F7FB; border-radius:16px; border:2px solid #A4B4D4;">`;
       } else {
         emojiEl.innerHTML = '';
         emojiEl.innerText = sticker.emoji || '🦦';
       }
       const tierEl = document.getElementById('gacha-lightbox-tier');
       tierEl.innerText = isNew ? window.t('gacha.newStickerLabel', '新貼紙！') : window.t('gacha.alreadyOwnedTemplate', `已擁有 ×${ownedCountAfter}`).replace('{n}', ownedCountAfter);
-      tierEl.style.color = isNew ? '#C0524A' : '#4F576B';
+      tierEl.style.color = isNew ? '#C0524A' : '#344976';
       document.getElementById('gacha-lightbox-name').innerText = sticker.name || '';
       document.getElementById('gacha-lightbox-desc').innerText = window.t('gacha.collectionProgressTemplate', `貼紙圖鑑收集進度：${getOwnedStickerTypeCount()}/${GACHA_STICKERS.length}`).replace('{a}', getOwnedStickerTypeCount()).replace('{b}', GACHA_STICKERS.length);
       document.getElementById('gacha-prize-lightbox').style.display = 'flex';
@@ -3449,11 +3449,11 @@
             ? `<img src="${e.photo}" style="width:20px; height:20px; object-fit:cover; border-radius:6px;">`
             : `<span style="font-size:20px;">${escapeHtml(e.emoji || '🦦')}</span>`;
           return `
-            <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px; background:#F4F5F8; border:1px solid #B3D6DE55;">
+            <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px; background:#F6F7FB; border:1px solid #B3D6DE55;">
               ${thumb}
               <div style="flex:1;">
-                <strong style="color:${e.isNew ? '#C0524A' : '#4F576B'};">${e.isNew ? window.t('gacha.newStickerShort', '新貼紙') : window.t('gacha.duplicateShort', '重複')}</strong> · ${escapeHtml(e.name || '')}
-                <div style="color:#9AA2B4; font-size:13px;">${e.type === 'lucky' ? window.t('gacha.batchTypeShort', '十連抽') : window.t('gacha.drawNormalBtn', '抽一次')} · ${time} · -${e.cost || 0} PTS</div>
+                <strong style="color:${e.isNew ? '#C0524A' : '#344976'};">${e.isNew ? window.t('gacha.newStickerShort', '新貼紙') : window.t('gacha.duplicateShort', '重複')}</strong> · ${escapeHtml(e.name || '')}
+                <div style="color:#A4B4D4; font-size:13px;">${e.type === 'lucky' ? window.t('gacha.batchTypeShort', '十連抽') : window.t('gacha.drawNormalBtn', '抽一次')} · ${time} · -${e.cost || 0} PTS</div>
               </div>
             </div>`;
         }).join('');
@@ -3503,13 +3503,13 @@
         const thumb = sticker.photo
           ? `<img src="${sticker.photo}" style="width:20px; height:20px; object-fit:cover; border-radius:6px;">`
           : `<span style="font-size:20px;">${escapeHtml(sticker.emoji || '🦦')}</span>`;
-        const color = isNew ? '#C0524A' : '#4F576B';
+        const color = isNew ? '#C0524A' : '#344976';
         return `
-        <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px; background:${isNew ? '#FBEAE8' : '#F4F5F8'}; border:1px solid ${color}33;">
+        <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px; background:${isNew ? '#FBEAE8' : '#F6F7FB'}; border:1px solid ${color}33;">
           ${thumb}
           <div style="flex:1;">
             <strong style="color:${color};">${isNew ? window.t('gacha.newStickerShort', '新貼紙') : window.t('gacha.duplicateShort', '重複')}</strong> · ${escapeHtml(sticker.name || '')}
-            <div style="color:#9AA2B4; font-size:13px;">${type === 'lucky' ? window.t('gacha.batchTypeShort', '十連抽') : window.t('gacha.drawNormalBtn', '抽一次')} · ${time} · -${cost} PTS</div>
+            <div style="color:#A4B4D4; font-size:13px;">${type === 'lucky' ? window.t('gacha.batchTypeShort', '十連抽') : window.t('gacha.drawNormalBtn', '抽一次')} · ${time} · -${cost} PTS</div>
           </div>
         </div>`;
       }).join('');
@@ -3941,7 +3941,7 @@
       listEl.innerHTML = posts.map((post) => {
         const roleMeta = window.BUDDY_ROLE_META[post.role] || { emoji: '📝', label: window.t('social.roleDefaultLabel', '書伴') };
         const subjectTagsHtml = (post.subjects || []).map((s) =>
-          `<span class="tag" style="background:#F4F5F8; color:#3D4456; margin-right:4px;">${escapeHtml(window.translateSubjectName ? window.translateSubjectName(s) : s)}</span>`
+          `<span class="tag" style="background:#F6F7FB; color:#29395C; margin-right:4px;">${escapeHtml(window.translateSubjectName ? window.translateSubjectName(s) : s)}</span>`
         ).join('');
         const isOwn = window.currentUser && post.authorUid === window.currentUser.uid;
         const secondBtnHtml = isOwn
@@ -4310,7 +4310,7 @@
             </div>
             <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
               <button class="btn btn-outline" type="button" style="font-size:13px; padding:5px 8px;" onclick="window.openChatWindow('${f.uid}', ${safeChatName})" title="${escapeHtml(window.t('social.sendMessageTitle', '傳送訊息'))}">💬</button>
-              <span style="font-size:13px; color:#646D83; cursor:pointer;" onclick="viewUserProfile('${f.uid}')">${window.t('social.viewProfileLink', '看資料 ›')}</span>
+              <span style="font-size:13px; color:#3F588F; cursor:pointer;" onclick="viewUserProfile('${f.uid}')">${window.t('social.viewProfileLink', '看資料 ›')}</span>
             </div>
           </div>
         `;
@@ -4794,7 +4794,7 @@
       // （明明有幾個對話但畫唔出嚟）
       const dockDebugEl = document.getElementById('chat-dock-debug');
       if (dockDebugEl) {
-        dockDebugEl.style.color = '#9AA2B4';
+        dockDebugEl.style.color = '#A4B4D4';
         dockDebugEl.innerText = `${window.chatDockData.length} 個（我 uid: ${myUid.slice(0, 8)}…，${new Date().toLocaleTimeString('zh-HK')}）`;
       }
       window.renderChatDockPanel();
