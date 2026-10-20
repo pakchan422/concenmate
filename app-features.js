@@ -1649,8 +1649,8 @@
           if (photoImg) { photoImg.src = avatarSticker.photo; photoImg.style.display = 'block'; }
           if (blankEl) blankEl.style.display = 'none';
         } else {
-          if (photoImg) photoImg.style.display = 'none';
-          if (blankEl) { blankEl.innerText = avatarSticker.emoji || '🦦'; blankEl.style.display = 'flex'; }
+          if (photoImg) { photoImg.src = 'ottie-full.png'; photoImg.style.display = 'block'; }
+          if (blankEl) blankEl.style.display = 'none';
         }
         if (svgEl) svgEl.style.display = 'none';
         return;
@@ -1662,9 +1662,10 @@
         if (svgEl) svgEl.style.display = 'none';
         if (blankEl) blankEl.style.display = 'none';
       } else {
-        if (photoImg) photoImg.style.display = 'none';
+        // 未揀造型、亦冇段位自訂相：顯示全身 Ottie（唔再用 emoji）
+        if (photoImg) { photoImg.src = 'ottie-full.png'; photoImg.style.display = 'block'; }
         if (svgEl) svgEl.style.display = 'none';
-        if (blankEl) { blankEl.innerText = '🦦'; blankEl.style.display = 'flex'; }
+        if (blankEl) blankEl.style.display = 'none';
       }
     }
     window.updateOtterDisplay = updateOtterDisplay;
@@ -1769,7 +1770,7 @@
           ${thumb}
         </div>`;
 
-      let html = tileHtml(0, `<img src="ottie-wave.png" style="width:100%; aspect-ratio:1; object-fit:contain; border-radius:6px;" alt="">`, window.t('home.otterDefaultLook', '預設造型'), _otterAvatarPick === 0);
+      let html = tileHtml(0, `<img src="ottie-full.png" style="width:100%; aspect-ratio:1; object-fit:contain; border-radius:6px;" alt="">`, window.t('home.otterDefaultLook', '預設造型'), _otterAvatarPick === 0);
 
       if (typeof GACHA_STICKERS !== 'undefined') {
         ownedIds.forEach(id => {
@@ -1777,7 +1778,7 @@
           if (!st) return;
           const thumb = st.photo
             ? `<img src="${st.photo}" style="width:100%; aspect-ratio:1; object-fit:contain; border-radius:6px;">`
-            : `<div style="font-size:22px;">${escapeHtml(st.emoji || '🦦')}</div>`;
+            : `<img src="ottie-full.png" style="width:100%; aspect-ratio:1; object-fit:contain; border-radius:6px;" alt="">`;
           html += tileHtml(id, thumb, gachaItemName(st), _otterAvatarPick === id);
         });
       }
