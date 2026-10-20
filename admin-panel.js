@@ -308,10 +308,12 @@
         }
         adminGachaDraft = {
           stickers: JSON.parse(JSON.stringify(GACHA_STICKERS)),
+          series: JSON.parse(JSON.stringify(window.GACHA_SERIES || [])),
           costNormal: GACHA_COST.normal,
           costLucky: GACHA_COST.lucky,
           machineImageUrl: window.GACHA_MACHINE_IMAGE_URL || null
         };
+        adminGachaMigrateDraft(adminGachaDraft);
       }
 
       function renderMachineImageCard() {
@@ -322,7 +324,7 @@
         return `
           <div class="admin-card">
             <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;">扭蛋機外觀圖片</h3>
-            <p style="font-size:13px; color:#888; margin-bottom:10px;">這張是扭蛋機本身的外殼圖（不是貼紙），顯示在學生點擊扭蛋的頁面。上傳新圖會即時取代畫面上顯示的圖案，不上傳則繼續使用程式碼內建的預設圖。</p>
+            <p style="font-size:13px; color:#888; margin-bottom:10px;">這張是扭蛋機本身的外殼圖（不是造型），顯示在學生點擊扭蛋的頁面。上傳新圖會即時取代畫面上顯示的圖案，不上傳則繼續使用程式碼內建的預設圖。</p>
             <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
               <div id="admin-gacha-machine-thumb" onclick="document.getElementById('admin-gacha-machine-input').click()" title="點擊這裡上傳圖片" style="width:80px; height:80px; border-radius:10px; background:#F6F7FB; border:1px dashed #D2D9E9; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden;">${previewInner}</div>
               <input type="file" accept="image/*" id="admin-gacha-machine-input" style="display:none;" onchange="adminUploadGachaMachineImage(this)">
@@ -335,12 +337,55 @@
         `;
       }
 
+      function renderSeriesCard() {
+        const list = adminGachaDraft.series;
+        const rows = list.map((se, idx) => {
+          const n = adminGachaDraft.stickers.filter(st => String(st.seriesId) === String(se.id)).length;
+          return `
+          <tr>
+            <td style="white-space:nowrap;">
+              <button type="button" class="btn btn-outline" style="padding:1px 7px; font-size:13px;" onclick="adminMoveGachaSeries(${idx},-1)" ${idx === 0 ? 'disabled' : ''}>上移</button>
+              <button type="button" class="btn btn-outline" style="padding:1px 7px; font-size:13px;" onclick="adminMoveGachaSeries(${idx},1)" ${idx === list.length - 1 ? 'disabled' : ''}>下移</button>
+            </td>
+            <td><input class="admin-input-sm" value="${escapeHtml(se.name || '')}" onchange="adminUpdateGachaSeries(${idx},'name',this.value)"></td>
+            <td><input class="admin-input-sm" value="${escapeHtml(se.nameEn || '')}" placeholder="English name" onchange="adminUpdateGachaSeries(${idx},'nameEn',this.value)"></td>
+            <td style="text-align:center;"><input type="checkbox" ${se.enabled !== false ? 'checked' : ''} onchange="adminUpdateGachaSeries(${idx},'enabled',this.checked)"></td>
+            <td style="text-align:center; color:#555;">${n}</td>
+            <td><button type="button" class="btn btn-red" style="padding:3px 8px; font-size:13px;" onclick="adminRemoveGachaSeries(${idx})">刪除</button></td>
+          </tr>`;
+        }).join('');
+        return `
+          <div class="admin-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+              <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800);">扭蛋系列（共 ${list.length} 個）</h3>
+              <button class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="adminAddGachaSeries()">新增系列</button>
+            </div>
+            <p style="font-size:13px; color:#888; margin-bottom:8px;">學生在扭蛋頁面先選擇系列，再抽該系列的造型；每個系列有獨立的收集進度。取消「開放扭蛋」後，學生不能再抽該系列，但已收集的造型會保留，圖鑑顯示為「已停售」。系列的排列次序即扭蛋頁面的顯示次序。英文名稱留空時，英文介面會顯示中文名稱。</p>
+            <div style="overflow-x:auto;">
+              <table class="admin-table">
+                <thead><tr><th>次序</th><th>中文名稱</th><th>英文名稱</th><th>開放扭蛋</th><th>造型數量</th><th></th></tr></thead>
+                <tbody>${rows || '<tr><td colspan="6" style="text-align:center; color:#999; padding:16px;">未有系列，請點擊「新增系列」</td></tr>'}</tbody>
+              </table>
+            </div>
+          </div>`;
+      }
+
       function renderStickerTable() {
-        const pool = adminGachaDraft.stickers;
-        const totalWeight = pool.reduce((s, p) => s + (parseFloat(p.weight) || 0), 0);
+        const allPool = adminGachaDraft.stickers;
+        const filter = adminGachaSeriesFilter;
+        const pool = allPool;
+        const seriesTotals = {};
+        allPool.forEach(p => { const k = String(p.seriesId || ''); seriesTotals[k] = (seriesTotals[k] || 0) + (parseFloat(p.weight) || 0); });
+        const totalWeight = filter ? (seriesTotals[filter] || 0) : allPool.reduce((s, p) => s + (parseFloat(p.weight) || 0), 0);
+        const seriesOptions = (sel) => `<option value="" ${!sel ? 'selected' : ''}>（未分類）</option>` +
+          adminGachaDraft.series.map(se => `<option value="${escapeHtml(String(se.id))}" ${String(sel) === String(se.id) ? 'selected' : ''}>${escapeHtml(se.name || se.id)}</option>`).join('');
+        const rarityOptions = (sel) => [['common', '普通'], ['rare', '稀有'], ['limited', '限定']]
+          .map(([v, l]) => `<option value="${v}" ${(sel || 'common') === v ? 'selected' : ''}>${l}</option>`).join('');
 
         const rows = pool.map((p, idx) => {
-          const pct = totalWeight > 0 ? ((parseFloat(p.weight) || 0) / totalWeight * 100).toFixed(1) : '0.0';
+          if (filter && String(p.seriesId || '') !== filter) return '';
+          const sTotal = seriesTotals[String(p.seriesId || '')] || 0;
+          const pct = sTotal > 0 ? ((parseFloat(p.weight) || 0) / sTotal * 100).toFixed(1) : '0.0';
           const thumbId = `admin-gacha-thumb-${idx}`;
           const inputId = `admin-gacha-photo-input-${idx}`;
           const thumbInner = p.photo
@@ -357,6 +402,9 @@
               </div>
             </td>
             <td><input class="admin-input-sm" value="${escapeHtml(p.name || '')}" onchange="adminUpdateGachaField(${idx},'name',this.value)"></td>
+            <td><input class="admin-input-sm" value="${escapeHtml(p.nameEn || '')}" placeholder="English name" onchange="adminUpdateGachaField(${idx},'nameEn',this.value)"></td>
+            <td><select class="admin-input-sm" onchange="adminUpdateGachaField(${idx},'seriesId',this.value); renderAdminGachaTab();">${seriesOptions(p.seriesId)}</select></td>
+            <td><select class="admin-input-sm" onchange="adminUpdateGachaField(${idx},'rarity',this.value)">${rarityOptions(p.rarity)}</select></td>
             <td>
               <input class="admin-input-sm" type="number" min="0" style="width:70px;" value="${p.weight || 0}" oninput="adminUpdateGachaWeightLive(${idx},this.value)">
               <div id="admin-gacha-pct-${idx}" style="font-size:13px; color:#888; margin-top:2px; white-space:nowrap;">≈ ${pct}%</div>
@@ -369,21 +417,25 @@
         return `
           <div class="admin-card">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
-              <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800);">Ottiee 貼紙圖鑑（共 ${pool.length} 隻）</h3>
-              <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800);">造型（共 ${allPool.length} 件）</h3>
+              <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+                <select class="admin-input-sm" onchange="adminSetGachaSeriesFilter(this.value)" title="只顯示某個系列">
+                  <option value="" ${!filter ? 'selected' : ''}>顯示全部系列</option>
+                  ${adminGachaDraft.series.map(se => `<option value="${escapeHtml(String(se.id))}" ${filter === String(se.id) ? 'selected' : ''}>${escapeHtml(se.name || se.id)}</option>`).join('')}
+                </select>
                 <button class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="adminNormalizeGachaWeights()">調整為剛好 100</button>
                 <button class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="adminRenumberGachaStickers()">重新排序編號</button>
-                <button class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="adminAddGachaPrize()">新增貼紙</button>
+                <button class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="adminAddGachaPrize()">新增造型</button>
               </div>
             </div>
-            <p style="font-size:13px; color:#888; margin-bottom:8px;">貼紙編號（#id）對應用戶收集圖鑑的位置，刪除貼紙之後編號會留下缺口（例如刪除 #13~#17 之後就由 #12 跳到 #18），這不影響扭蛋／收集功能，純粹是畫面上不美觀。如果想整理，點擊「重新排序編號」會將現存貼紙由上到下重新編為 1、2、3...連續號碼——但要留意：如果已經有真實學生扭過蛋、收藏了某幾張貼紙，重新編號會令他們原有的收藏對應不上新編號（貼紙會「變成另一張」），所以這個按鈕只適合在未有學生正式使用過、或者您願意接受重整所有人收藏記錄的情況下才點擊。</p>
+            <p style="font-size:13px; color:#888; margin-bottom:8px;">造型編號（#id）對應用戶收集圖鑑的位置，刪除造型之後編號會留下缺口（例如刪除 #13~#17 之後就由 #12 跳到 #18），這不影響扭蛋／收集功能，純粹是畫面上不美觀。如果想整理，點擊「重新排序編號」會將現存造型由上到下重新編為 1、2、3...連續號碼——但要留意：如果已經有真實學生扭過蛋、收藏了某幾件造型，重新編號會令他們原有的收藏對應不上新編號（造型會「變成另一件」），所以這個按鈕只適合在未有學生正式使用過、或者您願意接受重整所有人收藏記錄的情況下才點擊。</p>
             <div style="overflow-x:auto;">
               <table class="admin-table">
-                <thead><tr><th>#</th><th>圖片</th><th>貼紙名稱</th><th>機率權重</th><th></th></tr></thead>
-                <tbody>${rows || '<tr><td colspan="5" style="text-align:center; color:#999; padding:16px;">未有貼紙，請點擊「新增貼紙」開始</td></tr>'}</tbody>
+                <thead><tr><th>#</th><th>圖片</th><th>中文名稱</th><th>英文名稱</th><th>系列</th><th>稀有度</th><th>機率權重</th><th></th></tr></thead>
+                <tbody>${rows || '<tr><td colspan="8" style="text-align:center; color:#999; padding:16px;">未有造型，請點擊「新增造型」開始</td></tr>'}</tbody>
               </table>
             </div>
-            <p style="font-size:13px; color:#888; margin-top:8px;">總權重：<span id="admin-gacha-total">${totalWeight}</span>（右邊「≈ %」欄會在你輸入數字時即時更新，點擊「調整為剛好 100」會將所有權重等比例縮放到剛好合計等於 100，之後那個 % 就會與權重數字一致）</p>
+            <p style="font-size:13px; color:#888; margin-top:8px;">${filter ? '此系列' : '全部'}總權重：<span id="admin-gacha-total">${totalWeight}</span>。學生每次只會在所選系列之內抽，所以「≈ %」是該件造型在<b>同一系列內</b>的機率。點擊「調整為剛好 100」會將每個系列各自的權重縮放到合計 100。稀有度只影響標籤及抽中時的提示，實際機率由權重決定。</p>
           </div>
         `;
       }
@@ -399,6 +451,8 @@
 
         ${renderMachineImageCard()}
 
+        ${renderSeriesCard()}
+
         ${renderStickerTable()}
 
         <div style="display:flex; gap:8px; justify-content:flex-end;">
@@ -408,6 +462,70 @@
       `;
     }
     window.renderAdminGachaTab = renderAdminGachaTab;
+
+    // ---------- v1.214.0：系列管理 ----------
+    let adminGachaSeriesFilter = '';
+    window.adminSetGachaSeriesFilter = function(v) { adminGachaSeriesFilter = v || ''; renderAdminGachaTab(); };
+
+    // 第一次有系列功能時，自動將現有造型歸入「動物連身衣」，並按名稱
+    // 預填英文名同稀有度（管理員仍然可以喺表格度改，撳儲存先生效）
+    const ADMIN_GACHA_KNOWN = {
+      '熊仔連身衣': ['Bear Onesie', 'common'], '黃貓連身衣': ['Tabby Cat Onesie', 'common'],
+      '貓貓連身衣': ['Tabby Cat Onesie', 'common'], '青蛙連身衣': ['Frog Onesie', 'common'],
+      '樹熊連身衣': ['Koala Onesie', 'common'], '柴犬連身衣': ['Shiba Inu Onesie', 'common'],
+      '企鵝連身衣': ['Penguin Onesie', 'common'], '獅子連身衣': ['Lion Onesie', 'rare'],
+      '中華白海豚連身衣': ['Chinese White Dolphin Onesie', 'rare'], '恐龍連身衣': ['Dinosaur Onesie', 'limited'],
+      '獨角獸連身衣': ['Unicorn Onesie', 'limited']
+    };
+    function adminGachaMigrateDraft(d) {
+      if (!Array.isArray(d.series)) d.series = [];
+      if (!d.series.length) {
+        d.series.push({ id: 'animal', name: '動物連身衣', nameEn: 'Animal Onesies', enabled: true, order: 1 });
+        d.stickers.forEach(st => { if (!st.seriesId) st.seriesId = 'animal'; });
+      }
+      // 舊預設收費 30／270 → 新建議 60／540（溫習 1 小時＝扭 1 次）
+      if (d.costNormal === 30 && d.costLucky === 270) { d.costNormal = 60; d.costLucky = 540; }
+      d.stickers.forEach(st => {
+        const k = ADMIN_GACHA_KNOWN[(st.name || '').trim()];
+        if (k) {
+          if (!st.nameEn) st.nameEn = k[0];
+          if (!st.rarity) st.rarity = k[1];
+        }
+        if (!st.rarity) st.rarity = 'common';
+      });
+    }
+    window.adminUpdateGachaSeries = function(idx, field, value) {
+      if (!adminGachaDraft || !adminGachaDraft.series[idx]) return;
+      adminGachaDraft.series[idx][field] = value;
+    };
+    window.adminAddGachaSeries = function() {
+      if (!adminGachaDraft) return;
+      const used = new Set(adminGachaDraft.series.map(se => String(se.id)));
+      let n = adminGachaDraft.series.length + 1, id = 's' + n;
+      while (used.has(id)) { n++; id = 's' + n; }
+      adminGachaDraft.series.push({ id, name: '新系列', nameEn: '', enabled: false, order: adminGachaDraft.series.length + 1 });
+      renderAdminGachaTab();
+      window.showToast('已新增系列（預設未開放扭蛋），請點擊「儲存全部改動」', '📦');
+    };
+    window.adminRemoveGachaSeries = function(idx) {
+      if (!adminGachaDraft || !adminGachaDraft.series[idx]) return;
+      const se = adminGachaDraft.series[idx];
+      const n = adminGachaDraft.stickers.filter(st => String(st.seriesId) === String(se.id)).length;
+      if (n > 0) { window.showToast(`此系列仍有 ${n} 件造型，請先將造型移到其他系列或刪除`, '⚠️'); return; }
+      if (!confirm(`確定刪除系列「${se.name || se.id}」？`)) return;
+      adminGachaDraft.series.splice(idx, 1);
+      adminGachaDraft.series.forEach((x, i) => { x.order = i + 1; });
+      if (adminGachaSeriesFilter === String(se.id)) adminGachaSeriesFilter = '';
+      renderAdminGachaTab();
+    };
+    window.adminMoveGachaSeries = function(idx, dir) {
+      if (!adminGachaDraft) return;
+      const list = adminGachaDraft.series; const j = idx + dir;
+      if (j < 0 || j >= list.length) return;
+      [list[idx], list[j]] = [list[j], list[idx]];
+      list.forEach((x, i) => { x.order = i + 1; });
+      renderAdminGachaTab();
+    };
 
     window.adminUpdateGachaField = function(idx, field, value) {
       if (!adminGachaDraft || !adminGachaDraft.stickers[idx]) return;
@@ -423,18 +541,20 @@
       adminGachaDraft.stickers[idx].weight = parseFloat(rawValue) || 0;
 
       const pool = adminGachaDraft.stickers;
-      const total = pool.reduce((s, p) => s + (parseFloat(p.weight) || 0), 0);
+      const totals = {};
+      pool.forEach(p => { const k = String(p.seriesId || ''); totals[k] = (totals[k] || 0) + (parseFloat(p.weight) || 0); });
 
       pool.forEach((p, i) => {
         const pctEl = document.getElementById(`admin-gacha-pct-${i}`);
         if (pctEl) {
-          const pct = total > 0 ? ((parseFloat(p.weight) || 0) / total * 100).toFixed(1) : '0.0';
+          const t = totals[String(p.seriesId || '')] || 0;
+          const pct = t > 0 ? ((parseFloat(p.weight) || 0) / t * 100).toFixed(1) : '0.0';
           pctEl.innerText = `≈ ${pct}%`;
         }
       });
 
       const totalEl = document.getElementById('admin-gacha-total');
-      if (totalEl) totalEl.innerText = total;
+      if (totalEl) totalEl.innerText = adminGachaSeriesFilter ? (totals[adminGachaSeriesFilter] || 0) : pool.reduce((s, p) => s + (parseFloat(p.weight) || 0), 0);
     };
 
     // 讀取圖片檔案 → 縮圖 → 壓縮做一個 Blob（用嚟上傳去 Firebase Storage）。
@@ -499,7 +619,7 @@
       const oldPhoto = sticker.photo;
       window.showToast('上傳中相片…', '📤');
       try {
-        const { blob, mimeType } = await compressImageFileToBlob(file, 300, 0.75);
+        const { blob, mimeType } = await compressImageFileToBlob(file, 600, 0.85);
         const ext = mimeType === 'image/png' ? 'png' : 'jpg';
         const path = `gacha_stickers/sticker_${sticker.id}_${Date.now()}.${ext}`;
         const fileRef = window.storageApi.ref(window.storage, path);
@@ -568,39 +688,39 @@
     // 同時內部繼續用返權重運算，加/減貼紙都唔使手動重新分配其他行。
     window.adminNormalizeGachaWeights = function() {
       if (!adminGachaDraft || !adminGachaDraft.stickers.length) return;
-      const pool = adminGachaDraft.stickers;
-      const total = pool.reduce((s, p) => s + (parseFloat(p.weight) || 0), 0);
-      if (total <= 0) {
-        window.showToast('所有權重都是 0，沒辦法調整', '⚠️');
-        return;
-      }
-      let runningTotal = 0;
-      pool.forEach((p, i) => {
-        if (i === pool.length - 1) {
-          // 最後一項用「100 減去其他項總和」嚟湊夠 100，避免四捨五入之後
-          // 加埋唔啱好係 100（例如 33.3+33.3+33.3=99.9 呢種情況）
-          p.weight = Math.max(0, 100 - runningTotal);
-        } else {
-          const w = Math.round((parseFloat(p.weight) || 0) / total * 100);
-          p.weight = w;
-          runningTotal += w;
-        }
+      const groups = {};
+      adminGachaDraft.stickers.forEach(p => { const k = String(p.seriesId || ''); (groups[k] = groups[k] || []).push(p); });
+      let skipped = 0;
+      Object.values(groups).forEach(pool => {
+        const total = pool.reduce((s, p) => s + (parseFloat(p.weight) || 0), 0);
+        if (total <= 0) { skipped++; return; }
+        let runningTotal = 0;
+        pool.forEach((p, i) => {
+          if (i === pool.length - 1) {
+            p.weight = Math.max(0, 100 - runningTotal);
+          } else {
+            const w = Math.round((parseFloat(p.weight) || 0) / total * 100);
+            p.weight = w;
+            runningTotal += w;
+          }
+        });
       });
       renderAdminGachaTab();
-      window.showToast('已將權重調整為合計等於 100', '⚖️');
+      window.showToast(skipped ? '已調整；部分系列權重全部是 0，未有調整' : '已將每個系列的權重調整為合計 100', '⚖️');
     };
 
     window.adminAddGachaPrize = function() {
       if (!adminGachaDraft) return;
       const pool = adminGachaDraft.stickers;
       const nextId = pool.length ? Math.max(...pool.map(p => p.id || 0)) + 1 : 1;
-      pool.push({ id: nextId, emoji: '🦦', name: `Ottiee 貼紙 #${String(nextId).padStart(2, '0')}`, photo: null, weight: 1 });
+      const sid = adminGachaSeriesFilter || (adminGachaDraft.series[0] && adminGachaDraft.series[0].id) || '';
+      pool.push({ id: nextId, emoji: '🦦', name: `新造型 #${String(nextId).padStart(2, '0')}`, nameEn: '', photo: null, weight: 1, seriesId: sid, rarity: 'common' });
       renderAdminGachaTab();
     };
 
     window.adminRemoveGachaPrize = function(idx) {
       if (!adminGachaDraft) return;
-      if (!confirm('確定刪除這隻貼紙？若已經有用戶擁有，其收集紀錄中這隻貼紙會保留，但在圖鑑中將不再顯示。')) return;
+      if (!confirm('確定刪除這件造型？若已經有用戶擁有，其收集紀錄會保留，但在圖鑑中將不再顯示。')) return;
       adminGachaDraft.stickers.splice(idx, 1);
       renderAdminGachaTab();
     };
@@ -630,11 +750,18 @@
     window.adminSaveGachaConfig = async function() {
       if (!adminGachaDraft || !window.db || !window.fs) return;
       if (adminGachaDraft.stickers.length === 0) {
-        window.showToast('最少要有一隻貼紙先可以儲存', '⚠️');
+        window.showToast('最少要有一件造型才可以儲存', '⚠️');
+        return;
+      }
+      const openSeries = adminGachaDraft.series.filter(se => se.enabled !== false &&
+        adminGachaDraft.stickers.some(st => String(st.seriesId) === String(se.id) && (parseFloat(st.weight) || 0) > 0));
+      if (adminGachaDraft.series.length && !openSeries.length) {
+        window.showToast('最少要有一個「開放扭蛋」並且有造型的系列', '⚠️');
         return;
       }
       const payload = {
         stickers: adminGachaDraft.stickers,
+        series: adminGachaDraft.series.map((se, i) => ({ id: String(se.id), name: se.name || '', nameEn: se.nameEn || '', enabled: se.enabled !== false, order: i + 1, cover: se.cover || null })),
         costNormal: adminGachaDraft.costNormal,
         costLucky: adminGachaDraft.costLucky,
         machineImageUrl: adminGachaDraft.machineImageUrl || null,
@@ -682,6 +809,10 @@
           if (Array.isArray(data.stickers) && data.stickers.length) {
             GACHA_STICKERS.length = 0;
             GACHA_STICKERS.push(...data.stickers);
+          }
+          if (window.GACHA_SERIES) {
+            window.GACHA_SERIES.length = 0;
+            if (Array.isArray(data.series)) window.GACHA_SERIES.push(...data.series);
           }
           if (typeof data.costNormal === 'number') GACHA_COST.normal = data.costNormal;
           if (typeof data.costLucky === 'number') GACHA_COST.lucky = data.costLucky;
