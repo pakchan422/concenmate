@@ -6,7 +6,7 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.214.2"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.215.1"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <meta charset="UTF-8">
@@ -1438,7 +1438,7 @@
   <!-- 主題色 13：深藍大色塊＋檸檬黃點綴（v1.213.0） -->
   <style id="gacha-series-css">
     .gacha-series-chip { display:flex; align-items:center; gap:8px; padding:6px 12px 6px 6px; border-radius:14px; border:2px solid var(--brand-200); background:#fff; cursor:pointer; font-family:inherit; }
-    .gacha-series-chip img { width:40px; height:40px; object-fit:contain; border-radius:10px; background:var(--brand-50); }
+    .gacha-series-chip img { width:44px; height:44px; object-fit:contain; border-radius:10px; background:#fff; padding:2px; box-sizing:border-box; }
     .gacha-series-chip .gacha-series-name { font-size:14px; font-weight:800; color:var(--brand-800); white-space:nowrap; }
     .gacha-series-chip .gacha-series-count { font-size:12px; font-weight:700; color:var(--brand-600); background:var(--brand-50); border-radius:8px; padding:2px 7px; }
     .gacha-series-chip.on { border-color:#2A4275; background:#2A4275; }
@@ -2657,7 +2657,7 @@
                 <div id="gacha-result-batch-grid" style="display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:8px;"></div>
               </div>
               <!-- 扭蛋機外殼 SVG -->
-              <img id="gacha-machine-img" src="gacha-machine.png" width="190" alt="扭蛋機" style="display:block; filter:drop-shadow(0 4px 12px rgba(0,0,0,.15));">
+              <img id="gacha-machine-img" src="gacha-machine.png" alt="扭蛋機" style="display:block; width:300px; max-width:80vw; height:auto; margin:0 auto;">
 
               <!-- 蛋的動畫疊層 -->
               <div id="gacha-capsule-anim" style="

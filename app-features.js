@@ -3029,12 +3029,14 @@
       const active = gachaActiveSeries();
       const sel = gachaSelectedSeriesId();
       const card = wrap.closest('.card');
+      gachaApplyMachineImage();
       if (active.length <= 1 && active[0].id === '__all') { wrap.innerHTML = ''; if (card) card.style.display = 'none'; return; }
       if (card) card.style.display = '';
       wrap.style.display = 'flex';
       wrap.innerHTML = active.map(se => {
         const items = gachaItemsInSeries(se.id);
-        const cover = se.cover || (items.find(st => st.photo) || {}).photo;
+        // 系列縮圖：用該系列嘅扭蛋機圖（冇就用預設扭蛋機圖）
+        const cover = se.machineImage || window.GACHA_MACHINE_IMAGE_URL || 'gacha-machine.png';
         const on = String(se.id) === String(sel);
         return `<button type="button" onclick="selectGachaSeries('${escapeHtml(String(se.id))}')" class="gacha-series-chip${on ? ' on' : ''}">
           ${cover ? `<img src="${cover}" alt="">` : ''}
@@ -3044,6 +3046,17 @@
       }).join('');
     }
     window.renderGachaSeriesPicker = renderGachaSeriesPicker;
+    // 扭蛋機外觀圖：先用所選系列自己嘅扭蛋機圖，冇就用後台設定嘅
+    // 預設扭蛋機圖，再冇就用網站內建嘅 gacha-machine.png
+    function gachaApplyMachineImage() {
+      const el = document.getElementById('gacha-machine-img');
+      if (!el) return;
+      const sid = gachaSelectedSeriesId();
+      const se = GACHA_SERIES.find(x => String(x.id) === String(sid));
+      const url = (se && se.machineImage) || window.GACHA_MACHINE_IMAGE_URL || 'gacha-machine.png';
+      if (el.getAttribute('src') !== url) el.setAttribute('src', url);
+    }
+    window.gachaApplyMachineImage = gachaApplyMachineImage;
     // 一件造型所屬系列嘅收集進度文字，例如「動物連身衣 4/10」
     function gachaProgressTextFor(st) {
       const sid = (st && st.seriesId) || gachaSelectedSeriesId();
