@@ -1770,17 +1770,37 @@
           ${thumb}
         </div>`;
 
-      let html = tileHtml(0, `<img src="ottie-full.png" style="width:100%; aspect-ratio:1; object-fit:contain; border-radius:6px;" alt="">`, window.t('home.otterDefaultLook', '預設造型'), _otterAvatarPick === 0);
+      // 分系列顯示：先「預設造型」，再按扭蛋系列次序列出已收集的造型
+      const headHtml = (label, countText) => `
+        <div style="grid-column:1/-1; display:flex; justify-content:space-between; align-items:baseline; font-size:13px; font-weight:800; color:var(--brand-800); margin:6px 2px 0;">
+          <span>${escapeHtml(label)}</span>${countText ? `<span style="font-size:12px; color:var(--brand-500);">${countText}</span>` : ''}
+        </div>`;
+      const thumbOf = (st) => st.photo
+        ? `<img src="${st.photo}" style="width:100%; aspect-ratio:1; object-fit:contain; border-radius:6px;">`
+        : `<img src="ottie-full.png" style="width:100%; aspect-ratio:1; object-fit:contain; border-radius:6px;" alt="">`;
+
+      let html = headHtml(window.t('home.otterDefaultLook', '預設造型'), '');
+      html += tileHtml(0, `<img src="ottie-full.png" style="width:100%; aspect-ratio:1; object-fit:contain; border-radius:6px;" alt="">`, window.t('home.otterDefaultLook', '預設造型'), _otterAvatarPick === 0);
 
       if (typeof GACHA_STICKERS !== 'undefined') {
-        ownedIds.forEach(id => {
-          const st = GACHA_STICKERS.find(s => String(s.id) === String(id));
-          if (!st) return;
-          const thumb = st.photo
-            ? `<img src="${st.photo}" style="width:100%; aspect-ratio:1; object-fit:contain; border-radius:6px;">`
-            : `<img src="ottie-full.png" style="width:100%; aspect-ratio:1; object-fit:contain; border-radius:6px;" alt="">`;
-          html += tileHtml(id, thumb, gachaItemName(st), _otterAvatarPick === id);
+        const ownedSet = new Set(ownedIds.map(String));
+        const isOwned = (st) => ownedSet.has(String(st.id));
+        const seriesList = (window.GACHA_SERIES || []).slice().sort((a, b) => (a.order || 0) - (b.order || 0));
+        const placed = new Set();
+        const addGroup = (label, items) => {
+          const mine = items.filter(isOwned);
+          if (!mine.length) return;
+          html += headHtml(label, `${mine.length}/${items.length}`);
+          mine.forEach(st => {
+            placed.add(String(st.id));
+            html += tileHtml(st.id, thumbOf(st), gachaItemName(st), String(_otterAvatarPick) === String(st.id));
+          });
+        };
+        seriesList.forEach(se => {
+          addGroup(gachaSeriesName(se), GACHA_STICKERS.filter(st => String(st.seriesId) === String(se.id)));
         });
+        const rest = GACHA_STICKERS.filter(st => isOwned(st) && !placed.has(String(st.id)));
+        if (rest.length) addGroup(window.t('home.otterSeriesOther', '其他造型'), rest);
       }
 
       grid.innerHTML = html;

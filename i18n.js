@@ -514,6 +514,7 @@
     'gacha.limitedToastTemplate': { 'zh-Hant': '太幸運了！抽中限定造型「{name}」！', 'en': 'Super lucky! You got a Limited outfit: "{name}"!', 'yue': '好好彩！抽中限定造型「{name}」！' },
     'home.changeLookBtn': { 'zh-Hant': '更換造型', 'en': 'Change Outfit', 'yue': '換造型' },
     'home.otterDefaultLook': { 'zh-Hant': '預設造型', 'en': 'Default', 'yue': '預設造型' },
+    'home.otterSeriesOther': { 'zh-Hant': '其他造型', 'en': 'Other Looks', 'yue': '其他造型' },
     'gacha.pageTitle': { 'zh-Hant': 'Ottiee 時數幸運扭蛋機', 'en': "Ottiee's Lucky Gacha Machine", 'yue': 'Ottiee 幸運扭蛋機' },
     'gacha.yourPoints': { 'zh-Hant': '你的積分：', 'en': 'Your points: ', 'yue': '你嘅積分：' },
     'gacha.batchResultTitle': { 'zh-Hant': '連續抽十次結果', 'en': '10x Draw Results', 'yue': '十連抽結果' },
