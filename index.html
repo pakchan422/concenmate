@@ -6,7 +6,7 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.215.2"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.216.3"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <meta charset="UTF-8">
@@ -1436,6 +1436,12 @@
   </style>
 
   <!-- 主題色 13：深藍大色塊＋檸檬黃點綴（v1.213.0） -->
+  <style id="gacha-stage-css">
+    /* 扭蛋機背景場景：貼底顯示；手機版兩粒掣會分兩行，背景放大到 140% 高，
+       令地平線落喺扭蛋機腳下，唔會好似飛起咗 */
+    #gacha-stage-card { background-size:cover; background-position:center bottom; background-repeat:no-repeat; }
+    @media (max-width:640px) { #gacha-stage-card { background-size:auto 140%; } }
+  </style>
   <style id="gacha-series-css">
     .gacha-series-chip { display:flex; align-items:center; gap:8px; padding:6px 12px 6px 6px; border-radius:14px; border:2px solid var(--brand-200); background:#fff; cursor:pointer; font-family:inherit; }
     .gacha-series-chip img { width:44px; height:44px; object-fit:contain; border-radius:10px; background:#fff; padding:2px; box-sizing:border-box; }
@@ -2620,7 +2626,7 @@
           </div>
 
           <!-- 扭蛋機主體 -->
-          <div class="card" style="text-align:center; padding:24px 16px;">
+          <div class="card" id="gacha-stage-card" style="text-align:center; padding:24px 16px; background-color:#F6F7FB; background-image:url('gacha-bg.jpg');">
 
             <!-- 扭蛋機動畫區 -->
             <div id="gacha-machine" style="position:relative; display:inline-block; user-select:none;">
@@ -2657,7 +2663,7 @@
                 <div id="gacha-result-batch-grid" style="display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:8px;"></div>
               </div>
               <!-- 扭蛋機外殼 SVG -->
-              <img id="gacha-machine-img" src="gacha-machine.png" alt="扭蛋機" style="display:block; width:300px; max-width:80vw; height:auto; margin:0 auto;">
+              <img id="gacha-machine-img" src="gacha-machine.png" alt="扭蛋機" style="display:block; width:360px; max-width:100%; height:auto; margin:0 auto;">
 
               <!-- 蛋的動畫疊層 -->
               <div id="gacha-capsule-anim" style="

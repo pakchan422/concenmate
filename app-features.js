@@ -3075,6 +3075,13 @@
       const se = GACHA_SERIES.find(x => String(x.id) === String(sid));
       const url = (se && se.machineImage) || window.GACHA_MACHINE_IMAGE_URL || 'gacha-machine.png';
       if (el.getAttribute('src') !== url) el.setAttribute('src', url);
+      // 扭蛋機背景場景圖：先用所選系列自己嘅背景圖，冇就用網站內建嘅 gacha-bg.jpg
+      const stage = document.getElementById('gacha-stage-card');
+      if (stage) {
+        const bg = (se && se.bgImage) || 'gacha-bg.jpg';
+        const css = `url("${bg}")`;
+        if (stage.style.backgroundImage !== css) stage.style.backgroundImage = css;
+      }
     }
     window.gachaApplyMachineImage = gachaApplyMachineImage;
     // 一件造型所屬系列嘅收集進度文字，例如「動物連身衣 4/10」
