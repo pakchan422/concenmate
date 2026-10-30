@@ -6,7 +6,7 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.216.3"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.216.4"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <meta charset="UTF-8">
@@ -905,6 +905,14 @@
       50%      { transform: translateY(-2px) rotate(1deg); }
     }
     .otter-mood-happy   { animation: otter-float-happy 2s ease-in-out infinite; }
+    /* 有背景嘅造型（稀有／限定）：唔再左右擺動，改為輕輕上下浮動，加柔和陰影，似一張浮起嘅卡 */
+    @keyframes otter-card-float {
+      0%, 100% { transform: translateY(0); }
+      50%      { transform: translateY(-5px); }
+    }
+    #otter-pet-wrap.otter-has-bg { animation: otter-card-float 3.2s ease-in-out infinite; }
+    #otter-pet-wrap.otter-has-bg #otter-photo-img { filter: drop-shadow(0 8px 14px rgba(31,44,71,.22)); }
+    @media (prefers-reduced-motion: reduce) { #otter-pet-wrap { animation: none !important; } }
     .otter-mood-neutral { animation: otter-float-neutral 2.8s ease-in-out infinite; }
     .otter-mood-hungry  { animation: otter-float-hungry 3.6s ease-in-out infinite; }
     .input-field { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--brand-300); background: var(--brand-50); font-size: 14px; margin-top: 4px; outline: none; transition: 0.2s; }

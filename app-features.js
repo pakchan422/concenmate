@@ -1644,6 +1644,9 @@
         }
       }
 
+      // 稀有／限定造型有場景背景，改用唔擺動嘅浮動效果
+      const petWrap = document.getElementById('otter-pet-wrap');
+      if (petWrap) petWrap.classList.toggle('otter-has-bg', !!(avatarSticker && avatarSticker.photo && (avatarSticker.rarity === 'rare' || avatarSticker.rarity === 'limited')));
       if (avatarSticker) {
         if (avatarSticker.photo) {
           if (photoImg) { photoImg.src = avatarSticker.photo; photoImg.style.display = 'block'; }
