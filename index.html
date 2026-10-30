@@ -6,7 +6,7 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.216.4"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.216.5"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <meta charset="UTF-8">
@@ -78,6 +78,8 @@
     (function() {
       var PROD_HOSTNAMES = ['concenmate.com', 'www.concenmate.com'];
       window.IS_PROD_SITE = PROD_HOSTNAMES.indexOf(location.hostname) !== -1;
+      // 正式網站唔顯示右下角嘅除錯面板，版本資訊改為只喺管理後台顯示
+      if (window.IS_PROD_SITE) document.documentElement.classList.add('cm-prod');
       if (!window.IS_PROD_SITE) {
         console.warn('⚠️ 這是開發／測試環境（連接 concenmate-dev），不會影響任何真實學生資料。目前網址:', location.hostname);
       }
@@ -1157,6 +1159,7 @@
       white-space: nowrap;
     }
     #dev-build-badge-content.hidden { display: none; }
+    html.cm-prod #dev-build-badge { display: none !important; }
     .pulse-dot {
       display: inline-block;
       width: 8px;
@@ -4276,6 +4279,7 @@
         <div>
           <h1 style="font-size:20px; font-weight:bold; color:var(--brand-800);">ConcenMate 管理後台</h1>
           <p style="font-size:13px; color:#888; margin-top:2px;" id="admin-panel-user-email"></p>
+          <p style="font-size:13px; color:#888; margin-top:2px;" id="admin-panel-version"></p>
         </div>
       </div>
 

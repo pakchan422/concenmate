@@ -204,6 +204,15 @@
 
       const emailTag = document.getElementById('admin-panel-user-email');
       if (emailTag) emailTag.innerText = `登入身份：${window.currentUser.email}`;
+      // 版本資訊（正式網站已收起右下角除錯面板，改為喺呢度顯示）
+      const versionTag = document.getElementById('admin-panel-version');
+      if (versionTag) {
+        const loadEl = document.getElementById('load-timestamp');
+        const loadTime = loadEl ? loadEl.innerText : '';
+        versionTag.innerText = `網站版本：${window.APP_VERSION || '未知'}` +
+          (loadTime ? `　載入時間：${loadTime}` : '') +
+          `　環境：${window.IS_PROD_SITE ? '正式網站' : '測試環境'}`;
+      }
 
       // 「🚩 舉報處理」個紅點徽章唔理管理員而家揀緊邊個分頁都要見到，
       // 所以一入管理後台就開始聽，唔使等真係撳入嗰個分頁先識更新
