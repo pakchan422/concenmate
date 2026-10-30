@@ -2796,11 +2796,11 @@
           <button type="button" class="btn btn-outline" style="font-size:13px; padding:6px 14px;" ${refreshingNow ? 'disabled' : ''} onclick="window.adminRefreshDashboard()">${refreshingNow ? '更新中…' : '🔄 重新整理'}</button>
           <button type="button" class="btn btn-outline" style="font-size:13px; padding:6px 14px;" onclick="window.adminBackfillPublicProfiles(this)" title="為所有用戶建立／更新公開資料卡（用戶名、頭像、學校等）。系統更新後執行一次即可，重複執行亦無影響。">🪪 同步公開資料</button>
         </div>
-        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:14px;">
+        <div class="admin-stat-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:14px;">
           ${cards.map(c => `
-            <div class="admin-card" style="text-align:center;">
-              <div style="font-size:28px; font-weight:800; color:var(--brand-800);">${c.value}</div>
-              <div style="font-size:13px; color:#888; margin-top:6px;">${c.label}</div>
+            <div class="admin-card admin-stat-tile">
+              <div class="admin-stat-num">${c.value}</div>
+              <div class="admin-stat-label">${c.label}</div>
             </div>
           `).join('')}
         </div>

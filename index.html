@@ -6,7 +6,7 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.216.5"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.216.6"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <meta charset="UTF-8">
@@ -1491,6 +1491,32 @@
     .nav-btn.active { background: var(--deep-2) !important; color: #fff !important; }
     .nav-btn.active .nav-icon { color: var(--accent); }
   </style>
+  <style id="stat-tiles-css">
+    /* 數字方塊：頂部彩色細邊＋淡色漸變底＋彩色數字（主頁統計同管理後台數據總覽共用）。
+       三種色調：深藍／檸檬黃／藍色，輪流使用 */
+    .stat-tone-navy   { --st-bar: linear-gradient(90deg, #29395C, #4A68A8); --st-tint: #EEF1F7; --st-num: #29395C; }
+    .stat-tone-yellow { --st-bar: linear-gradient(90deg, #FFCE1F, #FFE27A); --st-tint: #FFF6DA; --st-num: #A37A08; }
+    .stat-tone-blue   { --st-bar: linear-gradient(90deg, #4A68A8, #A4B4D4); --st-tint: #ECF0F9; --st-num: #4A68A8; }
+    .home-hero .home-stat-pill, .admin-stat-tile {
+      position: relative; overflow: hidden;
+      background: linear-gradient(var(--st-tint, #EEF1F7), #FFFFFF 65%) !important;
+      border: 1px solid #E1E5EC; box-shadow: 0 4px 12px rgba(41, 57, 92, .10);
+    }
+    .home-hero .home-stat-pill::before, .admin-stat-tile::before {
+      content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px;
+      background: var(--st-bar, linear-gradient(90deg, #29395C, #4A68A8));
+    }
+    .home-hero .home-stat-pill { color: #29395C; padding-top: 10px; }
+    .home-hero .home-stat-pill .home-stat-val,
+    .home-hero .home-stat-pill .home-stat-val span { color: var(--st-num, #29395C) !important; }
+    .home-hero .home-stat-pill .home-stat-label { color: #6B7894; opacity: 1; }
+    .admin-stat-tile { text-align: center; padding-top: 22px !important; }
+    .admin-stat-tile .admin-stat-num { font-size: 28px; font-weight: 800; color: var(--st-num, #29395C); font-variant-numeric: tabular-nums; }
+    .admin-stat-tile .admin-stat-label { font-size: 13px; color: #6B7894; margin-top: 6px; }
+    .admin-stat-grid > .admin-stat-tile:nth-child(3n+1) { --st-bar: linear-gradient(90deg, #29395C, #4A68A8); --st-tint: #EEF1F7; --st-num: #29395C; }
+    .admin-stat-grid > .admin-stat-tile:nth-child(3n+2) { --st-bar: linear-gradient(90deg, #FFCE1F, #FFE27A); --st-tint: #FFF6DA; --st-num: #A37A08; }
+    .admin-stat-grid > .admin-stat-tile:nth-child(3n)   { --st-bar: linear-gradient(90deg, #4A68A8, #A4B4D4); --st-tint: #ECF0F9; --st-num: #4A68A8; }
+  </style>
 </head>
 <body>
 
@@ -1816,14 +1842,14 @@
               </div>
             </div>
             <div class="home-hero-stats">
-              <div class="home-stat-pill" id="home-stat-hours-pill">
+              <div class="home-stat-pill stat-tone-navy" id="home-stat-hours-pill">
                 <span class="home-stat-icon"></span>
                 <div>
                   <div class="home-stat-val"><span id="home-stat-hours">0分鐘</span></div>
                   <div class="home-stat-label" data-i18n="home.statHours">本日時數</div>
                 </div>
               </div>
-              <div class="home-stat-pill" id="home-stat-pts-pill">
+              <div class="home-stat-pill stat-tone-yellow" id="home-stat-pts-pill">
                 <span class="home-stat-icon"></span>
                 <div>
                   <div class="home-stat-val"><span id="home-stat-pts">0</span></div>
@@ -1833,28 +1859,28 @@
               <!-- 導師帳戶專用：已上架教材數目。學生帳戶唔需要呢個資訊，
                    預設 display:none，只有 applyRoleBasedSidebar() 判斷
                    到係導師帳戶先會顯示（見 tutor-panel.js）。 -->
-              <div class="home-stat-pill" id="home-stat-materials-pill" style="display:none;">
+              <div class="home-stat-pill stat-tone-blue" id="home-stat-materials-pill" style="display:none;">
                 <span class="home-stat-icon"></span>
                 <div>
                   <div class="home-stat-val" id="home-stat-materials">0</div>
                   <div class="home-stat-label" data-i18n="home.statMaterials">已上架教材</div>
                 </div>
               </div>
-              <div class="home-stat-pill student-only-nav" id="home-stat-streak-pill">
+              <div class="home-stat-pill stat-tone-blue student-only-nav" id="home-stat-streak-pill">
                 <span class="home-stat-icon"></span>
                 <div>
                   <div class="home-stat-val" id="home-stat-streak">1</div>
                   <div class="home-stat-label" data-i18n="home.statStreak">連續天</div>
                 </div>
               </div>
-              <div class="home-stat-pill" style="cursor:pointer;" onclick="openFollowListModal(window.currentUser && window.currentUser.uid, 'followers')" title="查看粉絲名單">
+              <div class="home-stat-pill stat-tone-navy" id="home-stat-followers-pill" style="cursor:pointer;" onclick="openFollowListModal(window.currentUser && window.currentUser.uid, 'followers')" title="查看粉絲名單">
                 <span class="home-stat-icon"></span>
                 <div>
                   <div class="home-stat-val" id="home-stat-followers">0</div>
                   <div class="home-stat-label" data-i18n="home.statFollowers">粉絲</div>
                 </div>
               </div>
-              <div class="home-stat-pill student-only-nav" id="home-stat-following-pill" style="cursor:pointer;" onclick="openFollowListModal(window.currentUser && window.currentUser.uid, 'following')" title="查看追蹤中名單">
+              <div class="home-stat-pill stat-tone-yellow student-only-nav" id="home-stat-following-pill" style="cursor:pointer;" onclick="openFollowListModal(window.currentUser && window.currentUser.uid, 'following')" title="查看追蹤中名單">
                 <span class="home-stat-icon"></span>
                 <div>
                   <div class="home-stat-val" id="home-stat-following">0</div>
