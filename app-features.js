@@ -3123,6 +3123,8 @@
     function gachaRenderFragmentCount() {
       const el = document.getElementById('gacha-fragment-count');
       if (el) el.innerText = gachaFragments();
+      const elTop = document.getElementById('gacha-fragment-count-top');
+      if (elTop) elTop.innerText = gachaFragments();
       const el2 = document.getElementById('fragment-shop-count');
       if (el2) el2.innerText = gachaFragments();
       const rule = document.getElementById('gacha-fragment-rule');
@@ -3229,9 +3231,10 @@
             </div>`;
         }
         return `
-          <div style="text-align:center; background:#EEF0F4; border:2px dashed #CCD3E0; border-radius:10px; padding:6px 4px;">
+          <div onclick="openFragmentShopFor(${JSON.stringify(st.id).replace(/"/g, '&quot;')})" title="${escapeHtml(window.t('gacha.tapToExchange', '點擊以碎片兌換'))}" style="cursor:pointer; text-align:center; background:#EEF0F4; border:2px dashed #CCD3E0; border-radius:10px; padding:6px 4px;">
             <div style="width:100%; aspect-ratio:1; display:flex; align-items:center; justify-content:center; font-size:28px; font-weight:800; color:#B8C0D0;">?</div>
             <div style="font-size:12px; color:#AAA; margin-top:4px;">${window.t('gacha.notCollected', '未收集')}</div>
+            <div style="font-size:11px; color:#A37A08; font-weight:700; margin-top:2px;">${escapeHtml(window.t('gacha.fragmentCostShortTemplate', '{n} 碎片').replace('{n}', gachaFragmentCostOf(st)))}</div>
           </div>`;
       };
       grid.innerHTML = groups.map(g => {
@@ -3287,6 +3290,7 @@
       tierEl.style.color = '#344976';
       document.getElementById('gacha-lightbox-name').innerText = gachaItemName(st);
       document.getElementById('gacha-lightbox-desc').innerText = gachaProgressTextFor(st);
+      gachaSetLightboxEquip(st);
       document.getElementById('gacha-prize-lightbox').style.display = 'flex';
     };
 
@@ -3318,7 +3322,7 @@
             ? `<img src="${st.photo}" alt="${escapeHtml(gachaItemName(st))}" style="width:100%; aspect-ratio:1; object-fit:contain; border-radius:8px;">`
             : `<div style="font-size:28px;">${escapeHtml(st.emoji || '')}</div>`;
           const idArg = JSON.stringify(st.id).replace(/"/g, '&quot;');
-          return `<div style="text-align:center; background:#F6F7FB; border:2px solid ${rs.border}; border-radius:10px; padding:6px 4px; display:flex; flex-direction:column; gap:4px; min-width:0;">
+          return `<div data-shop-sticker="${escapeHtml(String(st.id))}" style="text-align:center; background:#F6F7FB; border:2px solid ${rs.border}; border-radius:10px; padding:6px 4px; display:flex; flex-direction:column; gap:4px; min-width:0; transition:box-shadow .3s;">
             ${thumb}
             <div style="font-size:12px; font-weight:bold; color:#344976; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(gachaItemName(st))}</div>
             <div>${gachaRarityBadge(st, 11)}</div>
@@ -3329,10 +3333,34 @@
         }).join('');
       }).join('');
     }
-    window.openFragmentShop = function() {
+    window.openFragmentShop = function(focusId) {
       renderFragmentShop();
       const modal = document.getElementById('fragment-shop-modal');
       if (modal) modal.style.display = 'flex';
+      // 由圖鑑撳未收集的造型進入：捲到該件造型並短暫加框提示
+      if (focusId !== undefined && focusId !== null) {
+        const tile = Array.from(document.querySelectorAll('#fragment-shop-list [data-shop-sticker]'))
+          .find(el => el.getAttribute('data-shop-sticker') === String(focusId));
+        if (tile) {
+          setTimeout(() => {
+            tile.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            tile.style.boxShadow = '0 0 0 3px #FFD84D';
+            setTimeout(() => { tile.style.boxShadow = ''; }, 2200);
+          }, 60);
+        }
+      }
+    };
+    // 圖鑑入面未收集的格子：可兌換（系列開放中）就打開兌換視窗
+    window.openFragmentShopFor = function(id) {
+      const st = GACHA_STICKERS.find(s => String(s.id) === String(id));
+      if (!st) return;
+      const se = GACHA_SERIES.find(x => String(x.id) === String(st.seriesId));
+      if (se && se.enabled === false) {
+        window.showToast(window.t('gacha.fragmentSeriesRetired', '此系列已停售，未能兌換'), '');
+        return;
+      }
+      window.closeStickerCollection();
+      window.openFragmentShop(id);
     };
     window.closeFragmentShop = function() {
       const modal = document.getElementById('fragment-shop-modal');
@@ -3359,14 +3387,67 @@
         Object.keys(window.currentUser.ownedStickers).forEach(k => { if ((window.currentUser.ownedStickers[k] || 0) > 1) window.currentUser.ownedStickers[k] = 1; });
         window.currentUser.ownedStickers[st.id] = 1;
         gachaSetFragments(res.fragments || 0);
-        window.showToast(window.t('gacha.fragmentExchangedTemplate', '已兌換造型「{name}」！').replace('{name}', gachaItemName(st)), '');
         renderFragmentShop();
         refreshCollectionBookIfOpen();
+        // 兌換成功：彈出大圖慶祝，並提供「立即換上」
+        window.closeFragmentShop();
+        gachaShowLightbox(st, window.t('gacha.exchangeSuccessLabel', '獲得新造型！'), '#C0524A');
+        // 加入抽獎記錄（本頁及個人資料頁）
+        addGachaHistory(st, 'exchange', res.cost || gachaFragmentCostOf(st), true);
+        saveGachaHistoryToFirestore(st, 'exchange', res.cost || gachaFragmentCostOf(st), true);
       } catch (error) {
         window.showToast(error.message || String(error), '❌');
         renderFragmentShop();
       } finally {
         fragmentExchangeBusy = false;
+      }
+    };
+
+    // 放大燈箱：顯示一件造型，並按需要顯示「立即換上」（已擁有但未換上時）
+    function gachaShowLightbox(st, label, color) {
+      clearTimeout(window._gachaResultAutoCloseTimer);
+      const emojiEl = document.getElementById('gacha-lightbox-emoji');
+      if (st.photo) {
+        emojiEl.innerHTML = `<img src="${st.photo}" alt="${escapeHtml(gachaItemName(st))}" style="width:100%; max-width:340px; aspect-ratio:1/1; object-fit:contain; background:#F6F7FB; border-radius:16px; border:2px solid #A4B4D4;">`;
+      } else {
+        emojiEl.innerHTML = '';
+        emojiEl.innerText = st.emoji || '';
+      }
+      const tierEl = document.getElementById('gacha-lightbox-tier');
+      tierEl.innerHTML = gachaRarityBadge(st, 13) + ' <span>' + escapeHtml(label) + '</span>';
+      tierEl.style.color = color || '#344976';
+      document.getElementById('gacha-lightbox-name').innerText = gachaItemName(st);
+      document.getElementById('gacha-lightbox-desc').innerText = gachaProgressTextFor(st);
+      gachaSetLightboxEquip(st);
+      document.getElementById('gacha-prize-lightbox').style.display = 'flex';
+    }
+    let gachaLightboxStickerId = null;
+    function gachaSetLightboxEquip(st) {
+      const btn = document.getElementById('gacha-lightbox-equip');
+      if (!btn) return;
+      const owned = (window.currentUser && window.currentUser.ownedStickers) || {};
+      const isOwned = st && (owned[st.id] || 0) > 0;
+      const isWorn = st && window.currentUser && String(window.currentUser.otterAvatarStickerId) === String(st.id);
+      gachaLightboxStickerId = st ? st.id : null;
+      btn.disabled = false;
+      btn.innerText = isWorn ? window.t('gacha.equippedLabel', '已換上') : window.t('gacha.equipNowBtn', '立即換上');
+      btn.disabled = !!isWorn;
+      btn.style.display = isOwned ? '' : 'none';
+    }
+    window.equipLightboxLook = async function() {
+      const id = gachaLightboxStickerId;
+      const btn = document.getElementById('gacha-lightbox-equip');
+      if (id === null || !window.currentUser || !window.db || !window.fs) return;
+      if (btn) btn.disabled = true;
+      try {
+        await window.fs.updateDoc(window.fs.doc(window.db, 'users', window.currentUser.uid), { otterAvatarStickerId: id });
+        window.currentUser.otterAvatarStickerId = id;
+        if (typeof updateOtterDisplay === 'function') updateOtterDisplay();
+        if (btn) btn.innerText = window.t('gacha.equippedLabel', '已換上');
+        window.showToast(window.t('gacha.equippedToast', 'Ottie 已換上新造型！'), '');
+      } catch (e) {
+        if (btn) btn.disabled = false;
+        window.showToast(window.t('features.saveFailedGeneric', '儲存失敗，請再試') + '：' + (e.message || e), '');
       }
     };
 
@@ -3655,6 +3736,13 @@
             <div style="font-size:13px; font-weight:bold; color:${badgeColor}; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${badgeText}</div>
           </div>`;
       }).join('');
+      // 十連抽總結：新造型件數＋碎片總數
+      const summaryEl = document.getElementById('gacha-result-batch-summary');
+      if (summaryEl) {
+        const nNew = rolls.filter(r => r.isNew).length;
+        const nFrag = rolls.reduce((sum, r) => sum + (r.fragments || 0), 0);
+        summaryEl.innerText = window.t('gacha.batchSummaryTemplate', '新造型 {a} 件 · 碎片 +{b}').replace('{a}', nNew).replace('{b}', nFrag);
+      }
       // 顯示彈出視窗：置中／背景遮罩／8 秒後自動關閉都喺 showGachaBatchResult
       // 呢個共用 helper 入面處理（同單抽嗰個彈窗行為完全一致）
       showGachaBatchResult();
@@ -3701,6 +3789,7 @@
       tierEl.style.color = isNew ? '#C0524A' : '#344976';
       document.getElementById('gacha-lightbox-name').innerText = gachaItemName(sticker);
       document.getElementById('gacha-lightbox-desc').innerText = gachaProgressTextFor(sticker);
+      gachaSetLightboxEquip(sticker);
       document.getElementById('gacha-prize-lightbox').style.display = 'flex';
     };
 
@@ -3773,8 +3862,8 @@
             <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px; background:#F6F7FB; border:1px solid #B3D6DE55;">
               ${thumb}
               <div style="flex:1;">
-                <strong style="color:${e.isNew ? '#C0524A' : '#344976'};">${e.isNew ? window.t('gacha.newStickerShort', '新貼紙') : window.t('gacha.duplicateShort', '重複')}</strong> · ${escapeHtml(e.name || '')}
-                <div style="color:#A4B4D4; font-size:13px;">${e.type === 'lucky' ? window.t('gacha.batchTypeShort', '十連抽') : window.t('gacha.drawNormalBtn', '抽一次')} · ${time} · -${e.cost || 0} PTS</div>
+                <strong style="color:${e.isNew ? '#C0524A' : '#344976'};">${e.type === 'exchange' ? window.t('gacha.exchangeShort', '兌換') : (e.isNew ? window.t('gacha.newStickerShort', '新貼紙') : window.t('gacha.duplicateShort', '重複'))}</strong> · ${escapeHtml(e.name || '')}
+                <div style="color:#A4B4D4; font-size:13px;">${e.type === 'exchange' ? window.t('gacha.exchangeTypeShort', '碎片兌換') : (e.type === 'lucky' ? window.t('gacha.batchTypeShort', '十連抽') : window.t('gacha.drawNormalBtn', '抽一次'))} · ${time} · -${e.cost || 0} ${e.type === 'exchange' ? escapeHtml(window.t('gacha.fragmentUnit', '碎片')) : 'PTS'}</div>
               </div>
             </div>`;
         }).join('');
@@ -3829,8 +3918,8 @@
         <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px; background:${isNew ? '#FBEAE8' : '#F6F7FB'}; border:1px solid ${color}33;">
           ${thumb}
           <div style="flex:1;">
-            <strong style="color:${color};">${isNew ? window.t('gacha.newStickerShort', '新貼紙') : window.t('gacha.duplicateShort', '重複')}</strong> · ${escapeHtml(sticker.name || '')}
-            <div style="color:#A4B4D4; font-size:13px;">${type === 'lucky' ? window.t('gacha.batchTypeShort', '十連抽') : window.t('gacha.drawNormalBtn', '抽一次')} · ${time} · -${cost} PTS</div>
+            <strong style="color:${color};">${type === 'exchange' ? window.t('gacha.exchangeShort', '兌換') : (isNew ? window.t('gacha.newStickerShort', '新貼紙') : window.t('gacha.duplicateShort', '重複'))}</strong> · ${escapeHtml(sticker.name || '')}
+            <div style="color:#A4B4D4; font-size:13px;">${type === 'exchange' ? window.t('gacha.exchangeTypeShort', '碎片兌換') : (type === 'lucky' ? window.t('gacha.batchTypeShort', '十連抽') : window.t('gacha.drawNormalBtn', '抽一次'))} · ${time} · -${cost} ${type === 'exchange' ? escapeHtml(window.t('gacha.fragmentUnit', '碎片')) : 'PTS'}</div>
           </div>
         </div>`;
       }).join('');

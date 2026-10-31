@@ -6,7 +6,7 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.217.1"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.218.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <meta charset="UTF-8">
@@ -2716,6 +2716,8 @@
             <h2 style="font-size:18px; font-weight:bold;" data-i18n="gacha.pageTitle">Ottiee 時數幸運扭蛋機</h2>
             <div style="margin-top:10px; background:rgba(255,255,255,0.2); border-radius:10px; padding:8px; display:inline-block;">
               <span style="font-size:15px; font-weight:bold;"><span data-i18n="gacha.yourPoints">你的積分：</span><span id="gacha-pts-display">180</span> PTS</span>
+              <span style="font-size:15px; font-weight:bold; margin-left:10px;"><span data-i18n="gacha.fragmentLabel">我的碎片</span>：<span id="gacha-fragment-count-top">0</span></span>
+              <button type="button" onclick="openFragmentShop()" class="btn btn-outline" style="margin-left:8px; padding:3px 10px; font-size:13px; vertical-align:middle;" data-i18n="gacha.fragmentShopShortBtn">兌換</button>
             </div>
           </div>
 
@@ -2761,6 +2763,7 @@
                    瀏覽器視窗（連側邊欄）嘅正中央。 -->
               <div id="gacha-result-box-batch" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:2000; width:480px; max-width:94vw; padding:18px; box-sizing:border-box; border-radius:16px; background:rgba(246,247,251,.98); border:2px solid #D2D9E9; box-shadow:0 8px 32px rgba(0,0,0,.35); animation: gacha-pop-center .4s ease; text-align:center;">
                 <div style="font-size:17px; font-weight:bold; color:#29395C; margin-bottom:12px;" data-i18n="gacha.batchResultTitle">連續抽十次結果</div>
+                <div id="gacha-result-batch-summary" style="font-size:14px; font-weight:700; color:#344976; margin:-4px 0 10px;"></div>
                 <div id="gacha-result-batch-grid" style="display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:8px;"></div>
               </div>
               <!-- 扭蛋機外殼 SVG -->
@@ -2863,7 +2866,8 @@
             <div id="gacha-lightbox-tier" style="font-size:14px; font-weight:bold; margin-top:10px;"></div>
             <div id="gacha-lightbox-name" style="font-size:18px; font-weight:bold; margin-top:4px; color:#29395C;"></div>
             <div id="gacha-lightbox-desc" style="font-size:13px; color:#344976; margin-top:8px;"></div>
-            <button type="button" onclick="closeGachaPrizeLightbox()" class="btn btn-outline" style="margin-top:16px; width:100%;" data-i18n="common.close">關閉</button>
+            <button type="button" id="gacha-lightbox-equip" onclick="equipLightboxLook()" class="btn btn-primary" style="display:none; margin-top:16px; width:100%; justify-content:center;" data-i18n="gacha.equipNowBtn">立即換上</button>
+            <button type="button" onclick="closeGachaPrizeLightbox()" class="btn btn-outline" style="margin-top:10px; width:100%; justify-content:center;" data-i18n="common.close">關閉</button>
           </div>
         </div>
 
