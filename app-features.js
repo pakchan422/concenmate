@@ -3280,7 +3280,7 @@
 
       const emojiEl = document.getElementById('gacha-lightbox-emoji');
       if (st.photo) {
-        emojiEl.innerHTML = `<img src="${st.photo}" alt="${escapeHtml(gachaItemName(st))}" style="width:100%; max-width:340px; aspect-ratio:1/1; object-fit:contain; background:#F6F7FB; border-radius:16px; border:2px solid #A4B4D4;">`;
+        emojiEl.innerHTML = `<img src="${st.photo}" alt="${escapeHtml(gachaItemName(st))}" style="width:100%; max-width:260px; max-height:42vh; aspect-ratio:1/1; object-fit:contain; background:#F6F7FB; border-radius:16px; border:2px solid #A4B4D4;">`;
       } else {
         emojiEl.innerHTML = '';
         emojiEl.innerText = st.emoji || '🦦';
@@ -3408,7 +3408,7 @@
       clearTimeout(window._gachaResultAutoCloseTimer);
       const emojiEl = document.getElementById('gacha-lightbox-emoji');
       if (st.photo) {
-        emojiEl.innerHTML = `<img src="${st.photo}" alt="${escapeHtml(gachaItemName(st))}" style="width:100%; max-width:340px; aspect-ratio:1/1; object-fit:contain; background:#F6F7FB; border-radius:16px; border:2px solid #A4B4D4;">`;
+        emojiEl.innerHTML = `<img src="${st.photo}" alt="${escapeHtml(gachaItemName(st))}" style="width:100%; max-width:260px; max-height:42vh; aspect-ratio:1/1; object-fit:contain; background:#F6F7FB; border-radius:16px; border:2px solid #A4B4D4;">`;
       } else {
         emojiEl.innerHTML = '';
         emojiEl.innerText = st.emoji || '';
@@ -3779,7 +3779,7 @@
 
       const emojiEl = document.getElementById('gacha-lightbox-emoji');
       if (sticker.photo) {
-        emojiEl.innerHTML = `<img src="${sticker.photo}" alt="${escapeHtml(gachaItemName(sticker))}" style="width:100%; max-width:340px; aspect-ratio:1/1; object-fit:contain; background:#F6F7FB; border-radius:16px; border:2px solid #A4B4D4;">`;
+        emojiEl.innerHTML = `<img src="${sticker.photo}" alt="${escapeHtml(gachaItemName(sticker))}" style="width:100%; max-width:260px; max-height:42vh; aspect-ratio:1/1; object-fit:contain; background:#F6F7FB; border-radius:16px; border:2px solid #A4B4D4;">`;
       } else {
         emojiEl.innerHTML = '';
         emojiEl.innerText = sticker.emoji || '🦦';
