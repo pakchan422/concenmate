@@ -1662,6 +1662,26 @@
         }
       }
 
+      // v1.219.1：登入時扭蛋設定（造型相片）比用戶資料遲 1–2 秒先載入，
+      // 之前會先閃一下預設 Ottie。而家：(1) 記低上次顯示嘅造型相片喺本機，
+      // 一登入即刻用返；(2) 設定未載入又冇快取，就暫時唔顯示，等設定到咗先畫。
+      const lookCacheKey = 'cm_otter_look_' + (window.currentUser.uid || '');
+      if (avatarId && !avatarSticker && !window.GACHA_CONFIG_LOADED) {
+        let cached = null;
+        try { cached = JSON.parse(localStorage.getItem(lookCacheKey) || 'null'); } catch (e) { cached = null; }
+        if (cached && String(cached.id) === String(avatarId) && cached.photo) {
+          avatarSticker = { id: cached.id, photo: cached.photo, rarity: cached.rarity };
+        } else {
+          if (photoImg) photoImg.style.display = 'none';
+          if (svgEl) svgEl.style.display = 'none';
+          if (blankEl) blankEl.style.display = 'none';
+          return;
+        }
+      }
+      if (avatarSticker && avatarSticker.photo && window.GACHA_CONFIG_LOADED && String(avatarSticker.photo).length < 2048) {
+        try { localStorage.setItem(lookCacheKey, JSON.stringify({ id: avatarSticker.id, photo: avatarSticker.photo, rarity: avatarSticker.rarity || 'common' })); } catch (e) { /* 忽略 */ }
+      }
+
       // 稀有／限定造型有場景背景，改用唔擺動嘅浮動效果
       const petWrap = document.getElementById('otter-pet-wrap');
       if (petWrap) petWrap.classList.toggle('otter-has-bg', !!(avatarSticker && avatarSticker.photo && (avatarSticker.rarity === 'rare' || avatarSticker.rarity === 'limited')));
