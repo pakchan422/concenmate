@@ -157,10 +157,12 @@
       if (!btn) return;
       if (isOnAdminPage) {
         btn.setAttribute('onclick', "window.location.hash=''");
-        btn.innerHTML = `<span class="header-admin-text">返回主頁</span>`;
+        btn.innerHTML = `<svg class="header-admin-icon" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg><span class="header-admin-text">返回主頁</span>`;
+        btn.setAttribute('aria-label', '返回主頁');
       } else {
         btn.setAttribute('onclick', "window.location.hash='admin'");
-        btn.innerHTML = `<span class="header-admin-text">管理後台</span>`;
+        btn.innerHTML = `<svg class="header-admin-icon" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span class="header-admin-text">管理後台</span>`;
+        btn.setAttribute('aria-label', '管理後台');
       }
     }
     window.setHeaderAdminBtnMode = setHeaderAdminBtnMode;

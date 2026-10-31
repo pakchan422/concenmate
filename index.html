@@ -6,7 +6,7 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.216.6"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.216.7"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <meta charset="UTF-8">
@@ -271,7 +271,8 @@
       .badge { display: none; }
       .header-vip-text { display: none; }    /* 只保留 👑 emoji */
       .header-auth-text { display: none; }   /* 只保留 🔑 emoji */
-      .header-admin-text { display: none; }  /* 只保留 ⚙️ emoji */
+      .header-admin-text { display: none; }  /* 窄螢幕只顯示圖示 */
+      .header-admin-icon { display: inline-block !important; }
       .header-lang-text { display: none; }   /* 只保留 🌐 emoji */
       .header-lang-icon { margin-right: 0; }
       main { padding: 8px; }
@@ -1517,6 +1518,69 @@
     .admin-stat-grid > .admin-stat-tile:nth-child(3n+2) { --st-bar: linear-gradient(90deg, #FFCE1F, #FFE27A); --st-tint: #FFF6DA; --st-num: #A37A08; }
     .admin-stat-grid > .admin-stat-tile:nth-child(3n)   { --st-bar: linear-gradient(90deg, #4A68A8, #A4B4D4); --st-tint: #ECF0F9; --st-num: #4A68A8; }
   </style>
+  <style id="layer-css">
+    /* 層次感（v1.216.7）：同色漸變、底色冷暖暈染、柔和陰影、細紋理、一個元件多於一隻顏色。
+       全部沿用網站現有顏色（深藍／藍色／檸檬黃）。 */
+    .header-admin-icon { display: none; }
+    /* 底色暈染：左上帶少少藍、右下帶少少黃 */
+    body {
+      background:
+        radial-gradient(1100px 700px at 0% 0%, #E8ECF6 0%, rgba(232,236,246,0) 60%),
+        radial-gradient(1000px 700px at 100% 100%, #FFF5D6 0%, rgba(255,245,214,0) 60%),
+        var(--brand-50);
+      background-attachment: fixed;
+    }
+    aside { background: linear-gradient(180deg, #F2F5FB 0%, #FFFFFF 65%); }
+    /* 置頂狀態列：同色漸變＋細圓點紋理 */
+    #global-status-bar {
+      background: linear-gradient(100deg, #2A4275 0%, #34518F 55%, #4262A3 100%) !important;
+      position: relative;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.14), inset 0 -1px 0 rgba(0,0,0,.08);
+    }
+    #global-status-bar > * { position: relative; z-index: 1; }
+    #global-status-bar::after {
+      content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 0;
+      background-image: radial-gradient(rgba(255,255,255,.08) 1px, transparent 1.2px);
+      background-size: 5px 5px;
+    }
+    /* 進度條：黃色漸變，今日目標每 15 分鐘一條分隔線 */
+    #global-goal-bar, #global-exp-bar {
+      background: linear-gradient(90deg, #FFC21A, #FFD84D 60%, #FFE58A) !important;
+      box-shadow: 0 0 8px rgba(255,216,77,.45);
+    }
+    div:has(> #global-goal-bar), div:has(> #home-goal-bar) { position: relative; box-shadow: inset 0 1px 2px rgba(0,0,0,.15); }
+    div:has(> #global-goal-bar)::after, div:has(> #home-goal-bar)::after {
+      content: ""; position: absolute; inset: 0; pointer-events: none;
+      background: repeating-linear-gradient(90deg, transparent 0 calc(25% - 1px), rgba(255,255,255,.6) calc(25% - 1px) 25%);
+    }
+    /* 選中的選單：同色漸變＋左邊黃色小標記 */
+    .nav-btn.active {
+      background: linear-gradient(90deg, var(--deep-2), #3A5794) !important;
+      box-shadow: 0 4px 10px rgba(42,66,117,.25), inset 0 1px 0 rgba(255,255,255,.15);
+      position: relative;
+    }
+    .nav-btn.active::before {
+      content: ""; position: absolute; left: 4px; top: 10px; bottom: 10px; width: 3px; border-radius: 3px;
+      background: var(--accent);
+    }
+    /* 扭蛋系列按鈕 */
+    .gacha-series-chip { box-shadow: 0 1px 3px rgba(41,57,92,.08); }
+    .gacha-series-chip.on {
+      background: linear-gradient(135deg, #2A4275, #3F5C9C) !important;
+      border-color: transparent !important;
+      box-shadow: 0 4px 10px rgba(42,66,117,.25);
+    }
+    /* 主按鈕：上光下暗 */
+    .btn-primary {
+      background: linear-gradient(#5877B8, #4A68A8);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 4px 10px rgba(74,104,168,.22);
+    }
+    .btn-primary:hover { background: linear-gradient(#4A68A8, #3F588F); }
+    .btn-outline { box-shadow: 0 1px 2px rgba(41,57,92,.06); }
+    /* 卡片：柔和藍色陰影，浮在底色上 */
+    .card { box-shadow: 0 6px 16px rgba(41,57,92,.06); }
+    body .admin-card { box-shadow: inset 0 1px 0 #fff, 0 6px 16px rgba(41,57,92,.06); }
+  </style>
 </head>
 <body>
 
@@ -1734,7 +1798,7 @@
            （同 header 其他掣一致嘅收窄方式，見 .header-auth-text 呢類
            class 嘅做法）。 -->
       <button class="btn btn-outline" id="header-lang-btn" type="button" aria-label="Language / 語言" onclick="openModal('modal-language-switcher')" style="padding:6px 10px;"><svg class="header-lang-icon" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z"/></svg><span class="header-lang-text" id="current-lang-label">繁體中文</span></button>
-      <button class="btn btn-outline" id="header-admin-btn" type="button" onclick="window.location.hash='admin'" style="padding:6px 10px; display:none;"><span class="header-admin-text">管理後台</span></button>
+      <button class="btn btn-outline" id="header-admin-btn" type="button" onclick="window.location.hash='admin'" style="padding:6px 10px; display:none;" aria-label="管理後台"><svg class="header-admin-icon" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span class="header-admin-text">管理後台</span></button>
       <button class="btn btn-primary" id="header-auth-btn" type="button" onclick="handleHeaderUserClick()" style="padding:6px 10px;">
         <span class="header-auth-text">登入</span>
       </button>
