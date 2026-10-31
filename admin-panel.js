@@ -322,7 +322,9 @@
           series: JSON.parse(JSON.stringify(window.GACHA_SERIES || [])),
           costNormal: GACHA_COST.normal,
           costLucky: GACHA_COST.lucky,
-          machineImageUrl: window.GACHA_MACHINE_IMAGE_URL || null
+          machineImageUrl: window.GACHA_MACHINE_IMAGE_URL || null,
+          fragmentGain: Object.assign({ common: 1, rare: 3, limited: 6 }, window.GACHA_FRAGMENT_GAIN || {}),
+          fragmentCost: Object.assign({ common: 3, rare: 9, limited: 18 }, window.GACHA_FRAGMENT_COST || {})
         };
         adminGachaMigrateDraft(adminGachaDraft);
       }
@@ -511,6 +513,22 @@
             <label style="font-size:13px; color:#555; display:flex; align-items:center; gap:6px;">抽一次 (PTS)：<input class="admin-input-sm" type="number" min="0" style="width:80px;" value="${adminGachaDraft.costNormal}" onchange="adminGachaDraft.costNormal = parseInt(this.value)||0"></label>
             <label style="font-size:13px; color:#555; display:flex; align-items:center; gap:6px;">連續抽十次 (PTS，一次過 10 抽的總費用)：<input class="admin-input-sm" type="number" min="0" style="width:80px;" value="${adminGachaDraft.costLucky}" onchange="adminGachaDraft.costLucky = parseInt(this.value)||0"></label>
           </div>
+        </div>
+
+
+        <div class="admin-card">
+          <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:6px;">造型碎片</h3>
+          <p style="font-size:13px; color:#888; margin:0 0 10px;">學生扭到已擁有的造型會自動轉為碎片；碎片可兌換未擁有的造型（只限開放中的系列）。</p>
+          <table class="admin-table" style="max-width:420px;">
+            <thead><tr><th>稀有度</th><th>重複時得到碎片</th><th>兌換所需碎片</th></tr></thead>
+            <tbody>
+              ${[['common','普通'],['rare','稀有'],['limited','限定']].map(([k, label]) => `<tr>
+                <td>${label}</td>
+                <td><input class="admin-input-sm" type="number" min="0" max="1000" style="width:70px;" value="${adminGachaDraft.fragmentGain[k]}" onchange="adminGachaDraft.fragmentGain['${k}'] = Math.max(0, parseInt(this.value)||0)"></td>
+                <td><input class="admin-input-sm" type="number" min="1" max="10000" style="width:70px;" value="${adminGachaDraft.fragmentCost[k]}" onchange="adminGachaDraft.fragmentCost['${k}'] = Math.max(1, parseInt(this.value)||1)"></td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
         </div>
 
         ${renderGachaImageSpecCard()}
@@ -893,6 +911,8 @@
         costNormal: adminGachaDraft.costNormal,
         costLucky: adminGachaDraft.costLucky,
         machineImageUrl: adminGachaDraft.machineImageUrl || null,
+        fragmentGain: adminGachaDraft.fragmentGain || { common: 1, rare: 3, limited: 6 },
+        fragmentCost: adminGachaDraft.fragmentCost || { common: 3, rare: 9, limited: 18 },
         updatedAt: Date.now(),
         updatedBy: window.currentUser ? window.currentUser.email : null
       };
@@ -944,6 +964,10 @@
           }
           if (typeof data.costNormal === 'number') GACHA_COST.normal = data.costNormal;
           if (typeof data.costLucky === 'number') GACHA_COST.lucky = data.costLucky;
+          // v1.217.0：造型碎片數值
+          if (data.fragmentGain && typeof data.fragmentGain === 'object') window.GACHA_FRAGMENT_GAIN = Object.assign({ common: 1, rare: 3, limited: 6 }, data.fragmentGain);
+          if (data.fragmentCost && typeof data.fragmentCost === 'object') window.GACHA_FRAGMENT_COST = Object.assign({ common: 3, rare: 9, limited: 18 }, data.fragmentCost);
+          if (typeof window.gachaRenderFragmentCount === 'function') window.gachaRenderFragmentCount();
           // 扭蛋機外殼圖片：如果管理員上傳咗自訂圖，用返嗰張；冇嘅話
           // window.GACHA_MACHINE_IMAGE_URL 保持 null，畫面繼續用返
           // <img> tag 原本寫死嘅 gacha-machine.png 預設圖。

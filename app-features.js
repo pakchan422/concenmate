@@ -3106,6 +3106,53 @@
       window.showToast(tmpl.replace('{name}', gachaItemName(st)), r === 'limited' ? '🌟' : '✨');
     }
 
+    // ---------- v1.217.0：造型碎片 ----------
+    // 重複扭到的造型自動轉為碎片（伺服器 spendGachaPoints 處理），碎片可
+    // 兌換未擁有的造型（exchangeStickerFragments）。數值由後台設定，
+    // loadGachaConfigFromFirestore 會覆蓋以下預設值。
+    window.GACHA_FRAGMENT_GAIN = window.GACHA_FRAGMENT_GAIN || { common: 1, rare: 3, limited: 6 };
+    window.GACHA_FRAGMENT_COST = window.GACHA_FRAGMENT_COST || { common: 3, rare: 9, limited: 18 };
+    function gachaFragmentGainOf(st) { return window.GACHA_FRAGMENT_GAIN[gachaRarityOf(st)] || 0; }
+    function gachaFragmentCostOf(st) { return window.GACHA_FRAGMENT_COST[gachaRarityOf(st)] || 0; }
+    function gachaFragments() { return (window.currentUser && window.currentUser.stickerFragments) || 0; }
+    function gachaSetFragments(n) {
+      if (!window.currentUser) return;
+      window.currentUser.stickerFragments = n;
+      gachaRenderFragmentCount();
+    }
+    function gachaRenderFragmentCount() {
+      const el = document.getElementById('gacha-fragment-count');
+      if (el) el.innerText = gachaFragments();
+      const el2 = document.getElementById('fragment-shop-count');
+      if (el2) el2.innerText = gachaFragments();
+      const rule = document.getElementById('gacha-fragment-rule');
+      if (rule) {
+        const g = window.GACHA_FRAGMENT_GAIN;
+        rule.innerText = window.t('gacha.fragmentRuleTemplate', '重複扭到的造型會自動轉為碎片：普通 +{c}、稀有 +{r}、限定 +{l}')
+          .replace('{c}', g.common).replace('{r}', g.rare).replace('{l}', g.limited);
+      }
+    }
+    window.gachaRenderFragmentCount = gachaRenderFragmentCount;
+    // 舊資料：如果有造型數量大過 1（功能推出前扭到的重複造型），打開扭蛋頁
+    // 時請伺服器一次過轉為碎片（每次載入頁面最多試一次）
+    let gachaLegacyConvertTried = false;
+    async function gachaConvertLegacyDuplicates() {
+      if (gachaLegacyConvertTried || !window.currentUser || typeof window.callCloudFunction !== 'function') return;
+      const owned = window.currentUser.ownedStickers || {};
+      if (!Object.keys(owned).some(k => (owned[k] || 0) > 1)) return;
+      gachaLegacyConvertTried = true;
+      try {
+        const res = await window.callCloudFunction('convertDuplicateStickers', {});
+        Object.keys(owned).forEach(k => { if ((owned[k] || 0) > 1) owned[k] = 1; });
+        gachaSetFragments(res.fragments || 0);
+        if (res.gained > 0) {
+          window.showToast(window.t('gacha.legacyFragmentToastTemplate', '之前重複的造型已轉為 {n} 個碎片').replace('{n}', res.gained), '');
+        }
+      } catch (e) {
+        console.warn('轉換重複造型失敗（唔影響使用）:', e);
+      }
+    }
+
     // ---------- 貼紙擁有狀態（儲喺 users/{uid} 文件嘅 ownedStickers 呢個
     // map 度，key 係貼紙 id，value 係擁有數量）----------
     function getOwnedStickerCount(id) {
@@ -3125,7 +3172,8 @@
       if (!window.currentUser) window.currentUser = {};
       if (!window.currentUser.ownedStickers) window.currentUser.ownedStickers = {};
       list.forEach(({ id, count }) => {
-        window.currentUser.ownedStickers[id] = (window.currentUser.ownedStickers[id] || 0) + count;
+        // v1.217.0：每件造型最多 1 件，重複的已由伺服器轉為碎片
+        if (count > 0) window.currentUser.ownedStickers[id] = 1;
       });
     }
 
@@ -3138,6 +3186,8 @@
 
     function updateStickerProgressUI() {
       renderGachaSeriesPicker();
+      gachaRenderFragmentCount();
+      gachaConvertLegacyDuplicates();
       const seriesItems = gachaItemsInSeries(gachaSelectedSeriesId());
       const total = seriesItems.length;
       const owned = gachaOwnedInList(seriesItems);
@@ -3233,11 +3283,91 @@
         emojiEl.innerText = st.emoji || '🦦';
       }
       const tierEl = document.getElementById('gacha-lightbox-tier');
-      tierEl.innerHTML = gachaRarityBadge(st, 13) + ' <span>' + escapeHtml(window.t('gacha.collectedCountTemplate', '已收集 ×{n}').replace('{n}', count)) + '</span>';
+      tierEl.innerHTML = gachaRarityBadge(st, 13) + ' <span>' + escapeHtml(window.t('gacha.collectedLabelShort', '已收集')) + '</span>';
       tierEl.style.color = '#344976';
       document.getElementById('gacha-lightbox-name').innerText = gachaItemName(st);
       document.getElementById('gacha-lightbox-desc').innerText = gachaProgressTextFor(st);
       document.getElementById('gacha-prize-lightbox').style.display = 'flex';
+    };
+
+    // ---------- v1.217.0：碎片兌換 ----------
+    function renderFragmentShop() {
+      const list = document.getElementById('fragment-shop-list');
+      if (!list) return;
+      gachaRenderFragmentCount();
+      const owned = (window.currentUser && window.currentUser.ownedStickers) || {};
+      const have = gachaFragments();
+      const groups = GACHA_SERIES.slice().sort((a, b) => (a.order || 0) - (b.order || 0))
+        .filter(se => se && se.enabled !== false)
+        .map(se => ({ se, items: gachaItemsInSeries(se.id) }))
+        .filter(g => g.items.length);
+      if (!GACHA_SERIES.length && GACHA_STICKERS.length) groups.push({ se: null, items: GACHA_STICKERS.slice() });
+      // 已擁有的造型照樣顯示，按鈕改為「已收集」；全部收集齊先在頂部加一句提示
+      const allOwned = groups.every(g => g.items.every(st => (owned[st.id] || 0) > 0));
+      const allOwnedNote = allOwned
+        ? `<p style="grid-column:1/-1; text-align:center; color:#5A79B4; font-weight:700; margin:4px 0;">${escapeHtml(window.t('gacha.fragmentShopAllOwned', '你已收集所有可兌換的造型！'))}</p>`
+        : '';
+      list.innerHTML = allOwnedNote + groups.map(g => {
+        const head = g.se ? `<div style="grid-column:1/-1; font-size:14px; font-weight:800; color:#29395C; margin-top:6px;">${escapeHtml(gachaSeriesName(g.se))}</div>` : '';
+        return head + g.items.map(st => {
+          const price = gachaFragmentCostOf(st);
+          const isOwned = (owned[st.id] || 0) > 0;
+          const ok = !isOwned && have >= price;
+          const rs = GACHA_RARITY_STYLE[gachaRarityOf(st)];
+          const thumb = st.photo
+            ? `<img src="${st.photo}" alt="${escapeHtml(gachaItemName(st))}" style="width:100%; aspect-ratio:1; object-fit:contain; border-radius:8px;">`
+            : `<div style="font-size:28px;">${escapeHtml(st.emoji || '')}</div>`;
+          const idArg = JSON.stringify(st.id).replace(/"/g, '&quot;');
+          return `<div style="text-align:center; background:#F6F7FB; border:2px solid ${rs.border}; border-radius:10px; padding:6px 4px; display:flex; flex-direction:column; gap:4px; min-width:0;">
+            ${thumb}
+            <div style="font-size:12px; font-weight:bold; color:#344976; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(gachaItemName(st))}</div>
+            <div>${gachaRarityBadge(st, 11)}</div>
+            ${isOwned
+              ? `<div style="font-size:12px; font-weight:700; padding:6px; width:100%; box-sizing:border-box; text-align:center; border-radius:8px; background:#E9EDF5; color:#5A79B4;">${escapeHtml(window.t('gacha.collectedLabelShort', '已收集'))}</div>`
+              : `<button type="button" class="btn ${ok ? 'btn-primary' : 'btn-outline'}" ${ok ? '' : 'disabled'} onclick="exchangeFragmentSticker(${idArg}, this)" style="font-size:12px; padding:5px 6px; width:100%; justify-content:center; text-align:center;">${escapeHtml(window.t('gacha.fragmentExchangeBtnTemplate', '{n} 碎片兌換').replace('{n}', price))}</button>`}
+          </div>`;
+        }).join('');
+      }).join('');
+    }
+    window.openFragmentShop = function() {
+      renderFragmentShop();
+      const modal = document.getElementById('fragment-shop-modal');
+      if (modal) modal.style.display = 'flex';
+    };
+    window.closeFragmentShop = function() {
+      const modal = document.getElementById('fragment-shop-modal');
+      if (modal) modal.style.display = 'none';
+    };
+    let fragmentExchangeBusy = false;
+    window.exchangeFragmentSticker = async function(id, btn) {
+      if (fragmentExchangeBusy) return;
+      const st = GACHA_STICKERS.find(s => String(s.id) === String(id));
+      if (!st) return;
+      // 撳第一下先變做「確定兌換？」，再撳一下先真正兌換，避免撳錯
+      if (btn && btn.dataset.confirm !== '1') {
+        document.querySelectorAll('#fragment-shop-list button[data-confirm="1"]').forEach(b => { b.dataset.confirm = ''; b.innerText = b.dataset.label || b.innerText; });
+        btn.dataset.label = btn.innerText;
+        btn.dataset.confirm = '1';
+        btn.innerText = window.t('gacha.fragmentConfirmBtn', '確定兌換？');
+        return;
+      }
+      fragmentExchangeBusy = true;
+      if (btn) { btn.disabled = true; btn.innerText = window.t('gacha.fragmentExchanging', '兌換中…'); }
+      try {
+        const res = await window.callCloudFunction('exchangeStickerFragments', { stickerId: st.id });
+        if (!window.currentUser.ownedStickers) window.currentUser.ownedStickers = {};
+        Object.keys(window.currentUser.ownedStickers).forEach(k => { if ((window.currentUser.ownedStickers[k] || 0) > 1) window.currentUser.ownedStickers[k] = 1; });
+        window.currentUser.ownedStickers[st.id] = 1;
+        gachaSetFragments(res.fragments || 0);
+        window.showToast(window.t('gacha.fragmentExchangedTemplate', '已兌換造型「{name}」！').replace('{name}', gachaItemName(st)), '');
+        renderFragmentShop();
+        refreshCollectionBookIfOpen();
+      } catch (error) {
+        window.showToast(error.message || String(error), '❌');
+        renderFragmentShop();
+      } finally {
+        fragmentExchangeBusy = false;
+      }
     };
 
     function syncGachaPtsDisplay() {
@@ -3299,10 +3429,14 @@
       // 同「扣分」之間唔夠原子性，會導致分數扣到負數（見用家報告）。
       let newPoints;
       let serverStickerIds = [];
+      let serverResults = [];
+      let serverFragments = null;
       try {
         const result = await window.callCloudFunction('spendGachaPoints', { type, seriesId: gachaSelectedSeriesId() === '__all' ? null : gachaSelectedSeriesId() });
         newPoints = result.points;
         serverStickerIds = Array.isArray(result.stickerIds) ? result.stickerIds : [];
+        serverResults = Array.isArray(result.results) ? result.results : [];
+        if (typeof result.fragments === 'number') serverFragments = result.fragments;
       } catch (error) {
         if (error.code === 'functions/failed-precondition' || error.code === 'failed-precondition') {
           window.showToast(error.message, '❌');
@@ -3337,8 +3471,11 @@
       // （0 即係「新貼紙」），抽完即刻寫返擁有狀態（畫面 + Firestore）。
       const sticker = findGachaStickerById(serverStickerIds[0]);
       const wasOwnedCount = getOwnedStickerCount(sticker.id);
-      const isNew = wasOwnedCount === 0;
+      const r0 = serverResults[0];
+      const isNew = r0 ? !r0.dup : wasOwnedCount === 0;
+      const fragGained = r0 ? (r0.fragments || 0) : 0;
       awardStickers([{ id: sticker.id, count: 1 }]);
+      if (serverFragments !== null) gachaSetFragments(serverFragments);
 
       // 顯示結果（唔再有膠囊彈出/旋轉動畫，震動完即刻顯示結果）
       resultBox.style.background = isNew ? '#FBEAE8' : '#F6F7FB';
@@ -3352,7 +3489,7 @@
         resultEmojiEl.innerText = sticker.emoji || '🦦';
       }
       const tierEl = document.getElementById('gacha-result-tier');
-      tierEl.innerHTML = gachaRarityBadge(sticker, 13) + ' <span>' + escapeHtml(isNew ? window.t('gacha.newStickerLabel', '新造型！') : window.t('gacha.alreadyOwnedTemplate', '已擁有 ×{n}').replace('{n}', wasOwnedCount + 1)) + '</span>';
+      tierEl.innerHTML = gachaRarityBadge(sticker, 13) + ' <span>' + escapeHtml(isNew ? window.t('gacha.newStickerLabel', '新造型！') : window.t('gacha.duplicateToFragmentTemplate', '已擁有，轉為碎片 +{n}').replace('{n}', fragGained)) + '</span>';
       tierEl.style.color = isNew ? '#C0524A' : '#344976';
       document.getElementById('gacha-result-name').innerText = gachaItemName(sticker);
       document.getElementById('gacha-result-desc').innerText = gachaProgressTextFor(sticker);
@@ -3441,6 +3578,8 @@
     // 個 grid 度分兩行（每行 5 個）顯示，唔再用返單抽嗰個細細個結果框。
     async function doGachaBatch() {
       const cost = GACHA_COST.lucky;
+      let batchResults = [];
+      let batchFragments = null;
 
       // 扣分邏輯同 doGacha 一樣，改用 Cloud Function 做原子性驗證，
       // 詳細原因見 doGacha 入面嘅註解。
@@ -3450,6 +3589,8 @@
         const result = await window.callCloudFunction('spendGachaPoints', { type: 'lucky', seriesId: gachaSelectedSeriesId() === '__all' ? null : gachaSelectedSeriesId() });
         newPoints = result.points;
         serverStickerIds = Array.isArray(result.stickerIds) ? result.stickerIds : [];
+        batchResults = Array.isArray(result.results) ? result.results : [];
+        if (typeof result.fragments === 'number') batchFragments = result.fragments;
       } catch (error) {
         if (error.code === 'functions/failed-precondition' || error.code === 'failed-precondition') {
           window.showToast(error.message, '❌');
@@ -3486,10 +3627,12 @@
       for (let i = 0; i < serverStickerIds.length; i++) {
         const sticker = findGachaStickerById(serverStickerIds[i]);
         const wasOwnedCount = localOwned[sticker.id] || 0;
-        const isNew = wasOwnedCount === 0;
-        localOwned[sticker.id] = wasOwnedCount + 1;
-        rolls.push({ sticker, isNew, ownedCountAfter: localOwned[sticker.id] });
+        const br = batchResults[i];
+        const isNew = br ? !br.dup : wasOwnedCount === 0;
+        localOwned[sticker.id] = 1;
+        rolls.push({ sticker, isNew, ownedCountAfter: 1, fragments: br ? (br.fragments || 0) : 0 });
       }
+      if (batchFragments !== null) gachaSetFragments(batchFragments);
       // 存低成組結果，等用戶撳任何一格圖片放大睇嗰陣（見
       // window.showGachaPrizeDetail）攞得返完整資料
       window._lastGachaBatchPrizes = rolls;
@@ -3499,12 +3642,12 @@
       awardStickers(Object.keys(counts).map(id => ({ id, count: counts[id] })));
 
       const gridEl = document.getElementById('gacha-result-batch-grid');
-      gridEl.innerHTML = rolls.map(({ sticker, isNew, ownedCountAfter }, idx) => {
+      gridEl.innerHTML = rolls.map(({ sticker, isNew, fragments }, idx) => {
         const thumb = sticker.photo
           ? `<img src="${sticker.photo}" alt="${escapeHtml(gachaItemName(sticker))}" style="width:100%; max-width:64px; aspect-ratio:1; object-fit:contain; border-radius:8px; display:block; margin:0 auto;">`
           : `<span style="font-size:30px;">${escapeHtml(sticker.emoji || '🦦')}</span>`;
         const badgeColor = isNew ? '#C0524A' : '#344976';
-        const badgeText = isNew ? window.t('gacha.newStickerShort', '新造型') : `×${ownedCountAfter}`;
+        const badgeText = isNew ? window.t('gacha.newStickerShort', '新造型') : window.t('gacha.fragmentPlusTemplate', '碎片 +{n}').replace('{n}', fragments);
         const rarityBorder = GACHA_RARITY_STYLE[gachaRarityOf(sticker)].border;
         return `
           <div onclick="showGachaPrizeDetail(${idx})" style="cursor:pointer; background:${isNew ? '#FBEAE8' : '#F6F7FB'}; border:2px solid ${gachaRarityOf(sticker) === 'common' ? badgeColor : rarityBorder}; border-radius:12px; padding:8px 4px; text-align:center; min-width:0; box-sizing:border-box;" title="${escapeHtml(window.t('gacha.clickToEnlargeTemplate', '點擊放大查看：{name}').replace('{name}', gachaItemName(sticker)))}">
@@ -3523,7 +3666,8 @@
       } else if (newCount > 0) {
         window.showToast(window.t('gacha.batchNewStickersToastTemplate', `十連抽入面攞到 ${newCount} 張新貼紙！`).replace('{n}', newCount), '🆕');
       } else {
-        window.showToast(window.t('gacha.batchAllDuplicateToast', '十連抽完成，這次全部都是已擁有的貼紙～'), '🔁');
+        const fragTotal = rolls.reduce((sum, r) => sum + (r.fragments || 0), 0);
+        window.showToast(window.t('gacha.batchAllDuplicateFragmentTemplate', '十連抽完成，重複的造型已轉為 {n} 個碎片').replace('{n}', fragTotal), '');
       }
 
       // 10 條歷史記錄一齊寫入；總費用只記喺第一條（避免個人資料頁「總支出」
@@ -3540,7 +3684,7 @@
     window.showGachaPrizeDetail = function(idx) {
       const entry = (window._lastGachaBatchPrizes || [])[idx];
       if (!entry) return;
-      const { sticker, isNew, ownedCountAfter } = entry;
+      const { sticker, isNew, fragments } = entry;
       // 打開放大燈箱之後就取消個「8 秒自動關閉」計時器，等使用者慢慢睇，
       // 唔會睇到一半十連抽結果視窗自己收埋咗
       clearTimeout(window._gachaResultAutoCloseTimer);
@@ -3553,7 +3697,7 @@
         emojiEl.innerText = sticker.emoji || '🦦';
       }
       const tierEl = document.getElementById('gacha-lightbox-tier');
-      tierEl.innerHTML = gachaRarityBadge(sticker, 13) + ' <span>' + escapeHtml(isNew ? window.t('gacha.newStickerLabel', '新造型！') : window.t('gacha.alreadyOwnedTemplate', '已擁有 ×{n}').replace('{n}', ownedCountAfter)) + '</span>';
+      tierEl.innerHTML = gachaRarityBadge(sticker, 13) + ' <span>' + escapeHtml(isNew ? window.t('gacha.newStickerLabel', '新造型！') : window.t('gacha.duplicateToFragmentTemplate', '已擁有，轉為碎片 +{n}').replace('{n}', fragments || 0)) + '</span>';
       tierEl.style.color = isNew ? '#C0524A' : '#344976';
       document.getElementById('gacha-lightbox-name').innerText = gachaItemName(sticker);
       document.getElementById('gacha-lightbox-desc').innerText = gachaProgressTextFor(sticker);

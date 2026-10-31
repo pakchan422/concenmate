@@ -6,7 +6,7 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.216.7"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.217.1"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <meta charset="UTF-8">
@@ -2809,6 +2809,12 @@
               <p style="font-size:13px; color:#344976; margin-top:6px; font-weight:bold;"><span data-i18n="gacha.collectedLabel">已收集</span> <span id="sticker-progress-text">0/0</span></p>
             </div>
             <button type="button" class="btn btn-outline" style="display:inline-block; padding:8px 24px;" onclick="openStickerCollection()" data-i18n="gacha.openStickerBookBtn">開啟我的造型圖鑑</button>
+            <!-- v1.217.0：造型碎片——重複扭到的造型自動轉為碎片，可兌換未擁有的造型 -->
+            <div style="margin-top:14px; padding-top:12px; border-top:1px dashed var(--brand-200); display:flex; flex-direction:column; align-items:center; gap:6px;">
+              <p style="font-size:14px; font-weight:800; color:#29395C; margin:0;"><span data-i18n="gacha.fragmentLabel">我的碎片</span>：<span id="gacha-fragment-count" style="color:#A37A08;">0</span></p>
+              <p id="gacha-fragment-rule" style="font-size:12px; color:#6B7894; margin:0;">重複扭到的造型會自動轉為碎片</p>
+              <button type="button" class="btn btn-primary" style="display:inline-block; padding:8px 24px;" onclick="openFragmentShop()" data-i18n="gacha.fragmentShopBtn">用碎片兌換造型</button>
+            </div>
           </div>
 
           <!-- 抽獎歷史：只顯示頭 10 筆，撳「顯示更多」先再攞多 10 筆出嚟，
@@ -2832,6 +2838,19 @@
             </div>
             <p style="font-size:13px; color:#344976; margin-bottom:10px; font-weight:bold;"><span data-i18n="gacha.collectedLabel">已收集</span> <span id="sticker-modal-progress-text">0/0</span></p>
             <div id="sticker-collection-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(88px, 1fr)); gap:8px;"></div>
+          </div>
+        </div>
+
+        <!-- v1.217.0：碎片兌換視窗——列出未擁有的造型，選擇後以碎片兌換 -->
+        <div id="fragment-shop-modal" style="display:none; position:fixed; inset:0; z-index:2500; background:rgba(0,0,0,.55); align-items:center; justify-content:center; padding:16px;" onclick="if(event.target===this) closeFragmentShop();">
+          <div style="background:#fff; border-radius:16px; padding:18px; max-width:520px; width:100%; max-height:82vh; overflow-y:auto;" onclick="event.stopPropagation();">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <h3 style="font-size:16px; font-weight:bold; color:#29395C;" data-i18n="gacha.fragmentShopTitle">碎片兌換</h3>
+              <button type="button" onclick="closeFragmentShop()" class="btn btn-outline" style="padding:2px 10px; font-size:13px;">✕</button>
+            </div>
+            <p style="font-size:13px; color:#344976; margin-bottom:4px; font-weight:bold;"><span data-i18n="gacha.fragmentLabel">我的碎片</span>：<span id="fragment-shop-count">0</span></p>
+            <p style="font-size:12px; color:#6B7894; margin-bottom:10px;" data-i18n="gacha.fragmentShopDesc">選擇一件未擁有的造型，以碎片兌換。稀有度越高，所需碎片越多。</p>
+            <div id="fragment-shop-list" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(96px, 1fr)); gap:8px;"></div>
           </div>
         </div>
 
