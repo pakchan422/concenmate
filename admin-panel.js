@@ -337,7 +337,7 @@
         return `
           <div class="admin-card">
             <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;">預設扭蛋機圖片</h3>
-            <p style="font-size:13px; color:#888; margin-bottom:10px;">這張是預設的扭蛋機外觀圖（不是造型）。未在下方「扭蛋系列」表格設定專屬「扭蛋機圖」的系列，會使用這張圖；不上傳則使用網站內建的預設圖。</p>
+            <p style="font-size:13px; color:#888; margin-bottom:10px;">這張是預設的扭蛋機外觀圖（不是貼圖）。未在下方「扭蛋系列」表格設定專屬「扭蛋機圖」的系列，會使用這張圖；不上傳則使用網站內建的預設圖。</p>
             <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
               <div id="admin-gacha-machine-thumb" onclick="document.getElementById('admin-gacha-machine-input').click()" title="點擊這裡上傳圖片" style="width:80px; height:80px; border-radius:10px; background:#F6F7FB; border:1px dashed #D2D9E9; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden;">${previewInner}</div>
               <input type="file" accept="image/*" id="admin-gacha-machine-input" style="display:none;" onchange="adminUploadGachaMachineImage(this)">
@@ -363,7 +363,7 @@
             <details>
               <summary style="cursor:pointer; font-size:15px; font-weight:bold; color:var(--brand-800);">圖片規格說明（製作或更換圖片前請先閱讀）</summary>
               <p style="font-size:13px; color:#888; margin:8px 0 0;">以下為扭蛋相關圖片的建議規格。所有圖片均使用 Ottie 的統一畫風：中灰藍色柔和描邊、平塗上色，不可含任何文字、字母或數字。</p>
-              ${sec('一、造型圖（每件扭蛋造型）',
+              ${sec('一、貼圖圖（每件扭蛋貼圖）',
                 row('尺寸', '正方形 1:1，建議 1024 × 1024 像素') +
                 row('格式', 'PNG') +
                 row('普通', '透明背景，只有 Ottie 及道具，四周留少量空位') +
@@ -387,7 +387,7 @@
                 row('未上傳時', '使用網站內建的預設背景（gacha-bg.jpg）') +
                 row('上傳處理', '系統會自動壓縮至最闊 1600 像素'))}
               ${sec('四、原始檔存放位置',
-                row('造型', 'Desktop/concenmate-app/Ottie Pic/（每個系列一個資料夾，例如「動物連身衣」「書伴日常」）') +
+                row('貼圖', 'Desktop/concenmate-app/Ottie Pic/（每個系列一個資料夾，例如「動物連身衣」「書伴日常」）') +
                 row('扭蛋機及背景', 'Desktop/concenmate-app/Ottie Pic/扭蛋機/'))}
             </details>
           </div>`;
@@ -426,10 +426,10 @@
               <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800);">扭蛋系列（共 ${list.length} 個）</h3>
               <button class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="adminAddGachaSeries()">新增系列</button>
             </div>
-            <p style="font-size:13px; color:#888; margin-bottom:8px;">學生在扭蛋頁面先選擇系列，再抽該系列的造型；每個系列有獨立的收集進度。取消「開放扭蛋」後，學生不能再抽該系列，但已收集的造型會保留，圖鑑顯示為「已停售」。系列的排列次序即扭蛋頁面的顯示次序。英文名稱留空時，英文介面會顯示中文名稱。「扭蛋機圖」可為每個系列設定專屬的扭蛋機外觀（建議使用透明背景 PNG）；未上傳時使用下方的預設扭蛋機圖。「背景圖」是扭蛋機後面的場景（建議 16:9 橫向圖，中間留空），未上傳時使用網站內建的預設背景。</p>
+            <p style="font-size:13px; color:#888; margin-bottom:8px;">學生在扭蛋頁面先選擇系列，再抽該系列的貼圖；每個系列有獨立的收集進度。取消「開放扭蛋」後，學生不能再抽該系列，但已收集的貼圖會保留，圖鑑顯示為「已停售」。系列的排列次序即扭蛋頁面的顯示次序。英文名稱留空時，英文介面會顯示中文名稱。「扭蛋機圖」可為每個系列設定專屬的扭蛋機外觀（建議使用透明背景 PNG）；未上傳時使用下方的預設扭蛋機圖。「背景圖」是扭蛋機後面的場景（建議 16:9 橫向圖，中間留空），未上傳時使用網站內建的預設背景。</p>
             <div style="overflow-x:auto;">
               <table class="admin-table">
-                <thead><tr><th>次序</th><th>中文名稱</th><th>英文名稱</th><th>開放扭蛋</th><th>造型數量</th><th>扭蛋機圖</th><th>背景圖</th><th></th></tr></thead>
+                <thead><tr><th>次序</th><th>中文名稱</th><th>英文名稱</th><th>開放扭蛋</th><th>貼圖數量</th><th>扭蛋機圖</th><th>背景圖</th><th></th></tr></thead>
                 <tbody>${rows || '<tr><td colspan="8" style="text-align:center; color:#999; padding:16px;">未有系列，請點擊「新增系列」</td></tr>'}</tbody>
               </table>
             </div>
@@ -483,7 +483,7 @@
         return `
           <div class="admin-card">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
-              <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800);">造型（共 ${allPool.length} 件）</h3>
+              <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800);">貼圖（共 ${allPool.length} 件）</h3>
               <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
                 <select class="admin-input-sm" onchange="adminSetGachaSeriesFilter(this.value)" title="只顯示某個系列">
                   <option value="" ${!filter ? 'selected' : ''}>顯示全部系列</option>
@@ -491,17 +491,17 @@
                 </select>
                 <button class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="adminNormalizeGachaWeights()">調整為剛好 100</button>
                 <button class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="adminRenumberGachaStickers()">重新排序編號</button>
-                <button class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="adminAddGachaPrize()">新增造型</button>
+                <button class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="adminAddGachaPrize()">新增貼圖</button>
               </div>
             </div>
-            <p style="font-size:13px; color:#888; margin-bottom:8px;">造型編號（#id）對應用戶收集圖鑑的位置，刪除造型之後編號會留下缺口（例如刪除 #13~#17 之後就由 #12 跳到 #18），這不影響扭蛋／收集功能，純粹是畫面上不美觀。如果想整理，點擊「重新排序編號」會將現存造型由上到下重新編為 1、2、3...連續號碼——但要留意：如果已經有真實學生扭過蛋、收藏了某幾件造型，重新編號會令他們原有的收藏對應不上新編號（造型會「變成另一件」），所以這個按鈕只適合在未有學生正式使用過、或者您願意接受重整所有人收藏記錄的情況下才點擊。</p>
+            <p style="font-size:13px; color:#888; margin-bottom:8px;">貼圖編號（#id）對應用戶收集圖鑑的位置，刪除貼圖之後編號會留下缺口（例如刪除 #13~#17 之後就由 #12 跳到 #18），這不影響扭蛋／收集功能，純粹是畫面上不美觀。如果想整理，點擊「重新排序編號」會將現存貼圖由上到下重新編為 1、2、3...連續號碼——但要留意：如果已經有真實學生扭過蛋、收藏了某幾張貼圖，重新編號會令他們原有的收藏對應不上新編號（貼圖會「變成另一件」），所以這個按鈕只適合在未有學生正式使用過、或者您願意接受重整所有人收藏記錄的情況下才點擊。</p>
             <div style="overflow-x:auto;">
               <table class="admin-table">
                 <thead><tr><th>#</th><th>圖片</th><th>中文名稱</th><th>英文名稱</th><th>系列</th><th>稀有度</th><th>機率權重</th><th></th></tr></thead>
-                <tbody>${rows || '<tr><td colspan="8" style="text-align:center; color:#999; padding:16px;">未有造型，請點擊「新增造型」開始</td></tr>'}</tbody>
+                <tbody>${rows || '<tr><td colspan="8" style="text-align:center; color:#999; padding:16px;">未有貼圖，請點擊「新增貼圖」開始</td></tr>'}</tbody>
               </table>
             </div>
-            <p style="font-size:13px; color:#888; margin-top:8px;">${filter ? '此系列' : '全部'}總權重：<span id="admin-gacha-total">${totalWeight}</span>。學生每次只會在所選系列之內抽，所以「≈ %」是該件造型在<b>同一系列內</b>的機率。點擊「調整為剛好 100」會將每個系列各自的權重縮放到合計 100。稀有度只影響標籤及抽中時的提示，實際機率由權重決定。</p>
+            <p style="font-size:13px; color:#888; margin-top:8px;">${filter ? '此系列' : '全部'}總權重：<span id="admin-gacha-total">${totalWeight}</span>。學生每次只會在所選系列之內抽，所以「≈ %」是該張貼圖在<b>同一系列內</b>的機率。點擊「調整為剛好 100」會將每個系列各自的權重縮放到合計 100。稀有度只影響標籤及抽中時的提示，實際機率由權重決定。</p>
           </div>
         `;
       }
@@ -517,8 +517,8 @@
 
 
         <div class="admin-card">
-          <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:6px;">造型碎片</h3>
-          <p style="font-size:13px; color:#888; margin:0 0 10px;">學生扭到已擁有的造型會自動轉為碎片；碎片可兌換未擁有的造型（只限開放中的系列）。</p>
+          <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:6px;">貼圖碎片</h3>
+          <p style="font-size:13px; color:#888; margin:0 0 10px;">學生扭到已擁有的貼圖會自動轉為碎片；碎片可兌換未擁有的貼圖（只限開放中的系列）。</p>
           <table class="admin-table" style="max-width:420px;">
             <thead><tr><th>稀有度</th><th>重複時得到碎片</th><th>兌換所需碎片</th></tr></thead>
             <tbody>
@@ -551,7 +551,7 @@
     let adminGachaSeriesFilter = '';
     window.adminSetGachaSeriesFilter = function(v) { adminGachaSeriesFilter = v || ''; renderAdminGachaTab(); };
 
-    // 第一次有系列功能時，自動將現有造型歸入「動物連身衣」，並按名稱
+    // 第一次有系列功能時，自動將現有貼圖歸入「動物連身衣」，並按名稱
     // 預填英文名同稀有度（管理員仍然可以喺表格度改，撳儲存先生效）
     const ADMIN_GACHA_KNOWN = {
       '熊仔連身衣': ['Bear Onesie', 'common'], '黃貓連身衣': ['Tabby Cat Onesie', 'common'],
@@ -595,7 +595,7 @@
       if (!adminGachaDraft || !adminGachaDraft.series[idx]) return;
       const se = adminGachaDraft.series[idx];
       const n = adminGachaDraft.stickers.filter(st => String(st.seriesId) === String(se.id)).length;
-      if (n > 0) { window.showToast(`此系列仍有 ${n} 件造型，請先將造型移到其他系列或刪除`, '⚠️'); return; }
+      if (n > 0) { window.showToast(`此系列仍有 ${n} 張貼圖，請先將貼圖移到其他系列或刪除`, '⚠️'); return; }
       if (!confirm(`確定刪除系列「${se.name || se.id}」？`)) return;
       adminGachaDraft.series.splice(idx, 1);
       adminGachaDraft.series.forEach((x, i) => { x.order = i + 1; });
@@ -860,13 +860,13 @@
       const pool = adminGachaDraft.stickers;
       const nextId = pool.length ? Math.max(...pool.map(p => p.id || 0)) + 1 : 1;
       const sid = adminGachaSeriesFilter || (adminGachaDraft.series[0] && adminGachaDraft.series[0].id) || '';
-      pool.push({ id: nextId, emoji: '🦦', name: `新造型 #${String(nextId).padStart(2, '0')}`, nameEn: '', photo: null, weight: 1, seriesId: sid, rarity: 'common' });
+      pool.push({ id: nextId, emoji: '🦦', name: `新貼圖 #${String(nextId).padStart(2, '0')}`, nameEn: '', photo: null, weight: 1, seriesId: sid, rarity: 'common' });
       renderAdminGachaTab();
     };
 
     window.adminRemoveGachaPrize = function(idx) {
       if (!adminGachaDraft) return;
-      if (!confirm('確定刪除這件造型？若已經有用戶擁有，其收集紀錄會保留，但在圖鑑中將不再顯示。')) return;
+      if (!confirm('確定刪除這張貼圖？若已經有用戶擁有，其收集紀錄會保留，但在圖鑑中將不再顯示。')) return;
       adminGachaDraft.stickers.splice(idx, 1);
       renderAdminGachaTab();
     };
@@ -896,13 +896,13 @@
     window.adminSaveGachaConfig = async function() {
       if (!adminGachaDraft || !window.db || !window.fs) return;
       if (adminGachaDraft.stickers.length === 0) {
-        window.showToast('最少要有一件造型才可以儲存', '⚠️');
+        window.showToast('最少要有一張貼圖才可以儲存', '⚠️');
         return;
       }
       const openSeries = adminGachaDraft.series.filter(se => se.enabled !== false &&
         adminGachaDraft.stickers.some(st => String(st.seriesId) === String(se.id) && (parseFloat(st.weight) || 0) > 0));
       if (adminGachaDraft.series.length && !openSeries.length) {
-        window.showToast('最少要有一個「開放扭蛋」並且有造型的系列', '⚠️');
+        window.showToast('最少要有一個「開放扭蛋」並且有貼圖的系列', '⚠️');
         return;
       }
       const payload = {
@@ -964,7 +964,7 @@
           }
           if (typeof data.costNormal === 'number') GACHA_COST.normal = data.costNormal;
           if (typeof data.costLucky === 'number') GACHA_COST.lucky = data.costLucky;
-          // v1.217.0：造型碎片數值
+          // v1.217.0：貼圖碎片數值
           if (data.fragmentGain && typeof data.fragmentGain === 'object') window.GACHA_FRAGMENT_GAIN = Object.assign({ common: 1, rare: 3, limited: 6 }, data.fragmentGain);
           if (data.fragmentCost && typeof data.fragmentCost === 'object') window.GACHA_FRAGMENT_COST = Object.assign({ common: 3, rare: 9, limited: 18 }, data.fragmentCost);
           if (typeof window.gachaRenderFragmentCount === 'function') window.gachaRenderFragmentCount();
@@ -1073,7 +1073,7 @@
         </div>
 
         <div class="admin-card" style="margin-top:12px;">
-          <h3 style="font-size:14px; font-weight:bold; margin-bottom:4px;">段位稱號 + 水獺造型（由低到高，建議第一行等級門檻＝1）</h3>
+          <h3 style="font-size:14px; font-weight:bold; margin-bottom:4px;">段位稱號 + 水獺貼圖（由低到高，建議第一行等級門檻＝1）</h3>
           <p style="font-size:13px; color:#888; margin-bottom:10px;">每個段位可以上傳專屬水獺相片，用家升到那個等級，主頁「我的水獺」就會自動換成那張相；不上傳則使用共用的預設插畫（有心情表情變化）。</p>
           <div>${ranksCards}</div>
           <button class="btn btn-outline" style="margin-top:4px; font-size:13px;" onclick="adminAddLevelRank()">新增段位</button>

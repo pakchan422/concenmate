@@ -6,7 +6,7 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.219.1"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.219.2"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <meta charset="UTF-8">
@@ -38,7 +38,7 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="ConcenMate 書伴">
   <meta property="og:title" content="ConcenMate 書伴 - 開鏡頭，一齊溫習">
-  <meta property="og:description" content="以 Body Doubling 心理學為核心的線上溫習室：開鏡頭與書伴一起溫習，溫習時數可扭蛋收集 Ottie 造型，免費加入。適合中學生及大學生。">
+  <meta property="og:description" content="以 Body Doubling 心理學為核心的線上溫習室：開鏡頭與書伴一起溫習，溫習時數可扭蛋收集 Ottie 貼圖，免費加入。適合中學生及大學生。">
   <meta property="og:url" content="https://concenmate.com/">
   <meta property="og:image" content="https://concenmate.com/og-image.png?v=5">
   <meta property="og:image:width" content="1200">
@@ -48,7 +48,7 @@
   <!-- Twitter/X 分享卡片 -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="ConcenMate 書伴 - 開鏡頭，一齊溫習">
-  <meta name="twitter:description" content="以 Body Doubling 心理學為核心的線上溫習室：開鏡頭與書伴一起溫習，溫習時數可扭蛋收集 Ottie 造型，免費加入。適合中學生及大學生。">
+  <meta name="twitter:description" content="以 Body Doubling 心理學為核心的線上溫習室：開鏡頭與書伴一起溫習，溫習時數可扭蛋收集 Ottie 貼圖，免費加入。適合中學生及大學生。">
   <meta name="twitter:image" content="https://concenmate.com/og-image.png?v=5">
 
   <!-- Favicon／瀏覽器分頁圖示、手機主畫面圖示 -->
@@ -908,7 +908,7 @@
       50%      { transform: translateY(-2px) rotate(1deg); }
     }
     .otter-mood-happy   { animation: otter-float-happy 2s ease-in-out infinite; }
-    /* 有背景嘅造型（稀有／限定）：唔再左右擺動，改為輕輕上下浮動，加柔和陰影，似一張浮起嘅卡 */
+    /* 有背景嘅貼圖（稀有／限定）：唔再左右擺動，改為輕輕上下浮動，加柔和陰影，似一張浮起嘅卡 */
     @keyframes otter-card-float {
       0%, 100% { transform: translateY(0); }
       50%      { transform: translateY(-5px); }
@@ -2004,7 +2004,7 @@
               <p id="otter-rename-error" style="display:none; color:#C0524A; font-size:13px; margin-top:8px;"></p>
 
               <div style="margin-top:16px; text-align:left;">
-                <p style="font-size:13px; font-weight:bold; color:var(--brand-800); margin-bottom:8px;" data-i18n="home.otterAvatarLabel">Ottie 造型（可選擇已收集的造型）</p>
+                <p style="font-size:13px; font-weight:bold; color:var(--brand-800); margin-bottom:8px;" data-i18n="home.otterAvatarLabel">Ottie 貼圖（可選擇已收集的貼圖）</p>
                 <div id="otter-avatar-picker-grid" style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; max-height:300px; overflow-y:auto; padding:2px;"></div>
               </div>
 
@@ -2077,7 +2077,7 @@
                     </g>
                   </svg>
                 </div>
-                <div style="margin-top:2px;"><button type="button" class="btn btn-outline" style="font-size:13px; padding:5px 14px;" onclick="openOtterRenameModal()" data-i18n="home.changeLookBtn">更換造型</button></div>
+                <div style="margin-top:2px;"><button type="button" class="btn btn-outline" style="font-size:13px; padding:5px 14px;" onclick="openOtterRenameModal()" data-i18n="home.changeLookBtn">更換貼圖</button></div>
                 <!-- 寵物「肚餓/餵食」機制已經移除，改成顯示呢幾個同「溫習成就」
                      有關嘅實用數據：等級、升級所需 EXP、累積時數、連續溫習
                      天數、貼紙圖鑑完成度。呢幾個欄位由 updateOtterStatsCard()
@@ -2757,7 +2757,7 @@
             </div>
           </div>
 
-          <!-- v1.214.0：造型系列選擇（由 renderGachaSeriesPicker() 填入；
+          <!-- v1.214.0：貼圖系列選擇（由 renderGachaSeriesPicker() 填入；
                只得一個系列時會自動隱藏） -->
           <div class="card" style="padding:14px 16px;">
             <div style="font-size:14px; font-weight:800; color:var(--brand-800); margin-bottom:8px;" data-i18n="gacha.chooseSeries">選擇扭蛋系列</div>
@@ -2839,20 +2839,20 @@
           <!-- 貼紙圖鑑入口：扭蛋抽到嘅而家全部都係 Ottiee 貼紙，儲齊一套
                做目標，撳「開啟我的貼紙圖鑑」睇返自己收集咗幾多款。 -->
           <div class="card" style="text-align:center;">
-            <h3 style="font-size:15px; font-weight:bold; margin-bottom:8px;" data-i18n="gacha.stickerBookTitle">Ottie 造型圖鑑</h3>
-            <p style="font-size:13px; color:#666; margin-bottom:10px;" data-i18n="gacha.stickerBookDesc">扭蛋可抽到 Ottie 的造型，集齊整個系列吧！</p>
+            <h3 style="font-size:15px; font-weight:bold; margin-bottom:8px;" data-i18n="gacha.stickerBookTitle">Ottie 貼圖圖鑑</h3>
+            <p style="font-size:13px; color:#666; margin-bottom:10px;" data-i18n="gacha.stickerBookDesc">扭蛋可抽到 Ottie 的貼圖，集齊整個系列吧！</p>
             <div style="margin-bottom:12px;">
               <div style="background:#EEE; border-radius:99px; height:10px; overflow:hidden;">
                 <div id="sticker-progress-bar" style="background:linear-gradient(90deg,#A4B4D4,#344976); height:100%; width:0%; transition:width .3s;"></div>
               </div>
               <p style="font-size:13px; color:#344976; margin-top:6px; font-weight:bold;"><span data-i18n="gacha.collectedLabel">已收集</span> <span id="sticker-progress-text">0/0</span></p>
             </div>
-            <button type="button" class="btn btn-outline" style="display:inline-block; padding:8px 24px;" onclick="openStickerCollection()" data-i18n="gacha.openStickerBookBtn">開啟我的造型圖鑑</button>
-            <!-- v1.217.0：造型碎片——重複扭到的造型自動轉為碎片，可兌換未擁有的造型 -->
+            <button type="button" class="btn btn-outline" style="display:inline-block; padding:8px 24px;" onclick="openStickerCollection()" data-i18n="gacha.openStickerBookBtn">開啟我的貼圖圖鑑</button>
+            <!-- v1.217.0：貼圖碎片——重複扭到的貼圖自動轉為碎片，可兌換未擁有的貼圖 -->
             <div style="margin-top:14px; padding-top:12px; border-top:1px dashed var(--brand-200); display:flex; flex-direction:column; align-items:center; gap:6px;">
               <p style="font-size:14px; font-weight:800; color:#29395C; margin:0;"><span data-i18n="gacha.fragmentLabel">我的碎片</span>：<span id="gacha-fragment-count" style="color:#A37A08;">0</span></p>
-              <p id="gacha-fragment-rule" style="font-size:12px; color:#6B7894; margin:0;">重複扭到的造型會自動轉為碎片</p>
-              <button type="button" class="btn btn-primary" style="display:inline-block; padding:8px 24px;" onclick="openFragmentShop()" data-i18n="gacha.fragmentShopBtn">用碎片兌換造型</button>
+              <p id="gacha-fragment-rule" style="font-size:12px; color:#6B7894; margin:0;">重複扭到的貼圖會自動轉為碎片</p>
+              <button type="button" class="btn btn-primary" style="display:inline-block; padding:8px 24px;" onclick="openFragmentShop()" data-i18n="gacha.fragmentShopBtn">用碎片兌換貼圖</button>
             </div>
           </div>
 
@@ -2872,7 +2872,7 @@
         <div id="sticker-collection-modal" style="display:none; position:fixed; inset:0; z-index:2500; background:rgba(0,0,0,.55); align-items:center; justify-content:center; padding:16px;" onclick="if(event.target===this) closeStickerCollection();">
           <div style="background:#fff; border-radius:16px; padding:18px; max-width:520px; width:100%; max-height:82vh; overflow-y:auto;" onclick="event.stopPropagation();">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-              <h3 style="font-size:16px; font-weight:bold; color:#29395C;" data-i18n="gacha.myStickerBookTitle">我的造型圖鑑</h3>
+              <h3 style="font-size:16px; font-weight:bold; color:#29395C;" data-i18n="gacha.myStickerBookTitle">我的貼圖圖鑑</h3>
               <button type="button" onclick="closeStickerCollection()" class="icon-close-btn" aria-label="關閉" title="關閉"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
             </div>
             <p style="font-size:13px; color:#344976; margin-bottom:10px; font-weight:bold;"><span data-i18n="gacha.collectedLabel">已收集</span> <span id="sticker-modal-progress-text">0/0</span></p>
@@ -2880,7 +2880,7 @@
           </div>
         </div>
 
-        <!-- v1.217.0：碎片兌換視窗——列出未擁有的造型，選擇後以碎片兌換 -->
+        <!-- v1.217.0：碎片兌換視窗——列出未擁有的貼圖，選擇後以碎片兌換 -->
         <div id="fragment-shop-modal" style="display:none; position:fixed; inset:0; z-index:2500; background:rgba(0,0,0,.55); align-items:center; justify-content:center; padding:16px;" onclick="if(event.target===this) closeFragmentShop();">
           <div style="background:#fff; border-radius:16px; padding:18px; max-width:520px; width:100%; max-height:82vh; overflow-y:auto;" onclick="event.stopPropagation();">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
@@ -2888,7 +2888,7 @@
               <button type="button" onclick="closeFragmentShop()" class="icon-close-btn" aria-label="關閉" title="關閉"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
             </div>
             <p style="font-size:13px; color:#344976; margin-bottom:4px; font-weight:bold;"><span data-i18n="gacha.fragmentLabel">我的碎片</span>：<span id="fragment-shop-count">0</span></p>
-            <p style="font-size:12px; color:#6B7894; margin-bottom:10px;" data-i18n="gacha.fragmentShopDesc">選擇一件未擁有的造型，以碎片兌換。稀有度越高，所需碎片越多。</p>
+            <p style="font-size:12px; color:#6B7894; margin-bottom:10px;" data-i18n="gacha.fragmentShopDesc">選擇一張未擁有的貼圖，以碎片兌換。稀有度越高，所需碎片越多。</p>
             <div id="fragment-shop-list" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(96px, 1fr)); gap:8px;"></div>
           </div>
         </div>
@@ -2902,7 +2902,7 @@
             <div id="gacha-lightbox-tier" style="font-size:14px; font-weight:bold; margin-top:10px;"></div>
             <div id="gacha-lightbox-name" style="font-size:18px; font-weight:bold; margin-top:4px; color:#29395C;"></div>
             <div id="gacha-lightbox-desc" style="font-size:13px; color:#344976; margin-top:8px;"></div>
-            <button type="button" id="gacha-lightbox-equip" onclick="equipLightboxLook()" class="btn btn-primary" style="display:none; margin-top:16px; width:100%; justify-content:center;" data-i18n="gacha.equipNowBtn">立即換上</button>
+            <button type="button" id="gacha-lightbox-equip" onclick="equipLightboxLook()" class="btn btn-primary" style="display:none; margin-top:16px; width:100%; justify-content:center;" data-i18n="gacha.equipNowBtn">立即使用</button>
             <button type="button" onclick="closeGachaPrizeLightbox()" class="btn btn-outline" style="margin-top:10px; width:100%; justify-content:center;" data-i18n="common.close">關閉</button>
           </div>
         </div>
@@ -4201,7 +4201,7 @@
     var SLIDES = [
       { art: '<img src="ottie-wave.png" alt="">', t: ['onboard.s1t', '歡迎來到書伴'], d: ['onboard.s1d', '研究發現，有人在旁陪伴，更容易專注。書伴讓你隨時找到一起溫習的同伴，溫習不再孤軍作戰。'] },
       { art: big('room'), t: ['onboard.s2t', '開鏡頭，一起溫習'], d: ['onboard.s2d', '在「視訊溫習室」加入公開房間或建立自己的房間。房間會限制開咪時間，讓大家專心溫習。'] },
-      { art: big('store'), t: ['onboard.s3t', '溫習時數扭蛋收集造型'], d: ['onboard.s3d', '每溫習一分鐘都會累積積分，可以在「時數扭蛋機」扭蛋，收集 Ottie 的可愛造型。'] },
+      { art: big('store'), t: ['onboard.s3t', '溫習時數扭蛋收集貼圖'], d: ['onboard.s3d', '每溫習一分鐘都會累積積分，可以在「時數扭蛋機」扭蛋，收集 Ottie 的可愛貼圖。'] },
       { art: big('social'), t: ['onboard.s4t', '認識你的書伴'], d: ['onboard.s4d', '在「書伴廣場」加好友、互相鼓勵，並在「溫習日記」記錄每天的努力。'] }
     ];
     var idx = 0;
@@ -4453,7 +4453,7 @@
         <div id="admin-tab-group-settings">
         <p class="admin-tab-group-label" style="font-size:12px; font-weight:bold; color:#999; margin:0 0 6px;">網站設定</p>
         <div style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;">
-          <button class="btn btn-outline admin-tab-btn" data-tab="gacha" onclick="switchAdminTab('gacha')">扭蛋機造型</button>
+          <button class="btn btn-outline admin-tab-btn" data-tab="gacha" onclick="switchAdminTab('gacha')">扭蛋機貼圖</button>
           <button class="btn btn-outline admin-tab-btn" data-tab="level" onclick="switchAdminTab('level')">等級系統</button>
           <button class="btn btn-outline admin-tab-btn" data-tab="icons" onclick="switchAdminTab('icons')">功能圖示</button>
           <button class="btn btn-outline admin-tab-btn" data-tab="landing" onclick="switchAdminTab('landing')">Landing page文案</button>
