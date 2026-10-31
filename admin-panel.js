@@ -253,7 +253,7 @@
       // 防止『support』帳戶用網址hash或者其他方式直接跳去冇按鈕對應
       // 嘅super限定分頁——退返去「數據總覽」並提示一下。
       if (SUPER_ADMIN_ONLY_TABS.includes(tab) && !isCurrentUserSuperAdmin()) {
-        window.showToast('呢個分頁淨係「超級管理員」先用得到', '🔒');
+        window.showToast('此分頁只限「超級管理員」使用', '🔒');
         tab = 'dashboard';
       }
       currentAdminTab = tab;
@@ -2168,7 +2168,7 @@
       container.innerHTML = `
         <p style="font-size:13px; color:#888; margin-bottom:14px;">呢度改嘅文字就係未登入訪客打開網站第一眼見到嘅 Landing page 內容，三種語言可以分開改，改完撳最底「儲存全部改動」就會即時全站生效（包括未登入嘅訪客），唔使搵開發者改 code。</p>
         ${renderAdminLandingImageCard('navLogoUrl', '主橫幅 Logo', '顯示喺 Landing page 主橫幅左上方嘅大 Logo（建議用透明背景 PNG，闊度約 600px 以上）。', 'logo-hero.png')}
-        ${renderAdminLandingImageCard('heroImageUrl', '主橫幅吉祥物圖', '顯示喺主橫幅中間嘅 Ottiee 吉祥物圖案。', 'ottie-wave.png')}
+        ${renderAdminLandingImageCard('heroImageUrl', '主橫幅吉祥物圖', '顯示在主橫幅中間的 Ottiee 吉祥物圖案。', 'ottie-wave.png')}
         ${groupsHtml}
         <div style="text-align:center; margin-top:10px;">
           <button type="button" class="btn btn-primary" id="btn-admin-save-landing" style="padding:12px 32px; font-size:15px;" onclick="adminSaveLandingContent()">儲存全部改動</button>
@@ -2499,7 +2499,7 @@
       const d = adminRoomSettingsDraft;
 
       if (!d.capacity2Enabled && !d.capacity4Enabled) {
-        window.showToast('「2 人房」同「4 人房」唔可以兩個都關埋，最少要開放一個', '⚠️');
+        window.showToast('「2 人房」和「4 人房」不可以同時關閉，最少要開放一個', '⚠️');
         return;
       }
 
@@ -2512,7 +2512,7 @@
       )).sort((a, b) => a - b);
 
       if (durationOptions.length === 0) {
-        window.showToast('最少要有一個有效嘅溫習時間選項（正整數分鐘數）', '⚠️');
+        window.showToast('最少要有一個有效的溫習時間選項（正整數分鐘數）', '⚠️');
         return;
       }
 
@@ -2660,7 +2660,7 @@
       if (btn) { btn.disabled = true; btn.innerText = '儲存中…'; }
       try {
         await window.fs.setDoc(window.fs.doc(window.db, 'admin_config', 'antiIdleRules'), payload);
-        window.showToast('防掛機參數已儲存，即時對所有用戶生效（已喺房入面嘅學生要下次入房／開咪先會跟新數值）！', '🎉');
+        window.showToast('防掛機參數已儲存，即時對所有用戶生效（已在房內的學生要下次入房或開啟麥克風後才會套用新數值）！', '🎉');
       } catch (err) {
         window.showToast('儲存失敗：' + (err.message || err), '❌');
       } finally {
@@ -2819,8 +2819,8 @@
       container.innerHTML = `
         <div class="admin-card" style="margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
           <p style="font-size:13px; color:#888; margin:0;">數據截至：${lastUpdateText}（讀取當刻嘅快照，唔會自動即時更新，想攞最新數字就撳右邊個掣）</p>
-          <button type="button" class="btn btn-outline" style="font-size:13px; padding:6px 14px;" ${refreshingNow ? 'disabled' : ''} onclick="window.adminRefreshDashboard()">${refreshingNow ? '更新中…' : '🔄 重新整理'}</button>
-          <button type="button" class="btn btn-outline" style="font-size:13px; padding:6px 14px;" onclick="window.adminBackfillPublicProfiles(this)" title="為所有用戶建立／更新公開資料卡（用戶名、頭像、學校等）。系統更新後執行一次即可，重複執行亦無影響。">🪪 同步公開資料</button>
+          <button type="button" class="btn btn-outline" style="font-size:13px; padding:6px 14px;" ${refreshingNow ? 'disabled' : ''} onclick="window.adminRefreshDashboard()">${refreshingNow ? '更新中…' : '重新整理'}</button>
+          <button type="button" class="btn btn-outline" style="font-size:13px; padding:6px 14px;" onclick="window.adminBackfillPublicProfiles(this)" title="為所有用戶建立／更新公開資料卡（用戶名、頭像、學校等）。系統更新後執行一次即可，重複執行亦無影響。">同步公開資料</button>
         </div>
         <div class="admin-stat-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:14px;">
           ${cards.map(c => `
@@ -2924,7 +2924,7 @@
       if (!adminAnnouncementDraft) return;
       const d = adminAnnouncementDraft;
       if (d.enabled && !d.message['zh-Hant'].trim()) {
-        window.showToast('開啟公告橫幅之前，最少要填返繁體中文版本嘅內容', '⚠️');
+        window.showToast('開啟公告橫幅之前，最少要填寫繁體中文版本的內容', '⚠️');
         return;
       }
       const payload = {
@@ -3140,7 +3140,7 @@
           <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;">搜尋用戶</h3>
           <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
             <input type="text" placeholder="輸入帳號ID／用戶名／Email（部分符合都得）" value="${escapeHtml(adminSupportQuery)}" style="flex:1; min-width:220px; font-size:15px; padding:8px 10px; border:1px solid #DCE5F4; border-radius:6px;" oninput="adminUpdateSupportQuery(this.value)">
-            <button type="button" class="btn btn-outline" style="font-size:13px; padding:6px 14px;" onclick="window.adminRefreshSupportUsers()">🔄 重新整理資料</button>
+            <button type="button" class="btn btn-outline" style="font-size:13px; padding:6px 14px;" onclick="window.adminRefreshSupportUsers()">重新整理資料</button>
           </div>
           <p style="font-size:13px; color:#999; margin-top:8px;">資料讀取於你打開／重新整理呢頁嗰一刻，現共 ${adminSupportUsersCache.length} 位用戶。</p>
           ${q ? `
@@ -3179,7 +3179,7 @@
     window.adminGrantSupportPoints = async function(uid) {
       const amount = adminSupportPointsGrantAmount;
       if (!amount) {
-        window.showToast('請輸入唔係 0 嘅數值', '⚠️');
+        window.showToast('請輸入不是 0 的數值', '⚠️');
         return;
       }
       if (!confirm(`確定要幫呢位用戶${amount > 0 ? '補發' : '扣減'} ${Math.abs(amount)} PTS？`)) return;
@@ -3303,7 +3303,7 @@
         <div class="admin-card" style="margin-bottom:16px;">
           <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;">新增管理員</h3>
           <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-            <input type="text" placeholder="帳號ID（即係用戶登入用嗰個ID，唔係Email）" value="${escapeHtml(d.newLoginId)}" style="flex:1; min-width:220px; font-size:15px; padding:8px 10px; border:1px solid #DCE5F4; border-radius:6px;" oninput="adminUpdateAdminListNewField('newLoginId', this.value)">
+            <input type="text" placeholder="帳號 ID（即用戶登入用的 ID，不是電郵）" value="${escapeHtml(d.newLoginId)}" style="flex:1; min-width:220px; font-size:15px; padding:8px 10px; border:1px solid #DCE5F4; border-radius:6px;" oninput="adminUpdateAdminListNewField('newLoginId', this.value)">
             <select style="font-size:15px; padding:8px 10px; border:1px solid #DCE5F4; border-radius:6px;" onchange="adminUpdateAdminListNewField('newRole', this.value)">
               <option value="super" ${d.newRole === 'super' ? 'selected' : ''}>超級管理員</option>
               <option value="support" ${d.newRole === 'support' ? 'selected' : ''}>客服／支援管理員</option>
@@ -3325,7 +3325,7 @@
 
     window.adminRemoveAdminListEntry = function(idx) {
       if (!adminAdminListDraft || !adminAdminListDraft.entries[idx]) return;
-      if (!confirm(`確定要移除「${adminAdminListDraft.entries[idx].loginId}」嘅管理員身份？`)) return;
+      if (!confirm(`確定要移除「${adminAdminListDraft.entries[idx].loginId}」的管理員身份？`)) return;
       adminAdminListDraft.entries.splice(idx, 1);
       renderAdminAdminListTab();
     };
@@ -3340,7 +3340,7 @@
       const loginId = (adminAdminListDraft.newLoginId || '').trim();
       if (!loginId) { window.showToast('請輸入帳號ID', '⚠️'); return; }
       if (adminAdminListDraft.entries.some(e => e.loginId === loginId)) {
-        window.showToast('呢個帳號已經喺管理員名單入面', '⚠️');
+        window.showToast('此帳號已在管理員名單內', '⚠️');
         return;
       }
       adminAdminListDraft.entries.push({ loginId, role: adminAdminListDraft.newRole || 'support' });
@@ -3357,7 +3357,7 @@
       }
       const superCount = entries.filter(e => e.role === 'super').length;
       if (superCount === 0) {
-        window.showToast('最少要有一位「超級管理員」，否則冇人可以再管理呢份名單', '⚠️');
+        window.showToast('最少要有一位「超級管理員」，否則沒有人可以再管理這份名單', '⚠️');
         return;
       }
       const myLoginId = window.currentUser && window.currentUser.loginId;
@@ -3366,7 +3366,7 @@
       if (!stillAdmin) {
         if (!confirm('你將會喺呢次儲存之後移除咗自己嘅管理員身份，即刻會撳唔返入嚟Admin後台。確定要咁做？')) return;
       } else if (!stillSuper) {
-        if (!confirm('你將會喺呢次儲存之後將自己降做「客服／支援管理員」，即刻會見唔返呢頁同其他設定分頁。確定要咁做？')) return;
+        if (!confirm('儲存後你將會降為「客服／支援管理員」，並立即無法查看此頁及其他設定分頁。確定要這樣做嗎？')) return;
       }
 
       const ids = entries.map(e => e.loginId);
@@ -3439,7 +3439,7 @@
       container.innerHTML = `
         <div class="admin-card" style="margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
           <p style="font-size:13px; color:#888; margin:0;">顯示最近 ${adminAuditLogEntries.length} 筆重要操作紀錄（停權、補發分數／貼紙、強制關房、導師審批、管理員名單異動等）。呢個清單讀取於你打開／重新整理呢頁嗰一刻，撳右邊個掣攞最新。</p>
-          <button type="button" class="btn btn-outline" style="font-size:13px; padding:6px 14px;" onclick="window.adminRefreshAuditLog()">🔄 重新整理</button>
+          <button type="button" class="btn btn-outline" style="font-size:13px; padding:6px 14px;" onclick="window.adminRefreshAuditLog()">重新整理</button>
         </div>
         <div class="admin-card">
           <div style="overflow-x:auto;">
@@ -3578,7 +3578,7 @@
       const nameEn = (adminNewSubjectNameEn || '').trim();
       if (!name) { window.showToast('請輸入科目中文名稱', '⚠️'); return; }
       if (window.TUTOR_DSE_SUBJECTS && window.TUTOR_DSE_SUBJECTS.includes(name)) {
-        window.showToast('呢個科目已經存在喺清單度喇', '⚠️');
+        window.showToast('此科目已在清單內', '⚠️');
         return;
       }
       try {
@@ -3703,7 +3703,7 @@
       const nameEn = (adminNewDistrictNameEn || '').trim();
       if (!region || !name) { window.showToast('請填寫所屬分區同地區名稱', '⚠️'); return; }
       const alreadyExists = (window.HK_DISTRICT_REGION_GROUPS || []).some((g) => g.districts.includes(name));
-      if (alreadyExists) { window.showToast('呢個地區已經存在喺清單度喇', '⚠️'); return; }
+      if (alreadyExists) { window.showToast('此地區已在清單內', '⚠️'); return; }
       try {
         const ref = window.fs.doc(window.db, 'admin_config', 'districtList');
         const existing = (window.ADMIN_DISTRICT_LIST_RAW && Array.isArray(window.ADMIN_DISTRICT_LIST_RAW.districts)) ? window.ADMIN_DISTRICT_LIST_RAW.districts.slice() : [];
@@ -3801,7 +3801,7 @@
       const secondaryAdded = (window.ADMIN_SCHOOL_LIST_RAW && Array.isArray(window.ADMIN_SCHOOL_LIST_RAW.secondary)) ? window.ADMIN_SCHOOL_LIST_RAW.secondary : [];
       const tertiaryAdded = (window.ADMIN_SCHOOL_LIST_RAW && Array.isArray(window.ADMIN_SCHOOL_LIST_RAW.tertiary)) ? window.ADMIN_SCHOOL_LIST_RAW.tertiary : [];
       const secondaryRows = secondaryAdded.map((s) => `<tr><td>${escapeHtml(s.name)}</td><td style="color:#888;">${escapeHtml(s.district)}</td></tr>`).join('');
-      const tertiaryRows = tertiaryAdded.map((t) => `<tr><td>${escapeHtml(t.name)}</td><td style="color:#888;">${t.district ? escapeHtml(t.district) : '常見院校（唔分地區）'}</td></tr>`).join('');
+      const tertiaryRows = tertiaryAdded.map((t) => `<tr><td>${escapeHtml(t.name)}</td><td style="color:#888;">${t.district ? escapeHtml(t.district) : '常見院校（不分地區）'}</td></tr>`).join('');
 
       container.innerHTML = `
         <div class="admin-card" style="margin-bottom:16px;">
@@ -3873,7 +3873,7 @@
       const district = (adminNewSecondarySchoolDistrict || '').trim();
       if (!name || !district) { window.showToast('請填寫中學名稱同所屬地區', '⚠️'); return; }
       const alreadyExists = window.HK_SECONDARY_SCHOOLS_BY_DISTRICT && Object.values(window.HK_SECONDARY_SCHOOLS_BY_DISTRICT).some((list) => list.includes(name));
-      if (alreadyExists) { window.showToast('呢間中學已經存在喺清單度喇', '⚠️'); return; }
+      if (alreadyExists) { window.showToast('此中學已在清單內', '⚠️'); return; }
       try {
         const ref = window.fs.doc(window.db, 'admin_config', 'schoolList');
         const existingSecondary = (window.ADMIN_SCHOOL_LIST_RAW && Array.isArray(window.ADMIN_SCHOOL_LIST_RAW.secondary)) ? window.ADMIN_SCHOOL_LIST_RAW.secondary.slice() : [];
@@ -3895,7 +3895,7 @@
       if (!name) { window.showToast('請輸入院校名稱', '⚠️'); return; }
       const inByDistrict = window.HK_TERTIARY_INSTITUTIONS_BY_DISTRICT && Object.values(window.HK_TERTIARY_INSTITUTIONS_BY_DISTRICT).some((list) => list.includes(name));
       const inCommon = window.HK_TERTIARY_INSTITUTIONS_COMMON && window.HK_TERTIARY_INSTITUTIONS_COMMON.includes(name);
-      if (inByDistrict || inCommon) { window.showToast('呢間院校已經存在喺清單度喇', '⚠️'); return; }
+      if (inByDistrict || inCommon) { window.showToast('此院校已在清單內', '⚠️'); return; }
       try {
         const ref = window.fs.doc(window.db, 'admin_config', 'schoolList');
         const existingSecondary = (window.ADMIN_SCHOOL_LIST_RAW && Array.isArray(window.ADMIN_SCHOOL_LIST_RAW.secondary)) ? window.ADMIN_SCHOOL_LIST_RAW.secondary.slice() : [];
@@ -4102,8 +4102,8 @@
       const langBtns = langTabs.map(([k, label]) => `<button type="button" class="btn ${adminLegalActiveLang === k ? 'btn-primary' : 'btn-outline'}" style="font-size:12px; padding:5px 12px;" onclick="window.adminSwitchLegalLang('${k}')">${label}</button>`).join('');
       const currentText = adminLegalDraft[adminLegalActiveDoc][adminLegalActiveLang] || '';
       const hint = adminLegalActiveLang === 'zh-Hant'
-        ? '呢個係而家網站顯示緊嘅版本，可以直接修改。'
-        : `留空嘅話，呢個語言會自動顯示返繁體中文版本（${adminLegalActiveLang === 'en' ? 'English' : '廣東話'}未填唔會開天窗）。`;
+        ? '這是網站目前顯示的版本，可以直接修改。'
+        : `如留空，此語言會自動顯示繁體中文版本（${adminLegalActiveLang === 'en' ? 'English' : '廣東話'}未填寫亦不會出現空白）。`;
 
       container.innerHTML = `
         <div class="admin-card" style="margin-bottom:16px;">
@@ -4137,7 +4137,7 @@
 
     window.adminSaveLegalContent = async function() {
       ensureLegalDraftLoaded();
-      if (!confirm('確定要儲存？呢個改動會即時影響全站顯示緊嘅服務條款／私隱政策內容。')) return;
+      if (!confirm('確定要儲存嗎？此改動會即時影響全站顯示的服務條款／私隱政策內容。')) return;
       try {
         const ref = window.fs.doc(window.db, 'admin_config', 'legalContent');
         await window.fs.setDoc(ref, {

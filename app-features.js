@@ -103,10 +103,28 @@
       return TECH_ERROR_RE.test(cleaned) ? genericErrorText() : cleaned;
     }
 
+    // v1.219.0：網站介面不用 emoji——呼叫方仍然可以傳舊的 emoji 參數，
+    // 呢度統一轉做四種線條圖示（成功／提示／警告／錯誤），唔使逐個改呼叫位。
+    const TOAST_ERROR_ICONS = ['❌', '🚫', '⛔', '🔒'];
+    const TOAST_WARN_ICONS = ['⚠️', '⚠', '⏳', '⌛', '😅', '⏸️'];
+    const TOAST_INFO_ICONS = ['ℹ️', 'ℹ', ''];
+    const TOAST_SVG = {
+      success: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFD84D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.8 2.8L16 10"/></svg>',
+      info: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A4B4D4" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.5h.01"/></svg>',
+      warn: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFD84D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l9 16H3z"/><path d="M12 10v4"/><path d="M12 17h.01"/></svg>',
+      error: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF9A8B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg>'
+    };
+    function toastKindOf(icon) {
+      const ic = (icon == null ? 'ℹ️' : String(icon)).trim();
+      if (TOAST_ERROR_ICONS.includes(ic)) return 'error';
+      if (TOAST_WARN_ICONS.includes(ic)) return 'warn';
+      if (TOAST_INFO_ICONS.includes(ic)) return 'info';
+      return 'success';
+    }
     function showToast(msg, icon = 'ℹ️') {
       const toast = document.getElementById('toast-box');
       document.getElementById('toast-msg').innerText = sanitizeToastText(msg);
-      document.getElementById('toast-icon').innerText = icon;
+      document.getElementById('toast-icon').innerHTML = TOAST_SVG[toastKindOf(icon)];
       toast.classList.add('show');
       setTimeout(() => { toast.classList.remove('show'); }, 3200);
     }
@@ -900,7 +918,7 @@
     window.handleAvatarFileSelected = function(event) {
       const file = event.target.files && event.target.files[0];
       if (!file) return;
-      if (!window.currentUser) { window.showToast(window.t('diary.loginFirstMember', '請先登入會員'), '⚠️'); return; }
+      if (!window.currentUser) { window.showToast(window.t('diary.loginFirstMember', '請先登入'), '⚠️'); return; }
       openAvatarCropModal(URL.createObjectURL(file));
     };
 
@@ -1238,7 +1256,7 @@
     // postStudyPhoto 呢個 Cloud Function 度（伺服器用香港時區重新驗證）。
     const STUDY_PHOTO_MIN_MINUTES = 15;
     function getStudyPhotoGateState() {
-      if (!window.currentUser) return { ok: false, reason: window.t('diary.loginFirstMember', '請先登入會員') };
+      if (!window.currentUser) return { ok: false, reason: window.t('diary.loginFirstMember', '請先登入') };
       const today = getTodayDateStr();
       if (window.currentUser.lastPhotoPostDate === today) {
         return { ok: false, reason: window.t('diary.alreadyPostedToday', '今日已經發佈過一張溫習相片，請明天再發佈') };
@@ -1268,7 +1286,7 @@
         } else {
           btn.style.opacity = '0.5';
           btn.style.cursor = 'not-allowed';
-          btn.innerText = window.t('diary.postPhotoBtnLocked', '🔒 發佈今日溫習相片');
+          btn.innerText = window.t('diary.postPhotoBtnLocked', '發佈今日溫習相片');
         }
       });
     }
@@ -1332,10 +1350,10 @@
     window.handleStudyPhotoFileSelected = async function(event) {
       const file = event.target.files && event.target.files[0];
       if (!file) return;
-      if (!window.currentUser) { window.showToast(window.t('diary.loginFirstMember', '請先登入會員'), '⚠️'); return; }
+      if (!window.currentUser) { window.showToast(window.t('diary.loginFirstMember', '請先登入'), '⚠️'); return; }
 
       const btn = document.getElementById('diary-photo-upload-btn');
-      if (btn) { btn.style.opacity = '0.6'; btn.style.cursor = 'wait'; btn.innerText = window.t('diary.uploadingBtn', '⏳ 上傳中…'); }
+      if (btn) { btn.style.opacity = '0.6'; btn.style.cursor = 'wait'; btn.innerText = window.t('diary.uploadingBtn', '上傳中…'); }
 
       try {
         const dataUrl = await new Promise((resolve, reject) => {
@@ -2042,6 +2060,17 @@
       const globalGoalLabel = document.getElementById('global-goal-label');
       if (globalGoalBar) globalGoalBar.style.width = pct + '%';
       if (globalGoalLabel) globalGoalLabel.innerText = `${Math.round(minsToday)} / 60 ${minUnit}${doneSuffix}`;
+
+      // v1.219.0：主頁橫幅副標題顯示今日還差幾多分鐘達標
+      const heroSub = document.getElementById('home-hero-sub');
+      if (heroSub) {
+        const left = Math.max(0, 60 - Math.round(minsToday));
+        heroSub.innerText = left <= 0
+          ? window.t('home.goalDoneSub', '今日目標已完成，做得好！')
+          : (minsToday > 0
+              ? window.t('home.goalLeftSubTemplate', '今日還差 {n} 分鐘達到目標').replace('{n}', left)
+              : window.t('home.readyToStudy', '今日準備好溫習了嗎？'));
+      }
     }
     window.updateGoalBarDisplay = updateGoalBarDisplay;
 
@@ -2099,7 +2128,7 @@
         headerAuthBtn.style.borderRadius = "20px";
         headerAuthBtn.style.padding = "4px 10px";
         headerAuthBtn.style.fontSize = "11px";
-        headerAuthBtn.innerHTML = `⏳ 待驗證電郵`;
+        headerAuthBtn.innerHTML = `待驗證電郵`;
 
         // 導師帳戶就算仲未驗證電郵，左邊側邊欄都要即刻顯示返導師專用
         // 版本（唔係學生版），唔可以淨係喺下面「已驗證」嗰個分支先
@@ -2319,7 +2348,7 @@
         if (app.status === 'pending') {
           area.innerHTML = `
             <div style="background:#FFF7E6; border:1px solid #F0D9A0; border-radius:10px; padding:10px 12px; font-size:13px; color:#8a6d1f; text-align:left;">
-              ⏳ 您的導師申請正在審批中，請耐心等候管理員處理。
+              您的導師申請正在審批中，請耐心等候管理員處理。
             </div>
           `;
         } else if (app.status === 'rejected') {
@@ -2633,7 +2662,7 @@
 
       const submitBtn = document.querySelector('#modal-qa-post .btn-primary');
       const origText = submitBtn.innerText;
-      submitBtn.innerText = window.t('qa.publishing', '⏳ 發布中…');
+      submitBtn.innerText = window.t('qa.publishing', '發布中…');
       submitBtn.disabled = true;
 
       try {
@@ -2788,7 +2817,7 @@
 
       const submitBtn = document.getElementById('qa-comment-submit-btn');
       const origText = submitBtn ? submitBtn.innerText : '';
-      if (submitBtn) { submitBtn.innerText = window.t('qa.sending', '⏳ 送出中…'); submitBtn.disabled = true; }
+      if (submitBtn) { submitBtn.innerText = window.t('qa.sending', '送出中…'); submitBtn.disabled = true; }
 
       try {
         const files = Array.from((document.getElementById('qa-comment-photos') || {}).files || []).slice(0, 3);
@@ -3466,7 +3495,7 @@
     // 撳落去到 spendGachaPoints 呢個 Cloud Function 真正回應之間，如果啱啱
     // 冇人用過（Cloud Function 冷啟動），可能要等幾秒；淨係擋掣唔改文字
     // 嘅話畫面睇落好似咩都冇發生、當咗個掣壞咗，所以要順便將掣嘅文字
-    // 改做「⏳ 扭蛋中…」，等用戶知道網站有反應緊，唔係卡住。
+    // 改做「扭蛋中…」，等用戶知道網站有反應緊，唔係卡住。
     function setGachaButtonsDisabled(disabled) {
       const normalBtn = document.getElementById('gacha-draw-normal-btn');
       const luckyBtn = document.getElementById('gacha-draw-lucky-btn');
@@ -3475,7 +3504,7 @@
         btn.disabled = disabled;
         if (disabled) {
           if (btn.dataset.origHtml === undefined) btn.dataset.origHtml = btn.innerHTML;
-          btn.innerHTML = window.t('gacha.drawingInProgress', '⏳ 扭蛋中…');
+          btn.innerHTML = window.t('gacha.drawingInProgress', '扭蛋中…');
         } else if (btn.dataset.origHtml !== undefined) {
           btn.innerHTML = btn.dataset.origHtml;
           delete btn.dataset.origHtml;
@@ -4105,7 +4134,7 @@
               </div>
             `;
           } else {
-            container.innerHTML = `<span class="tag">${window.t('social.requestSentWaiting', '⏳ 邀請已送出，等待回覆')}</span>`;
+            container.innerHTML = `<span class="tag">${window.t('social.requestSentWaiting', '邀請已送出，等待回覆')}</span>`;
           }
           return;
         }
@@ -4568,7 +4597,7 @@
 
       const submitBtn = document.querySelector('#modal-buddy-post .btn-primary');
       const origText = submitBtn ? submitBtn.innerText : '';
-      if (submitBtn) { submitBtn.innerText = window.t('social.postingBtn', '⏳ 發佈中…'); submitBtn.disabled = true; }
+      if (submitBtn) { submitBtn.innerText = window.t('social.postingBtn', '發佈中…'); submitBtn.disabled = true; }
 
       try {
         await window.fs.addDoc(window.fs.collection(window.db, 'buddyPosts'), {
@@ -5079,7 +5108,7 @@
         .sort((a, b) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0));
 
       if (conversations.length === 0) {
-        listEl.innerHTML = `<p style="text-align:center; color:#999; font-size:13px; padding:16px;">${window.t('chatdock.noConversationsEmpty', '尚未有任何對話紀錄，請到「書伴廣場」找一位好友按「💬」開始聊天！')}</p>`;
+        listEl.innerHTML = `<p style="text-align:center; color:#999; font-size:13px; padding:16px;">${window.t('chatdock.noConversationsEmpty', '尚未有任何對話紀錄，請到「書伴廣場」找一位好友，按「聊天」開始對話！')}</p>`;
         return;
       }
 
@@ -5335,7 +5364,7 @@
               <span class="presence-dot ${online ? 'online' : ''}" style="position:static;"></span>
               <span class="chat-window-title">${escapeHtml(w.friendUsername)}</span>
               <button type="button" class="chat-window-close-btn" title="清除對話記錄" onclick="event.stopPropagation(); window.clearChatHistory('${w.chatId}')">🗑️</button>
-              <button type="button" class="chat-window-close-btn" title="閂視窗" onclick="event.stopPropagation(); window.closeChatWindow('${w.chatId}')">✕</button>
+              <button type="button" class="chat-window-close-btn" title="關閉視窗" aria-label="關閉視窗" onclick="event.stopPropagation(); window.closeChatWindow('${w.chatId}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
             </div>
             <div class="chat-window-body" id="chat-body-${w.chatId}"></div>
             <div class="chat-window-input-row">

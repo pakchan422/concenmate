@@ -754,7 +754,7 @@
       const reason = (reasonEl && reasonEl.value) || '其他';
       const notes = (notesEl && notesEl.value || '').trim();
 
-      if (btn) { btn.disabled = true; btn.innerText = window.t('room.reportSendingBtn', '⏳ 傳送中...'); }
+      if (btn) { btn.disabled = true; btn.innerText = window.t('room.reportSendingBtn', '傳送中...'); }
       try {
         // 舉報寫入而家改用 Cloud Function（submitReport）做，用 Admin
         // SDK 寫入 reports，同時套用咗速率限制（同一舉報人 10 分鐘內
@@ -1298,7 +1298,7 @@
       }
 
       if (!window.currentUser || !window.db || !window.fs) {
-        window.showToast(window.t('room.needLoginMember', '請先登入會員'), "⚠️");
+        window.showToast(window.t('room.needLoginMember', '請先登入'), "⚠️");
         return;
       }
 
@@ -1307,7 +1307,7 @@
       const originalBtnText = submitBtn ? submitBtn.innerText : '';
       if (submitBtn) {
         submitBtn.disabled = true;
-        submitBtn.innerText = window.t('room.creatingRoomBtn', '⏳ 建立中…');
+        submitBtn.innerText = window.t('room.creatingRoomBtn', '建立中…');
       }
 
       try {
@@ -1320,7 +1320,7 @@
         // function 最尾 finally 嗰套邏輯）。
         const roomPasswordRaw = (document.getElementById('modal-room-password').value || '').trim();
         if (roomPasswordRaw && !/^\d{4}$/.test(roomPasswordRaw)) {
-          window.showToast(window.t('room.passwordMustBe4Digits', '密碼鎖必須係 4 位數字，或者留空代表不設密碼'), '⚠️');
+          window.showToast(window.t('room.passwordMustBe4Digits', '密碼鎖必須是 4 位數字，或者留空代表不設密碼'), '⚠️');
           return;
         }
 
@@ -1391,7 +1391,7 @@
       if (btnEl) {
         originalBtnHtml = btnEl.innerHTML;
         btnEl.disabled = true;
-        btnEl.innerHTML = window.t('room.joiningRoomBtn', '⏳ 加入緊…');
+        btnEl.innerHTML = window.t('room.joiningRoomBtn', '加入緊…');
       }
       try {
         const success = await enterRoomSetup(roomId, roomName, subject, durationMins, hostName, isMyRoom, createdAt, hostUid);
@@ -1401,7 +1401,7 @@
       } finally {
         // 成功入到房之後，呢張房間卡片好快會隨住大廳列表重新渲染而消失，
         // 所以呢度照舊還原返個掣都冇問題；主要係防止加入失敗／密碼錯之
-        // 類情況之下，個掣一直卡喺「⏳ 加入緊…」冇得再撳。
+        // 類情況之下，個掣一直卡喺「加入緊…」冇得再撳。
         if (btnEl) {
           btnEl.disabled = false;
           btnEl.innerHTML = originalBtnHtml;
@@ -1411,7 +1411,7 @@
 
     async function enterRoomSetup(roomId, roomName, subject, durationMins, hostName, isMyRoom, createdAt, hostUid) {
       if (!window.currentUser || !window.db || !window.fs) {
-        window.showToast(window.t('room.needLoginMember', '請先登入會員'), "⚠️");
+        window.showToast(window.t('room.needLoginMember', '請先登入'), "⚠️");
         return false;
       }
 
@@ -2630,7 +2630,7 @@
 
         updateMyCameraStatus(false);
       } else {
-        btn.innerText = window.t('room.cameraStarting', '⏳ 鏡頭啟動中...');
+        btn.innerText = window.t('room.cameraStarting', '鏡頭啟動中...');
 
         try {
           let videoTrack;
@@ -2728,7 +2728,7 @@
       }
 
       if (!state.mediaStream || state.mediaStream.getAudioTracks().length === 0) {
-        if (micBtn) micBtn.innerText = window.t('room.gettingMicBtn', '⏳ 取得麥克風中...');
+        if (micBtn) micBtn.innerText = window.t('room.gettingMicBtn', '取得麥克風中...');
         try {
           let audioStream;
           try {

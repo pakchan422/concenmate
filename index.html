@@ -6,7 +6,7 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.218.1"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.219.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <meta charset="UTF-8">
@@ -1519,6 +1519,41 @@
     .admin-stat-grid > .admin-stat-tile:nth-child(3n)   { --st-bar: linear-gradient(90deg, #4A68A8, #A4B4D4); --st-tint: #ECF0F9; --st-num: #4A68A8; }
   </style>
   <style id="layer-css">
+    /* v1.219.0：主頁橫幅「開始溫習」按鈕（手機版才顯示，電腦版已有視訊溫習室大卡） */
+    .home-hero-cta { display: none; margin-top: 8px; background: var(--accent); color: var(--accent-ink); padding: 7px 16px; font-size: 14px; box-shadow: 0 4px 10px rgba(0,0,0,.15); }
+    @media (max-width: 900px) { .home-hero-cta.student-only-nav { display: inline-flex; } }
+    /* v1.219.0：載入中骨架——文字「載入中…」的區塊改為灰色骨架條（沿用 cm-text-loading 自動偵測） */
+    @keyframes cm-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+    p.cm-text-loading, div.cm-text-loading, li.cm-text-loading, td.cm-text-loading {
+      font-size: 0 !important; line-height: 0 !important; color: transparent !important; text-align: left !important;
+    }
+    p.cm-text-loading::before, div.cm-text-loading::before, li.cm-text-loading::before, td.cm-text-loading::before {
+      display: block; width: 100%; height: 72px; margin: 0; border: none; border-radius: 10px;
+      background:
+        linear-gradient(#E3E8F2, #E3E8F2) 0 0 / 100% 16px no-repeat,
+        linear-gradient(#E9EDF5, #E9EDF5) 0 28px / 82% 16px no-repeat,
+        linear-gradient(#EEF1F7, #EEF1F7) 0 56px / 58% 16px no-repeat;
+      animation: cm-pulse 1.3s ease-in-out infinite;
+    }
+    span.cm-text-loading { color: transparent !important; position: relative; display: inline-block; min-width: 5em; }
+    span.cm-text-loading::before {
+      position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 100%; height: .9em; margin: 0;
+      border: none; border-radius: 6px; background: #E3E8F2; animation: cm-pulse 1.3s ease-in-out infinite;
+    }
+    @media (prefers-reduced-motion: reduce) { .cm-text-loading::before { animation: none !important; } }
+
+    /* v1.219.0：統一關閉圖示按鈕（取代文字「✕」），所有按鈕文字置中 */
+    .btn { justify-content: center; }
+    .icon-close-btn {
+      width: 32px; height: 32px; flex-shrink: 0; padding: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+      border-radius: 50%; border: 1.5px solid var(--brand-200); background: #fff;
+      color: var(--brand-800); cursor: pointer; transition: background .15s, border-color .15s;
+    }
+    .icon-close-btn:hover { background: var(--brand-50); border-color: var(--brand-300); }
+    .icon-close-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+    #site-announcement-close svg, .chat-window-close-btn svg { display: block; }
+
     /* 層次感（v1.216.7）：同色漸變、底色冷暖暈染、柔和陰影、細紋理、一個元件多於一隻顏色。
        全部沿用網站現有顏色（深藍／藍色／檸檬黃）。 */
     .header-admin-icon { display: none; }
@@ -1624,11 +1659,11 @@
        「已開啟」先會顯示。 -->
   <div id="site-announcement-banner">
     <span id="site-announcement-text"></span>
-    <button type="button" id="site-announcement-close" onclick="window.dismissSiteAnnouncement()" title="關閉公告" aria-label="關閉公告">✕</button>
+    <button type="button" id="site-announcement-close" onclick="window.dismissSiteAnnouncement()" title="關閉公告" aria-label="關閉公告"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   </div>
 
   <div id="toast-box">
-    <span id="toast-icon">ℹ️</span>
+    <span id="toast-icon" style="display:inline-flex; flex-shrink:0;"></span>
     <span id="toast-msg">訊息</span>
   </div>
 
@@ -1902,7 +1937,8 @@
                 style="border-radius:50%; object-fit:cover; flex-shrink:0; border:2px solid rgba(255,255,255,.4);">
               <div>
                 <div class="home-hero-greeting"><span data-i18n="home.greeting">你好，</span><span id="home-username">同學</span></div>
-                <div class="home-hero-sub student-only-nav" id="home-hero-sub" data-i18n="home.readyToStudy">今日準備好溫習了嗎？</div>
+                <div class="home-hero-sub student-only-nav" id="home-hero-sub">今日準備好溫習了嗎？</div>
+                <button type="button" class="btn home-hero-cta student-only-nav" onclick="switchTab('room')" data-i18n="home.startStudyBtn">開始溫習</button>
               </div>
             </div>
             <div class="home-hero-stats">
@@ -2837,7 +2873,7 @@
           <div style="background:#fff; border-radius:16px; padding:18px; max-width:520px; width:100%; max-height:82vh; overflow-y:auto;" onclick="event.stopPropagation();">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
               <h3 style="font-size:16px; font-weight:bold; color:#29395C;" data-i18n="gacha.myStickerBookTitle">我的造型圖鑑</h3>
-              <button type="button" onclick="closeStickerCollection()" class="btn btn-outline" style="padding:2px 10px; font-size:13px;">✕</button>
+              <button type="button" onclick="closeStickerCollection()" class="icon-close-btn" aria-label="關閉" title="關閉"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
             </div>
             <p style="font-size:13px; color:#344976; margin-bottom:10px; font-weight:bold;"><span data-i18n="gacha.collectedLabel">已收集</span> <span id="sticker-modal-progress-text">0/0</span></p>
             <div id="sticker-collection-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(88px, 1fr)); gap:8px;"></div>
@@ -2849,7 +2885,7 @@
           <div style="background:#fff; border-radius:16px; padding:18px; max-width:520px; width:100%; max-height:82vh; overflow-y:auto;" onclick="event.stopPropagation();">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
               <h3 style="font-size:16px; font-weight:bold; color:#29395C;" data-i18n="gacha.fragmentShopTitle">碎片兌換</h3>
-              <button type="button" onclick="closeFragmentShop()" class="btn btn-outline" style="padding:2px 10px; font-size:13px;">✕</button>
+              <button type="button" onclick="closeFragmentShop()" class="icon-close-btn" aria-label="關閉" title="關閉"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
             </div>
             <p style="font-size:13px; color:#344976; margin-bottom:4px; font-weight:bold;"><span data-i18n="gacha.fragmentLabel">我的碎片</span>：<span id="fragment-shop-count">0</span></p>
             <p style="font-size:12px; color:#6B7894; margin-bottom:10px;" data-i18n="gacha.fragmentShopDesc">選擇一件未擁有的造型，以碎片兌換。稀有度越高，所需碎片越多。</p>
@@ -3476,7 +3512,7 @@
             <option value="2" data-i18n="room.capacity2">2 人房</option>
             <option value="4" selected data-i18n="room.capacity4">4 人房</option>
           </select>
-          <p style="font-size:13px; color:#999; margin-top:4px;" data-i18n="room.capacityHint">建立之後就不能在房間中更改，適合想同少數朋友獨用一間房嘅情況</p>
+          <p style="font-size:13px; color:#999; margin-top:4px;" data-i18n="room.capacityHint">建立之後就不能在房間中更改，適合想與少數朋友獨用一間房的情況</p>
         </div>
 
         <div>
@@ -3488,11 +3524,11 @@
             <option value="45" data-i18n="room.duration45">45 分鐘</option>
             <option value="60" data-i18n="room.duration60">60 分鐘</option>
           </select>
-          <p style="font-size:13px; color:#999; margin-top:4px;" data-i18n="room.durationHint">這個時間只會顯示喺公開大廳嘅房間列表，讓其他同學參考；房間不會因為時間到而自動結束，你可以隨時繼續溫習或退出房間</p>
+          <p style="font-size:13px; color:#999; margin-top:4px;" data-i18n="room.durationHint">這個時間只會顯示在公開大廳的房間列表，讓其他同學參考；房間不會因為時間到而自動結束，你可以隨時繼續溫習或退出房間</p>
         </div>
 
         <div>
-          <label style="font-size:13px; font-weight:bold; color:#555; display:block;" data-i18n="room.passwordLabel">🔒 房間密碼鎖（4 位數字，留空則不設密碼）</label>
+          <label style="font-size:13px; font-weight:bold; color:#555; display:block;" data-i18n="room.passwordLabel">房間密碼鎖（4 位數字，留空則不設密碼）</label>
           <input type="text" id="modal-room-password" class="input-field" maxlength="4" inputmode="numeric" pattern="[0-9]{0,4}" placeholder="例如 1234" data-i18n-placeholder="room.passwordPlaceholder">
           <p style="font-size:13px; color:#999; margin-top:4px;" data-i18n="room.passwordHint">設定之後，只有輸入正確密碼的同學才可以加入這個溫習室，適合想與指定朋友私下溫習的情況；房間在公開大廳依然看得到，但會加上 🔒 標示。</p>
         </div>
@@ -3839,10 +3875,10 @@
        app-features.js／app-core.js 之前載入，等呢兩個檔案用到
        window.t／window.applyAppLanguage 嗰陣已經有得用（詳見
        i18n.js 檔案頭嘅說明） -->
-  <!-- ===================== ⏳ 載入中提示（v1.203.0） =====================
+  <!-- ===================== 載入中提示（v1.203.0） =====================
        三種：(1) 正中間 loading 畫面——登入、註冊、建立／進入溫習室、上載頭像、
        發佈溫習相片；(2) 按鈕細轉圈——任何按鈕停用中而文字以「…中…」結尾
-       （例如「登入中...」「發送中...」「⏳ 扭蛋中…」）會自動加轉圈，唔使逐個改；
+       （例如「登入中...」「發送中...」「扭蛋中…」）會自動加轉圈，唔使逐個改；
        (3) 列表「載入中…」文字前面自動加細轉圈。 -->
   <style>
     @keyframes cm-spin { to { transform: rotate(360deg); } }
