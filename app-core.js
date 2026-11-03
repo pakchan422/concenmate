@@ -469,6 +469,12 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
             const d = snap.data();
             if (typeof d.freeGachaTickets === 'number') window.currentUser.freeGachaTickets = d.freeGachaTickets;
             if (typeof d.stickerFragments === 'number') window.currentUser.stickerFragments = d.stickerFragments;
+            if (d.stones && typeof d.stones === 'object') {
+              window.currentUser.stones = d.stones;
+              window.currentUser.stoneMinutes = d.stoneMinutes || 0;
+              if (typeof d.activeStone === 'number' && !window._pendingStoneChoice) window.currentUser.activeStone = d.activeStone;
+              if (typeof window.updateOtterStatsCard === 'function') window.updateOtterStatsCard();
+            }
             if (typeof window.refreshGachaTicketUI === 'function') window.refreshGachaTicketUI();
           }
           if (snap.exists() && snap.data().suspended && window.currentUser) {

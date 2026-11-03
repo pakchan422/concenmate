@@ -834,6 +834,7 @@ async function getLevelRewardRules() {
       if (typeof d.levelUpTickets === "number" && d.levelUpTickets >= 0 && d.levelUpTickets <= 10) rules.levelUpTickets = Math.floor(d.levelUpTickets);
       if (typeof d.milestoneEvery === "number" && d.milestoneEvery >= 1 && d.milestoneEvery <= 100) rules.milestoneEvery = Math.floor(d.milestoneEvery);
       if (typeof d.milestoneFragments === "number" && d.milestoneFragments >= 0 && d.milestoneFragments <= 1000) rules.milestoneFragments = Math.floor(d.milestoneFragments);
+      if (Array.isArray(d.ranks) && d.ranks.length) rules.ranks = d.ranks;
     }
   } catch (e) {
     console.warn("讀取等級設定失敗，暫時使用預設值:", e);
@@ -841,6 +842,56 @@ async function getLevelRewardRules() {
   levelRulesCache = rules;
   levelRulesCacheAt = now;
   return rules;
+}
+
+// ===================== Ottie 的石頭（v1.222.0） =====================
+// 每溫 15 分鐘磨好一粒，款式跟當時段位（1 灰石、2 鵝卵石、3 雲石、4 水晶、5 寶石）。
+// users/{uid}.stones = { "1": n, ..., "5": n } 分款累積；stoneMinutes = 未夠 15 分鐘的餘數。
+// 兩個欄位都唔喺 firestore.rules 白名單，前端改唔到，留待日後兌換 Ottie 物品。
+const STONE_MINUTES = 15;
+const DEFAULT_RANK_LEVELS = [1, 10, 20, 40, 60];
+function sortedRanks(ranks) {
+  const list = (Array.isArray(ranks) && ranks.length) ? ranks : DEFAULT_RANK_LEVELS.map((minLevel) => ({ minLevel }));
+  return list.slice().sort((a, b) => (a.minLevel || 0) - (b.minLevel || 0));
+}
+function stoneTypeAtLevel(level, ranks) {
+  const sorted = sortedRanks(ranks);
+  let idx = 0;
+  sorted.forEach((r, i) => { if (level >= (r.minLevel || 0)) idx = i; });
+  const n = parseInt(sorted[idx] && sorted[idx].stone);
+  return (n >= 1 && n <= 5) ? n : Math.min(5, idx + 1);
+}
+// v1.223.0：段位升到邊度，就解鎖到邊款石頭；用戶可以揀返已解鎖的舊款嚟磨
+function unlockedStoneTypes(level, ranks) {
+  const set = new Set();
+  sortedRanks(ranks).forEach((r) => { if (level >= (r.minLevel || 0)) set.add(stoneTypeAtLevel(r.minLevel || 0, ranks)); });
+  if (!set.size) set.add(1);
+  return set;
+}
+// 第一次計石頭：按以前累積的溫習時數補返，並按當時 EXP 經過的段位分配款式
+function backfillStones(data, f, ranks) {
+  const stones = { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0 };
+  const totalMin = Math.max(0, Math.floor((parseFloat(data.hours) || 0) * 60));
+  const total = Math.floor(totalMin / STONE_MINUTES);
+  const exp = Math.max(0, data.exp || 0);
+  const sorted = sortedRanks(ranks);
+  let given = 0;
+  if (total > 0 && exp > 0) {
+    sorted.forEach((r, i) => {
+      const startExp = f * (r.minLevel || 1) * ((r.minLevel || 1) - 1);
+      const next = sorted[i + 1];
+      const endExp = next ? f * (next.minLevel || 1) * ((next.minLevel || 1) - 1) : Infinity;
+      const part = Math.max(0, Math.min(exp, endExp) - startExp);
+      if (part <= 0) return;
+      const n = Math.floor(total * part / exp);
+      const t = String(stoneTypeAtLevel(r.minLevel || 1, ranks));
+      stones[t] += n;
+      given += n;
+    });
+  }
+  const cur = String(stoneTypeAtLevel(levelFromExp(exp, f), ranks));
+  stones[cur] += Math.max(0, total - given);
+  return { stones, stoneMinutes: totalMin % STONE_MINUTES };
 }
 
 // 同前端 app-features.js 的 calcLevelInfo 用同一條公式：
@@ -957,6 +1008,39 @@ exports.awardStudyPoints = onCall(async (request) => {
       update.rewardedLevel = newLevel; // 舊帳戶第一次記錄，唔補派之前嘅級數
     }
 
+    // 石頭：只有「每分鐘溫習」先計
+    let stoneInfo = null;
+    if (hoursIncrement > 0) {
+      let stones;
+      let stoneMinutes;
+      if (data.stones && typeof data.stones === "object") {
+        stones = Object.assign({ "1": 0, "2": 0, "3": 0, "4": 0, "5": 0 }, data.stones);
+        stoneMinutes = typeof data.stoneMinutes === "number" ? data.stoneMinutes : 0;
+      } else {
+        const b = backfillStones(data, levelRules.levelCurveFactor, levelRules.ranks);
+        stones = b.stones;
+        stoneMinutes = b.stoneMinutes;
+      }
+      stoneMinutes += 1;
+      // activeStone：0 = 自動（最新解鎖嗰款），1–5 = 用戶手動揀的款式（要已解鎖）
+      let activeStone = (typeof data.activeStone === "number") ? data.activeStone : 0;
+      const reqStone = request.data && request.data.activeStone;
+      if (typeof reqStone === "number" && Number.isInteger(reqStone) && reqStone >= 0 && reqStone <= 5) {
+        activeStone = reqStone;
+        update.activeStone = reqStone;
+      }
+      const unlocked = unlockedStoneTypes(newLevel, levelRules.ranks);
+      let earned = null;
+      if (stoneMinutes >= STONE_MINUTES) {
+        stoneMinutes -= STONE_MINUTES;
+        earned = String((activeStone && unlocked.has(activeStone)) ? activeStone : stoneTypeAtLevel(newLevel, levelRules.ranks));
+        stones[earned] = (stones[earned] || 0) + 1;
+      }
+      update.stones = stones;
+      update.stoneMinutes = stoneMinutes;
+      stoneInfo = { stones, stoneMinutes, earned, activeStone };
+    }
+
     // 用 parseFloat 而唔係直接 || 0：就算 Firestore 度而家存緊嘅 hours 已經
     // 被舊 bug（admin 後台冇轉數字就直接寫入）搞到變咗文字／亂碼，都可以
     // 解讀返出一個合理嘅數字，等個帳戶自動「復原」返，唔使個個都要人手
@@ -989,7 +1073,7 @@ exports.awardStudyPoints = onCall(async (request) => {
     }
 
     tx.update(userRef, update);
-    return { points: newPoints, exp: newExp, hours: newHours, todayMinutes: newTodayMinutes, todayDate: newTodayDate, monthlyHours: newMonthlyHours, monthlyPeriod: curMonthStr, levelReward };
+    return { points: newPoints, exp: newExp, hours: newHours, todayMinutes: newTodayMinutes, todayDate: newTodayDate, monthlyHours: newMonthlyHours, monthlyPeriod: curMonthStr, levelReward, stoneInfo };
   });
 
   return { ok: true, ...result };

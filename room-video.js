@@ -554,7 +554,7 @@
             <p style="font-size:13px; color:#ccc; margin-top:6px;">${window.t('room.remoteCameraOff', '對方鏡頭已關閉')}</p>
           </div>
           <div class="video-header">
-            <span class="video-tag" style="cursor:pointer;" onclick="viewUserProfile('${uid}')" title="${window.t('room.viewProfile', '點擊查看資料／加好友')}">${window.escapeHtml(name || window.t('room.otherUser', '其他用家'))}<span class="video-rank" id="remote-rank-${uid}"></span><span class="video-stones" id="remote-stone-${uid}" data-n="0" data-src="stone-1.png"></span></span>
+            <span class="video-tag" style="cursor:pointer;" onclick="viewUserProfile('${uid}')" title="${window.t('room.viewProfile', '點擊查看資料／加好友')}">${window.escapeHtml(name || window.t('room.otherUser', '其他用家'))}<span class="video-rank" id="remote-rank-${uid}"></span><span class="video-stones" id="remote-stone-${uid}" data-n="0" data-src="stone-1.png" data-exp="0" onclick="event.stopPropagation(); window.openStoneInfo && window.openStoneInfo({ mode: 'room', name: ${window.jsArg(name || window.t('room.otherUser', '其他用家'))}, exp: parseInt(this.dataset.exp || '0'), count: parseInt(this.dataset.n || '0') })"></span></span>
             <span class="video-tag" id="remote-host-badge-${slotNum}" style="background:#E9EDF5; color:#29395C; display:none;">${window.t('room.hostBadge', '房主')}</span>
             <span class="video-tag" id="stream-status-${uid}" data-conn="connecting" style="background:#3F588F; color:#fff;">${window.t('room.remoteWaitStream', '連線中...')}</span>
             <div class="video-more-menu-wrap">
@@ -585,7 +585,11 @@
     function refreshMyStoneTag(pop) {
       const el = document.getElementById('room-user-stone-tag');
       if (!el || !window.currentUser) return;
-      el.innerHTML = stoneTagHtml(window.stoneSrcForExp ? window.stoneSrcForExp(window.currentUser.exp || 0) : 'stone-1.png', state.myStones || 0);
+      if (!el.dataset.bound) {
+        el.dataset.bound = '1';
+        el.addEventListener('click', (e) => { e.stopPropagation(); window.openStoneInfo && window.openStoneInfo({ mode: 'room', count: state.myStones || 0 }); });
+      }
+      el.innerHTML = stoneTagHtml(window.myActiveStoneIndex ? `stone-${window.myActiveStoneIndex()}.png` : 'stone-1.png', state.myStones || 0);
       if (pop) { el.classList.remove('stone-pop'); void el.offsetWidth; el.classList.add('stone-pop'); }
     }
     window.refreshMyStoneTag = refreshMyStoneTag;
@@ -609,6 +613,7 @@
         const st = document.getElementById('remote-stone-' + uid);
         if (st && typeof window.stoneSrcForExp === 'function') {
           st.dataset.src = window.stoneSrcForExp(snap.data().exp || 0);
+          st.dataset.exp = String(snap.data().exp || 0);
           updateRemoteStoneTag(uid, parseInt(st.dataset.n || '0'));
         }
       } catch (e) { /* 讀唔到就唔顯示稱號，唔影響視訊 */ }
@@ -1984,6 +1989,8 @@
         isNewDay,
         todayDateStr: hoursIncrement > 0 ? getTodayDateStr() : undefined
       };
+      // v1.223.0：用戶揀咗磨邊款石頭（0 = 自動跟最新段位）
+      if (hoursIncrement > 0 && typeof window.getChosenStone === 'function') payload.activeStone = window.getChosenStone();
       // v1.220.0：升級提示等伺服器回覆先顯示，咁就可以連埋升級獎勵一齊講
       const showLevelUpToast = (reward) => {
         const rank = getRankTitle(newLevel);
@@ -1999,6 +2006,12 @@
       try {
         await flushAwardSyncQueue(); // 先追返之前排隊緊嘅（保住次序），先寄呢次新嘅
         const res = await window.callCloudFunction('awardStudyPoints', payload);
+        if (res && res.stoneInfo) {
+          window.currentUser.stones = res.stoneInfo.stones;
+          window.currentUser.stoneMinutes = res.stoneInfo.stoneMinutes;
+          if (typeof res.stoneInfo.activeStone === 'number' && typeof window.confirmChosenStone === 'function') window.confirmChosenStone(res.stoneInfo.activeStone);
+          if (typeof window.updateOtterStatsCard === 'function') window.updateOtterStatsCard();
+        }
         const reward = res && res.levelReward;
         if (reward) {
           window.currentUser.freeGachaTickets = reward.freeGachaTickets;

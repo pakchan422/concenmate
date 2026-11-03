@@ -6,7 +6,7 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.221.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.223.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <meta charset="UTF-8">
@@ -566,6 +566,9 @@
       right: 8px;
       z-index: 11;
     }
+    .emoji-reaction-toggle-btn img { width: 26px; height: 26px; display: block; }
+    .emoji-reaction-popover button img { width: 34px; height: 34px; display: block; }
+    .emoji-reaction-popover button:hover img { transform: scale(1.15); transition: transform .15s; }
     .emoji-reaction-toggle-btn {
       background: rgba(0,0,0,0.65);
       backdrop-filter: blur(4px);
@@ -573,8 +576,9 @@
       border: none;
       color: #fff;
       font-size: 15px;
-      width: 28px;
-      height: 28px;
+      width: 34px;
+      height: 34px;
+      padding: 0;
       border-radius: 50%;
       cursor: pointer;
       display: flex;
@@ -740,6 +744,7 @@
     .video-stones { display: inline-flex; align-items: center; gap: 2px; margin-left: 6px; color: #fff; font-size: 12px; }
     .video-stones:empty { display: none; }
     .video-stones b { font-weight: 700; }
+    .video-stones { cursor: pointer; }
     .stone-pop img { animation: stone-pop .6s ease; }
     @keyframes stone-pop { 0% { transform: scale(1); } 40% { transform: scale(1.6) translateY(-3px); } 100% { transform: scale(1); } }
     .video-tag {
@@ -2085,13 +2090,11 @@
                   </svg>
                 </div>
                 <div style="margin-top:2px;"><button type="button" class="btn btn-outline" style="font-size:13px; padding:5px 14px;" onclick="openOtterRenameModal()" data-i18n="home.changeLookBtn">更換貼圖</button></div>
-                <!-- v1.221.0：Ottie 今日磨好的石頭（每 15 分鐘一粒，款式跟段位） -->
-                <div id="otter-stones-today" style="margin-top:10px;"></div>
                 <!-- 寵物「肚餓/餵食」機制已經移除，改成顯示呢幾個同「溫習成就」
                      有關嘅實用數據：等級、升級所需 EXP、累積時數、連續溫習
                      天數、貼紙圖鑑完成度。呢幾個欄位由 updateOtterStatsCard()
                      統一更新（見下面 JS）。 -->
-                <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:4px; margin-top:10px; max-width:520px; margin-left:auto; margin-right:auto;">
+                <div style="display:grid; grid-template-columns:repeat(6, 1fr); gap:4px; margin-top:10px; max-width:600px; margin-left:auto; margin-right:auto;">
                   <div style="min-width:0;">
                     <div id="otter-stat-level" style="font-size:clamp(13px,3.8vw,17px); font-weight:bold; color:#29395C; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Lv.1</div>
                     <div style="font-size:11px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" data-i18n="otter.stat.level">等級</div>
@@ -2112,6 +2115,11 @@
                     <div id="otter-stat-stickers" style="font-size:clamp(13px,3.8vw,17px); font-weight:bold; color:#29395C; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">0/0</div>
                     <div style="font-size:11px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" data-i18n="otter.stat.stickers">圖鑑完成度</div>
                   </div>
+                  <!-- v1.222.0：累積石頭（撳落去開石頭說明，分款數目） -->
+                  <button type="button" onclick="openStoneInfo()" style="min-width:0; background:none; border:none; padding:0; cursor:pointer; font:inherit;">
+                    <div id="otter-stat-stones" style="font-size:clamp(13px,3.8vw,17px); font-weight:bold; color:#29395C; white-space:nowrap; display:flex; align-items:center; justify-content:center; gap:2px;">×0</div>
+                    <div style="font-size:11px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" data-i18n="otter.stat.stones">累積石頭</div>
+                  </button>
                 </div>
               </div>
 
@@ -2353,12 +2361,12 @@
                      面板改為只喺撳返「😊」個切換掣，或者撳返畫面其他
                      地方（見 document click 監聽）先會關閉。 -->
                 <div class="emoji-reaction-toggle-wrap" onclick="event.stopPropagation();">
-                  <button type="button" class="emoji-reaction-toggle-btn" onclick="toggleEmojiReactionPanel()" title="表情反應" data-i18n-title="room.emojiReaction">😊</button>
+                  <button type="button" class="emoji-reaction-toggle-btn" onclick="toggleEmojiReactionPanel()" title="表情反應" data-i18n-title="room.emojiReaction"><img src="react-smile.png" alt="表情反應"></button>
                   <div class="emoji-reaction-popover" id="emoji-reaction-popover" style="display:none;">
-                    <button type="button" onclick="sendDanmakuSticker('😆')">😆</button>
-                    <button type="button" onclick="sendDanmakuSticker('😍')">😍</button>
-                    <button type="button" onclick="sendDanmakuSticker('😭')">😭</button>
-                    <button type="button" onclick="sendDanmakuSticker('😴')">😴</button>
+                    <button type="button" onclick="sendDanmakuSticker('😆')" title="大笑"><img src="react-laugh.png" alt="大笑"></button>
+                    <button type="button" onclick="sendDanmakuSticker('😍')" title="喜歡"><img src="react-love.png" alt="喜歡"></button>
+                    <button type="button" onclick="sendDanmakuSticker('😭')" title="喊"><img src="react-cry.png" alt="喊"></button>
+                    <button type="button" onclick="sendDanmakuSticker('😴')" title="瞓覺"><img src="react-sleep.png" alt="瞓覺"></button>
                   </div>
                 </div>
 
@@ -3805,6 +3813,15 @@
 
   <!-- 等級／升級詳情視窗：撳置頂狀態列嘅 Lv. 果邊會彈出，內容（各段位嘅升級詳情文字）
        由 Admin後台「🎮 等級系統」入面每個段位嘅「升級詳情文字」欄位控制 -->
+  <!-- v1.221.1：Ottie 石頭說明 -->
+  <div class="modal-backdrop" id="modal-stone-info" style="display:none;" onclick="if(event.target===this)closeModal('modal-stone-info')">
+    <div class="modal-box" style="max-width:380px; text-align:center;">
+      <h3 style="font-size:17px; font-weight:bold; color:var(--brand-800); margin-bottom:6px;" data-i18n="stone.infoTitle">Ottie 的石頭</h3>
+      <div id="stone-info-body"></div>
+      <button class="btn btn-outline" type="button" style="width:100%; justify-content:center; margin-top:14px;" data-i18n="level.infoCloseBtn" onclick="closeModal('modal-stone-info')">關閉</button>
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="modal-level-info" style="display:none;">
     <div class="modal-box" style="max-width:400px;">
       <h3 style="font-size:17px; font-weight:bold; color:var(--brand-800); margin-bottom:4px;" data-i18n="level.infoTitle">等級與段位詳情</h3>
