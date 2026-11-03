@@ -1730,17 +1730,10 @@
         return;
       }
 
-      const customPhoto = rankTier && rankTier.photo;
-      if (customPhoto) {
-        if (photoImg) { photoImg.src = customPhoto; photoImg.style.display = 'block'; }
-        if (svgEl) svgEl.style.display = 'none';
-        if (blankEl) blankEl.style.display = 'none';
-      } else {
-        // 未揀貼圖、亦冇段位自訂相：顯示全身 Ottie（唔再用 emoji）
-        if (photoImg) { photoImg.src = 'ottie-full.png'; photoImg.style.display = 'block'; }
-        if (svgEl) svgEl.style.display = 'none';
-        if (blankEl) blankEl.style.display = 'none';
-      }
+      // 未揀貼圖：顯示全身 Ottie（v1.220.2 起段位相片已停用）
+      if (photoImg) { photoImg.src = 'ottie-full.png'; photoImg.style.display = 'block'; }
+      if (svgEl) svgEl.style.display = 'none';
+      if (blankEl) blankEl.style.display = 'none';
     }
     window.updateOtterDisplay = updateOtterDisplay;
 

@@ -1025,40 +1025,32 @@
         adminLevelDraft = JSON.parse(JSON.stringify(LEVEL_CONFIG));
       }
 
-      const ranksCards = adminLevelDraft.ranks.map((r, idx) => `
-        <div style="display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap; padding:12px; border:1px solid var(--brand-200); border-radius:10px; margin-bottom:10px; background:#fff;">
-          <div style="text-align:center; flex-shrink:0;">
-            ${r.photo
-              ? `<img src="${r.photo}" style="width:64px; height:64px; object-fit:cover; border-radius:50%; border:2px solid #C08B57;">`
-              : `<div style="width:64px; height:64px; border-radius:50%; background:#eee; display:flex; align-items:center; justify-content:center; font-size:13px; color:#999; text-align:center;">預設插畫</div>`}
-            <input type="file" accept="image/*" style="font-size:13px; margin-top:4px; max-width:100px;" onchange="adminUploadRankPhoto(${idx}, this)">
-            ${r.photo ? `<button class="btn btn-outline" style="font-size:13px; padding:2px 6px; margin-top:2px;" onclick="adminRemoveRankPhoto(${idx})">移除</button>` : ''}
-          </div>
-          <div style="flex:1; min-width:240px; display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
-            <label style="font-size:13px; color:#555; display:flex; align-items:center; gap:4px;">等級門檻
-              <input class="admin-input-sm" type="number" min="1" style="width:55px;" value="${r.minLevel}" onchange="adminLevelDraft.ranks[${idx}].minLevel = parseInt(this.value)||1; adminRefreshLevelPreview();">
-            </label>
-            <label style="font-size:13px; color:#555; display:flex; align-items:center; gap:4px;">稱號(中)
-              <input class="admin-input-sm" style="width:90px;" value="${escapeHtml(r.title || '')}" onchange="adminLevelDraft.ranks[${idx}].title = this.value">
-            </label>
-            <label style="font-size:13px; color:#555; display:flex; align-items:center; gap:4px;">稱號(英)
-              <input class="admin-input-sm" style="width:100px;" value="${escapeHtml(r.titleEn || '')}" onchange="adminLevelDraft.ranks[${idx}].titleEn = this.value">
-            </label>
-            <label style="font-size:13px; color:#555; display:flex; align-items:center; gap:4px;">顏色
-              <input type="color" style="width:36px; height:26px; padding:1px; border:1px solid #ccc; border-radius:4px;" value="${r.color || '#4A68A8'}" onchange="adminLevelDraft.ranks[${idx}].color = this.value">
-            </label>
-            <label style="font-size:13px; color:#555; display:flex; align-items:flex-start; gap:4px; width:100%;">升級詳情文字（用戶點擊「Lv.」列會彈出視窗顯示）
-              <textarea class="admin-input-sm" rows="2" style="flex:1; min-width:200px; resize:vertical;" oninput="adminLevelDraft.ranks[${idx}].desc = this.value">${escapeHtml(r.desc || '')}</textarea>
-            </label>
-          </div>
-          <button class="btn btn-red" style="font-size:13px; padding:3px 8px; flex-shrink:0;" onclick="adminRemoveLevelRank(${idx})">刪除段位</button>
-        </div>
+      // v1.220.2：段位改為一個表格，同「到達需時」放埋一齊睇；
+      // 已移除段位相片（主頁 Ottie 而家跟用戶揀嘅貼圖，唔再跟段位轉）
+      const th = 'padding:6px 8px; text-align:left; white-space:nowrap; color:#6B7894; font-weight:700;';
+      const td = 'padding:6px 8px; vertical-align:middle;';
+      const rankRows = adminLevelDraft.ranks.map((r, idx) => `
+        <tr style="border-top:1px solid var(--brand-100);">
+          <td style="${td}"><input class="admin-input-sm" type="number" min="1" style="width:60px;" value="${r.minLevel}" oninput="adminLevelDraft.ranks[${idx}].minLevel = parseInt(this.value)||1; adminRefreshLevelPreview();"></td>
+          <td style="${td}"><input class="admin-input-sm" style="width:96px;" value="${escapeHtml(r.title || '')}" oninput="adminLevelDraft.ranks[${idx}].title = this.value; adminRefreshLevelPreview();"></td>
+          <td style="${td}"><input class="admin-input-sm" style="width:100px;" value="${escapeHtml(r.titleEn || '')}" oninput="adminLevelDraft.ranks[${idx}].titleEn = this.value"></td>
+          <td style="${td}"><input type="color" style="width:36px; height:26px; padding:1px; border:1px solid #ccc; border-radius:4px;" value="${r.color || '#4A68A8'}" onchange="adminLevelDraft.ranks[${idx}].color = this.value"></td>
+          <td style="${td} font-weight:700; white-space:nowrap;" id="admin-rank-time-${idx}"></td>
+          <td style="${td} white-space:nowrap;" id="admin-rank-d1-${idx}"></td>
+          <td style="${td} white-space:nowrap;" id="admin-rank-d3-${idx}"></td>
+          <td style="${td}"><button class="btn btn-red" style="font-size:13px; padding:3px 8px;" onclick="adminRemoveLevelRank(${idx})">刪除</button></td>
+        </tr>
+        <tr>
+          <td colspan="8" style="padding:0 8px 10px;">
+            <input class="admin-input-sm" style="width:100%; box-sizing:border-box;" placeholder="段位說明（用戶點擊等級時彈出視窗顯示）" value="${escapeHtml(r.desc || '')}" oninput="adminLevelDraft.ranks[${idx}].desc = this.value">
+          </td>
+        </tr>
       `).join('');
 
       container.innerHTML = `
         <div class="admin-card">
-          <h3 style="font-size:14px; font-weight:bold; margin-bottom:8px;">基本設定</h3>
-          <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:10px;">
+          <h3 style="font-size:14px; font-weight:bold; margin-bottom:8px;">升級速度</h3>
+          <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:6px;">
             <label style="font-size:13px; color:#555; display:flex; align-items:center; gap:6px;">
               每溫習 1 分鐘可得 EXP：
               <input class="admin-input-sm" type="number" min="0" step="0.1" style="width:70px;" value="${adminLevelDraft.expPerMinute}" oninput="adminLevelDraft.expPerMinute = parseFloat(this.value)||0; adminRefreshLevelPreview();">
@@ -1068,8 +1060,26 @@
               <input class="admin-input-sm" type="number" min="1" step="1" style="width:70px;" value="${adminLevelDraft.levelCurveFactor}" oninput="adminLevelDraft.levelCurveFactor = parseFloat(this.value)||10; adminRefreshLevelPreview();">
             </label>
           </div>
-          <p style="font-size:13px; color:#888;">公式：升到第 L 級總共需要的 EXP = 難度係數 × L × (L−1)。難度係數越大，升級越慢。</p>
-          <div id="admin-level-preview" style="font-size:13px; color:#4A68A8; margin-top:10px;"></div>
+          <p style="font-size:13px; color:#888;">升到第 L 級總共需要的 EXP = 難度係數 × L × (L−1)。係數越大，升級越慢。改動後下面的時間會即時更新。</p>
+        </div>
+
+        <div class="admin-card" style="margin-top:12px;">
+          <h3 style="font-size:14px; font-weight:bold; margin-bottom:4px;">段位（由低到高，第一個段位的等級門檻請設為 1）</h3>
+          <p style="font-size:13px; color:#888; margin-bottom:8px;">稱號會顯示在視訊溫習室名牌、排行榜及個人資料；顏色用於等級徽章。「到達需時」按上面的升級速度計算。</p>
+          <div style="overflow-x:auto;">
+            <table style="border-collapse:collapse; font-size:13px; color:var(--brand-800); min-width:680px; width:100%;">
+              <thead><tr>
+                <th style="${th}">等級門檻</th><th style="${th}">稱號（中）</th><th style="${th}">稱號（英）</th><th style="${th}">顏色</th>
+                <th style="${th}">到達需時</th><th style="${th}">每日溫 1 小時</th><th style="${th}">每日溫 3 小時</th><th style="${th}"></th>
+              </tr></thead>
+              <tbody>${rankRows}</tbody>
+            </table>
+          </div>
+          <button class="btn btn-outline" style="margin-top:6px; font-size:13px;" onclick="adminAddLevelRank()">新增段位</button>
+          <details style="margin-top:12px;">
+            <summary style="font-size:13px; font-weight:700; color:var(--brand-600); cursor:pointer;">查看其他等級所需時間</summary>
+            <div id="admin-level-preview" style="font-size:13px; margin-top:8px;"></div>
+          </details>
         </div>
 
         <div class="admin-card" style="margin-top:12px;">
@@ -1086,14 +1096,7 @@
               <input class="admin-input-sm" type="number" min="0" max="1000" step="1" style="width:60px;" value="${adminLevelDraft.milestoneFragments ?? 5}" oninput="adminLevelDraft.milestoneFragments = parseInt(this.value)||0"> 個
             </label>
           </div>
-          <p style="font-size:13px; color:#888;">用戶溫習時一升級，伺服器就會自動派發。免費扭蛋券可在扭蛋頁單抽一次，不扣積分。每一級只派一次；管理員手動補發 EXP 後，用戶下次溫習時會補派中間各級的獎勵。</p>
-        </div>
-
-        <div class="admin-card" style="margin-top:12px;">
-          <h3 style="font-size:14px; font-weight:bold; margin-bottom:4px;">段位稱號 + 水獺貼圖（由低到高，建議第一行等級門檻＝1）</h3>
-          <p style="font-size:13px; color:#888; margin-bottom:10px;">每個段位可以上傳專屬水獺相片，用家升到那個等級，主頁「我的水獺」就會自動換成那張相；不上傳則使用共用的預設插畫（有心情表情變化）。</p>
-          <div>${ranksCards}</div>
-          <button class="btn btn-outline" style="margin-top:4px; font-size:13px;" onclick="adminAddLevelRank()">新增段位</button>
+          <p style="font-size:13px; color:#888;">用戶溫習時一升級，伺服器就會自動派發。免費扭蛋券可在扭蛋頁單抽一次，不扣積分。每一級只派一次。</p>
         </div>
 
         <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">
@@ -1125,6 +1128,14 @@
         return `${h < 10 ? h.toFixed(1) : Math.round(h)} 小時`;
       };
       const fmtDays = (h, perDay) => isFinite(h) ? `約 ${Math.max(1, Math.ceil(h / perDay))} 日` : '—';
+      (adminLevelDraft.ranks || []).forEach((r, idx) => {
+        const L = parseInt(r.minLevel) || 1;
+        const h = L <= 1 ? 0 : hoursFor(L);
+        const set = (id, v) => { const c = document.getElementById(id); if (c) c.innerText = v; };
+        set('admin-rank-time-' + idx, L <= 1 ? '起點' : fmtH(h));
+        set('admin-rank-d1-' + idx, L <= 1 ? '—' : fmtDays(h, 1));
+        set('admin-rank-d3-' + idx, L <= 1 ? '—' : fmtDays(h, 3));
+      });
       let prevH = 0;
       const rows = keyLevels.map(L => {
         const h = hoursFor(L);
@@ -1143,7 +1154,7 @@
         </tr>`;
       }).join('');
       el.innerHTML = `
-        <div style="font-weight:700; margin-bottom:6px;">各關鍵等級所需溫習時間（底色為段位門檻）</div>
+
         <div style="overflow-x:auto;">
           <table style="border-collapse:collapse; font-size:13px; font-weight:normal; color:var(--brand-800); min-width:560px;">
             <thead><tr style="border-bottom:1px solid var(--brand-200); color:#6B7894;">
@@ -1162,7 +1173,8 @@
 
     window.adminAddLevelRank = function() {
       if (!adminLevelDraft) return;
-      adminLevelDraft.ranks.push({ minLevel: 1, emoji: '🌟', title: '新段位', titleEn: 'NewRank', color: '#4A68A8', desc: '' });
+      const maxL = adminLevelDraft.ranks.reduce((m, r) => Math.max(m, parseInt(r.minLevel) || 1), 1);
+      adminLevelDraft.ranks.push({ minLevel: maxL + 10, title: '新段位', titleEn: 'New Rank', color: '#4A68A8', desc: '' });
       renderAdminLevelTab();
     };
 
@@ -1210,7 +1222,8 @@
         levelUpTickets: Math.max(0, Math.min(10, Math.floor(adminLevelDraft.levelUpTickets ?? 1))),
         milestoneEvery: Math.max(1, Math.min(100, Math.floor(adminLevelDraft.milestoneEvery ?? 5))),
         milestoneFragments: Math.max(0, Math.min(1000, Math.floor(adminLevelDraft.milestoneFragments ?? 5))),
-        ranks: adminLevelDraft.ranks
+        // 段位相片已停用：儲存時順手清走舊相片，減細設定文件
+        ranks: adminLevelDraft.ranks.map(r => ({ minLevel: parseInt(r.minLevel) || 1, title: r.title || '', titleEn: r.titleEn || '', color: r.color || '#4A68A8', desc: r.desc || '' }))
       };
       const approxBytes = new Blob([JSON.stringify(payload)]).size;
       if (approxBytes > 900000) {
