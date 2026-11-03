@@ -1036,7 +1036,7 @@
           <td style="${td}"><input class="admin-input-sm" style="width:100px;" value="${escapeHtml(r.titleEn || '')}" oninput="adminLevelDraft.ranks[${idx}].titleEn = this.value"></td>
           <td style="${td} white-space:nowrap;">
             <img src="${window.stoneSrcForRank ? window.stoneSrcForRank(r) : 'stone-1.png'}" id="admin-rank-stone-img-${idx}" alt="" width="26" height="26" style="vertical-align:middle;">
-            <select class="admin-input-sm" style="vertical-align:middle;" onchange="adminLevelDraft.ranks[${idx}].stone = parseInt(this.value)||undefined; document.getElementById('admin-rank-stone-img-${idx}').src = 'stone-' + (parseInt(this.value) || ${idx + 1 > 5 ? 5 : idx + 1}) + '.png';">
+            <select class="admin-input-sm" style="vertical-align:middle; width:auto; min-width:0; max-width:96px;" onchange="adminLevelDraft.ranks[${idx}].stone = parseInt(this.value)||undefined; document.getElementById('admin-rank-stone-img-${idx}').src = 'stone-' + (parseInt(this.value) || ${idx + 1 > 5 ? 5 : idx + 1}) + '.png';">
               <option value="">自動</option>
               ${['灰石','鵝卵石','雲石','水晶','寶石'].map((nm, k) => `<option value="${k + 1}" ${parseInt(r.stone) === k + 1 ? 'selected' : ''}>${nm}</option>`).join('')}
             </select>
