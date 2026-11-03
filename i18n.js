@@ -419,6 +419,8 @@
     'level.ticketsHaveTemplate': { 'zh-Hant': '你目前有免費扭蛋券 {n} 張', 'en': 'You have {n} free gacha ticket(s)', 'yue': '你而家有免費扭蛋券 {n} 張' },
     'gacha.drawTicketBtn': { 'zh-Hant': '用免費扭蛋券抽一次', 'en': 'Draw once with a free ticket', 'yue': '用免費扭蛋券抽一次' },
     'gacha.ticketLeft': { 'zh-Hant': '剩', 'en': 'left:', 'yue': '剩' },
+    'otter.stonesTodayTemplate': { 'zh-Hant': 'Ottie 今日磨好 {n} 粒{stone}', 'en': 'Ottie polished {n} × {stone} today', 'yue': 'Ottie 今日磨好咗 {n} 粒{stone}' },
+    'otter.stoneNextTemplate': { 'zh-Hant': '再溫 {m} 分鐘磨好下一粒', 'en': '{m} more min for the next one', 'yue': '再溫 {m} 分鐘磨好下一粒' },
     'room.presenceAutoSuspended': { 'zh-Hant': '偵測到你可能不在，已暫停計分。按「是，我仍在學習」即可恢復', 'en': 'We noticed you might be away, so scoring has been paused. Tap "Yes, I\'m still studying" to resume', 'yue': '偵測到你可能唔喺度，計分已經暫停。撳「係呀，我仲喺度溫緊書」就可以恢復' },
     'room.presenceBonusTemplate': { 'zh-Hant': '讚！繼續加油溫習，額外送你 +{bonus} PTS', 'en': 'Nice! Keep up the great study session — here\'s an extra +{bonus} PTS', 'yue': '叻仔叻女！繼續加油溫書，額外送你 +{bonus} PTS' },
     'room.hostTransferredAutoTemplate': { 'zh-Hant': '房主已移交給 {name}，房間繼續開放', 'en': 'Host transferred to {name} — the room stays open', 'yue': '房主已經轉咗俾 {name}，間房繼續開放' },

@@ -6,7 +6,7 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.220.4"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.221.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <meta charset="UTF-8">
@@ -737,6 +737,11 @@
     
     .video-rank { color: var(--accent); font-size: 12px; font-weight: 700; margin-left: 4px; }
     .video-rank:empty { display: none; }
+    .video-stones { display: inline-flex; align-items: center; gap: 2px; margin-left: 6px; color: #fff; font-size: 12px; }
+    .video-stones:empty { display: none; }
+    .video-stones b { font-weight: 700; }
+    .stone-pop img { animation: stone-pop .6s ease; }
+    @keyframes stone-pop { 0% { transform: scale(1); } 40% { transform: scale(1.6) translateY(-3px); } 100% { transform: scale(1); } }
     .video-tag {
       background: rgba(0, 0, 0, 0.65);
       backdrop-filter: blur(4px);
@@ -2080,6 +2085,8 @@
                   </svg>
                 </div>
                 <div style="margin-top:2px;"><button type="button" class="btn btn-outline" style="font-size:13px; padding:5px 14px;" onclick="openOtterRenameModal()" data-i18n="home.changeLookBtn">更換貼圖</button></div>
+                <!-- v1.221.0：Ottie 今日磨好的石頭（每 15 分鐘一粒，款式跟段位） -->
+                <div id="otter-stones-today" style="margin-top:10px;"></div>
                 <!-- 寵物「肚餓/餵食」機制已經移除，改成顯示呢幾個同「溫習成就」
                      有關嘅實用數據：等級、升級所需 EXP、累積時數、連續溫習
                      天數、貼紙圖鑑完成度。呢幾個欄位由 updateOtterStatsCard()
@@ -2328,7 +2335,7 @@
 
                 <div class="video-header">
                   <span class="video-tag">
-                    <span id="room-user-name-tag">Alex Wong (你)</span><span class="video-rank" id="room-user-rank-tag"></span>
+                    <span id="room-user-name-tag">Alex Wong (你)</span><span class="video-rank" id="room-user-rank-tag"></span><span class="video-stones" id="room-user-stone-tag"></span>
                   </span>
                   <span class="video-tag" style="background:#E9EDF5; color:#29395C;" id="room-host-tag" data-i18n="room.hostFocusing">房主專注中</span>
                 </div>

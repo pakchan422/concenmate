@@ -1034,13 +1034,20 @@
           <td style="${td}"><input class="admin-input-sm" type="number" min="1" style="width:60px;" value="${r.minLevel}" oninput="adminLevelDraft.ranks[${idx}].minLevel = parseInt(this.value)||1; adminRefreshLevelPreview();"></td>
           <td style="${td}"><input class="admin-input-sm" style="width:96px;" value="${escapeHtml(r.title || '')}" oninput="adminLevelDraft.ranks[${idx}].title = this.value; adminRefreshLevelPreview();"></td>
           <td style="${td}"><input class="admin-input-sm" style="width:100px;" value="${escapeHtml(r.titleEn || '')}" oninput="adminLevelDraft.ranks[${idx}].titleEn = this.value"></td>
+          <td style="${td} white-space:nowrap;">
+            <img src="${window.stoneSrcForRank ? window.stoneSrcForRank(r) : 'stone-1.png'}" id="admin-rank-stone-img-${idx}" alt="" width="26" height="26" style="vertical-align:middle;">
+            <select class="admin-input-sm" style="vertical-align:middle;" onchange="adminLevelDraft.ranks[${idx}].stone = parseInt(this.value)||undefined; document.getElementById('admin-rank-stone-img-${idx}').src = 'stone-' + (parseInt(this.value) || ${idx + 1 > 5 ? 5 : idx + 1}) + '.png';">
+              <option value="">自動</option>
+              ${['灰石','鵝卵石','雲石','水晶','寶石'].map((nm, k) => `<option value="${k + 1}" ${parseInt(r.stone) === k + 1 ? 'selected' : ''}>${nm}</option>`).join('')}
+            </select>
+          </td>
           <td style="${td} font-weight:700; white-space:nowrap;" id="admin-rank-time-${idx}"></td>
           <td style="${td} white-space:nowrap;" id="admin-rank-d1-${idx}"></td>
           <td style="${td} white-space:nowrap;" id="admin-rank-d3-${idx}"></td>
           <td style="${td}"><button class="btn btn-red" style="font-size:13px; padding:3px 8px;" onclick="adminRemoveLevelRank(${idx})">刪除</button></td>
         </tr>
         <tr>
-          <td colspan="7" style="padding:0 8px 10px;">
+          <td colspan="8" style="padding:0 8px 10px;">
             <input class="admin-input-sm" style="width:100%; box-sizing:border-box;" placeholder="段位說明（用戶點擊等級時彈出視窗顯示）" value="${escapeHtml(r.desc || '')}" oninput="adminLevelDraft.ranks[${idx}].desc = this.value">
           </td>
         </tr>
@@ -1064,11 +1071,11 @@
 
         <div class="admin-card" style="margin-top:12px;">
           <h3 style="font-size:14px; font-weight:bold; margin-bottom:4px;">段位（由低到高，第一個段位的等級門檻請設為 1）</h3>
-          <p style="font-size:13px; color:#888; margin-bottom:8px;">稱號會顯示在視訊溫習室名牌、排行榜及個人資料。「到達需時」按上面的升級速度計算。</p>
+          <p style="font-size:13px; color:#888; margin-bottom:8px;">稱號會顯示在視訊溫習室名牌、排行榜及個人資料。石頭是 Ottie 每 15 分鐘磨好的石頭款式，顯示在名牌、主頁及等級詳情（「自動」即按段位次序配）。「到達需時」按上面的升級速度計算。</p>
           <div style="overflow-x:auto;">
-            <table style="border-collapse:collapse; font-size:13px; color:var(--brand-800); min-width:620px; width:100%;">
+            <table style="border-collapse:collapse; font-size:13px; color:var(--brand-800); min-width:740px; width:100%;">
               <thead><tr>
-                <th style="${th}">等級門檻</th><th style="${th}">稱號（中）</th><th style="${th}">稱號（英）</th>
+                <th style="${th}">等級門檻</th><th style="${th}">稱號（中）</th><th style="${th}">稱號（英）</th><th style="${th}">石頭</th>
                 <th style="${th}">到達需時</th><th style="${th}">每日溫 3 小時</th><th style="${th}">每日溫 5 小時</th><th style="${th}"></th>
               </tr></thead>
               <tbody>${rankRows}</tbody>
@@ -1222,7 +1229,7 @@
         milestoneEvery: Math.max(1, Math.min(100, Math.floor(adminLevelDraft.milestoneEvery ?? 5))),
         milestoneFragments: Math.max(0, Math.min(1000, Math.floor(adminLevelDraft.milestoneFragments ?? 5))),
         // 段位相片已停用：儲存時順手清走舊相片，減細設定文件
-        ranks: adminLevelDraft.ranks.map(r => ({ minLevel: parseInt(r.minLevel) || 1, title: r.title || '', titleEn: r.titleEn || '', desc: r.desc || '' }))
+        ranks: adminLevelDraft.ranks.map(r => ({ minLevel: parseInt(r.minLevel) || 1, title: r.title || '', titleEn: r.titleEn || '', desc: r.desc || '', ...(parseInt(r.stone) >= 1 && parseInt(r.stone) <= 5 ? { stone: parseInt(r.stone) } : {}) }))
       };
       const approxBytes = new Blob([JSON.stringify(payload)]).size;
       if (approxBytes > 900000) {

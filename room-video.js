@@ -554,7 +554,7 @@
             <p style="font-size:13px; color:#ccc; margin-top:6px;">${window.t('room.remoteCameraOff', '對方鏡頭已關閉')}</p>
           </div>
           <div class="video-header">
-            <span class="video-tag" style="cursor:pointer;" onclick="viewUserProfile('${uid}')" title="${window.t('room.viewProfile', '點擊查看資料／加好友')}">${window.escapeHtml(name || window.t('room.otherUser', '其他用家'))}<span class="video-rank" id="remote-rank-${uid}"></span></span>
+            <span class="video-tag" style="cursor:pointer;" onclick="viewUserProfile('${uid}')" title="${window.t('room.viewProfile', '點擊查看資料／加好友')}">${window.escapeHtml(name || window.t('room.otherUser', '其他用家'))}<span class="video-rank" id="remote-rank-${uid}"></span><span class="video-stones" id="remote-stone-${uid}" data-n="0" data-src="stone-1.png"></span></span>
             <span class="video-tag" id="remote-host-badge-${slotNum}" style="background:#E9EDF5; color:#29395C; display:none;">${window.t('room.hostBadge', '房主')}</span>
             <span class="video-tag" id="stream-status-${uid}" data-conn="connecting" style="background:#3F588F; color:#fff;">${window.t('room.remoteWaitStream', '連線中...')}</span>
             <div class="video-more-menu-wrap">
@@ -578,6 +578,26 @@
 
     // v1.220.0：喺對方名牌旁邊顯示段位稱號（讀 publicProfiles 的 exp，
     // 由伺服器同步，前端改唔到）。每位同學入房只讀一次。
+    // v1.221.0：名牌旁邊的石頭（款式跟段位，數字係今次入房磨好幾多粒）
+    function stoneTagHtml(src, n) {
+      return `<img src="${src}" alt="" width="18" height="18" style="display:block;"><b>×${n}</b>`;
+    }
+    function refreshMyStoneTag(pop) {
+      const el = document.getElementById('room-user-stone-tag');
+      if (!el || !window.currentUser) return;
+      el.innerHTML = stoneTagHtml(window.stoneSrcForExp ? window.stoneSrcForExp(window.currentUser.exp || 0) : 'stone-1.png', state.myStones || 0);
+      if (pop) { el.classList.remove('stone-pop'); void el.offsetWidth; el.classList.add('stone-pop'); }
+    }
+    window.refreshMyStoneTag = refreshMyStoneTag;
+    function updateRemoteStoneTag(uid, n) {
+      const el = document.getElementById('remote-stone-' + uid);
+      if (!el) return;
+      const prev = parseInt(el.dataset.n || '0');
+      el.dataset.n = String(n || 0);
+      el.innerHTML = stoneTagHtml(el.dataset.src || 'stone-1.png', n || 0);
+      if ((n || 0) > prev) { el.classList.remove('stone-pop'); void el.offsetWidth; el.classList.add('stone-pop'); }
+    }
+
     async function fillRemoteRankTag(uid) {
       try {
         if (!window.db || !window.fs || typeof window.publicProfileRef !== 'function') return;
@@ -586,6 +606,11 @@
         const label = typeof window.rankLabelForExp === 'function' ? window.rankLabelForExp(snap.data().exp || 0) : '';
         const span = document.getElementById('remote-rank-' + uid);
         if (span && label) span.innerText = label;
+        const st = document.getElementById('remote-stone-' + uid);
+        if (st && typeof window.stoneSrcForExp === 'function') {
+          st.dataset.src = window.stoneSrcForExp(snap.data().exp || 0);
+          updateRemoteStoneTag(uid, parseInt(st.dataset.n || '0'));
+        }
       } catch (e) { /* 讀唔到就唔顯示稱號，唔影響視訊 */ }
     }
 
@@ -1107,6 +1132,7 @@
           if (!state.slotAssignments[p.uid]) getOrCreateRemoteSlot(p.uid, p.name);
           updateRemoteSlotCameraState(p.uid, !!p.cameraOn);
           updateRemoteSlotRotation(p.uid, p.camRotation || 0);
+          updateRemoteStoneTag(p.uid, p.stones || 0);
         });
 
         // 保險起見再掃一次：格子分配一有變動（新人入房／有人走咗），
@@ -1556,6 +1582,8 @@
       // 立房間時揀嘅目標時間）而家淨係用嚟喺大廳房間列表度顯示畀人參
       // 考，唔會再驅動任何計時器邏輯。
       state.roomTotalSeconds = 0; // 每次新入房，「呢間房總溫習時間」由 0 開始順時計
+      state.myStones = 0;
+      refreshMyStoneTag(false);
       updateTimerDisplay();
 
       resetVideoSlots();
@@ -1799,6 +1827,16 @@
         if (!state.awardingPaused) {
           state.roomTotalSeconds = (state.roomTotalSeconds || 0) + 1;
           secondsSinceLastAward++;
+          // v1.221.0：每滿 15 分鐘磨好一粒石頭
+          const stonesNow = Math.floor(state.roomTotalSeconds / (60 * (window.STONE_MINUTES || 15)));
+          if (stonesNow !== (state.myStones || 0)) {
+            state.myStones = stonesNow;
+            refreshMyStoneTag(true);
+            if (window.currentUser && state.currentRoomId && window.db) {
+              window.fs.setDoc(window.fs.doc(window.db, 'rooms', state.currentRoomId, 'participants', window.currentUser.uid), { stones: stonesNow }, { merge: true }).catch(() => {});
+            }
+            if (typeof window.updateOtterStatsCard === 'function') window.updateOtterStatsCard();
+          }
         }
         updateTimerDisplay();
 

@@ -785,6 +785,28 @@
       return sorted[sorted.length - 1] || DEFAULT_LEVEL_CONFIG.ranks[0];
     }
     window.getRankTitle = getRankTitle;
+
+    // v1.221.0 Ottie 的石頭：每溫 15 分鐘磨好一粒；石頭款式跟段位升格。
+    // 段位可喺後台揀石頭（ranks[].stone = 1–5），未揀就按段位次序自動配。
+    const STONE_MINUTES = 15;
+    const STONE_COUNT = 5;
+    window.STONE_MINUTES = STONE_MINUTES;
+    function stoneIndexForRank(rank) {
+      const ranks = (LEVEL_CONFIG && Array.isArray(LEVEL_CONFIG.ranks) && LEVEL_CONFIG.ranks.length) ? LEVEL_CONFIG.ranks : DEFAULT_LEVEL_CONFIG.ranks;
+      const n = parseInt(rank && rank.stone);
+      if (n >= 1 && n <= STONE_COUNT) return n;
+      const sorted = ranks.slice().sort((a, b) => (a.minLevel || 0) - (b.minLevel || 0));
+      const i = sorted.findIndex(r => r === rank || (r.minLevel === rank.minLevel && r.title === rank.title));
+      return Math.min(STONE_COUNT, Math.max(1, (i < 0 ? 0 : i) + 1));
+    }
+    window.stoneSrcForRank = (rank) => `stone-${stoneIndexForRank(rank)}.png`;
+    window.stoneSrcForExp = (exp) => window.stoneSrcForRank(getRankTitle(calcLevelInfo(exp || 0).level));
+    window.stoneNameForRank = (rank) => {
+      const names = ['灰石', '鵝卵石', '雲石', '水晶', '寶石'];
+      const namesEn = ['Grey stone', 'Pebble', 'Marble', 'Crystal', 'Gem'];
+      const i = stoneIndexForRank(rank) - 1;
+      return (window.getAppLanguage && window.getAppLanguage() === 'en') ? namesEn[i] : names[i];
+    };
     // v1.220.0：由 EXP 直接得出段位稱號（溫習室名牌、排行榜用）
     window.rankLabelForExp = function(exp) {
       const rank = getRankTitle(calcLevelInfo(exp || 0).level);
@@ -799,6 +821,7 @@
 
       const selfRankTag = document.getElementById('room-user-rank-tag');
       if (selfRankTag) selfRankTag.innerText = window.rankTitle ? window.rankTitle(rank) : rank.title;
+      if (typeof window.refreshMyStoneTag === 'function') window.refreshMyStoneTag(false);
 
       const headerBadge = document.getElementById('header-level-badge');
       if (headerBadge) {
@@ -876,6 +899,7 @@
           const isCurrent = r === rank || (r.minLevel === rank.minLevel && r.title === rank.title);
           return `
             <div style="display:flex; gap:10px; align-items:flex-start; padding:8px 10px; border-radius:10px; border:1px solid ${isCurrent ? 'var(--brand-500)' : '#eee'}; background:${isCurrent ? 'var(--brand-50)' : (reached ? '#fff' : '#fafafa')}; opacity:${reached ? '1' : '.6'};">
+              <img src="${window.stoneSrcForRank(r)}" alt="" width="30" height="30" style="flex-shrink:0; ${reached ? '' : 'filter:grayscale(1);'}" title="${escapeHtml(window.stoneNameForRank(r))}">
               <div style="flex:1; min-width:0;">
                 <div style="font-size:13px; font-weight:bold; color:${reached ? 'var(--brand-800)' : '#999'};">
                   Lv.${r.minLevel || 1}+ ${escapeHtml(window.rankTitle(r))}${isCurrent ? ` <span style="font-size:13px; color:var(--brand-500);">${escapeHtml(window.t('level.currentTag', '（目前）'))}</span>` : ''}
@@ -1756,6 +1780,21 @@
 
       if (typeof GACHA_STICKERS !== 'undefined' && typeof getOwnedStickerTypeCount === 'function') {
         setText('otter-stat-stickers', `${getOwnedStickerTypeCount()}/${GACHA_STICKERS.length}`);
+      }
+
+      // 今日石頭：今日溫習分鐘 ÷ 15
+      const stoneWrap = document.getElementById('otter-stones-today');
+      if (stoneWrap) {
+        const isToday = window.currentUser.todayDate === (typeof getTodayDateStr === 'function' ? getTodayDateStr() : window.currentUser.todayDate);
+        const mins = isToday ? (window.currentUser.todayMinutes || 0) : 0;
+        const n = Math.floor(mins / STONE_MINUTES);
+        const src = window.stoneSrcForRank(rank);
+        const shown = Math.min(n, 8);
+        const icons = Array.from({ length: shown }, () => `<img src="${src}" alt="" width="22" height="22" style="display:block;">`).join('');
+        const left = STONE_MINUTES - (mins % STONE_MINUTES);
+        stoneWrap.innerHTML = `
+          <div style="display:flex; align-items:center; justify-content:center; gap:3px; flex-wrap:wrap; min-height:22px;">${icons || `<img src="${src}" alt="" width="22" height="22" style="display:block; opacity:.35;">`}${n > shown ? `<span style="font-size:13px; font-weight:700; color:var(--brand-700);">+${n - shown}</span>` : ''}</div>
+          <div style="font-size:12px; color:var(--brand-700); margin-top:3px;">${escapeHtml(window.t('otter.stonesTodayTemplate', 'Ottie 今日磨好 {n} 粒{stone}').replace('{n}', n).replace('{stone}', window.stoneNameForRank(rank)))}<span style="color:#8A94A8;">　${escapeHtml(window.t('otter.stoneNextTemplate', '再溫 {m} 分鐘磨好下一粒').replace('{m}', left))}</span></div>`;
       }
     }
     window.updateOtterStatsCard = updateOtterStatsCard;
