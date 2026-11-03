@@ -1036,7 +1036,7 @@
           </div>
           <div style="flex:1; min-width:240px; display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
             <label style="font-size:13px; color:#555; display:flex; align-items:center; gap:4px;">等級門檻
-              <input class="admin-input-sm" type="number" min="1" style="width:55px;" value="${r.minLevel}" onchange="adminLevelDraft.ranks[${idx}].minLevel = parseInt(this.value)||1">
+              <input class="admin-input-sm" type="number" min="1" style="width:55px;" value="${r.minLevel}" onchange="adminLevelDraft.ranks[${idx}].minLevel = parseInt(this.value)||1; adminRefreshLevelPreview();">
             </label>
             <label style="font-size:13px; color:#555; display:flex; align-items:center; gap:4px;">稱號(中)
               <input class="admin-input-sm" style="width:90px;" value="${escapeHtml(r.title || '')}" onchange="adminLevelDraft.ranks[${idx}].title = this.value">
@@ -1069,7 +1069,24 @@
             </label>
           </div>
           <p style="font-size:13px; color:#888;">公式：升到第 L 級總共需要的 EXP = 難度係數 × L × (L−1)。難度係數越大，升級越慢。</p>
-          <p id="admin-level-preview" style="font-size:13px; color:#4A68A8; font-weight:bold; margin-top:6px;"></p>
+          <div id="admin-level-preview" style="font-size:13px; color:#4A68A8; margin-top:10px;"></div>
+        </div>
+
+        <div class="admin-card" style="margin-top:12px;">
+          <h3 style="font-size:14px; font-weight:bold; margin-bottom:8px;">升級獎勵</h3>
+          <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:10px;">
+            <label style="font-size:13px; color:#555; display:flex; align-items:center; gap:6px;">
+              每升一級送免費扭蛋券：
+              <input class="admin-input-sm" type="number" min="0" max="10" step="1" style="width:60px;" value="${adminLevelDraft.levelUpTickets ?? 1}" oninput="adminLevelDraft.levelUpTickets = parseInt(this.value)||0"> 張
+            </label>
+            <label style="font-size:13px; color:#555; display:flex; align-items:center; gap:6px;">
+              每
+              <input class="admin-input-sm" type="number" min="1" max="100" step="1" style="width:60px;" value="${adminLevelDraft.milestoneEvery ?? 5}" oninput="adminLevelDraft.milestoneEvery = parseInt(this.value)||5">
+              級額外送碎片：
+              <input class="admin-input-sm" type="number" min="0" max="1000" step="1" style="width:60px;" value="${adminLevelDraft.milestoneFragments ?? 5}" oninput="adminLevelDraft.milestoneFragments = parseInt(this.value)||0"> 個
+            </label>
+          </div>
+          <p style="font-size:13px; color:#888;">用戶溫習時一升級，伺服器就會自動派發。免費扭蛋券可在扭蛋頁單抽一次，不扣積分。每一級只派一次；管理員手動補發 EXP 後，用戶下次溫習時會補派中間各級的獎勵。</p>
         </div>
 
         <div class="admin-card" style="margin-top:12px;">
@@ -1093,13 +1110,54 @@
       if (!el || !adminLevelDraft) return;
       const f = adminLevelDraft.levelCurveFactor || 10;
       const perMin = adminLevelDraft.expPerMinute || 0;
-      const sample = [10, 20, 40, 60].map(L => {
-        const needExp = f * L * (L - 1);
-        const mins = perMin > 0 ? needExp / perMin : Infinity;
-        const hrs = isFinite(mins) ? (mins / 60).toFixed(0) : '∞';
-        return `Lv.${L}≈${hrs}h`;
-      }).join('　');
-      el.innerText = `預覽：溫習到 ${sample}`;
+      // 關鍵等級：每個段位門檻，加埋 2、5、10、15、20、30、40、50、60、80、100
+      const rankLevels = (adminLevelDraft.ranks || []).map(r => parseInt(r.minLevel) || 1);
+      const keyLevels = Array.from(new Set([2, 5, 10, 15, 20, 30, 40, 50, 60, 80, 100].concat(rankLevels)))
+        .filter(L => L >= 2).sort((a, b) => a - b);
+      const rankAt = (L) => {
+        const r = (adminLevelDraft.ranks || []).find(x => (parseInt(x.minLevel) || 1) === L);
+        return r ? (r.title || '') : '';
+      };
+      const hoursFor = (L) => perMin > 0 ? (f * L * (L - 1)) / perMin / 60 : Infinity;
+      const fmtH = (h) => {
+        if (!isFinite(h)) return '—';
+        if (h < 1) return `${Math.round(h * 60)} 分鐘`;
+        return `${h < 10 ? h.toFixed(1) : Math.round(h)} 小時`;
+      };
+      const fmtDays = (h, perDay) => isFinite(h) ? `約 ${Math.max(1, Math.ceil(h / perDay))} 日` : '—';
+      let prevH = 0;
+      const rows = keyLevels.map(L => {
+        const h = hoursFor(L);
+        const gap = isFinite(h) ? h - prevH : Infinity;
+        prevH = isFinite(h) ? h : prevH;
+        const nextLvH = isFinite(h) ? (f * 2 * L) / perMin / 60 : Infinity; // 由 L 升到 L+1 要幾耐
+        const rk = rankAt(L);
+        return `<tr${rk ? ' style="background:var(--brand-50);"' : ''}>
+          <td style="padding:6px 8px; font-weight:700; white-space:nowrap;">Lv.${L}${rk ? ` <span style="font-size:12px; color:var(--brand-600);">${escapeHtml(rk)}</span>` : ''}</td>
+          <td style="padding:6px 8px; text-align:right; white-space:nowrap;">${(f * L * (L - 1)).toLocaleString()}</td>
+          <td style="padding:6px 8px; text-align:right; white-space:nowrap; font-weight:700;">${fmtH(h)}</td>
+          <td style="padding:6px 8px; text-align:right; white-space:nowrap;">+${fmtH(gap)}</td>
+          <td style="padding:6px 8px; text-align:right; white-space:nowrap;">${fmtH(nextLvH)}</td>
+          <td style="padding:6px 8px; text-align:right; white-space:nowrap;">${fmtDays(h, 1)}</td>
+          <td style="padding:6px 8px; text-align:right; white-space:nowrap;">${fmtDays(h, 3)}</td>
+        </tr>`;
+      }).join('');
+      el.innerHTML = `
+        <div style="font-weight:700; margin-bottom:6px;">各關鍵等級所需溫習時間（底色為段位門檻）</div>
+        <div style="overflow-x:auto;">
+          <table style="border-collapse:collapse; font-size:13px; font-weight:normal; color:var(--brand-800); min-width:560px;">
+            <thead><tr style="border-bottom:1px solid var(--brand-200); color:#6B7894;">
+              <th style="padding:6px 8px; text-align:left;">等級</th>
+              <th style="padding:6px 8px; text-align:right;">累積 EXP</th>
+              <th style="padding:6px 8px; text-align:right;">累積溫習時間</th>
+              <th style="padding:6px 8px; text-align:right;">比上一行多</th>
+              <th style="padding:6px 8px; text-align:right;">再升一級要</th>
+              <th style="padding:6px 8px; text-align:right;">每日溫 1 小時</th>
+              <th style="padding:6px 8px; text-align:right;">每日溫 3 小時</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
     };
 
     window.adminAddLevelRank = function() {
@@ -1149,6 +1207,9 @@
       const payload = {
         expPerMinute: adminLevelDraft.expPerMinute,
         levelCurveFactor: adminLevelDraft.levelCurveFactor,
+        levelUpTickets: Math.max(0, Math.min(10, Math.floor(adminLevelDraft.levelUpTickets ?? 1))),
+        milestoneEvery: Math.max(1, Math.min(100, Math.floor(adminLevelDraft.milestoneEvery ?? 5))),
+        milestoneFragments: Math.max(0, Math.min(1000, Math.floor(adminLevelDraft.milestoneFragments ?? 5))),
         ranks: adminLevelDraft.ranks
       };
       const approxBytes = new Blob([JSON.stringify(payload)]).size;
@@ -1173,6 +1234,7 @@
           const data = snap.data();
           if (typeof data.expPerMinute === 'number') LEVEL_CONFIG.expPerMinute = data.expPerMinute;
           if (typeof data.levelCurveFactor === 'number') LEVEL_CONFIG.levelCurveFactor = data.levelCurveFactor;
+          ['levelUpTickets', 'milestoneEvery', 'milestoneFragments'].forEach(k => { if (typeof data[k] === 'number') LEVEL_CONFIG[k] = data[k]; });
           if (Array.isArray(data.ranks) && data.ranks.length) LEVEL_CONFIG.ranks = data.ranks;
         }
         levelConfigLoaded = true;

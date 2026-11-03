@@ -464,6 +464,13 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
         // （例如仲留喺視訊溫習室入面）都會即時被踢出登入狀態。
         if (suspensionListenerUnsubscribe) { suspensionListenerUnsubscribe(); suspensionListenerUnsubscribe = null; }
         suspensionListenerUnsubscribe = onSnapshot(userDocRef, async (snap) => {
+          // v1.220.0：免費扭蛋券／碎片由伺服器派發，喺度即時同步返畫面
+          if (snap.exists() && window.currentUser) {
+            const d = snap.data();
+            if (typeof d.freeGachaTickets === 'number') window.currentUser.freeGachaTickets = d.freeGachaTickets;
+            if (typeof d.stickerFragments === 'number') window.currentUser.stickerFragments = d.stickerFragments;
+            if (typeof window.refreshGachaTicketUI === 'function') window.refreshGachaTicketUI();
+          }
           if (snap.exists() && snap.data().suspended && window.currentUser) {
             window.showToast(window.t('core.accountSuspendedLoggingOut', '你的帳戶已被管理員停權，即將登出'), '🚫');
             if (suspensionListenerUnsubscribe) { suspensionListenerUnsubscribe(); suspensionListenerUnsubscribe = null; }

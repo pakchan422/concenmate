@@ -554,7 +554,7 @@
             <p style="font-size:13px; color:#ccc; margin-top:6px;">${window.t('room.remoteCameraOff', '對方鏡頭已關閉')}</p>
           </div>
           <div class="video-header">
-            <span class="video-tag" style="cursor:pointer;" onclick="viewUserProfile('${uid}')" title="${window.t('room.viewProfile', '點擊查看資料／加好友')}">${window.escapeHtml(name || window.t('room.otherUser', '其他用家'))}</span>
+            <span class="video-tag" style="cursor:pointer;" onclick="viewUserProfile('${uid}')" title="${window.t('room.viewProfile', '點擊查看資料／加好友')}">${window.escapeHtml(name || window.t('room.otherUser', '其他用家'))}<span class="video-rank" id="remote-rank-${uid}"></span></span>
             <span class="video-tag" id="remote-host-badge-${slotNum}" style="background:#E9EDF5; color:#29395C; display:none;">${window.t('room.hostBadge', '房主')}</span>
             <span class="video-tag" id="stream-status-${uid}" data-conn="connecting" style="background:#3F588F; color:#fff;">${window.t('room.remoteWaitStream', '連線中...')}</span>
             <div class="video-more-menu-wrap">
@@ -571,8 +571,22 @@
         // 呢個格岩岩先建立，如果佔用呢格嘅正正就係目前嘅房主，
         // 要即刻幫佢掛返個「👑 房主」牌，唔使等落一次房主轉移先反映到
         updateHostBadge();
+        fillRemoteRankTag(uid);
       }
       return el.querySelector('video');
+    }
+
+    // v1.220.0：喺對方名牌旁邊顯示段位稱號（讀 publicProfiles 的 exp，
+    // 由伺服器同步，前端改唔到）。每位同學入房只讀一次。
+    async function fillRemoteRankTag(uid) {
+      try {
+        if (!window.db || !window.fs || typeof window.publicProfileRef !== 'function') return;
+        const snap = await window.fs.getDoc(window.publicProfileRef(uid));
+        if (!snap.exists()) return;
+        const label = typeof window.rankLabelForExp === 'function' ? window.rankLabelForExp(snap.data().exp || 0) : '';
+        const span = document.getElementById('remote-rank-' + uid);
+        if (span && label) span.innerText = label;
+      } catch (e) { /* 讀唔到就唔顯示稱號，唔影響視訊 */ }
     }
 
     // 統一管理「👑 房主」牌應該掛喺邊一格：自己個格（isMyRoom）或者相應嘅
@@ -1887,10 +1901,7 @@
       window.currentUser.exp = (window.currentUser.exp || 0) + expGain;
       updateLevelDisplay();
       const newLevel = calcLevelInfo(window.currentUser.exp).level;
-      if (newLevel > prevLevel) {
-        const rank = getRankTitle(newLevel);
-        window.showToast(window.t('room.levelUpTemplate', `升級了！現在是 Lv.${newLevel} ${rank.title}！`).replace('{level}', newLevel).replace('{title}', rank.title), '⬆️');
-      }
+      const leveledUpLocally = newLevel > prevLevel;
       if (hoursIncrement > 0) {
         const newHours = (parseFloat(window.currentUser.hours) || 0) + hoursIncrement;
         window.currentUser.hours = newHours;
@@ -1935,10 +1946,30 @@
         isNewDay,
         todayDateStr: hoursIncrement > 0 ? getTodayDateStr() : undefined
       };
+      // v1.220.0：升級提示等伺服器回覆先顯示，咁就可以連埋升級獎勵一齊講
+      const showLevelUpToast = (reward) => {
+        const rank = getRankTitle(newLevel);
+        let msg = window.t('room.levelUpTemplate', `升級了！現在是 Lv.${newLevel} ${rank.title}！`).replace('{level}', newLevel).replace('{title}', window.rankTitle ? window.rankTitle(rank) : rank.title);
+        if (reward && (reward.tickets > 0 || reward.fragments > 0)) {
+          const parts = [];
+          if (reward.tickets > 0) parts.push(window.t('level.rewardTicketsTemplate', '免費扭蛋券 {n} 張').replace('{n}', reward.tickets));
+          if (reward.fragments > 0) parts.push(window.t('level.rewardFragmentsTemplate', '碎片 {n} 個').replace('{n}', reward.fragments));
+          msg += ' ' + window.t('level.rewardPrefix', '獎勵：') + parts.join('、');
+        }
+        window.showToast(msg, '⬆️');
+      };
       try {
         await flushAwardSyncQueue(); // 先追返之前排隊緊嘅（保住次序），先寄呢次新嘅
-        await window.callCloudFunction('awardStudyPoints', payload);
+        const res = await window.callCloudFunction('awardStudyPoints', payload);
+        const reward = res && res.levelReward;
+        if (reward) {
+          window.currentUser.freeGachaTickets = reward.freeGachaTickets;
+          window.currentUser.stickerFragments = reward.stickerFragments;
+          if (typeof window.refreshGachaTicketUI === 'function') window.refreshGachaTicketUI();
+        }
+        if (leveledUpLocally || reward) showLevelUpToast(reward);
       } catch (e) {
+        if (leveledUpLocally) showLevelUpToast(null);
         if (isAwardRejectedError(e)) { console.warn('伺服器拒絕今次積分（唔會重試）:', e && e.message); return; }
         console.warn("積分同步到 Firestore 失敗，已排隊等遲啲重試（畫面已經即時更新，唔影響使用）:", e);
         awardSyncQueue.push(payload);

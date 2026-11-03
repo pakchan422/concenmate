@@ -345,6 +345,10 @@
     const DEFAULT_LEVEL_CONFIG = {
       expPerMinute: 1,
       levelCurveFactor: 10, // 公式：升到 Level L 總共需要嘅 EXP = 難度係數 × L × (L−1)
+      // v1.220.0 升級獎勵（伺服器 awardStudyPoints 照呢幾個數派發）
+      levelUpTickets: 1,      // 每升一級送幾多張免費扭蛋券
+      milestoneEvery: 5,      // 每幾多級額外送碎片
+      milestoneFragments: 5,  // 嗰啲級數額外送幾多個碎片
       ranks: [
         { minLevel: 1,  title: '溫習新手', titleEn: 'Novice',     color: '#6FA96F', desc: '剛剛起步，每一分鐘的溫習都算數，慢慢累積 EXP！' },
         { minLevel: 10, title: '專注學徒', titleEn: 'Apprentice', color: '#4A68A8', desc: '已經養成溫習習慣，繼續保持專注，向下一個段位進發。' },
@@ -473,7 +477,8 @@
     // uid 有值先會顯示頭像同令個名可以撳（撳落去開 viewUserProfile() 嗰個
     // 資料卡）——學校總排行榜嗰行係「一間學校」唔係「一個人」，冇 uid
     // 可以傳，就會維持返舊有冇頭像／唔可以撳嘅顯示方式。
-    function renderLeaderboardRow(rank, primaryText, secondaryText, isMe, avatarBase64, uid) {
+    function renderLeaderboardRow(rank, primaryText, secondaryText, isMe, avatarBase64, uid, exp) {
+      const rankLabel = (uid && typeof exp === 'number') ? window.rankLabelForExp(exp) : '';
       const medal = `#${rank}`;
       const clickable = !!uid;
       const clickAttr = clickable ? ` onclick="viewUserProfile('${uid}')" style="cursor:pointer;"` : '';
@@ -487,7 +492,10 @@
           <div style="display:flex; align-items:center; gap:10px; min-width:0;">
             <div style="font-size:15px; font-weight:bold; color:var(--brand-800); width:34px; flex-shrink:0; text-align:center;">${medal}</div>
             ${avatarHtml}
-            <div${clickAttr} style="font-size:14px; font-weight:bold; color:var(--brand-800); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(primaryText)}${isMe ? ` <span style="font-size:12px; color:var(--brand-600); font-weight:normal;">${window.t('lb.youSuffix', '（你）')}</span>` : ''}</div>
+            <div${clickAttr} style="min-width:0;">
+              <div style="font-size:14px; font-weight:bold; color:var(--brand-800); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(primaryText)}${isMe ? ` <span style="font-size:12px; color:var(--brand-600); font-weight:normal;">${window.t('lb.youSuffix', '（你）')}</span>` : ''}</div>
+              ${rankLabel ? `<div style="font-size:12px; color:var(--brand-600); font-weight:600;">${escapeHtml(rankLabel)}</div>` : ''}
+            </div>
           </div>
           <div style="font-size:13px; color:#3F588F; font-weight:700; white-space:nowrap; flex-shrink:0;">${escapeHtml(secondaryText)}</div>
         </div>
@@ -565,7 +573,7 @@
           listEl.innerHTML = `<p style="text-align:center; color:#999; padding:20px;">${window.t('lb.emptyDistrict', '這個地區暫時未有同學上榜，開始溫習就可以成為第一位！')}</p>`;
         } else {
           listEl.innerHTML = entries.map((e, i) =>
-            renderLeaderboardRow(i + 1, e.username || window.t('lb.defaultUsername', '同學'), formatHoursMinutes(e[hoursField]), e.uid === window.currentUser.uid, e.avatarBase64, e.uid)
+            renderLeaderboardRow(i + 1, e.username || window.t('lb.defaultUsername', '同學'), formatHoursMinutes(e[hoursField]), e.uid === window.currentUser.uid, e.avatarBase64, e.uid, typeof e.exp === 'number' ? e.exp : undefined)
           ).join('');
         }
 
@@ -594,7 +602,7 @@
           const myRank = countSnap.data().count + 1;
           if (ownRankWrap) {
             ownRankWrap.style.display = 'block';
-            ownRankWrap.innerHTML = renderLeaderboardRow(myRank, window.currentUser.username || '你', formatHoursMinutes(myHours), true, window.currentUser.avatarBase64, window.currentUser.uid);
+            ownRankWrap.innerHTML = renderLeaderboardRow(myRank, window.currentUser.username || '你', formatHoursMinutes(myHours), true, window.currentUser.avatarBase64, window.currentUser.uid, window.currentUser.exp || 0);
           }
         } else if (!meInList && ownRankWrap) {
           // 自己個帳戶就讀地區同揀緊嘅地區唔同（睇緊第二區嘅榜），冇
@@ -658,7 +666,7 @@
           listEl.innerHTML = `<p style="text-align:center; color:#999; padding:20px;">${window.t('lb.emptySchoolInternal', '你的學校暫時未有同學上榜，開始溫習就可以成為第一位！')}</p>`;
         } else {
           listEl.innerHTML = entries.map((e, i) =>
-            renderLeaderboardRow(i + 1, e.username || window.t('lb.defaultUsername', '同學'), formatHoursMinutes(e[hoursField]), e.uid === window.currentUser.uid, e.avatarBase64, e.uid)
+            renderLeaderboardRow(i + 1, e.username || window.t('lb.defaultUsername', '同學'), formatHoursMinutes(e[hoursField]), e.uid === window.currentUser.uid, e.avatarBase64, e.uid, typeof e.exp === 'number' ? e.exp : undefined)
           ).join('');
         }
 
@@ -680,7 +688,7 @@
           const myRank = countSnap.data().count + 1;
           if (ownRankWrap) {
             ownRankWrap.style.display = 'block';
-            ownRankWrap.innerHTML = renderLeaderboardRow(myRank, window.currentUser.username || '你', formatHoursMinutes(myHours), true, window.currentUser.avatarBase64, window.currentUser.uid);
+            ownRankWrap.innerHTML = renderLeaderboardRow(myRank, window.currentUser.username || '你', formatHoursMinutes(myHours), true, window.currentUser.avatarBase64, window.currentUser.uid, window.currentUser.exp || 0);
           }
         }
       } catch (err) {
@@ -777,12 +785,20 @@
       return sorted[sorted.length - 1] || DEFAULT_LEVEL_CONFIG.ranks[0];
     }
     window.getRankTitle = getRankTitle;
+    // v1.220.0：由 EXP 直接得出段位稱號（溫習室名牌、排行榜用）
+    window.rankLabelForExp = function(exp) {
+      const rank = getRankTitle(calcLevelInfo(exp || 0).level);
+      return window.rankTitle ? window.rankTitle(rank) : (rank.title || '');
+    };
 
     // 更新頭部徽章 / 主頁 Hero / 個人資料頁嘅 Level 顯示（全部都會顯示仍欠幾多 EXP 先可以升級）
     function updateLevelDisplay() {
       if (!window.currentUser) return;
       const info = calcLevelInfo(window.currentUser.exp || 0);
       const rank = getRankTitle(info.level);
+
+      const selfRankTag = document.getElementById('room-user-rank-tag');
+      if (selfRankTag) selfRankTag.innerText = window.rankTitle ? window.rankTitle(rank) : rank.title;
 
       const headerBadge = document.getElementById('header-level-badge');
       if (headerBadge) {
@@ -818,6 +834,22 @@
 
     // 置頂狀態列撳「Lv.」嗰邊會彈出呢個視窗：列晒全部段位、每個段位嘅升級詳情
     // 文字（由 Admin後台「🎮 等級系統」控制），並標明用家自己而家去到邊個段位。
+    // v1.220.0：等級詳情視窗顯示升級獎勵規則同目前持有的免費扭蛋券
+    function levelRewardSummaryHtml() {
+      const t = (LEVEL_CONFIG && typeof LEVEL_CONFIG.levelUpTickets === 'number') ? LEVEL_CONFIG.levelUpTickets : 1;
+      const every = (LEVEL_CONFIG && typeof LEVEL_CONFIG.milestoneEvery === 'number') ? LEVEL_CONFIG.milestoneEvery : 5;
+      const frag = (LEVEL_CONFIG && typeof LEVEL_CONFIG.milestoneFragments === 'number') ? LEVEL_CONFIG.milestoneFragments : 5;
+      const parts = [];
+      if (t > 0) parts.push(window.t('level.rewardRuleTicketsTemplate', '每升一級送免費扭蛋券 {n} 張').replace('{n}', t));
+      if (frag > 0) parts.push(window.t('level.rewardRuleFragmentsTemplate', '每 {every} 級額外送碎片 {n} 個').replace('{every}', every).replace('{n}', frag));
+      if (!parts.length) return '';
+      const have = (window.currentUser && window.currentUser.freeGachaTickets) || 0;
+      return `<div style="font-size:13px; color:var(--brand-700); margin-top:8px; padding-top:8px; border-top:1px dashed var(--brand-200); line-height:1.6;">
+        <b>${escapeHtml(window.t('level.rewardRuleTitle', '升級獎勵'))}</b>：${escapeHtml(parts.join('；'))}<br>
+        ${escapeHtml(window.t('level.ticketsHaveTemplate', '你目前有免費扭蛋券 {n} 張').replace('{n}', have))}
+      </div>`;
+    }
+
     function openLevelInfoModal() {
       if (!window.currentUser) return;
       const info = calcLevelInfo(window.currentUser.exp || 0);
@@ -830,6 +862,7 @@
           <div style="font-size:13px; color:#888; margin-top:4px;">${window.t('level.expWithNextLvTemplate', `${info.expIntoLevel} / ${info.expNeededForNext} EXP · 仍欠 ${info.expRemaining} EXP 就升到 Lv.${info.level + 1}`)
             .replace('{into}', info.expIntoLevel).replace('{needed}', info.expNeededForNext).replace('{remaining}', info.expRemaining).replace('{nextLevel}', info.level + 1)}</div>
           ${rank.desc ? `<div style="font-size:13px; color:#555; margin-top:6px; line-height:1.5;">${escapeHtml(rank.desc)}</div>` : ''}
+          ${levelRewardSummaryHtml()}
         `;
       }
 
@@ -2190,6 +2223,8 @@
         headerAuthBtn.innerHTML = `<span>${window.currentUser.username || window.currentUser.email}</span> <span style="color:#4A68A8; font-weight:bold;">✓</span>`;
 
         document.getElementById('room-user-name-tag').innerText = (window.currentUser.username || '使用者') + " (你)";
+        const selfRankTag = document.getElementById('room-user-rank-tag');
+        if (selfRankTag) selfRankTag.innerText = window.rankLabelForExp(window.currentUser.exp || 0);
         document.getElementById('room-self-avatar').innerText = (window.currentUser.username || 'U').charAt(0).toUpperCase();
         document.getElementById('stat-hours').innerText = (parseFloat(window.currentUser.hours) || 0).toFixed(1);
         document.getElementById('stat-points').innerText = window.currentUser.points ?? 0;
@@ -3500,7 +3535,18 @@
       }
     };
 
+    // v1.220.0：升級獎勵的免費扭蛋券（freeGachaTickets，伺服器派發）
+    function refreshGachaTicketUI() {
+      const n = (window.currentUser && window.currentUser.freeGachaTickets) || 0;
+      const btn = document.getElementById('gacha-draw-ticket-btn');
+      const cnt = document.getElementById('gacha-ticket-count');
+      if (cnt) cnt.innerText = n;
+      if (btn && btn.dataset.origHtml === undefined) btn.style.display = n > 0 ? '' : 'none';
+    }
+    window.refreshGachaTicketUI = refreshGachaTicketUI;
+
     function syncGachaPtsDisplay() {
+      refreshGachaTicketUI();
       const pts = parseInt(document.getElementById('stat-points')?.innerText || '0');
       const el = document.getElementById('gacha-pts-display');
       if (el) el.innerText = pts;
@@ -3519,7 +3565,8 @@
     function setGachaButtonsDisabled(disabled) {
       const normalBtn = document.getElementById('gacha-draw-normal-btn');
       const luckyBtn = document.getElementById('gacha-draw-lucky-btn');
-      [normalBtn, luckyBtn].forEach(btn => {
+      const ticketBtn = document.getElementById('gacha-draw-ticket-btn');
+      [normalBtn, luckyBtn, ticketBtn].forEach(btn => {
         if (!btn) return;
         btn.disabled = disabled;
         if (disabled) {
@@ -3541,6 +3588,7 @@
       } finally {
         gachaDrawInProgress = false;
         setGachaButtonsDisabled(false);
+        refreshGachaTicketUI();
       }
     };
 
@@ -3549,8 +3597,11 @@
       // （lucky 池）抽 10 次、一次過扣總費用，結果分兩行顯示，唔再係
       // 單抽嗰一套流程，所以獨立分支去 doGachaBatch()。
       if (type === 'lucky') { await doGachaBatch(); return; }
+      // v1.220.0：用免費扭蛋券單抽一次（唔扣積分）
+      const useTicket = type === 'ticket';
+      if (useTicket) type = 'normal';
 
-      const cost = GACHA_COST[type];
+      const cost = useTicket ? 0 : GACHA_COST[type];
 
       // 扣分：而家改用 Cloud Function（spendGachaPoints）做，喺伺服器端
       // 用 Firestore transaction 原子咁「確認夠分先扣」，唔再淨係信任前端
@@ -3562,8 +3613,9 @@
       let serverResults = [];
       let serverFragments = null;
       try {
-        const result = await window.callCloudFunction('spendGachaPoints', { type, seriesId: gachaSelectedSeriesId() === '__all' ? null : gachaSelectedSeriesId() });
+        const result = await window.callCloudFunction('spendGachaPoints', { type, useTicket, seriesId: gachaSelectedSeriesId() === '__all' ? null : gachaSelectedSeriesId() });
         newPoints = result.points;
+        if (typeof result.freeGachaTickets === 'number' && window.currentUser) window.currentUser.freeGachaTickets = result.freeGachaTickets;
         serverStickerIds = Array.isArray(result.stickerIds) ? result.stickerIds : [];
         serverResults = Array.isArray(result.results) ? result.results : [];
         if (typeof result.fragments === 'number') serverFragments = result.fragments;
@@ -3635,8 +3687,8 @@
       }
 
       // 加入歷史記錄（本頁顯示 + 儲存去 Firestore 給個人資料頁查閱）
-      addGachaHistory(sticker, type, undefined, isNew);
-      saveGachaHistoryToFirestore(sticker, type, undefined, isNew);
+      addGachaHistory(sticker, type, useTicket ? 0 : undefined, isNew);
+      saveGachaHistoryToFirestore(sticker, type, useTicket ? 0 : undefined, isNew);
       refreshCollectionBookIfOpen();
     }
 
