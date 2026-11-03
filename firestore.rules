@@ -501,7 +501,9 @@ service cloud.firestore {
       // create 嗰陣如果有帶 roomPool 落嚟，一定要同請求者自己個池一致，
       // 防止有人特登將房間標成另一個池嘅 tag，令唔應該見到嘅人都見到。
       allow create: if request.auth != null && request.resource.data.hostUid == request.auth.uid &&
-        (!('roomPool' in request.resource.data) || request.resource.data.roomPool == viewerRoomPool(database));
+        (!('roomPool' in request.resource.data) || request.resource.data.roomPool == viewerRoomPool(database) ||
+         // v1.223.1：管理員可以喺任何一邊開房（方便測試）
+         (request.resource.data.roomPool in ['secondary', 'public'] && isAdmin(database)));
       allow update: if request.auth != null && (
         (resource.data.hostUid == request.auth.uid &&
          (!('roomPool' in resource.data) || !('roomPool' in request.resource.data) ||

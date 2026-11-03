@@ -265,6 +265,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
       }
       return window.getViewerRoomPool();
     }
+    window.getLobbyViewPool = getLobbyViewPool;
 
     // 管理員撳「🛠️ 轉換溫習室」掣嗰陣叫呢個 function：喺兩個池之間切換
     // （唔理而家係咪跟緊自己帳戶嘅池，撳一下就切去另一個），重新訂閱
@@ -279,14 +280,37 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
     // 管理員專用嘅「🛠️ 轉換溫習室」掣，都喺呢度同步顯示／隱藏。
     window.updateRoomLobbyTitle = function() {
       const titleEl = document.getElementById('room-lobby-title');
-      const adminToggleBtn = document.getElementById('admin-room-pool-toggle-btn');
       const isAdmin = typeof window.isCurrentUserAdmin === 'function' && window.isCurrentUserAdmin();
-      if (adminToggleBtn) adminToggleBtn.style.display = isAdmin ? 'inline-block' : 'none';
-      if (!titleEl) return;
-      const isSecondary = getLobbyViewPool() === 'secondary';
-      let title = isSecondary ? window.t('room.lobbyTitleSecondary', '公開溫習大廳（中學生專用）') : window.t('room.lobbyTitlePublic', '公開溫習大廳（公開溫習室）');
-      if (isAdmin && adminRoomPoolOverride) title += window.t('room.adminViewSuffix', '（管理員檢視）');
-      titleEl.innerText = title;
+      const viewPool = getLobbyViewPool();
+      // v1.223.1：唔再顯示「公開溫習大廳」標題，兩粒溫習室掣已經足夠說明
+      if (titleEl) titleEl.innerText = '';
+      // v1.223.1：兩粒掣——睇緊嗰個池藍色，另一個淺灰加鎖（管理員冇鎖，可以撳嚟切換）
+      const lockSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+      [['secondary', window.t('room.poolPillSecondary', '中學生溫習室')], ['public', window.t('room.poolPillPublic', '公開溫習室')]].forEach(([pool, label]) => {
+        const el = document.getElementById('room-pool-pill-' + pool);
+        if (!el) return;
+        const mine = pool === viewPool;
+        el.className = 'room-pool-pill ' + (mine ? 'is-mine' : 'is-other');
+        el.setAttribute('aria-pressed', mine ? 'true' : 'false');
+        el.innerHTML = (!mine && !isAdmin ? lockSvg : '') + '<span>' + window.escapeHtml(label) + '</span>';
+        el.title = mine ? '' : (isAdmin ? window.t('room.poolPillAdminSwitch', '切換檢視此溫習室') : window.t('room.poolPillLockedTip', '你的帳戶不屬於這個溫習室，點擊了解原因'));
+      });
+      const hintEl = document.getElementById('room-pool-hint');
+      if (hintEl) {
+        hintEl.innerText = viewPool === 'secondary'
+          ? window.t('room.poolHintSecondary', '你在「中學生溫習室」：只會看到中學生開的公開房間。想和非中學生的朋友一起溫習，可用好友邀請或密碼房。')
+          : window.t('room.poolHintPublic', '你在「公開溫習室」：中學生的公開房間不會在這裏顯示。想和中學生朋友一起溫習，可用好友邀請或密碼房。');
+      }
+    };
+    window.onRoomPoolPillClick = function(pool) {
+      const isAdmin = typeof window.isCurrentUserAdmin === 'function' && window.isCurrentUserAdmin();
+      if (pool === getLobbyViewPool()) return;
+      if (isAdmin) {
+        adminRoomPoolOverride = (pool === window.getViewerRoomPool()) ? null : pool;
+        listenToPublicRooms();
+        return;
+      }
+      window.openRoomPoolInfoModal();
     };
 
     // 分類說明彈窗（見 index.html #modal-room-pool-info）：彈出之前先

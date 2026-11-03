@@ -1393,7 +1393,9 @@
           // firestore.rules 嘅 allow update 規則），令公開大廳嘅瀏覽同
           // 加入都自動限制喺同一個池入面——見 window.getViewerRoomPool()
           // 同 firestore.rules 嘅 viewerRoomPool()，兩邊判斷邏輯要一致。
-          roomPool: (typeof window.getViewerRoomPool === 'function') ? window.getViewerRoomPool() : 'public'
+          // v1.223.1：管理員跟大廳而家睇緊嗰邊開房（上面兩粒掣切換）
+          roomPool: (typeof window.getLobbyViewPool === 'function') ? window.getLobbyViewPool()
+            : ((typeof window.getViewerRoomPool === 'function') ? window.getViewerRoomPool() : 'public')
         };
         // ⚠️ 真正嘅密碼值而家唔再存落主文件（rooms/{roomId}）度——嗰份
         // 文件人人讀得到，放密碼落去等於冇鎖。主文件淨係記低 hasPassword

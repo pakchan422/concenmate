@@ -164,6 +164,25 @@ exports.verifyRoomPassword = onCall(async (request) => {
     return { ok: false };
   }
 
+  // v1.223.1：兩池隔離喺伺服器再擋一次。冇密碼、唔係房主、冇被邀請嘅公開房，
+  // 一定要同自己個池一致（同 firestore.rules 的 viewerRoomPool 同一套判斷）；
+  // 就算有人改咗前端掣或者知道房號，都攞唔到入場證。管理員豁免。
+  if (!isHost && !roomData.hasPassword && typeof roomData.roomPool === "string") {
+    const [userSnap, inviteSnap] = await Promise.all([
+      db.doc(`users/${uid}`).get(),
+      db.doc(`rooms/${roomId}/invitedUids/${uid}`).get(),
+    ]);
+    const userData = userSnap.exists ? userSnap.data() : {};
+    const myPool = userData.isSecondaryStudent === true ? "secondary" : "public";
+    if (!inviteSnap.exists && roomData.roomPool !== myPool) {
+      const adminSnap = await db.doc("admin_config/adminIds").get();
+      const ids = (adminSnap.exists && Array.isArray(adminSnap.data().ids)) ? adminSnap.data().ids : [];
+      if (!userData.loginId || !ids.includes(userData.loginId)) {
+        throw new HttpsError("permission-denied", "這個溫習室只開放給同一類帳戶的用戶");
+      }
+    }
+  }
+
   // 密碼核對（或本身冇密碼／係房主）通過：簽發一張短效入場證，等
   // firestore.rules 可以確認呢個 uid 真係啱啱先經伺服器驗證過，先俾
   // 佢寫 participants（見 firestore.rules 嘅 hasValidRoomEntryTicket()）。
