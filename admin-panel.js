@@ -1334,13 +1334,15 @@
     // grade 唔係「其他自修生」嘅帳戶（包括舊帳戶未設定 grade 嘅情況，
     // 一律歸呢一邊）；(2) 其他／自修生——grade 剛好等於「其他自修生」
     // 嘅帳戶。兩邊各自獨立一個表格，唔使成頁一齊顯示，方便管理員搵人。
-    let adminUsersGradeGroup = 'school'; // 'school' | 'other'
+    // 第三個分頁「管理員」：loginId 喺 window.ADMIN_LOGIN_IDS 入面嘅帳戶，
+    // 唔論 grade 係乜都只會喺呢度出現，唔再混入學生嗰兩個分頁。
+    let adminUsersGradeGroup = 'school'; // 'school' | 'other' | 'admin'
     // 最新一次 onSnapshot 返嚟嘅用戶清單，快取喺度，等切換分頁嗰陣可以
     // 即刻用返呢份資料重新畫table，唔使重新監聽一次 collection。
     let adminUsersLastSortedDocs = null;
 
     window.switchAdminUsersGradeGroup = function(group) {
-      adminUsersGradeGroup = (group === 'other') ? 'other' : 'school';
+      adminUsersGradeGroup = (group === 'other' || group === 'admin') ? group : 'school';
       renderAdminUsersTable();
     };
 
@@ -1355,8 +1357,12 @@
       }
 
       const filteredDocs = adminUsersLastSortedDocs.filter((docSnap) => {
-        const grade = docSnap.data().grade || '';
-        const isOther = grade === '其他自修生';
+        const u = docSnap.data();
+        const adminIds = Array.isArray(window.ADMIN_LOGIN_IDS) ? window.ADMIN_LOGIN_IDS : [];
+        const isAdminAcc = !!u.loginId && adminIds.includes(u.loginId);
+        if (adminUsersGradeGroup === 'admin') return isAdminAcc;
+        if (isAdminAcc) return false;
+        const isOther = (u.grade || '') === '其他自修生';
         return adminUsersGradeGroup === 'other' ? isOther : !isOther;
       });
 
@@ -1388,14 +1394,15 @@
         `;
       }).join('');
 
-      const emptyGroupMsg = '<tr><td colspan="9" style="text-align:center; color:#999; padding:16px;">此分類目前沒有用戶</td></tr>';
+      const emptyGroupMsg = '<tr><td colspan="10" style="text-align:center; color:#999; padding:16px;">此分類目前沒有用戶</td></tr>';
 
       container.innerHTML = `
         <div class="admin-card">
           <p style="font-size:13px; color:#888; margin-bottom:10px;">修改積分／時數／EXP 後，請記得逐行點擊「儲存」；EXP 決定用戶的溫習等級與段位，一般毋須人手修改，只有在特殊情況（例如補發）才使用。「停權」會令該用戶下次登入時被強制登出。</p>
-          <div style="display:flex; gap:8px; margin-bottom:12px;">
+          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
             <button type="button" class="btn ${adminUsersGradeGroup === 'school' ? 'btn-primary' : 'btn-outline'}" style="font-size:13px; padding:5px 12px;" onclick="switchAdminUsersGradeGroup('school')">中學／大專／大學</button>
             <button type="button" class="btn ${adminUsersGradeGroup === 'other' ? 'btn-primary' : 'btn-outline'}" style="font-size:13px; padding:5px 12px;" onclick="switchAdminUsersGradeGroup('other')">其他／自修生</button>
+            <button type="button" class="btn ${adminUsersGradeGroup === 'admin' ? 'btn-primary' : 'btn-outline'}" style="font-size:13px; padding:5px 12px;" onclick="switchAdminUsersGradeGroup('admin')">管理員</button>
           </div>
           <div style="overflow-x:auto;">
             <table class="admin-table">
