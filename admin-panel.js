@@ -1034,14 +1034,13 @@
           <td style="${td}"><input class="admin-input-sm" type="number" min="1" style="width:60px;" value="${r.minLevel}" oninput="adminLevelDraft.ranks[${idx}].minLevel = parseInt(this.value)||1; adminRefreshLevelPreview();"></td>
           <td style="${td}"><input class="admin-input-sm" style="width:96px;" value="${escapeHtml(r.title || '')}" oninput="adminLevelDraft.ranks[${idx}].title = this.value; adminRefreshLevelPreview();"></td>
           <td style="${td}"><input class="admin-input-sm" style="width:100px;" value="${escapeHtml(r.titleEn || '')}" oninput="adminLevelDraft.ranks[${idx}].titleEn = this.value"></td>
-          <td style="${td}"><input type="color" style="width:36px; height:26px; padding:1px; border:1px solid #ccc; border-radius:4px;" value="${r.color || '#4A68A8'}" onchange="adminLevelDraft.ranks[${idx}].color = this.value"></td>
           <td style="${td} font-weight:700; white-space:nowrap;" id="admin-rank-time-${idx}"></td>
           <td style="${td} white-space:nowrap;" id="admin-rank-d1-${idx}"></td>
           <td style="${td} white-space:nowrap;" id="admin-rank-d3-${idx}"></td>
           <td style="${td}"><button class="btn btn-red" style="font-size:13px; padding:3px 8px;" onclick="adminRemoveLevelRank(${idx})">刪除</button></td>
         </tr>
         <tr>
-          <td colspan="8" style="padding:0 8px 10px;">
+          <td colspan="7" style="padding:0 8px 10px;">
             <input class="admin-input-sm" style="width:100%; box-sizing:border-box;" placeholder="段位說明（用戶點擊等級時彈出視窗顯示）" value="${escapeHtml(r.desc || '')}" oninput="adminLevelDraft.ranks[${idx}].desc = this.value">
           </td>
         </tr>
@@ -1065,11 +1064,11 @@
 
         <div class="admin-card" style="margin-top:12px;">
           <h3 style="font-size:14px; font-weight:bold; margin-bottom:4px;">段位（由低到高，第一個段位的等級門檻請設為 1）</h3>
-          <p style="font-size:13px; color:#888; margin-bottom:8px;">稱號會顯示在視訊溫習室名牌、排行榜及個人資料；顏色用於等級徽章。「到達需時」按上面的升級速度計算。</p>
+          <p style="font-size:13px; color:#888; margin-bottom:8px;">稱號會顯示在視訊溫習室名牌、排行榜及個人資料。「到達需時」按上面的升級速度計算。</p>
           <div style="overflow-x:auto;">
-            <table style="border-collapse:collapse; font-size:13px; color:var(--brand-800); min-width:680px; width:100%;">
+            <table style="border-collapse:collapse; font-size:13px; color:var(--brand-800); min-width:620px; width:100%;">
               <thead><tr>
-                <th style="${th}">等級門檻</th><th style="${th}">稱號（中）</th><th style="${th}">稱號（英）</th><th style="${th}">顏色</th>
+                <th style="${th}">等級門檻</th><th style="${th}">稱號（中）</th><th style="${th}">稱號（英）</th>
                 <th style="${th}">到達需時</th><th style="${th}">每日溫 3 小時</th><th style="${th}">每日溫 5 小時</th><th style="${th}"></th>
               </tr></thead>
               <tbody>${rankRows}</tbody>
@@ -1174,7 +1173,7 @@
     window.adminAddLevelRank = function() {
       if (!adminLevelDraft) return;
       const maxL = adminLevelDraft.ranks.reduce((m, r) => Math.max(m, parseInt(r.minLevel) || 1), 1);
-      adminLevelDraft.ranks.push({ minLevel: maxL + 10, title: '新段位', titleEn: 'New Rank', color: '#4A68A8', desc: '' });
+      adminLevelDraft.ranks.push({ minLevel: maxL + 10, title: '新段位', titleEn: 'New Rank', desc: '' });
       renderAdminLevelTab();
     };
 
@@ -1223,7 +1222,7 @@
         milestoneEvery: Math.max(1, Math.min(100, Math.floor(adminLevelDraft.milestoneEvery ?? 5))),
         milestoneFragments: Math.max(0, Math.min(1000, Math.floor(adminLevelDraft.milestoneFragments ?? 5))),
         // 段位相片已停用：儲存時順手清走舊相片，減細設定文件
-        ranks: adminLevelDraft.ranks.map(r => ({ minLevel: parseInt(r.minLevel) || 1, title: r.title || '', titleEn: r.titleEn || '', color: r.color || '#4A68A8', desc: r.desc || '' }))
+        ranks: adminLevelDraft.ranks.map(r => ({ minLevel: parseInt(r.minLevel) || 1, title: r.title || '', titleEn: r.titleEn || '', desc: r.desc || '' }))
       };
       const approxBytes = new Blob([JSON.stringify(payload)]).size;
       if (approxBytes > 900000) {
