@@ -1,7 +1,7 @@
 # ConcenMate（書伴）專案進度及功能總覽
 
 最後更新：2026 年 11 月 4 日
-目前版本：**v1.223.0**（Staging 與正式站 concenmate.com 一致，2026-11-04 上線）
+目前版本：**v1.223.1**（Staging 與正式站 concenmate.com 一致，2026-11-04 上線）
 
 ### 目前狀態摘要（2026-10-20）
 - 扭蛋機改為收集 Ottie 造型（v1.214.x）：首個系列「動物連身衣」10 款，60／540 PTS；已取消「時數兌換禮物」
@@ -572,6 +572,13 @@ Alvis想要嘅「用戶可以自己揀網頁顯示語言」功能，分三個階
 - 2026-11-04：v1.222.0 及 v1.223.0 Functions 已部署 concenmate-dev 及 concenmate-app；推上正式站並打 tag v1.223.0；完整 e2e 測試 26 項全部通過
 - 之後修正：後台段位表「石頭」下拉選單太闊，蓋住「到達需時」一欄（admin-panel.js）；Staging 確認後已推上正式站（commit 354d344）
 - PROGRESS.md 及 docs/PROGRESS.md 首次加入 git 追蹤（2026-11-04）
+
+## v1.223.1 — 溫習大廳兩種溫習室分開顯示（2026-11-04）
+- 大廳標題改為兩粒掣「中學生溫習室／公開溫習室」：自己所屬的藍色，另一個淺灰加鎖；一般用戶撳灰色會彈出分類說明
+- 標題下加提示：想和另一類朋友一齊溫習，可用好友邀請或密碼房
+- 管理員撳另一粒掣即切換檢視（取代「轉換溫習室」掣），並會在當時檢視的一邊開房（firestore.rules 允許管理員在任何一邊建房）
+- 安全：verifyRoomPassword 發入場證前檢查溫習室類別（冇密碼、非房主、冇被邀請、非管理員而類別不同 → 拒絕）
+- 2026-11-04：Functions（verifyRoomPassword）及 rules 已部署 dev／app；推上正式站（commit 0090302）；rules-tests 59 項全部通過
 
 ## 待辦（2026-11-04）
 - Marketing／Instagram 改由另一個 Claude 對話負責，交接文件：`../marketing/MARKETING.md`
