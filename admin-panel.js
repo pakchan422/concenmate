@@ -1070,7 +1070,7 @@
             <table style="border-collapse:collapse; font-size:13px; color:var(--brand-800); min-width:680px; width:100%;">
               <thead><tr>
                 <th style="${th}">等級門檻</th><th style="${th}">稱號（中）</th><th style="${th}">稱號（英）</th><th style="${th}">顏色</th>
-                <th style="${th}">到達需時</th><th style="${th}">每日溫 1 小時</th><th style="${th}">每日溫 3 小時</th><th style="${th}"></th>
+                <th style="${th}">到達需時</th><th style="${th}">每日溫 3 小時</th><th style="${th}">每日溫 5 小時</th><th style="${th}"></th>
               </tr></thead>
               <tbody>${rankRows}</tbody>
             </table>
@@ -1133,8 +1133,8 @@
         const h = L <= 1 ? 0 : hoursFor(L);
         const set = (id, v) => { const c = document.getElementById(id); if (c) c.innerText = v; };
         set('admin-rank-time-' + idx, L <= 1 ? '起點' : fmtH(h));
-        set('admin-rank-d1-' + idx, L <= 1 ? '—' : fmtDays(h, 1));
-        set('admin-rank-d3-' + idx, L <= 1 ? '—' : fmtDays(h, 3));
+        set('admin-rank-d1-' + idx, L <= 1 ? '—' : fmtDays(h, 3));
+        set('admin-rank-d3-' + idx, L <= 1 ? '—' : fmtDays(h, 5));
       });
       let prevH = 0;
       const rows = keyLevels.map(L => {
@@ -1149,8 +1149,8 @@
           <td style="padding:6px 8px; text-align:right; white-space:nowrap; font-weight:700;">${fmtH(h)}</td>
           <td style="padding:6px 8px; text-align:right; white-space:nowrap;">+${fmtH(gap)}</td>
           <td style="padding:6px 8px; text-align:right; white-space:nowrap;">${fmtH(nextLvH)}</td>
-          <td style="padding:6px 8px; text-align:right; white-space:nowrap;">${fmtDays(h, 1)}</td>
           <td style="padding:6px 8px; text-align:right; white-space:nowrap;">${fmtDays(h, 3)}</td>
+          <td style="padding:6px 8px; text-align:right; white-space:nowrap;">${fmtDays(h, 5)}</td>
         </tr>`;
       }).join('');
       el.innerHTML = `
@@ -1163,8 +1163,8 @@
               <th style="padding:6px 8px; text-align:right;">累積溫習時間</th>
               <th style="padding:6px 8px; text-align:right;">比上一行多</th>
               <th style="padding:6px 8px; text-align:right;">再升一級要</th>
-              <th style="padding:6px 8px; text-align:right;">每日溫 1 小時</th>
               <th style="padding:6px 8px; text-align:right;">每日溫 3 小時</th>
+              <th style="padding:6px 8px; text-align:right;">每日溫 5 小時</th>
             </tr></thead>
             <tbody>${rows}</tbody>
           </table>
