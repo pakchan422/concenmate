@@ -570,9 +570,11 @@ Alvis想要嘅「用戶可以自己揀網頁顯示語言」功能，分三個階
 - 選擇記於 users/{uid}.activeStone（0 = 自動），經 awardStudyPoints 傳送並由伺服器驗證是否已解鎖；未溫習前暫存本機
 - 未有伺服器記錄時，前端按時數估算各款粒數
 - 2026-11-04：v1.222.0 及 v1.223.0 Functions 已部署 concenmate-dev 及 concenmate-app；推上正式站並打 tag v1.223.0；完整 e2e 測試 26 項全部通過
-- 之後修正：後台段位表「石頭」下拉選單太闊，蓋住「到達需時」一欄（admin-panel.js）
+- 之後修正：後台段位表「石頭」下拉選單太闊，蓋住「到達需時」一欄（admin-panel.js）；Staging 確認後已推上正式站（commit 354d344）
+- PROGRESS.md 及 docs/PROGRESS.md 首次加入 git 追蹤（2026-11-04）
 
 ## 待辦（2026-11-04）
+- Marketing／Instagram 改由另一個 Claude 對話負責，交接文件：`../marketing/MARKETING.md`
 - 正式站後台「等級系統」撳「儲存全部改動」，清走舊段位相片及顏色資料
 - 公司 MacBook Neo 的 git 修復（git fetch --refetch origin；git fsck；設定 GitHub token）；兩部 Mac 不要同時操作 git（iCloud 同步）
 - 餘下 Ottie 對話貼圖（共 27 款，已完成 5 款）及上架 Telegram／WhatsApp
