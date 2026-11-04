@@ -1,0 +1,135 @@
+rules_version = '2';
+
+// ConcenMate Firebase Storage 安全規則
+// ------------------------------------------------------------
+// 設計原則（配合 Phase 4：base64 圖片遷移去 Storage）：
+//   1. 預設拒絕晒一切讀寫（白名單制，唔係黑名單制）。
+//   2. 淨係 admin（同 firestore.rules 用返同一套 admin_config/adminIds
+//      centralized 名單）先可以寫入／刪除——一般學生帳戶完全冇寫入權。
+//   3. 每一種檔案類型都要限制大細＋格式，防止有人上傳巨型檔案或者
+//      非圖片檔案嚟濫用你嘅 Storage 用量（同你張信用卡）。
+//   4. 讀取都要求登入（isSignedIn），唔開放俾未登入嘅陌生請求，
+//      減低俾人隨便打你個 bucket 嚟消耗下載流量嘅機會。
+//
+// 呢個檔要同 firestore.rules 一齊部署（Firebase Console → Storage → Rules，
+// 或者用 firebase deploy --only storage:rules）。
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // 同 firestore.rules 用緊嘅 isAdmin() 邏輯一致：
+    // 讀 users/{uid}.loginId，再睇吓佢係咪喺 admin_config/adminIds.ids 入面。
+    // firestore.get() 喺 Storage 規則入面可以跨服務讀 Firestore 文件。
+    function isAdmin() {
+      return isSignedIn() &&
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.loginId
+          in firestore.get(/databases/(default)/documents/admin_config/adminIds).data.ids;
+    }
+
+    function isImageType() {
+      return request.resource.contentType.matches('image/.*');
+    }
+
+    function underSize(maxBytes) {
+      return request.resource.size < maxBytes;
+    }
+
+    function isPdfType() {
+      return request.resource.contentType == 'application/pdf';
+    }
+
+    // ── 扭蛋機 Ottiee 貼紙相片 ──────────────────────────────
+    // 路徑例子：gacha_stickers/sticker_01.jpg
+    // 淨係 admin 可以上傳／刪除（喺管理後台「扭蛋機獎品」分頁度做），
+    // 但所有已登入用戶都要睇得到（貼紙圖鑑／抽獎動畫要顯示畀學生睇）。
+    match /gacha_stickers/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() && isImageType() && underSize(2 * 1024 * 1024); // 上限 2MB
+      allow delete: if isAdmin();
+    }
+
+    // ── 側邊功能表圖示（管理後台「功能圖示」分頁上傳） ──────────
+    // 路徑例子：nav_icons/home_1234567890.png
+    // 用嚟取代主頁側邊欄「主頁／視訊溫習室／學科溫習卡」等分頁按鈕
+    // 原本嘅 emoji 圖示。淨係 admin 可以上傳／刪除，但所有已登入用戶
+    // 都要睇得到（成個側邊欄人人都會見到呢啲圖示）。圖示檔案好細，
+    // 上限收緊做 1MB 已經綽綽有餘。
+    match /nav_icons/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() && isImageType() && underSize(1 * 1024 * 1024); // 上限 1MB
+      allow delete: if isAdmin();
+    }
+
+    // ── （預留）問題回報截圖 ────────────────────────────────
+    // 路徑例子：report_screenshots/{reportId}.jpg
+    // 任何已登入用戶都可以上傳（回報問題嗰陣自動截圖），
+    // 但淨係 admin 先睇得（因為可能影到其他用戶個樣／畫面內容）。
+    // 呢個分類而家仲未接入程式碼（依然用緊 base64 存入 Firestore），
+    // 留喺度做未來擴充用，如果暫時唔使可以刪走呢段。
+    // v1.199.2：Admin 後台「Landing page文案」分頁上傳嘅導覽列 Logo／
+    // 吉祥物圖（admin-panel.js 寫入 landing_assets/）。之前冇呢條規則，
+    // 被最底嘅「其他一律拒絕」擋住，所以上傳一直失敗。Landing page 係畀
+    // 未登入訪客睇，所以讀取公開；上傳淨係管理員、限圖片 2MB 以下。
+    match /landing_assets/{fileName} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isImageType() && underSize(2 * 1024 * 1024);
+      allow delete: if isAdmin();
+    }
+    match /report_screenshots/{fileName} {
+      allow read: if isAdmin();
+      // v1.199.0：淨係可以新增，唔可以覆蓋已有嘅舉報截圖（之前任何人都可以
+      // 用同一個檔名覆蓋第二個人嘅舉報證據）
+      allow create: if isSignedIn() && isImageType() && underSize(3 * 1024 * 1024); // 上限 3MB
+      allow delete: if isAdmin();
+    }
+
+    // ── 溫習相片（Instagram 式功能） ────────────────────────
+    // 路徑例子：study_photos/{uid}/1234567890.jpg
+    // 相片一定要經 postStudyPhoto 呢個 Cloud Function（用 Admin SDK，
+    // 唔受呢份規則限制）先寫得入嚟——因為要喺寫入之前做 AI 內容審查、
+    // 每日一張、15 分鐘門檻等驗證，所以呢度對一般用戶完全唔開放寫入／
+    // 刪除，淨係俾已登入用戶讀取（睇返自己或者已追蹤書伴嘅溫習相片）。
+    match /study_photos/{uid}/{fileName} {
+      allow read: if isSignedIn();
+      allow write, delete: if false;
+    }
+
+    // ── 導師 PDF 筆記（Phase B／C：導師教材管理） ────────────
+    // 路徑：tutor_notes/{tutorUid}/{noteId}/full.pdf（完整版）、
+    //       tutor_notes/{tutorUid}/{noteId}/preview.pdf（預覽版）
+    //
+    // full.pdf：導師本人直接由瀏覽器上傳（唔使經 Cloud Function 轉
+    // base64，PDF 檔通常有幾 MB，唔啱用返 uploadAvatar／postStudyPhoto
+    // 嗰種做法），上限 50MB、一定要係 application/pdf。上傳完之後前端
+    // 會即刻呼叫 registerTutorNoteUpload（Admin SDK）讀返呢個檔案嘅
+    // 頁數。讀取／刪除淨係導師本人或者 admin（方便审核／處理舉報）。
+    //
+    // preview.pdf：由 selectTutorNotePreviewPages 呢個 Cloud Function
+    // （Admin SDK，唔受呢份規則約束）用 pdf-lib 抽頁另存產生，前端
+    // 一律唔可以直接寫入／刪除，避免導師自己隨便換走預覽檔內容嚟呃
+    // 學生（例如將預覽版都換成完整內容）。已發佈嘅預覽版任何已登入
+    // 用戶都應該睇到（畀學生喺「溫習資源」揀購買前先睇）。
+    match /tutor_notes/{tutorUid}/{noteId}/full.pdf {
+      allow read: if isSignedIn() && (request.auth.uid == tutorUid || isAdmin());
+      // v1.199.0：一定要係已審批、未停權嘅導師先可以上載（之前任何登入用戶
+      // 都可以喺自己 uid 底下上載 50MB PDF，佔用儲存空間）
+      allow create, update: if isSignedIn() && request.auth.uid == tutorUid && isPdfType() && underSize(50 * 1024 * 1024) &&
+        firestore.exists(/databases/(default)/documents/tutors/$(request.auth.uid)) &&
+        firestore.get(/databases/(default)/documents/tutors/$(request.auth.uid)).data.status == 'active';
+      allow delete: if isSignedIn() && (request.auth.uid == tutorUid || isAdmin());
+    }
+    match /tutor_notes/{tutorUid}/{noteId}/preview.pdf {
+      allow read: if isSignedIn();
+      allow write, delete: if false;
+    }
+
+    // ── 其他所有路徑：一律拒絕 ──────────────────────────────
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

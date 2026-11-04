@@ -1,0 +1,18 @@
+{
+  "name": "concenmate-functions",
+  "description": "ConcenMate 嘅 Cloud Functions（伺服器端邏輯）",
+  "private": true,
+  "engines": {
+    "node": "22"
+  },
+  "main": "index.js",
+  "scripts": {
+    "deploy": "firebase deploy --only functions"
+  },
+  "dependencies": {
+    "@google-cloud/vision": "^4.3.2",
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^7.0.0",
+    "pdf-lib": "^1.17.1"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "default": "concenmate-dev",
+    "dev": "concenmate-dev",
+    "prod": "concenmate-app"
+  }
+}
