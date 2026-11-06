@@ -6,7 +6,7 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.223.1"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.224.1"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <meta charset="UTF-8">
@@ -1875,6 +1875,8 @@
         </div>
       </div>
     </div>
+    <!-- v1.224.0 溫習黃金時段提示（window.refreshGoldenHourBar 控制） -->
+    <div id="golden-hour-bar" style="display:none; max-width:480px; margin:5px auto 0; text-align:center; font-size:12px; font-weight:700; color:#1F2F55; background:#FFD84D; border-radius:99px; padding:3px 10px;"></div>
   </div>
   </div>
 
@@ -4498,7 +4500,6 @@
           <button class="btn btn-outline admin-tab-btn" data-tab="level" onclick="switchAdminTab('level')">等級系統</button>
           <button class="btn btn-outline admin-tab-btn" data-tab="icons" onclick="switchAdminTab('icons')">功能圖示</button>
           <button class="btn btn-outline admin-tab-btn" data-tab="landing" onclick="switchAdminTab('landing')">Landing page文案</button>
-          <button class="btn btn-outline admin-tab-btn" data-tab="scoring" onclick="switchAdminTab('scoring')">計分規則</button>
           <button class="btn btn-outline admin-tab-btn" data-tab="roomsettings" onclick="switchAdminTab('roomsettings')">房間設定</button>
           <button class="btn btn-outline admin-tab-btn" data-tab="antiidle" onclick="switchAdminTab('antiidle')">防掛機參數</button>
           <button class="btn btn-outline admin-tab-btn" data-tab="announcement" onclick="switchAdminTab('announcement')">全站公告</button>

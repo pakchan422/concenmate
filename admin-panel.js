@@ -276,7 +276,7 @@
       else if (tab === 'tutors') renderAdminTutorsTab();
       else if (tab === 'landing') renderAdminLandingTab();
       else if (tab === 'scoring') renderAdminScoringTab();
-      else if (tab === 'roomsettings') renderAdminRoomSettingsTab();
+      else if (tab === 'roomsettings') renderAdminRoomSettingsTab(); // 已包括計分規則
       else if (tab === 'antiidle') renderAdminAntiIdleTab();
       else if (tab === 'announcement') renderAdminAnnouncementTab();
       else if (tab === 'support') renderAdminSupportTab();
@@ -1027,6 +1027,9 @@
 
       // v1.220.2：段位改為一個表格，同「到達需時」放埋一齊睇；
       // 已移除段位相片（主頁 Ottie 而家跟用戶揀嘅貼圖，唔再跟段位轉）
+      // v1.224.0 溫習黃金時段（舊設定冇呢個欄位就用預設值）
+      adminLevelDraft.goldenHour = Object.assign({ enabled: false, title: '書伴自習時段', start: '19:00', end: '23:00', expMultiplier: 2, stoneMultiplier: 2 }, adminLevelDraft.goldenHour || {});
+      const gh = adminLevelDraft.goldenHour;
       const th = 'padding:6px 8px; text-align:left; white-space:nowrap; color:#6B7894; font-weight:700;';
       const td = 'padding:6px 8px; vertical-align:middle;';
       const rankRows = adminLevelDraft.ranks.map((r, idx) => `
@@ -1103,6 +1106,30 @@
             </label>
           </div>
           <p style="font-size:13px; color:#888;">用戶溫習時一升級，伺服器就會自動派發。免費扭蛋券可在扭蛋頁單抽一次，不扣積分。每一級只派一次。</p>
+        </div>
+
+        <div class="admin-card" style="margin-top:12px;">
+          <h3 style="font-size:14px; font-weight:bold; margin-bottom:8px;">溫習黃金時段</h3>
+          <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:center; margin-bottom:10px; font-size:13px; color:#555;">
+            <label style="display:flex; align-items:center; gap:6px;">
+              <input type="checkbox" ${gh.enabled ? 'checked' : ''} onchange="adminLevelDraft.goldenHour.enabled = this.checked"> 啟用
+            </label>
+            <label style="display:flex; align-items:center; gap:6px;">名稱：
+              <input class="admin-input-sm" style="width:130px;" value="${escapeHtml(gh.title || '')}" oninput="adminLevelDraft.goldenHour.title = this.value">
+            </label>
+            <label style="display:flex; align-items:center; gap:6px;">每日
+              <input class="admin-input-sm" type="time" style="width:auto;" value="${gh.start}" oninput="adminLevelDraft.goldenHour.start = this.value">
+              至
+              <input class="admin-input-sm" type="time" style="width:auto;" value="${gh.end}" oninput="adminLevelDraft.goldenHour.end = this.value">
+            </label>
+            <label style="display:flex; align-items:center; gap:6px;">EXP ×
+              <input class="admin-input-sm" type="number" min="1" max="5" step="0.1" style="width:64px;" value="${gh.expMultiplier}" oninput="adminLevelDraft.goldenHour.expMultiplier = parseFloat(this.value)||1">
+            </label>
+            <label style="display:flex; align-items:center; gap:6px;">石頭 ×
+              <input class="admin-input-sm" type="number" min="1" max="5" step="0.1" style="width:64px;" value="${gh.stoneMultiplier}" oninput="adminLevelDraft.goldenHour.stoneMultiplier = parseFloat(this.value)||1">
+            </label>
+          </div>
+          <p style="font-size:13px; color:#888;">以香港時間計算；結束時間早於開始時間代表跨過午夜。時段內每分鐘溫習的 EXP 及石頭進度按倍數計算（倍數可設小數，最多一位，例如 1.5；石頭 ×2 即每 7.5 分鐘一粒），由伺服器計算，用戶改不到。時段內所有用戶頁頂會顯示提示。</p>
         </div>
 
         <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">
@@ -1228,6 +1255,12 @@
         levelUpTickets: Math.max(0, Math.min(10, Math.floor(adminLevelDraft.levelUpTickets ?? 1))),
         milestoneEvery: Math.max(1, Math.min(100, Math.floor(adminLevelDraft.milestoneEvery ?? 5))),
         milestoneFragments: Math.max(0, Math.min(1000, Math.floor(adminLevelDraft.milestoneFragments ?? 5))),
+        goldenHour: (() => {
+          const g = adminLevelDraft.goldenHour || {};
+          const okT = (t) => typeof t === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(t);
+          const m = (v) => Math.max(1, Math.min(5, Math.round((v || 1) * 10) / 10));
+          return { enabled: g.enabled === true, title: String(g.title || '').slice(0, 20), start: okT(g.start) ? g.start : '19:00', end: okT(g.end) ? g.end : '23:00', expMultiplier: m(g.expMultiplier), stoneMultiplier: m(g.stoneMultiplier) };
+        })(),
         // 段位相片已停用：儲存時順手清走舊相片，減細設定文件
         ranks: adminLevelDraft.ranks.map(r => ({ minLevel: parseInt(r.minLevel) || 1, title: r.title || '', titleEn: r.titleEn || '', desc: r.desc || '', ...(parseInt(r.stone) >= 1 && parseInt(r.stone) <= 5 ? { stone: parseInt(r.stone) } : {}) }))
       };
@@ -1255,8 +1288,10 @@
           if (typeof data.levelCurveFactor === 'number') LEVEL_CONFIG.levelCurveFactor = data.levelCurveFactor;
           ['levelUpTickets', 'milestoneEvery', 'milestoneFragments'].forEach(k => { if (typeof data[k] === 'number') LEVEL_CONFIG[k] = data[k]; });
           if (Array.isArray(data.ranks) && data.ranks.length) LEVEL_CONFIG.ranks = data.ranks;
+          if (data.goldenHour && typeof data.goldenHour === 'object') LEVEL_CONFIG.goldenHour = data.goldenHour;
         }
         levelConfigLoaded = true;
+        if (typeof window.refreshGoldenHourBar === 'function') window.refreshGoldenHourBar();
         if (window.currentUser) {
           updateLevelDisplay();
           // 段位嘅水獺相片就係喺呢個設定入面，一齊刷新，唔使等5分鐘嗰個定時器先見到
@@ -2404,12 +2439,13 @@
     let scoringConfigLoaded = false;
 
     function renderAdminScoringTab() {
-      const container = document.getElementById('admin-tab-scoring');
+      // v1.224.0：計分規則併入「房間設定」分頁頂部
+      const container = document.getElementById('admin-scoring-section') || document.getElementById('admin-tab-scoring');
       if (!container) return;
 
       if (!adminScoringDraft) {
         if (!scoringConfigLoaded) {
-          container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入中計分規則設定...</p>';
+          container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">正在載入計分規則…</p>';
           return; // Firestore 資料一到，loadScoringRulesFromFirestore() 會自動再 render 多次
         }
         adminScoringDraft = {
@@ -2420,19 +2456,19 @@
 
       container.innerHTML = `
         <div class="admin-card">
-          <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); margin-bottom:14px;">視訊溫習室計分規則</h3>
-          <p style="font-size:13px; color:#888; margin-bottom:16px;">呢度嘅數值會即時影響全站學生喺視訊溫習室可以賺到幾多PTS，改完記得核實清楚先撳儲存。</p>
+          <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); margin-bottom:14px;">計分規則</h3>
+          <p style="font-size:13px; color:#888; margin-bottom:16px;">這裏的數值會即時影響全站學生在視訊溫習室可獲得的 PTS，修改後請先核對清楚再儲存。</p>
           <div style="margin-bottom:18px;">
-            <label style="font-size:13px; font-weight:bold; color:var(--brand-700); display:block; margin-bottom:6px;">每專注溫習 1 分鐘，可獲得幾多 PTS</label>
+            <label style="font-size:13px; font-weight:bold; color:var(--brand-700); display:block; margin-bottom:6px;">每專注溫習 1 分鐘可獲得的 PTS</label>
             <input type="number" min="1" step="1" value="${adminScoringDraft.ptsPerMinute}" style="width:120px; font-size:15px; padding:8px 10px; border:1px solid #DCE5F4; border-radius:6px;" oninput="adminUpdateScoringDraft('ptsPerMinute', this.value)">
           </div>
           <div style="margin-bottom:10px;">
-            <label style="font-size:13px; font-weight:bold; color:var(--brand-700); display:block; margin-bottom:6px;">確認「仍在學習」彈窗，額外可獲得幾多 PTS</label>
+            <label style="font-size:13px; font-weight:bold; color:var(--brand-700); display:block; margin-bottom:6px;">確認「仍在學習」彈窗後額外可獲得的 PTS</label>
             <input type="number" min="1" step="1" value="${adminScoringDraft.presenceCheckBonus}" style="width:120px; font-size:15px; padding:8px 10px; border:1px solid #DCE5F4; border-radius:6px;" oninput="adminUpdateScoringDraft('presenceCheckBonus', this.value)">
           </div>
         </div>
         <div style="text-align:center; margin-top:16px;">
-          <button type="button" class="btn btn-primary" id="btn-admin-save-scoring" style="padding:12px 32px; font-size:15px;" onclick="adminSaveScoringRules()">儲存全部改動</button>
+          <button type="button" class="btn btn-primary" id="btn-admin-save-scoring" style="padding:12px 32px; font-size:15px;" onclick="adminSaveScoringRules()">儲存計分規則</button>
         </div>
       `;
     }
@@ -2464,7 +2500,7 @@
       } catch (err) {
         window.showToast('儲存失敗：' + (err.message || err), '❌');
       } finally {
-        if (btn) { btn.disabled = false; btn.innerText = '儲存全部改動'; }
+        if (btn) { btn.disabled = false; btn.innerText = '儲存計分規則'; }
       }
     };
 
@@ -2480,7 +2516,7 @@
           if (typeof data.presenceCheckBonus === 'number' && data.presenceCheckBonus > 0) window.SCORING_RULES.presenceCheckBonus = data.presenceCheckBonus;
         }
         scoringConfigLoaded = true;
-        if (currentAdminTab === 'scoring' && !adminScoringDraft) {
+        if ((currentAdminTab === 'scoring' || currentAdminTab === 'roomsettings') && !adminScoringDraft) {
           const adminPanelEl = document.getElementById('admin-panel-container');
           if (adminPanelEl && adminPanelEl.style.display !== 'none') {
             renderAdminScoringTab();
@@ -2534,9 +2570,10 @@
       if (d.capacity4Enabled) capacityChoicesNow.push(4);
 
       container.innerHTML = `
-        <div class="admin-card">
+        <div id="admin-scoring-section"></div>
+        <div class="admin-card" style="margin-top:24px;">
           <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); margin-bottom:14px;">人數上限選項</h3>
-          <p style="font-size:13px; color:#888; margin-bottom:16px;">揀選學生建立溫習房嗰陣可以選擇嘅人數上限（固定只有 2 人房／4 人房兩種，因為視訊畫面格位設計只支援呢兩種排法）。</p>
+          <p style="font-size:13px; color:#888; margin-bottom:16px;">學生建立溫習房時可選擇的人數上限（只有 2 人房及 4 人房兩種，因為視訊畫面只支援這兩種排列）。</p>
           <label style="display:flex; align-items:center; gap:8px; font-size:14px; margin-bottom:10px; cursor:pointer;">
             <input type="checkbox" ${d.capacity2Enabled ? 'checked' : ''} onchange="adminUpdateRoomSettingsDraft('capacity2Enabled', this.checked)"> 開放「2 人房」選項
           </label>
@@ -2544,7 +2581,7 @@
             <input type="checkbox" ${d.capacity4Enabled ? 'checked' : ''} onchange="adminUpdateRoomSettingsDraft('capacity4Enabled', this.checked)"> 開放「4 人房」選項
           </label>
           <div>
-            <label style="font-size:13px; font-weight:bold; color:var(--brand-700); display:block; margin-bottom:6px;">預設人數上限（表格一開啟時預先揀好嗰個）</label>
+            <label style="font-size:13px; font-weight:bold; color:var(--brand-700); display:block; margin-bottom:6px;">預設人數上限（開啟表格時預先選取）</label>
             <select style="width:160px; font-size:15px; padding:8px 10px; border:1px solid #DCE5F4; border-radius:6px;" onchange="adminUpdateRoomSettingsDraft('defaultCapacity', this.value)">
               ${capacityChoicesNow.map(n => `<option value="${n}" ${d.defaultCapacity === n ? 'selected' : ''}>${n} 人房</option>`).join('') || '<option value="">（請先開放最少一個選項）</option>'}
             </select>
@@ -2552,20 +2589,21 @@
         </div>
         <div class="admin-card" style="margin-top:16px;">
           <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); margin-bottom:14px;">預計溫習時間選項</h3>
-          <p style="font-size:13px; color:#888; margin-bottom:16px;">呢個時間純粹顯示喺公開大廳嘅房間列表，畀其他同學參考，房間唔會因為時間到而自動結束。可以自由加減分鐘數選項。</p>
+          <p style="font-size:13px; color:#888; margin-bottom:16px;">此時間只會顯示在公開大廳的房間列表，供其他同學參考，房間不會因時間到而自動結束。可自由增減分鐘選項。</p>
           <div style="margin-bottom:16px;">
-            <label style="font-size:13px; font-weight:bold; color:var(--brand-700); display:block; margin-bottom:6px;">分鐘數選項（用逗號分隔，例如：15, 30, 40, 45, 60）</label>
+            <label style="font-size:13px; font-weight:bold; color:var(--brand-700); display:block; margin-bottom:6px;">分鐘選項（以逗號分隔，例如：15, 30, 40, 45, 60）</label>
             <input type="text" value="${d.durationOptionsText}" style="width:100%; max-width:420px; font-size:15px; padding:8px 10px; border:1px solid #DCE5F4; border-radius:6px;" oninput="adminUpdateRoomSettingsDraft('durationOptionsText', this.value)">
           </div>
           <div>
-            <label style="font-size:13px; font-weight:bold; color:var(--brand-700); display:block; margin-bottom:6px;">預設溫習時間（分鐘，表格一開啟時預先揀好嗰個）</label>
+            <label style="font-size:13px; font-weight:bold; color:var(--brand-700); display:block; margin-bottom:6px;">預設溫習時間（分鐘，開啟表格時預先選取）</label>
             <input type="number" min="1" step="1" value="${d.defaultDuration}" style="width:160px; font-size:15px; padding:8px 10px; border:1px solid #DCE5F4; border-radius:6px;" oninput="adminUpdateRoomSettingsDraft('defaultDuration', this.value)">
           </div>
         </div>
         <div style="text-align:center; margin-top:16px;">
-          <button type="button" class="btn btn-primary" id="btn-admin-save-roomsettings" style="padding:12px 32px; font-size:15px;" onclick="adminSaveRoomSettings()">儲存全部改動</button>
+          <button type="button" class="btn btn-primary" id="btn-admin-save-roomsettings" style="padding:12px 32px; font-size:15px;" onclick="adminSaveRoomSettings()">儲存房間設定</button>
         </div>
       `;
+      renderAdminScoringTab();
     }
     window.renderAdminRoomSettingsTab = renderAdminRoomSettingsTab;
 

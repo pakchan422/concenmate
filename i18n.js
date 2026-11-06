@@ -428,6 +428,11 @@
     'stone.otherCountTemplate': { 'zh-Hant': '{name} 今次溫習，Ottie 已磨好 {n} 粒。', 'en': "In {name}'s session, Ottie has polished {n}.", 'yue': '{name} 今次溫習，Ottie 已經磨好 {n} 粒。' },
     'stone.unlockAtTemplate': { 'zh-Hant': 'Lv.{n} 解鎖', 'en': 'Unlocks at Lv.{n}', 'yue': 'Lv.{n} 解鎖' },
     'stone.chooseHint': { 'zh-Hant': '段位越高，解鎖越珍貴的石頭。點擊已解鎖的石頭，就可以選擇 Ottie 接下來磨哪一款。', 'en': 'Higher ranks unlock more precious stones. Tap an unlocked stone to choose which one Ottie polishes next.', 'yue': '段位越高，解鎖越矜貴嘅石頭。撳已解鎖嘅石頭，就可以揀 Ottie 之後磨邊款。' },
+    'golden.defaultTitle': { 'zh-Hant': '書伴自習時段', 'en': 'ConcenMate Study Hours', 'yue': '書伴自習時段' },
+    'golden.barTemplate': { 'zh-Hant': '{title}進行中（{start}–{end}）：{bonus}', 'en': '{title} now on ({start}–{end}): {bonus}', 'yue': '{title}進行緊（{start}–{end}）：{bonus}' },
+    'golden.exp': { 'zh-Hant': 'EXP', 'en': 'EXP', 'yue': 'EXP' },
+    'golden.stone': { 'zh-Hant': '石頭', 'en': 'Stones', 'yue': '石頭' },
+    'golden.noBonus': { 'zh-Hant': '一起專心溫習', 'en': 'study together', 'yue': '一齊專心溫書' },
     'stone.upgradeHint': { 'zh-Hant': '段位越高，Ottie 磨的石頭越珍貴。', 'en': 'The higher your rank, the more precious the stone.', 'yue': '段位越高，Ottie 磨嘅石頭越矜貴。' },
     'otter.stonesTodayTemplate': { 'zh-Hant': 'Ottie 今日磨好 {n} 粒{stone}', 'en': 'Ottie polished {n} × {stone} today', 'yue': 'Ottie 今日磨好咗 {n} 粒{stone}' },
     'otter.stoneNextTemplate': { 'zh-Hant': '再溫 {m} 分鐘磨好下一粒', 'en': '{m} more min for the next one', 'yue': '再溫 {m} 分鐘磨好下一粒' },
@@ -1320,6 +1325,7 @@
     // v1.199.2：大廳標題（中學生專用／公開溫習室）跟語言即時轉；個 h2 已經
     // 冇再用 data-i18n，避免切換語言時被蓋返做冇後綴嘅「公開溫習大廳」
     if (typeof window.updateRoomLobbyTitle === 'function') window.updateRoomLobbyTitle();
+    if (typeof window.refreshGoldenHourBar === 'function') window.refreshGoldenHourBar();
     // v1.198.2：段位名稱（溫習新手／Novice）跟語言即時轉
     if (typeof window.updateLevelDisplay === 'function' && window.currentUser) window.updateLevelDisplay();
   };

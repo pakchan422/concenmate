@@ -1588,6 +1588,7 @@
       // 冇自動小休、都唔會停，一直計到退房為止。durationMins（房主建
       // 立房間時揀嘅目標時間）而家淨係用嚟喺大廳房間列表度顯示畀人參
       // 考，唔會再驅動任何計時器邏輯。
+      state.roomStoneSeconds = 0;
       state.roomTotalSeconds = 0; // 每次新入房，「呢間房總溫習時間」由 0 開始順時計
       state.myStones = 0;
       refreshMyStoneTag(false);
@@ -1834,8 +1835,10 @@
         if (!state.awardingPaused) {
           state.roomTotalSeconds = (state.roomTotalSeconds || 0) + 1;
           secondsSinceLastAward++;
-          // v1.221.0：每滿 15 分鐘磨好一粒石頭
-          const stonesNow = Math.floor(state.roomTotalSeconds / (60 * (window.STONE_MINUTES || 15)));
+          // v1.221.0：每滿 15 分鐘磨好一粒石頭；v1.224.0：黃金時段按倍數加快
+          const gNow = typeof window.currentGoldenHour === 'function' ? window.currentGoldenHour() : null;
+          state.roomStoneSeconds = (state.roomStoneSeconds || 0) + (gNow ? gNow.stoneMultiplier : 1);
+          const stonesNow = Math.floor(state.roomStoneSeconds / (60 * (window.STONE_MINUTES || 15)));
           if (stonesNow !== (state.myStones || 0)) {
             state.myStones = stonesNow;
             refreshMyStoneTag(true);
@@ -1930,7 +1933,12 @@
       if (!window.currentUser || !window.db || !window.fs) return;
 
       const expPerPoint = (LEVEL_CONFIG && typeof LEVEL_CONFIG.expPerMinute === 'number') ? LEVEL_CONFIG.expPerMinute : 1;
-      const expGain = expPerPoint * pointsAmount;
+      // v1.224.0：黃金時段本機先按倍數顯示，伺服器回覆後再以伺服器數字為準
+      const goldenNow = (hoursIncrement > 0 && typeof window.currentGoldenHour === 'function') ? window.currentGoldenHour() : null;
+      // 小數倍數：本機用累積餘數估算，最後以伺服器回覆的 exp 為準
+      const rawGain = expPerPoint * pointsAmount * (goldenNow ? goldenNow.expMultiplier : 1) + (state.localExpFrac || 0);
+      const expGain = Math.floor(rawGain + 1e-9);
+      state.localExpFrac = rawGain - expGain;
       // 「今日目標」同一次處理埋：如果 todayDate 仲係今日就當「今日累積」加多
       // 1 分鐘，如果隔咗一日（或者未設過）就當呢分鐘係新一日嘅第一分鐘。
       const isNewDay = hoursIncrement > 0 && window.currentUser.todayDate !== getTodayDateStr();
@@ -2008,6 +2016,10 @@
       try {
         await flushAwardSyncQueue(); // 先追返之前排隊緊嘅（保住次序），先寄呢次新嘅
         const res = await window.callCloudFunction('awardStudyPoints', payload);
+        if (res && typeof res.exp === 'number' && window.currentUser) {
+          window.currentUser.exp = res.exp;
+          if (typeof updateLevelDisplay === 'function') updateLevelDisplay();
+        }
         if (res && res.stoneInfo) {
           window.currentUser.stones = res.stoneInfo.stones;
           window.currentUser.stoneMinutes = res.stoneInfo.stoneMinutes;

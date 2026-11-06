@@ -854,6 +854,7 @@ async function getLevelRewardRules() {
       if (typeof d.milestoneEvery === "number" && d.milestoneEvery >= 1 && d.milestoneEvery <= 100) rules.milestoneEvery = Math.floor(d.milestoneEvery);
       if (typeof d.milestoneFragments === "number" && d.milestoneFragments >= 0 && d.milestoneFragments <= 1000) rules.milestoneFragments = Math.floor(d.milestoneFragments);
       if (Array.isArray(d.ranks) && d.ranks.length) rules.ranks = d.ranks;
+      rules.goldenHour = sanitizeGoldenHour(d.goldenHour);
     }
   } catch (e) {
     console.warn("讀取等級設定失敗，暫時使用預設值:", e);
@@ -861,6 +862,30 @@ async function getLevelRewardRules() {
   levelRulesCache = rules;
   levelRulesCacheAt = now;
   return rules;
+}
+
+// ===================== 溫習黃金時段（v1.224.0） =====================
+// 管理後台「等級系統」設定 admin_config/levelSystem.goldenHour：
+// { enabled, title, start: "19:00", end: "23:00", expMultiplier, stoneMultiplier }
+// 以香港時間判斷；end 早過 start 代表跨過午夜。只影響「每分鐘溫習」嘅 EXP 同石頭進度。
+function sanitizeGoldenHour(g) {
+  const ok = (t) => typeof t === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(t);
+  const mult = (v) => (typeof v === "number" && v >= 1 && v <= 5) ? Math.round(v * 10) / 10 : 1;
+  if (!g || typeof g !== "object" || g.enabled !== true || !ok(g.start) || !ok(g.end) || g.start === g.end) return null;
+  return { start: g.start, end: g.end, expMultiplier: mult(g.expMultiplier), stoneMultiplier: mult(g.stoneMultiplier) };
+}
+function hkMinuteOfDay() {
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Hong_Kong", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date());
+  const h = parseInt(parts.find((p) => p.type === "hour").value, 10);
+  const m = parseInt(parts.find((p) => p.type === "minute").value, 10);
+  return h * 60 + m;
+}
+function goldenHourNow(g) {
+  if (!g) return null;
+  const toMin = (t) => parseInt(t.slice(0, 2), 10) * 60 + parseInt(t.slice(3), 10);
+  const s = toMin(g.start); const e = toMin(g.end); const now = hkMinuteOfDay();
+  const inside = s < e ? (now >= s && now < e) : (now >= s || now < e);
+  return inside ? g : null;
 }
 
 // ===================== Ottie 的石頭（v1.222.0） =====================
@@ -975,7 +1000,10 @@ exports.awardStudyPoints = onCall(async (request) => {
   const levelRules = await getLevelRewardRules();
 
   const expPerPoint = 1; // 同前端 LEVEL_CONFIG.expPerMinute 保持一致
-  const expGain = expPerPoint * pointsAmount;
+  // v1.224.0：黃金時段內，每分鐘溫習嘅 EXP 同石頭進度按倍數計（「仍在學習」獎勵不受影響）
+  const golden = isMinuteAward ? goldenHourNow(levelRules.goldenHour) : null;
+  // 倍數可以係小數（例如 1.5）：EXP 一定係整數，小數部分記喺 expFrac，下一分鐘再加返
+  const rawExpGain = expPerPoint * pointsAmount * (golden ? golden.expMultiplier : 1);
 
   const userRef = db.doc(`users/${uid}`);
   const bucketRef = db.doc(`rateLimits/studyAwardBucket_${uid}`);
@@ -998,8 +1026,13 @@ exports.awardStudyPoints = onCall(async (request) => {
     tx.set(bucketRef, { [field + "Credit"]: credit - 1, [field + "At"]: nowMs }, { merge: true });
     const data = snap.data();
     const newPoints = (data.points || 0) + pointsAmount;
+    const prevFrac = (typeof data.expFrac === "number" && data.expFrac >= 0 && data.expFrac < 1) ? data.expFrac : 0;
+    const totalGain = rawExpGain + prevFrac;
+    const expGain = Math.floor(totalGain + 1e-9);
     const newExp = (data.exp || 0) + expGain;
     const update = { points: newPoints, exp: newExp };
+    const newFrac = Math.round((totalGain - expGain) * 1000) / 1000;
+    if (newFrac !== prevFrac) update.expFrac = newFrac;
 
     // 升級獎勵：由「已派到嘅級數」之後每一級都派一次
     let levelReward = null;
@@ -1040,7 +1073,7 @@ exports.awardStudyPoints = onCall(async (request) => {
         stones = b.stones;
         stoneMinutes = b.stoneMinutes;
       }
-      stoneMinutes += 1;
+      stoneMinutes = Math.round((stoneMinutes + (golden ? golden.stoneMultiplier : 1)) * 1000) / 1000;
       // activeStone：0 = 自動（最新解鎖嗰款），1–5 = 用戶手動揀的款式（要已解鎖）
       let activeStone = (typeof data.activeStone === "number") ? data.activeStone : 0;
       const reqStone = request.data && request.data.activeStone;
@@ -1050,7 +1083,7 @@ exports.awardStudyPoints = onCall(async (request) => {
       }
       const unlocked = unlockedStoneTypes(newLevel, levelRules.ranks);
       let earned = null;
-      if (stoneMinutes >= STONE_MINUTES) {
+      while (stoneMinutes >= STONE_MINUTES) {
         stoneMinutes -= STONE_MINUTES;
         earned = String((activeStone && unlocked.has(activeStone)) ? activeStone : stoneTypeAtLevel(newLevel, levelRules.ranks));
         stones[earned] = (stones[earned] || 0) + 1;
@@ -1092,7 +1125,7 @@ exports.awardStudyPoints = onCall(async (request) => {
     }
 
     tx.update(userRef, update);
-    return { points: newPoints, exp: newExp, hours: newHours, todayMinutes: newTodayMinutes, todayDate: newTodayDate, monthlyHours: newMonthlyHours, monthlyPeriod: curMonthStr, levelReward, stoneInfo };
+    return { points: newPoints, exp: newExp, hours: newHours, todayMinutes: newTodayMinutes, todayDate: newTodayDate, monthlyHours: newMonthlyHours, monthlyPeriod: curMonthStr, levelReward, stoneInfo, golden: golden ? { expMultiplier: golden.expMultiplier, stoneMultiplier: golden.stoneMultiplier } : null };
   });
 
   return { ok: true, ...result };

@@ -349,6 +349,8 @@
       levelUpTickets: 1,      // 每升一級送幾多張免費扭蛋券
       milestoneEvery: 5,      // 每幾多級額外送碎片
       milestoneFragments: 5,  // 嗰啲級數額外送幾多個碎片
+      // v1.224.0 溫習黃金時段（香港時間；伺服器 awardStudyPoints 用同一套設定計）
+      goldenHour: { enabled: false, title: '書伴自習時段', start: '19:00', end: '23:00', expMultiplier: 2, stoneMultiplier: 2 },
       ranks: [
         { minLevel: 1,  title: '溫習新手', titleEn: 'Novice',     color: '#6FA96F', desc: '剛剛起步，每一分鐘的溫習都算數，慢慢累積 EXP！' },
         { minLevel: 10, title: '專注學徒', titleEn: 'Apprentice', color: '#4A68A8', desc: '已經養成溫習習慣，繼續保持專注，向下一個段位進發。' },
@@ -786,6 +788,35 @@
     }
     window.getRankTitle = getRankTitle;
 
+    // v1.224.0：溫習黃金時段（只係畫面顯示同本機樂觀更新用，真正倍數由伺服器決定）
+    window.currentGoldenHour = function() {
+      const g = LEVEL_CONFIG && LEVEL_CONFIG.goldenHour;
+      const ok = (t) => typeof t === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(t);
+      if (!g || g.enabled !== true || !ok(g.start) || !ok(g.end) || g.start === g.end) return null;
+      const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Hong_Kong', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date());
+      const now = parseInt(parts.find(p => p.type === 'hour').value, 10) * 60 + parseInt(parts.find(p => p.type === 'minute').value, 10);
+      const toMin = (t) => parseInt(t.slice(0, 2), 10) * 60 + parseInt(t.slice(3), 10);
+      const s = toMin(g.start), e = toMin(g.end);
+      const inside = s < e ? (now >= s && now < e) : (now >= s || now < e);
+      if (!inside) return null;
+      const m = (v) => (typeof v === 'number' && v >= 1 && v <= 5) ? Math.round(v * 10) / 10 : 1;
+      return { title: g.title || '', start: g.start, end: g.end, expMultiplier: m(g.expMultiplier), stoneMultiplier: m(g.stoneMultiplier) };
+    };
+    window.refreshGoldenHourBar = function() {
+      const bar = document.getElementById('golden-hour-bar');
+      if (!bar) return;
+      const g = window.currentGoldenHour();
+      if (!g) { bar.style.display = 'none'; return; }
+      const parts = [];
+      if (g.expMultiplier > 1) parts.push(window.t('golden.exp', 'EXP') + ' ×' + g.expMultiplier);
+      if (g.stoneMultiplier > 1) parts.push(window.t('golden.stone', '石頭') + ' ×' + g.stoneMultiplier);
+      const title = (!g.title || g.title === '書伴自習時段') ? window.t('golden.defaultTitle', '書伴自習時段') : g.title;
+      bar.innerText = window.t('golden.barTemplate', '{title}進行中（{start}–{end}）：{bonus}')
+        .replace('{title}', title).replace('{start}', g.start).replace('{end}', g.end).replace('{bonus}', parts.join('・') || window.t('golden.noBonus', '一起專心溫習'));
+      bar.style.display = 'block';
+    };
+    setInterval(() => { if (typeof window.refreshGoldenHourBar === 'function') window.refreshGoldenHourBar(); }, 30 * 1000);
+
     // v1.221.0 Ottie 的石頭：每溫 15 分鐘磨好一粒；石頭款式跟段位升格。
     // 段位可喺後台揀石頭（ranks[].stone = 1–5），未揀就按段位次序自動配。
     const STONE_MINUTES = 15;
@@ -893,7 +924,8 @@
     function minutesToNextStone() {
       const u = window.currentUser || {};
       const m = (u.stones && typeof u.stoneMinutes === 'number') ? u.stoneMinutes : Math.floor((parseFloat(u.hours) || 0) * 60) % STONE_MINUTES;
-      return STONE_MINUTES - m;
+      const g = typeof window.currentGoldenHour === 'function' ? window.currentGoldenHour() : null;
+      return Math.ceil((STONE_MINUTES - m) / (g ? g.stoneMultiplier : 1));
     }
     // 石頭說明視窗：exp 係邊個用戶嘅（自己或者溫習室入面嘅同學），count 係要顯示嘅粒數，
     // mode = 'today'（首頁）或者 'room'（今次入房）
