@@ -1082,6 +1082,7 @@
     // ── app-core.js 登入／註冊／忘記密碼／改密碼／加入房間等核心流程
     // 嘅 showToast() 提示訊息（一直以嚟呢個檔案最高流量嘅部分之一，但
     // 之前從未入翻譯系統，54個提示全部寫死繁體中文）──
+    'core.accountSuspendedUntilTemplate': { 'zh-Hant': '你的帳戶因違反使用守則被暫停使用，直至 {date}。如有疑問請聯絡管理員。', 'en': 'Your account has been suspended for breaking the community rules until {date}. Please contact the administrator if you have questions.', 'yue': '你個帳戶因為違反使用守則被暫停使用，直至 {date}。有疑問請聯絡管理員。' },
     'core.accountSuspendedContactAdmin': { 'zh-Hant': '你的帳戶已被管理員停權，如有疑問請聯絡管理員', 'en': 'Your account has been suspended by an admin. Please contact us if you have questions.', 'yue': '你個帳戶已經俾管理員停咗權，有疑問可以聯絡我哋' },
     'core.accountSuspendedLoggingOut': { 'zh-Hant': '你的帳戶已被管理員停權，即將登出', 'en': 'Your account has been suspended. You will be logged out shortly.', 'yue': '你個帳戶已經俾管理員停咗權，即刻會登出' },
     'core.emailAlreadyVerified': { 'zh-Hant': '這個電郵地址已經驗證過了', 'en': 'This email address has already been verified', 'yue': '呢個電郵已經驗證咗喇' },

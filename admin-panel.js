@@ -107,7 +107,7 @@
     const SUPER_ADMIN_ONLY_TABS = [
       'gacha', 'level', 'icons', 'landing', 'scoring', 'roomsettings',
       'antiidle', 'announcement', 'adminlist', 'auditlog',
-      'subjects', 'districts', 'schools', 'legal', 'snapshotbg', 'navmenu', 'turn'
+      'subjects', 'districts', 'schools', 'legal', 'snapshotbg', 'navmenu', 'turn', 'streaming'
     ];
 
     // 操作紀錄（第四階段第10項）：將重要嘅管治／高風險操作（停權、
@@ -289,6 +289,7 @@
       else if (tab === 'snapshotbg') renderAdminSnapshotBgTab();
       else if (tab === 'navmenu') renderAdminNavMenuTab();
       else if (tab === 'turn') renderAdminTurnTab();
+      else if (tab === 'streaming') renderAdminStreamingTab();
     };
 
     // ---------- 扭蛋機貼紙管理 ----------
@@ -1485,7 +1486,7 @@
       const rows = filteredDocs.map(docSnap => {
         const u = docSnap.data();
         const uid = docSnap.id;
-        const suspended = !!u.suspended;
+        const suspended = window.isSuspendedNow ? window.isSuspendedNow(u) : !!u.suspended;
         // Email 欄顯示用戶註冊時真正填嘅聯絡電郵（contactEmail）；呢個先係
         // 佢哋自己打嗰個地址。u.email 其實係內部合成嘅登入用電郵
         // （{帳號ID}@concenmate.local，唔係真實可送達嘅地址），舊帳號冇
@@ -1493,7 +1494,7 @@
         const displayEmail = u.contactEmail || u.email || '—';
         return `
           <tr style="${suspended ? 'opacity:.55;' : ''}">
-            <td>${escapeHtml(u.username || '—')}${suspended ? ' <span style="color:#c0392b; font-size:13px;">(已停權)</span>' : ''}</td>
+            <td>${escapeHtml(u.username || '—')}${suspensionLabelHtml(u)}</td>
             <td>${u.loginId ? escapeHtml(u.loginId) : '<span style="color:#c99; font-size:13px;">未設定</span>'}</td>
             <td>${escapeHtml(displayEmail)}</td>
             <td>${escapeHtml(u.school || '—')}</td>
@@ -1504,7 +1505,8 @@
             <td><input class="admin-input-sm" type="number" style="width:70px;" value="${u.exp || 0}" id="admin-user-exp-${uid}"></td>
             <td style="display:flex; gap:4px; flex-wrap:wrap;">
               <button class="btn btn-outline" style="font-size:13px; padding:3px 8px;" onclick="adminSaveUserStats('${uid}')">儲存</button>
-              <button class="btn ${suspended ? 'btn-primary' : 'btn-red'}" style="font-size:13px; padding:3px 8px;" onclick="adminToggleSuspendUser('${uid}', ${!suspended})">${suspended ? '解除停權' : '停權'}</button>
+              <button class="btn ${suspended ? 'btn-primary' : 'btn-red'}" style="font-size:13px; padding:3px 8px;" onclick="adminToggleSuspendUser('${uid}', ${!suspended})">${suspended ? '解除停權' : '永久停權'}</button>
+              ${u.strikeCount > 0 ? `<button class="btn btn-outline" style="font-size:13px; padding:3px 8px;" onclick="adminResetStrikes('${uid}')">重設違規次數</button>` : ''}
             </td>
           </tr>
         `;
@@ -1572,16 +1574,139 @@
       }
     };
 
+    // v1.225.0：停權改由伺服器（moderateUser）處理，永久停權會同時停用登入帳戶
     window.adminToggleSuspendUser = async function(uid, suspend) {
-      if (!confirm(suspend ? '確定停權這個帳戶？他下次登入會被強制登出。' : '確定解除這個帳戶的停權？')) return;
+      if (!confirm(suspend ? '確定永久停用這個帳戶？用戶會即時被登出，並無法再登入。' : '確定解除這個帳戶的停權？')) return;
       try {
-        await window.fs.updateDoc(window.fs.doc(window.db, 'users', uid), { suspended: suspend });
-        await logAdminAction(suspend ? '停權用戶' : '解除停權', { uid });
-        window.showToast(suspend ? '已停權該帳戶' : '已解除停權', suspend ? '🚫' : '✅');
+        await window.callCloudFunction('moderateUser', { uid, action: suspend ? 'permanent' : 'lift', reason: suspend ? '管理員手動停權' : '' });
+        window.showToast(suspend ? '已永久停用該帳戶' : '已解除停權', suspend ? '🚫' : '✅');
       } catch (err) {
-        window.showToast('操作失敗：' + (err.message || err), '❌');
+        window.showToast('操作失敗：' + (window.friendlyErrorText ? window.friendlyErrorText(err) : (err.message || err)), '❌');
       }
     };
+    // ===================== 直播設定（Study with me，v1.226.0） =====================
+    // admin_config/streaming。第一階段只記錄開通資格；直播本身未上線，總開關預設關閉。
+    const STREAMING_DEFAULTS = { enabled: false, requiredDays: 30, minMinutesPerDay: 15, maxDurationHours: 4, maxConcurrent: 20, monthlyBudgetHkd: 500, hotThreshold: 50, hotMinutes: 3, idleShutdownMinutes: 30, defaultQuality: '480p', hotQuality: '720p' };
+    let adminStreamingDraft = null;
+    async function renderAdminStreamingTab() {
+      const container = document.getElementById('admin-tab-streaming');
+      if (!container) return;
+      if (!adminStreamingDraft) {
+        container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">正在載入直播設定…</p>';
+        adminStreamingDraft = Object.assign({}, STREAMING_DEFAULTS);
+        try {
+          const snap = await window.fs.getDoc(window.fs.doc(window.db, 'admin_config', 'streaming'));
+          if (snap.exists()) Object.assign(adminStreamingDraft, snap.data());
+        } catch (e) { console.warn('讀取直播設定失敗:', e); }
+      }
+      const d = adminStreamingDraft;
+      const num = (key, label, unit, min, max) => `
+        <label style="display:flex; align-items:center; gap:6px; font-size:13px; color:#555;">${label}
+          <input class="admin-input-sm" type="number" min="${min}" max="${max}" step="1" style="width:72px;" value="${d[key]}" oninput="window.adminUpdateStreamingDraft('${key}', this.value)"> ${unit}
+        </label>`;
+      const quality = (key, label) => `
+        <label style="display:flex; align-items:center; gap:6px; font-size:13px; color:#555;">${label}
+          <select class="admin-input-sm" style="width:auto;" onchange="window.adminUpdateStreamingDraft('${key}', this.value)">
+            ${['360p', '480p', '720p'].map(q => `<option value="${q}" ${d[key] === q ? 'selected' : ''}>${q}</option>`).join('')}
+          </select>
+        </label>`;
+      container.innerHTML = `
+        <div class="admin-card">
+          <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;">Study with me 直播</h3>
+          <label style="display:flex; align-items:center; gap:8px; font-size:14px; margin-bottom:6px; cursor:pointer;">
+            <input type="checkbox" ${d.enabled ? 'checked' : ''} onchange="window.adminUpdateStreamingDraft('enabled', this.checked)"> 開放直播功能（總開關）
+          </label>
+          <p style="font-size:13px; color:#888; margin:0;">關閉時，只有管理員可以開播及觀看，供測試之用；開啟後，合資格用戶可以開播，所有登入用戶可以觀看。管理員不受開通日數限制。開通資格（合資格溫習日數）已開始記錄。</p>
+        </div>
+        <div class="admin-card" style="margin-top:12px;">
+          <h3 style="font-size:14px; font-weight:bold; margin-bottom:10px;">開通資格</h3>
+          <div style="display:flex; gap:16px; flex-wrap:wrap;">
+            ${num('requiredDays', '需累積溫習', '日', 0, 365)}
+            ${num('minMinutesPerDay', '每日最少溫習', '分鐘才計一日', 1, 600)}
+          </div>
+          <p style="font-size:13px; color:#888; margin:8px 0 0;">由伺服器記錄，用戶無法自行修改。首次記錄時會按溫習日曆補回過往日數。</p>
+        </div>
+        <div class="admin-card" style="margin-top:12px;">
+          <h3 style="font-size:14px; font-weight:bold; margin-bottom:10px;">直播限制及畫質</h3>
+          <div style="display:flex; gap:16px; flex-wrap:wrap;">
+            ${num('maxDurationHours', '每次直播最長', '小時', 1, 12)}
+            ${num('maxConcurrent', '同一時間最多', '個直播', 1, 500)}
+            ${quality('defaultQuality', '一般直播最高畫質')}
+            ${quality('hotQuality', '熱門直播最高畫質')}
+          </div>
+        </div>
+        <div class="admin-card" style="margin-top:12px;">
+          <h3 style="font-size:14px; font-weight:bold; margin-bottom:10px;">熱門直播（轉經 R2）</h3>
+          <div style="display:flex; gap:16px; flex-wrap:wrap;">
+            ${num('hotThreshold', '觀眾超過', '人', 5, 10000)}
+            ${num('hotMinutes', '並持續', '分鐘', 1, 60)}
+            ${num('idleShutdownMinutes', '沒有熱門直播', '分鐘後關閉轉換主機', 5, 240)}
+          </div>
+          <p style="font-size:13px; color:#888; margin:8px 0 0;">直播一經轉經 R2，會維持至直播完結，避免人數在門檻附近上落時不斷切換。</p>
+        </div>
+        <div class="admin-card" style="margin-top:12px;">
+          <h3 style="font-size:14px; font-weight:bold; margin-bottom:10px;">每月預算</h3>
+          <div style="display:flex; gap:16px; flex-wrap:wrap;">
+            ${num('monthlyBudgetHkd', '每月上限 HK$', '（包括主機月費）', 0, 1000000)}
+          </div>
+          <p style="font-size:13px; color:#888; margin:8px 0 0;">用到 80%：所有直播最高畫質降至 360p 並通知管理員；用到 100%：暫停開新直播，進行中的直播可繼續。</p>
+        </div>
+        <div style="text-align:center; margin-top:16px;">
+          <button type="button" class="btn btn-primary" style="padding:12px 32px; font-size:15px;" onclick="window.adminSaveStreamingSettings()">儲存直播設定</button>
+        </div>`;
+    }
+    window.adminUpdateStreamingDraft = function(key, value) {
+      if (!adminStreamingDraft) return;
+      if (key === 'enabled') adminStreamingDraft.enabled = !!value;
+      else if (key === 'defaultQuality' || key === 'hotQuality') adminStreamingDraft[key] = value;
+      else { const n = parseInt(value, 10); if (Number.isFinite(n) && n >= 0) adminStreamingDraft[key] = n; }
+    };
+    window.adminSaveStreamingSettings = async function() {
+      if (!adminStreamingDraft) return;
+      const d = adminStreamingDraft;
+      const clamp = (v, lo, hi, def) => { const n = parseInt(v, 10); return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : def; };
+      const q = (v, def) => ['360p', '480p', '720p'].includes(v) ? v : def;
+      const payload = {
+        enabled: d.enabled === true,
+        requiredDays: clamp(d.requiredDays, 0, 365, 30),
+        minMinutesPerDay: clamp(d.minMinutesPerDay, 1, 600, 15),
+        maxDurationHours: clamp(d.maxDurationHours, 1, 12, 4),
+        maxConcurrent: clamp(d.maxConcurrent, 1, 500, 20),
+        monthlyBudgetHkd: clamp(d.monthlyBudgetHkd, 0, 1000000, 500),
+        hotThreshold: clamp(d.hotThreshold, 5, 10000, 50),
+        hotMinutes: clamp(d.hotMinutes, 1, 60, 3),
+        idleShutdownMinutes: clamp(d.idleShutdownMinutes, 5, 240, 30),
+        defaultQuality: q(d.defaultQuality, '480p'),
+        hotQuality: q(d.hotQuality, '720p'),
+        updatedAt: Date.now()
+      };
+      try {
+        await window.fs.setDoc(window.fs.doc(window.db, 'admin_config', 'streaming'), payload);
+        Object.assign(adminStreamingDraft, payload);
+        await logAdminAction('修改直播設定', payload);
+        window.showToast('已儲存直播設定（伺服器最多需要 30 秒套用）', '✅');
+      } catch (err) {
+        window.showToast('儲存失敗：' + (err.message || err), '❌');
+      }
+    };
+
+    window.adminResetStrikes = async function(uid) {
+      if (!confirm('確定將這個帳戶的違規次數重設為 0？')) return;
+      try {
+        await window.callCloudFunction('moderateUser', { uid, action: 'resetStrikes' });
+        window.showToast('已重設違規次數', '✅');
+      } catch (err) {
+        window.showToast('操作失敗：' + (window.friendlyErrorText ? window.friendlyErrorText(err) : (err.message || err)), '❌');
+      }
+    };
+    // 用戶列表顯示的停權標籤
+    function suspensionLabelHtml(u) {
+      const parts = [];
+      if (u.suspended === true) parts.push('已永久停權');
+      else if (typeof u.suspendedUntil === 'number' && u.suspendedUntil > Date.now()) parts.push('停權至 ' + new Date(u.suspendedUntil).toLocaleString('zh-HK', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }));
+      if (typeof u.strikeCount === 'number' && u.strikeCount > 0) parts.push('違規 ' + u.strikeCount + ' 次');
+      return parts.length ? ` <span style="color:#c0392b; font-size:13px;">（${parts.join('，')}）</span>` : '';
+    }
 
     // ===================== 舉報處理（Admin） =====================
     // 呢個 badge listener 一入管理後台就開始聽（唔理而家揀緊邊個分頁），
@@ -1646,7 +1771,9 @@
           <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:10px;">
             ${status === 'pending' ? `<button class="btn btn-outline" style="font-size:13px; padding:4px 9px;" onclick="window.adminMarkReportStatus('${reportId}', 'dismissed')">駁回（沒問題）</button>` : ''}
             ${status === 'pending' ? `<button class="btn btn-outline" style="font-size:13px; padding:4px 9px;" onclick="window.adminMarkReportStatus('${reportId}', 'reviewed')">標記已處理</button>` : ''}
-            ${r.reportedUid ? `<button class="btn btn-red" style="font-size:13px; padding:4px 9px;" onclick="window.adminSuspendFromReport('${reportId}', '${r.reportedUid}')">停權此帳戶</button>` : ''}
+            ${r.reportedUid && status === 'pending' ? `<button class="btn btn-red" style="font-size:13px; padding:4px 9px;" onclick="window.adminStrikeFromReport('${reportId}', '${r.reportedUid}', false)">確認違規並停權</button>` : ''}
+            ${r.reportedUid && status === 'pending' ? `<button class="btn btn-red" style="font-size:13px; padding:4px 9px;" onclick="window.adminStrikeFromReport('${reportId}', '${r.reportedUid}', true)">嚴重違規（永久封號）</button>` : ''}
+            ${r.action ? `<span style="font-size:13px; color:#888; align-self:center;">處理：${r.action === 'permanent' ? '永久封號' : (r.action === 'strike' ? '已按次數停權' : escapeHtml(r.action))}${r.handledBy ? '（' + escapeHtml(r.handledBy) + '）' : ''}</span>` : ''}
             ${status !== 'pending' ? `<button class="btn btn-outline" style="font-size:13px; padding:4px 9px; color:#999; border-color:#ccc;" onclick="window.adminDeleteReport('${reportId}')">刪除紀錄</button>` : ''}
           </div>
         </div>
@@ -1657,7 +1784,7 @@
       const container = document.getElementById('admin-tab-reports');
       if (!container) return;
       if (adminReportsLoadedDocs.length === 0) {
-        container.innerHTML = '<div class="admin-card" style="text-align:center; color:#999;">目前沒有任何舉報記錄</div>';
+        container.innerHTML = moderationSettingsHtml() + '<div class="admin-card" style="text-align:center; color:#999;">目前沒有任何舉報記錄</div>';
         return;
       }
       const cards = adminReportsLoadedDocs.map(buildAdminReportCardHtml).join('');
@@ -1667,9 +1794,7 @@
              <button class="btn btn-outline" id="admin-reports-load-more-btn" type="button" onclick="window.adminLoadMoreReports()">載入更多（已顯示 ${adminReportsLoadedDocs.length} 則）</button>
            </div>`;
       container.innerHTML = `
-        <div style="margin-bottom:10px; background:#FFF7E6; border:1px solid #F0D9A0; border-radius:8px; padding:8px 10px; font-size:13px; color:#8a6d1f;">
-          技術上的重要提醒：這個網站沒有獨立伺服器，只是使用 Firebase，所以這裡看不到、也無法做到真正的「IP 封鎖」（因為 Firestore 規則看不到用戶的真實 IP）。「停權」這個功能就確實有效——會即刻令該帳戶下次登入被強制登出，亦令他完全無法使用這個平台。
-        </div>
+        ${moderationSettingsHtml()}
         ${cards}
         ${loadMoreHtml}
       `;
@@ -1678,7 +1803,8 @@
     function renderAdminReportsTab() {
       const container = document.getElementById('admin-tab-reports');
       if (!container || !window.db || !window.fs) return;
-      container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入中舉報記錄...</p>';
+      container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">正在載入舉報記錄…</p>';
+      loadModerationRules().then(() => { if (adminReportsLoadedDocs.length || adminReportsAllLoaded) renderAdminReportsListUI(); });
 
       adminReportsLoadedDocs = [];
       adminReportsAllLoaded = false;
@@ -1735,15 +1861,64 @@
       }
     };
 
-    window.adminSuspendFromReport = async function(reportId, reportedUid) {
-      if (!confirm('確定停權這個被舉報的帳戶？他下次登入會被強制登出。')) return;
+    // v1.225.0：確認違規，由伺服器按違規次數停權（第 1 次、第 2 次按設定日數，第 3 次或嚴重違規永久封號）
+    window.adminStrikeFromReport = async function(reportId, reportedUid, severe) {
+      const m = window.MODERATION_RULES || { firstDays: 3, secondDays: 14 };
+      const msg = severe
+        ? '確定屬於嚴重違規？該帳戶會被永久封號，並無法再登入。'
+        : `確定違規屬實？系統會按違規次數處理：第 1 次停權 ${m.firstDays} 日、第 2 次停權 ${m.secondDays} 日、第 3 次永久封號。`;
+      if (!confirm(msg)) return;
+      const doc = adminReportsLoadedDocs.find(x => x.id === reportId);
+      const reason = doc && doc.data().reason ? doc.data().reason : '違反使用守則';
       try {
-        await window.fs.updateDoc(window.fs.doc(window.db, 'users', reportedUid), { suspended: true });
-        await window.fs.updateDoc(window.fs.doc(window.db, 'reports', reportId), { status: 'reviewed' });
-        await logAdminAction('因舉報停權用戶', { reportId, reportedUid });
-        window.showToast('已停權該帳戶', '🚫');
+        const res = await window.callCloudFunction('moderateUser', { uid: reportedUid, action: severe ? 'permanent' : 'strike', reportId, reason });
+        if (res && res.permanent) window.showToast(`已永久封號（累計違規 ${res.strikeCount} 次）`, '🚫');
+        else window.showToast(`已停權 ${res.days} 日（第 ${res.strikeCount} 次違規）`, '🚫');
       } catch (err) {
-        window.showToast('操作失敗：' + (err.message || err), '❌');
+        window.showToast('操作失敗：' + (window.friendlyErrorText ? window.friendlyErrorText(err) : (err.message || err)), '❌');
+      }
+    };
+
+    // 停權規則設定（admin_config/moderation），只有超級管理員可修改
+    window.MODERATION_RULES = { firstDays: 3, secondDays: 14 };
+    async function loadModerationRules() {
+      try {
+        const snap = await window.fs.getDoc(window.fs.doc(window.db, 'admin_config', 'moderation'));
+        if (snap.exists()) {
+          const d = snap.data();
+          if (typeof d.firstDays === 'number') window.MODERATION_RULES.firstDays = d.firstDays;
+          if (typeof d.secondDays === 'number') window.MODERATION_RULES.secondDays = d.secondDays;
+        }
+      } catch (e) { console.warn('讀取停權設定失敗:', e); }
+    }
+    function moderationSettingsHtml() {
+      const m = window.MODERATION_RULES;
+      const canEdit = isCurrentUserSuperAdmin();
+      return `
+        <div class="admin-card" style="margin-bottom:12px;">
+          <h3 style="font-size:14px; font-weight:bold; margin-bottom:8px;">停權規則</h3>
+          <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:center; font-size:13px; color:#555; margin-bottom:8px;">
+            <label style="display:flex; align-items:center; gap:6px;">第 1 次違規停權
+              <input class="admin-input-sm" type="number" min="1" max="365" step="1" style="width:64px;" id="admin-mod-first" value="${m.firstDays}" ${canEdit ? '' : 'disabled'}> 日
+            </label>
+            <label style="display:flex; align-items:center; gap:6px;">第 2 次違規停權
+              <input class="admin-input-sm" type="number" min="1" max="365" step="1" style="width:64px;" id="admin-mod-second" value="${m.secondDays}" ${canEdit ? '' : 'disabled'}> 日
+            </label>
+            ${canEdit ? '<button class="btn btn-primary" style="font-size:13px; padding:4px 10px;" onclick="window.adminSaveModerationRules()">儲存</button>' : ''}
+          </div>
+          <p style="font-size:13px; color:#888; margin:0;">第 3 次違規或嚴重違規（例如性騷擾、向未成年人提出不當要求、威脅）會永久封號，並停用登入帳戶。只有經管理員確認的舉報才會計入違規次數；停權期間用戶無法登入，到期自動解除。</p>
+        </div>`;
+    }
+    window.adminSaveModerationRules = async function() {
+      const first = Math.max(1, Math.min(365, parseInt(document.getElementById('admin-mod-first').value, 10) || 3));
+      const second = Math.max(1, Math.min(365, parseInt(document.getElementById('admin-mod-second').value, 10) || 14));
+      try {
+        await window.fs.setDoc(window.fs.doc(window.db, 'admin_config', 'moderation'), { firstDays: first, secondDays: second, updatedAt: Date.now() });
+        window.MODERATION_RULES = { firstDays: first, secondDays: second };
+        await logAdminAction('修改停權規則', { firstDays: first, secondDays: second });
+        window.showToast('已儲存停權規則', '✅');
+      } catch (err) {
+        window.showToast('儲存失敗：' + (err.message || err), '❌');
       }
     };
 
@@ -3194,7 +3369,7 @@
     function renderSupportUserDetailCard(u) {
       const d = u.data;
       const uid = u.uid;
-      const suspended = !!d.suspended;
+      const suspended = window.isSuspendedNow ? window.isSuspendedNow(d) : !!d.suspended;
       const displayEmail = d.contactEmail || d.email || '—';
       const createdMs = typeof d.createdAt === 'number' ? d.createdAt : (d.createdAt ? new Date(d.createdAt).getTime() : 0);
       const createdDisplay = createdMs ? new Date(createdMs).toLocaleString('zh-HK') : '—';
@@ -3205,11 +3380,15 @@
       return `
         <div class="admin-card">
           <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
-            <h3 style="font-size:17px; font-weight:bold; color:var(--brand-800); margin:0;">${escapeHtml(d.username || '—')} ${suspended ? '<span style="color:#c0392b; font-size:13px;">（已停權）</span>' : ''}</h3>
-            <button type="button" class="btn ${suspended ? 'btn-primary' : 'btn-red'}" style="font-size:13px; padding:4px 10px;" onclick="adminToggleSuspendUser('${uid}', ${!suspended})">${suspended ? '解除停權' : '停權'}</button>
+            <h3 style="font-size:17px; font-weight:bold; color:var(--brand-800); margin:0;">${escapeHtml(d.username || '—')}${suspensionLabelHtml(d)}</h3>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              ${d.strikeCount > 0 ? `<button type="button" class="btn btn-outline" style="font-size:13px; padding:4px 10px;" onclick="adminResetStrikes('${uid}')">重設違規次數</button>` : ''}
+              <button type="button" class="btn ${suspended ? 'btn-primary' : 'btn-red'}" style="font-size:13px; padding:4px 10px;" onclick="adminToggleSuspendUser('${uid}', ${!suspended})">${suspended ? '解除停權' : '永久停權'}</button>
+            </div>
           </div>
           <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:10px; font-size:13px; color:#555; margin-bottom:18px;">
             <div><b>帳號ID：</b>${escapeHtml(d.loginId || '未設定')}</div>
+            <div><b>合資格溫習日數：</b>${typeof d.qualifiedDays === 'number' ? d.qualifiedDays + ' 日' : '未開始記錄'}</div>
             <div><b>Email：</b>${escapeHtml(displayEmail)}</div>
             <div><b>學校：</b>${escapeHtml(d.school || '—')}</div>
             <div><b>年級：</b>${escapeHtml(d.grade || '—')}</div>

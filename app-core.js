@@ -81,6 +81,19 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
     window.storage = storage;
     window.storageApi = { ref: storageRef, uploadBytes, getDownloadURL, deleteObject };
 
+    // v1.225.0：停權狀態（永久停權 suspended，或暫時停權 suspendedUntil 未到期）
+    window.isSuspendedNow = function(u) {
+      return !!u && (u.suspended === true || (typeof u.suspendedUntil === 'number' && u.suspendedUntil > Date.now()));
+    };
+    window.suspensionMessage = function(u, fallback) {
+      if (u && u.suspended !== true && typeof u.suspendedUntil === 'number') {
+        const lang = (window.getAppLanguage && window.getAppLanguage()) === 'en' ? 'en-GB' : 'zh-HK';
+        const when = new Date(u.suspendedUntil).toLocaleString(lang, { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        return window.t('core.accountSuspendedUntilTemplate', '你的帳戶因違反使用守則被暫停使用，直至 {date}。如有疑問請聯絡管理員。').replace('{date}', when);
+      }
+      return fallback;
+    };
+
     // 呼叫 Cloud Functions 嘅共用 helper：window.callCloudFunction('functionName', {...data})
     // 回傳 Promise，resolve 做嗰個 function return 咗嘅 data；function 嗰邊用
     // HttpsError 拋出嘅錯誤，呢度會變成一個帶住 .code／.message 嘅 Error。
@@ -466,8 +479,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
         // 一旦帳戶被停權，登入嗰刻即刻強制登出，唔可以再用。signOut() 會
         // 觸發多一次 onAuthStateChanged（user=null），到時先處理登出後
         // 嘅畫面更新，所以呢度可以直接 return。
-        if (window.currentUser && window.currentUser.suspended) {
-          window.showToast(window.t('core.accountSuspendedContactAdmin', '你的帳戶已被管理員停權，如有疑問請聯絡管理員'), '🚫');
+        if (window.currentUser && window.isSuspendedNow(window.currentUser)) {
+          window.showToast(window.suspensionMessage(window.currentUser, window.t('core.accountSuspendedContactAdmin', '你的帳戶已被管理員停權，如有疑問請聯絡管理員')), '🚫');
           await signOut(auth);
           return;
         }
@@ -501,8 +514,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
             }
             if (typeof window.refreshGachaTicketUI === 'function') window.refreshGachaTicketUI();
           }
-          if (snap.exists() && snap.data().suspended && window.currentUser) {
-            window.showToast(window.t('core.accountSuspendedLoggingOut', '你的帳戶已被管理員停權，即將登出'), '🚫');
+          if (snap.exists() && window.isSuspendedNow(snap.data()) && window.currentUser) {
+            window.showToast(window.suspensionMessage(snap.data(), window.t('core.accountSuspendedLoggingOut', '你的帳戶已被管理員停權，即將登出')), '🚫');
             if (suspensionListenerUnsubscribe) { suspensionListenerUnsubscribe(); suspensionListenerUnsubscribe = null; }
             // 如果仲留喺視訊溫習室入面（例如房主俾人喺後台停權嗰刻仲喺度
             // 直播緊），一定要喺 signOut() 之前（趁認證仲有效）行齊「離開
@@ -1161,10 +1174,11 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
         // 先一步 signOut() 咗，於是啲請求會因為認證突然被清走而報
         // 「Missing or insufficient permissions」，而唔係清清楚楚話畀
         // 用戶知「你已被停權」。
-        if (window.currentUser && window.currentUser.suspended) {
+        if (window.currentUser && window.isSuspendedNow(window.currentUser)) {
+          const suspendedUser = window.currentUser;
           window.currentUser = null;
           await signOut(auth);
-          window.showToast(window.t('core.accountSuspendedCannotLogin', '你的帳戶已被管理員停權，無法登入，如有疑問請聯絡管理員'), '🚫');
+          window.showToast(window.suspensionMessage(suspendedUser, window.t('core.accountSuspendedCannotLogin', '你的帳戶已被管理員停權，無法登入，如有疑問請聯絡管理員')), '🚫');
           return;
         }
 

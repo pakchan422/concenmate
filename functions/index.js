@@ -141,6 +141,12 @@ exports.verifyRoomPassword = onCall(async (request) => {
   const roomData = roomSnap.data();
   const isHost = roomData.hostUid === uid;
 
+  // v1.225.0：停權期間不可以入房
+  const meSnap = await db.doc(`users/${uid}`).get();
+  if (meSnap.exists && isUserSuspendedNow(meSnap.data())) {
+    throw new HttpsError("permission-denied", "你的帳戶正被暫停使用，暫時不可以加入溫習室");
+  }
+
   // 曾經被房主踢走嘅用家，一律唔可以再次入房——而家伺服器端強制執
   // 行，唔再淨係信任前端自己核對 bannedUids（前端嗰個檢查隨時可以喺
   // devtools 度被跳過）。
@@ -998,6 +1004,7 @@ exports.awardStudyPoints = onCall(async (request) => {
   }
   const bonusIntervalMin = await getPresenceCheckIntervalMin();
   const levelRules = await getLevelRewardRules();
+  const streamingRules = await getStreamingRules();
 
   const expPerPoint = 1; // 同前端 LEVEL_CONFIG.expPerMinute 保持一致
   // v1.224.0：黃金時段內，每分鐘溫習嘅 EXP 同石頭進度按倍數計（「仍在學習」獎勵不受影響）
@@ -1023,8 +1030,12 @@ exports.awardStudyPoints = onCall(async (request) => {
     if (credit < 1) {
       throw new HttpsError("failed-precondition", "積分派發過於頻密");
     }
-    tx.set(bucketRef, { [field + "Credit"]: credit - 1, [field + "At"]: nowMs }, { merge: true });
     const data = snap.data();
+    // v1.225.0：停權期間不派分
+    if (isUserSuspendedNow(data)) {
+      throw new HttpsError("failed-precondition", "你的帳戶正被暫停使用");
+    }
+    tx.set(bucketRef, { [field + "Credit"]: credit - 1, [field + "At"]: nowMs }, { merge: true });
     const newPoints = (data.points || 0) + pointsAmount;
     const prevFrac = (typeof data.expFrac === "number" && data.expFrac >= 0 && data.expFrac < 1) ? data.expFrac : 0;
     const totalGain = rawExpGain + prevFrac;
@@ -1119,6 +1130,17 @@ exports.awardStudyPoints = onCall(async (request) => {
       newTodayDate = serverToday;
       update.todayMinutes = newTodayMinutes;
       update.todayDate = newTodayDate;
+      // v1.226.0：當日溫滿指定分鐘，合資格溫習日數 +1（每日只計一次）。
+      // 第一次記錄時，按溫習日曆（studyDays，不計今日）補回舊日數。
+      if (newTodayMinutes >= streamingRules.minMinutesPerDay && data.qualifiedDate !== serverToday) {
+        let base = data.qualifiedDays;
+        if (typeof base !== "number") {
+          const days = (data.studyDays && typeof data.studyDays === "object") ? Object.keys(data.studyDays).filter((k) => k !== serverToday) : [];
+          base = days.length;
+        }
+        update.qualifiedDays = base + 1;
+        update.qualifiedDate = serverToday;
+      }
       newMonthlyHours = newMonthlyHours + hoursIncrement;
       update.monthlyHours = newMonthlyHours;
       update.monthlyPeriod = curMonthStr;
@@ -1150,6 +1172,143 @@ exports.awardStudyPoints = onCall(async (request) => {
 // 配合 firestore.rules 將 reports 嘅 allow create 改做 if false，即係
 // 話而家全部舉報一定要經呢個 function 先寫得入去，前端冇辦法再繞過
 // 呢個 function 直接寫。
+// ===================== Study with me 直播設定（v1.226.0） =====================
+// admin_config/streaming：開通所需日數、每日最少分鐘等。合資格溫習日數
+// users/{uid}.qualifiedDays／qualifiedDate 由 awardStudyPoints 記錄，前端改不到。
+const STREAMING_DEFAULT = { enabled: false, requiredDays: 30, minMinutesPerDay: 15 };
+let streamingRulesCache = null;
+let streamingRulesCacheAt = 0;
+async function getStreamingRules() {
+  const now = Date.now();
+  if (streamingRulesCache && (now - streamingRulesCacheAt) < 30 * 1000) return streamingRulesCache;
+  const rules = Object.assign({}, STREAMING_DEFAULT);
+  try {
+    const snap = await db.doc("admin_config/streaming").get();
+    if (snap.exists) {
+      const d = snap.data();
+      if (typeof d.enabled === "boolean") rules.enabled = d.enabled;
+      if (typeof d.requiredDays === "number" && d.requiredDays >= 0 && d.requiredDays <= 365) rules.requiredDays = Math.floor(d.requiredDays);
+      if (typeof d.minMinutesPerDay === "number" && d.minMinutesPerDay >= 1 && d.minMinutesPerDay <= 600) rules.minMinutesPerDay = Math.floor(d.minMinutesPerDay);
+    }
+  } catch (e) {
+    console.warn("讀取直播設定失敗，使用預設值:", e);
+  }
+  streamingRulesCache = rules;
+  streamingRulesCacheAt = now;
+  return rules;
+}
+
+// ===================== 舉報及停權制度（v1.225.0） =====================
+// 管理員確認違規後由伺服器處理：第 1 次停權 firstDays 日、第 2 次 secondDays 日、
+// 第 3 次或嚴重違規永久封號（同時停用 Firebase 登入帳戶）。
+// users/{uid}.strikeCount／suspendedUntil／suspended 唔喺 rules 白名單，前端改唔到。
+const MODERATION_DEFAULT = { firstDays: 3, secondDays: 14 };
+async function getModerationRules() {
+  const rules = Object.assign({}, MODERATION_DEFAULT);
+  try {
+    const snap = await db.doc("admin_config/moderation").get();
+    if (snap.exists) {
+      const d = snap.data();
+      if (typeof d.firstDays === "number" && d.firstDays >= 1 && d.firstDays <= 365) rules.firstDays = Math.floor(d.firstDays);
+      if (typeof d.secondDays === "number" && d.secondDays >= 1 && d.secondDays <= 365) rules.secondDays = Math.floor(d.secondDays);
+    }
+  } catch (e) {
+    console.warn("讀取停權設定失敗，使用預設值:", e);
+  }
+  return rules;
+}
+function isUserSuspendedNow(data) {
+  if (!data) return false;
+  if (data.suspended === true) return true;
+  return typeof data.suspendedUntil === "number" && data.suspendedUntil > Date.now();
+}
+
+exports.moderateUser = onCall(async (request) => {
+  const adminUid = request.auth && request.auth.uid;
+  await assertIsAdmin(adminUid);
+  const d = request.data || {};
+  const action = d.action;
+  const uid = d.uid;
+  if (!uid || typeof uid !== "string" || uid.includes("/")) {
+    throw new HttpsError("invalid-argument", "缺少用戶資料");
+  }
+  if (uid === adminUid) {
+    throw new HttpsError("failed-precondition", "不可以對自己的帳戶執行此操作");
+  }
+  const reason = typeof d.reason === "string" ? d.reason.slice(0, 200) : "";
+  const reportId = (typeof d.reportId === "string" && d.reportId && !d.reportId.includes("/")) ? d.reportId : "";
+
+  const userRef = db.doc(`users/${uid}`);
+  const snap = await userRef.get();
+  if (!snap.exists) {
+    throw new HttpsError("not-found", "找不到這個帳戶");
+  }
+  const data = snap.data();
+  const adminSnap = await db.doc(`users/${adminUid}`).get();
+  const adminLoginId = adminSnap.exists ? (adminSnap.data().loginId || "") : "";
+  const FieldValue = admin.firestore.FieldValue;
+  const now = Date.now();
+  let result = {};
+
+  if (action === "strike" || action === "permanent") {
+    const rules = await getModerationRules();
+    const severe = action === "permanent" || d.severe === true;
+    const strikeCount = (typeof data.strikeCount === "number" ? data.strikeCount : 0) + (action === "strike" ? 1 : 0);
+    const permanent = severe || strikeCount >= 3;
+    const update = { strikeCount, lastStrikeReason: reason || "違反使用守則", lastStrikeAt: now };
+    let days = 0;
+    if (permanent) {
+      update.suspended = true;
+      update.suspendedUntil = FieldValue.delete();
+    } else {
+      days = strikeCount === 1 ? rules.firstDays : rules.secondDays;
+      update.suspended = false;
+      update.suspendedUntil = now + days * 864e5;
+    }
+    await userRef.update(update);
+    await userRef.collection("strikes").add({
+      at: now, action, severe, reason, reportId, byLoginId: adminLoginId, strikeCount, permanent,
+      until: permanent ? null : update.suspendedUntil,
+    });
+    try {
+      await admin.auth().revokeRefreshTokens(uid);
+      if (permanent) await admin.auth().updateUser(uid, { disabled: true });
+    } catch (e) {
+      console.warn("更新登入帳戶狀態失敗（停權紀錄已寫入）:", e);
+    }
+    result = { strikeCount, permanent, days, until: permanent ? null : update.suspendedUntil };
+  } else if (action === "lift") {
+    await userRef.update({ suspended: false, suspendedUntil: FieldValue.delete() });
+    try {
+      await admin.auth().updateUser(uid, { disabled: false });
+    } catch (e) {
+      console.warn("重新啟用登入帳戶失敗:", e);
+    }
+    result = { lifted: true };
+  } else if (action === "resetStrikes") {
+    await userRef.update({ strikeCount: 0 });
+    result = { strikeCount: 0 };
+  } else {
+    throw new HttpsError("invalid-argument", "未知的操作");
+  }
+
+  if (reportId) {
+    try {
+      await db.doc(`reports/${reportId}`).update({ status: "reviewed", action, handledBy: adminLoginId, handledAt: now });
+    } catch (e) {
+      console.warn("更新舉報狀態失敗:", e);
+    }
+  }
+  await db.collection("adminAuditLog").add({
+    action: `停權處理：${action}`,
+    details: Object.assign({ uid, reportId, reason }, result),
+    adminLoginId,
+    adminEmail: null,
+    createdAt: now,
+  });
+  return result;
+});
+
 exports.submitReport = onCall(async (request) => {
   const uid = request.auth && request.auth.uid;
   if (!uid) {
