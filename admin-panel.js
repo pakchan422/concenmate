@@ -1636,33 +1636,72 @@
               <tbody>${rows || emptyGroupMsg}</tbody>
             </table>
           </div>
+          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:12px; font-size:13px; color:#6B7894;">
+            <span>已載入 ${adminUsersLastSortedDocs.length}${adminUsersTotal != null ? ' / 共 ' + adminUsersTotal : ''} 位用戶</span>
+            ${adminUsersAllLoaded ? '' : '<button type="button" class="btn btn-outline" style="font-size:13px; padding:5px 12px;" onclick="window.adminLoadMoreUsers()">載入更多</button>'}
+            <button type="button" class="btn btn-outline" style="font-size:13px; padding:5px 12px;" onclick="window.adminReloadUsers()">重新整理</button>
+          </div>
         </div>
       `;
     }
 
+    // v1.230.0：改為分頁載入（每次 50 位），唔再即時監聽全部用戶，用戶多都唔會大量讀取
+    const ADMIN_USERS_PAGE = 50;
+    let adminUsersCursor = null;
+    let adminUsersAllLoaded = false;
+    let adminUsersTotal = null;
+    let adminUsersLoading = false;
+    function sortAdminUsers(arr) {
+      return arr.sort((a, b) => {
+        const ta = new Date(a.data().createdAt || 0).getTime() || 0;
+        const tb = new Date(b.data().createdAt || 0).getTime() || 0;
+        return ta - tb;
+      });
+    }
+    function mergeIntoSupportCache(docs) {
+      if (!adminSupportUsersCache) adminSupportUsersCache = [];
+      docs.forEach(d => {
+        const i = adminSupportUsersCache.findIndex(u => u.uid === d.id);
+        const item = { uid: d.id, data: d.data() };
+        if (i >= 0) adminSupportUsersCache[i] = item; else adminSupportUsersCache.push(item);
+      });
+    }
+    async function loadAdminUsersPage(reset) {
+      if (adminUsersLoading) return;
+      adminUsersLoading = true;
+      try {
+        if (reset) { adminUsersCursor = null; adminUsersAllLoaded = false; adminUsersLastSortedDocs = []; }
+        const col = window.fs.collection(window.db, 'users');
+        const parts = [col, window.fs.orderBy(window.fs.documentId()), window.fs.limit(ADMIN_USERS_PAGE)];
+        if (adminUsersCursor) parts.splice(2, 0, window.fs.startAfter(adminUsersCursor));
+        const [snap, countSnap] = await Promise.all([
+          window.fs.getDocs(window.fs.query(...parts)),
+          (reset || adminUsersTotal == null) ? window.fs.getCountFromServer(col).catch(() => null) : Promise.resolve(null),
+        ]);
+        if (countSnap) adminUsersTotal = countSnap.data().count;
+        if (snap.docs.length) adminUsersCursor = snap.docs[snap.docs.length - 1];
+        if (snap.docs.length < ADMIN_USERS_PAGE) adminUsersAllLoaded = true;
+        adminUsersLastSortedDocs = sortAdminUsers((adminUsersLastSortedDocs || []).concat(snap.docs));
+        mergeIntoSupportCache(snap.docs);
+        adminSupportUsersCacheLoading = false;
+      } catch (err) {
+        const container = document.getElementById('admin-tab-users');
+        if (container) container.innerHTML = `<div class="admin-card" style="color:#c0392b;">載入失敗：${escapeHtml(err.message || err)}</div>`;
+        adminUsersLoading = false;
+        return;
+      }
+      adminUsersLoading = false;
+      renderAdminUsersTable();
+      if (adminTabShowing('support')) renderAdminSupportTab();
+    }
+    window.adminLoadMoreUsers = function() { loadAdminUsersPage(false); };
+    window.adminReloadUsers = function() { loadAdminUsersPage(true); };
     function renderAdminUsersTab() {
       const container = document.getElementById('admin-tab-users');
       if (!container || !window.db || !window.fs) return;
-      container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">載入中用戶資料...</p>';
-
-      if (adminUsersUnsubscribe) adminUsersUnsubscribe();
-      adminUsersUnsubscribe = window.fs.onSnapshot(window.fs.collection(window.db, 'users'), (snapshot) => {
-        // 按建立時間由舊到新排（唔靠 Firestore 讀出嚟嗰個順序，實測唔一定係
-        // 建立順序）；createdAt 舊帳號可能冇呢個欄位，冇嘅當做「最舊」排最前，
-        // 唔會搞亂晒個排序
-        adminUsersLastSortedDocs = [...snapshot.docs].sort((a, b) => {
-          const ta = new Date(a.data().createdAt || 0).getTime() || 0;
-          const tb = new Date(b.data().createdAt || 0).getTime() || 0;
-          return ta - tb;
-        });
-        // v1.229.3：同一份資料供上面「搜尋用戶」使用，不用另外再讀一次
-        adminSupportUsersCache = adminUsersLastSortedDocs.map(d => ({ uid: d.id, data: d.data() }));
-        adminSupportUsersCacheLoading = false;
-        renderAdminUsersTable();
-        if (adminTabShowing('support')) renderAdminSupportTab();
-      }, (err) => {
-        container.innerHTML = `<div class="admin-card" style="color:#c0392b;">載入失敗：${err.message || err}</div>`;
-      });
+      if (adminUsersUnsubscribe) { adminUsersUnsubscribe(); adminUsersUnsubscribe = null; }
+      container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">正在載入用戶資料…</p>';
+      loadAdminUsersPage(true);
     }
     window.renderAdminUsersTab = renderAdminUsersTab;
 
@@ -2588,7 +2627,7 @@
       }).join('');
 
       container.innerHTML = `
-        <p style="font-size:13px; color:#888; margin-bottom:14px;">呢度改嘅文字就係未登入訪客打開網站第一眼見到嘅 Landing page 內容，三種語言可以分開改，改完撳最底「儲存全部改動」就會即時全站生效（包括未登入嘅訪客），唔使搵開發者改 code。</p>
+        <p style="font-size:13px; color:#888; margin-bottom:14px;">這裏的文字是未登入訪客打開網站時首先看到的首頁內容，三種語言可以分開修改。修改後點擊最底的「儲存全部改動」，即時全站生效（包括未登入的訪客），毋須修改程式。</p>
         ${renderAdminLandingImageCard('navLogoUrl', '主橫幅 Logo', '顯示喺 Landing page 主橫幅左上方嘅大 Logo（建議用透明背景 PNG，闊度約 600px 以上）。', 'logo-hero.png')}
         ${renderAdminLandingImageCard('heroImageUrl', '主橫幅吉祥物圖', '顯示在主橫幅中間的 Ottiee 吉祥物圖案。', 'ottie-wave.png')}
         ${groupsHtml}
@@ -3043,7 +3082,7 @@
       container.innerHTML = `
         <div class="admin-card">
           <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); margin-bottom:14px;">視訊溫習室防掛機參數</h3>
-          <p style="font-size:13px; color:#888; margin-bottom:16px;">呢組數值用嚟防止學生掛機／開住鏡頭唔理攞盡計分。單位全部係「分鐘」，改完記得核實清楚先撳儲存；已經喺房入面嘅學生唔會即時生效，要等佢哋下次入房／下次開咪先跟新數值。</p>
+          <p style="font-size:13px; color:#888; margin-bottom:16px;">這組數值用作防止學生掛機或開着鏡頭不理會而賺取積分，單位均為「分鐘」，請核實後才儲存。已在房內的學生不會即時生效，要待下次入房或開咪時才套用新數值。</p>
           ${ANTI_IDLE_FIELDS.map(f => `
             <div style="margin-bottom:16px;">
               <label style="font-size:13px; font-weight:bold; color:var(--brand-700); display:block; margin-bottom:6px;">${f.label}</label>
@@ -3243,7 +3282,7 @@
 
       container.innerHTML = `
         <div class="admin-card" style="margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-          <p style="font-size:13px; color:#888; margin:0;">數據截至：${lastUpdateText}（讀取當刻嘅快照，唔會自動即時更新，想攞最新數字就撳右邊個掣）</p>
+          <p style="font-size:13px; color:#888; margin:0;">數據截至：${lastUpdateText}（讀取當刻的快照，不會自動更新；如需最新數字，請點擊右邊的按鈕）</p>
           <button type="button" class="btn btn-outline" style="font-size:13px; padding:6px 14px;" ${refreshingNow ? 'disabled' : ''} onclick="window.adminRefreshDashboard()">${refreshingNow ? '更新中…' : '重新整理'}</button>
           <button type="button" class="btn btn-outline" style="font-size:13px; padding:6px 14px;" onclick="window.adminBackfillPublicProfiles(this)" title="為所有用戶建立／更新公開資料卡（用戶名、頭像、學校等）。系統更新後執行一次即可，重複執行亦無影響。">同步公開資料</button>
         </div>
@@ -3304,7 +3343,7 @@
       container.innerHTML = `
         <div class="admin-card">
           <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); margin-bottom:14px;">全站公告橫幅</h3>
-          <p style="font-size:13px; color:#888; margin-bottom:16px;">顯示喺成個網站最頂（登入前Landing page同登入後主應用都會見到）。訪客可以撳 ✕ 自行收埋，收埋之後除非你改咗底下嘅文字，否則唔會再跳出嚟煩佢。</p>
+          <p style="font-size:13px; color:#888; margin-bottom:16px;">顯示於整個網站最頂部（登入前首頁及登入後主應用均會看到）。訪客可以點擊關閉，關閉後除非公告文字有所修改，否則不會再次顯示。</p>
           <label style="display:flex; align-items:center; gap:8px; font-size:14px; margin-bottom:18px; cursor:pointer;">
             <input type="checkbox" ${d.enabled ? 'checked' : ''} onchange="adminUpdateAnnouncementDraft('enabled', this.checked)"> 開啟公告橫幅
           </label>
@@ -3326,7 +3365,7 @@
             <label style="font-size:13px; font-weight:bold; color:var(--brand-700); display:block; margin-bottom:6px;">公告內容（廣東話）</label>
             <textarea rows="2" style="width:100%; max-width:560px; font-size:15px; padding:8px 10px; border:1px solid #DCE5F4; border-radius:6px; font-family:inherit;" oninput="adminUpdateAnnouncementMessage('yue', this.value)">${escapeHtml(d.message['yue'])}</textarea>
           </div>
-          <p style="font-size:13px; color:#999; margin-top:6px;">某種語言留空嘅話，揀咗嗰種語言嘅訪客會自動退返顯示繁體中文版本。</p>
+          <p style="font-size:13px; color:#999; margin-top:6px;">如某種語言留空，選擇該語言的訪客會自動顯示繁體中文版本。</p>
         </div>
         <div style="text-align:center; margin-top:16px;">
           <button type="button" class="btn btn-primary" id="btn-admin-save-announcement" style="padding:12px 32px; font-size:15px;" onclick="adminSaveAnnouncement()">儲存全部改動</button>
@@ -3474,7 +3513,7 @@
       if (!window.db || !window.fs) return;
       // v1.229.3：「全部用戶」表格已在即時監聽 users，直接沿用，不重複讀取
       if (adminUsersLastSortedDocs) {
-        adminSupportUsersCache = adminUsersLastSortedDocs.map(d => ({ uid: d.id, data: d.data() }));
+        mergeIntoSupportCache(adminUsersLastSortedDocs);
         renderAdminSupportTab();
         return;
       }
@@ -3533,7 +3572,7 @@
 
           <div style="border-top:1px solid #F0F0F0; padding-top:14px; margin-bottom:14px;">
             <h4 style="font-size:14px; font-weight:bold; color:var(--brand-700); margin-bottom:8px;">補發／扣減 PTS</h4>
-            <p style="font-size:13px; color:#999; margin-bottom:8px;">正數係補發，負數係扣減（例如處理爭議或者錯誤發放）。</p>
+            <p style="font-size:13px; color:#999; margin-bottom:8px;">正數為補發，負數為扣減（例如處理爭議或錯誤發放）。</p>
             <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
               <input type="number" step="1" value="${adminSupportPointsGrantAmount}" style="width:120px; font-size:15px; padding:8px 10px; border:1px solid #DCE5F4; border-radius:6px;" oninput="adminUpdateSupportPointsAmount(this.value)">
               <button type="button" class="btn btn-primary" style="font-size:13px; padding:6px 16px;" onclick="adminGrantSupportPoints('${uid}')">確認</button>
@@ -3586,11 +3625,7 @@
       }
 
       const q = adminSupportQuery.trim().toLowerCase();
-      const matches = q ? adminSupportUsersCache.filter(u => {
-        const d = u.data;
-        const hay = [d.username, d.loginId, d.contactEmail, d.email].filter(Boolean).join(' ').toLowerCase();
-        return hay.includes(q);
-      }).slice(0, 20) : [];
+      const matches = q ? (adminSupportSearchResults || []) : [];
 
       const selected = adminSupportSelectedUid ? adminSupportUsersCache.find(u => u.uid === adminSupportSelectedUid) : null;
 
@@ -3599,13 +3634,13 @@
           <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;">搜尋用戶</h3>
           <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
           <form style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;" onsubmit="event.preventDefault(); adminUpdateSupportQuery(document.getElementById('admin-support-q').value);">
-            <input id="admin-support-q" type="search" enterkeyhint="search" placeholder="輸入帳號 ID／用戶名／Email（部分符合即可）" value="${escapeHtml(adminSupportQuery)}" style="flex:1; min-width:220px; font-size:15px; padding:8px 10px; border:1px solid #DCE5F4; border-radius:6px;">
+            <input id="admin-support-q" type="search" enterkeyhint="search" placeholder="輸入帳號 ID／用戶名／電郵（開頭相符即可）" value="${escapeHtml(adminSupportQuery)}" style="flex:1; min-width:220px; font-size:15px; padding:8px 10px; border:1px solid #DCE5F4; border-radius:6px;">
             <button type="submit" class="btn btn-primary" style="font-size:14px; padding:7px 18px;">搜尋</button>
           </form>
-          <p style="font-size:13px; color:#999; margin-top:8px;">輸入後按「搜尋」或 Enter。現共 ${adminSupportUsersCache.length} 位用戶（資料即時更新）。</p>
+          <p style="font-size:13px; color:#999; margin-top:8px;">輸入帳號 ID、用戶名或電郵的開頭（或完整 UID），然後按「搜尋」或 Enter。</p>
           ${q ? `
             <div style="margin-top:12px; max-height:260px; overflow-y:auto;">
-              ${matches.length === 0 ? '<p style="color:#999; font-size:13px;">搵唔到相關用戶</p>' : matches.map(u => `
+              ${matches.length === 0 ? '<p style="color:#999; font-size:13px;">找不到相關用戶</p>' : matches.map(u => `
                 <div style="padding:8px 10px; border-bottom:1px solid #F0F0F0; cursor:pointer; ${adminSupportSelectedUid === u.uid ? 'background:var(--brand-50);' : ''}" onclick="adminSelectSupportUser('${u.uid}')">
                   <b>${escapeHtml(u.data.username || '—')}</b>
                   <span style="color:#888; font-size:13px;"> ／ ${escapeHtml(u.data.loginId || '未設定')} ／ ${escapeHtml(u.data.contactEmail || u.data.email || '—')}</span>
@@ -3619,8 +3654,30 @@
     }
     window.renderAdminSupportTab = renderAdminSupportTab;
 
-    window.adminUpdateSupportQuery = function(value) {
+    // v1.230.0：搜尋改為向伺服器查詢（帳號 ID／用戶名／電郵開頭相符），唔使預先載入全部用戶
+    let adminSupportSearchResults = [];
+    window.adminUpdateSupportQuery = async function(value) {
       adminSupportQuery = value;
+      const raw = String(value || '').trim();
+      if (!raw) { adminSupportSearchResults = []; renderAdminSupportTab(); return; }
+      const col = window.fs.collection(window.db, 'users');
+      const variants = Array.from(new Set([raw, raw.toLowerCase()]));
+      const fields = ['loginId', 'username', 'contactEmail'];
+      const tasks = [];
+      fields.forEach(f => variants.forEach(v => tasks.push(
+        window.fs.getDocs(window.fs.query(col, window.fs.where(f, '>=', v), window.fs.where(f, '<=', v + '\uf8ff'), window.fs.limit(10))).catch(() => null)
+      )));
+      tasks.push(window.fs.getDoc(window.fs.doc(window.db, 'users', raw)).catch(() => null));
+      const results = await Promise.all(tasks);
+      const seen = new Map();
+      results.forEach(r => {
+        if (!r) return;
+        const docs = r.docs ? r.docs : (r.exists && r.exists() ? [r] : []);
+        docs.forEach(d => seen.set(d.id, d));
+      });
+      const docs = Array.from(seen.values());
+      mergeIntoSupportCache(docs);
+      adminSupportSearchResults = docs.map(d => ({ uid: d.id, data: d.data() })).slice(0, 20);
       renderAdminSupportTab();
     };
 
@@ -3680,7 +3737,7 @@
         window.showToast('請輸入不是 0 的數值', '⚠️');
         return;
       }
-      if (!(await window.appConfirm(`確定要幫呢位用戶${amount > 0 ? '補發' : '扣減'} ${Math.abs(amount)} PTS？`))) return;
+      if (!(await window.appConfirm(`確定為這位用戶${amount > 0 ? '補發' : '扣減'} ${Math.abs(amount)} PTS？`))) return;
       try {
         await window.fs.updateDoc(window.fs.doc(window.db, 'users', uid), { points: window.fs.increment(amount) });
         await logAdminAction('補發／扣減PTS', { uid, amount });
@@ -3713,7 +3770,7 @@
         return;
       }
       const sticker = GACHA_STICKERS.find(s => s.id === stickerId);
-      if (!(await window.appConfirm(`確定要幫呢位用戶補發 ${qty} 張「${sticker ? sticker.name : '#' + stickerId}」？`))) return;
+      if (!(await window.appConfirm(`確定為這位用戶補發 ${qty} 張「${sticker ? sticker.name : '#' + stickerId}」？`))) return;
       try {
         const payload = {};
         payload['ownedStickers.' + stickerId] = window.fs.increment(qty);
@@ -3760,7 +3817,7 @@
       const container = document.getElementById('admin-tab-adminlist');
       if (!container) return;
       if (!isCurrentUserSuperAdmin()) {
-        container.innerHTML = '<div class="admin-card" style="color:#c0392b;">淨係「超級管理員」先睇得到呢頁。</div>';
+        container.innerHTML = '<div class="admin-card" style="color:#c0392b;">只有「超級管理員」可以查看此頁。</div>';
         return;
       }
       if (!adminAdminListDraft) {
@@ -3789,8 +3846,8 @@
       container.innerHTML = `
         <div class="admin-card" style="margin-bottom:16px;">
           <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;">管理員名單</h3>
-          <p style="font-size:13px; color:#888; margin-bottom:10px;"><b>超級管理員</b>見到並用得到全部分頁同設定；<b>客服／支援管理員</b>淨係見到日常客服／巡查用得著嗰幾頁（數據總覽、用戶管理、舉報處理、導師申請、學校電郵審批、溫習室監察、疑難解答區管理），見唔到網站設定（扭蛋機、計分規則等）同呢兩頁管治分頁。</p>
-          <p style="font-size:13px; color:#c17a2e; margin-bottom:14px;">⚠️ 呢個分級目前係Admin後台「入口介面」層面嘅限制（控制畫面見唔見到、撳唔撳到嗰啲分頁），唔係Firestore資料庫層面嘅硬性保障——適合互相信任嘅細團隊減少誤觸同簡化介面，唔係防惡意內部人員嘅保安牆。</p>
+          <p style="font-size:13px; color:#888; margin-bottom:10px;"><b>超級管理員</b>可以使用全部分頁及設定；<b>客服／支援管理員</b>只會看到日常客服及巡查所需的分頁（數據總覽、用戶管理、舉報處理、導師申請、學校電郵審批、溫習室監察、疑難解答區管理），看不到網站設定（扭蛋機、計分規則等）及這兩個管治分頁。</p>
+          <p style="font-size:13px; color:#c17a2e; margin-bottom:14px;">注意：此分級主要是後台介面層面的限制（控制可以看到及點擊哪些分頁），部分設定另有資料庫規則保護，但並非完整的防內部人員保安措施，適合互相信任的小團隊使用。</p>
           <div style="overflow-x:auto;">
             <table class="admin-table">
               <thead><tr><th>帳號ID</th><th>權限等級</th><th></th></tr></thead>
@@ -3850,7 +3907,7 @@
       if (!adminAdminListDraft) return;
       const entries = adminAdminListDraft.entries;
       if (entries.length === 0) {
-        window.showToast('管理員名單唔可以清空——你會即刻撳唔返入嚟Admin後台', '⚠️');
+        window.showToast('管理員名單不可以清空，否則將無法再進入管理後台', '⚠️');
         return;
       }
       const superCount = entries.filter(e => e.role === 'super').length;
@@ -3862,7 +3919,7 @@
       const stillAdmin = entries.some(e => e.loginId === myLoginId);
       const stillSuper = entries.some(e => e.loginId === myLoginId && e.role === 'super');
       if (!stillAdmin) {
-        if (!(await window.appConfirm('你將會喺呢次儲存之後移除咗自己嘅管理員身份，即刻會撳唔返入嚟Admin後台。確定要咁做？'))) return;
+        if (!(await window.appConfirm('儲存後你將移除自己的管理員身份，並即時無法再進入管理後台。確定要這樣做嗎？'))) return;
       } else if (!stillSuper) {
         if (!(await window.appConfirm('儲存後你將會降為「客服／支援管理員」，並立即無法查看此頁及其他設定分頁。確定要這樣做嗎？'))) return;
       }
@@ -3916,7 +3973,7 @@
       const container = document.getElementById('admin-tab-auditlog');
       if (!container) return;
       if (!isCurrentUserSuperAdmin()) {
-        container.innerHTML = '<div class="admin-card" style="color:#c0392b;">淨係「超級管理員」先睇得到呢頁。</div>';
+        container.innerHTML = '<div class="admin-card" style="color:#c0392b;">只有「超級管理員」可以查看此頁。</div>';
         return;
       }
       if (!adminAuditLogEntries && !adminAuditLogLoading) {
@@ -3936,7 +3993,7 @@
 
       container.innerHTML = `
         <div class="admin-card" style="margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-          <p style="font-size:13px; color:#888; margin:0;">顯示最近 ${adminAuditLogEntries.length} 筆重要操作紀錄（停權、補發分數／貼紙、強制關房、導師審批、管理員名單異動等）。呢個清單讀取於你打開／重新整理呢頁嗰一刻，撳右邊個掣攞最新。</p>
+          <p style="font-size:13px; color:#888; margin:0;">顯示最近 ${adminAuditLogEntries.length} 筆重要操作紀錄（停權、補發分數／貼紙、強制關房、導師審批、管理員名單異動等）。清單於打開或重新整理此頁時讀取，如需最新紀錄，請點擊右邊的按鈕。</p>
           <button type="button" class="btn btn-outline" style="font-size:13px; padding:6px 14px;" onclick="window.adminRefreshAuditLog()">重新整理</button>
         </div>
         <div class="admin-card">
@@ -4022,7 +4079,7 @@
       const container = document.getElementById('admin-tab-subjects');
       if (!container) return;
       if (!isCurrentUserSuperAdmin()) {
-        container.innerHTML = '<div class="admin-card" style="color:#c0392b;">淨係「超級管理員」先睇得到呢頁。</div>';
+        container.innerHTML = '<div class="admin-card" style="color:#c0392b;">只有「超級管理員」可以查看此頁。</div>';
         return;
       }
       if (!subjectListConfigLoaded) {
@@ -4038,7 +4095,7 @@
 
       container.innerHTML = `
         <div class="admin-card" style="margin-bottom:16px;">
-          <p style="font-size:13px; color:#888; margin:0;">呢度顯示全站用緊嘅HKDSE科目清單（導師「想教嘅科目」、教材管理「新增科目」用）。為咗唔累壞舊有已經用緊呢啲科目名嘅帖子／房間／導師申請資料，呢頁淨係可以<b>新增</b>科目，唔支援改名或者刪除——如果新增錯咗，可以搵我手動處理。</p>
+          <p style="font-size:13px; color:#888; margin:0;">此處顯示全站使用的 HKDSE 科目清單（用於導師「想教的科目」及教材管理「新增科目」）。為免影響已使用這些科目名稱的帖子、房間及導師申請資料，此頁只可以<b>新增</b>科目，不支援改名或刪除；如新增錯誤，請聯絡開發者處理。</p>
         </div>
         <div class="admin-card" style="margin-bottom:16px;">
           <p style="font-size:13px; font-weight:bold; margin-bottom:8px;">➕ 新增科目</p>
@@ -4143,7 +4200,7 @@
       const container = document.getElementById('admin-tab-districts');
       if (!container) return;
       if (!isCurrentUserSuperAdmin()) {
-        container.innerHTML = '<div class="admin-card" style="color:#c0392b;">淨係「超級管理員」先睇得到呢頁。</div>';
+        container.innerHTML = '<div class="admin-card" style="color:#c0392b;">只有「超級管理員」可以查看此頁。</div>';
         return;
       }
       if (!districtListConfigLoaded) {
@@ -4163,7 +4220,7 @@
 
       container.innerHTML = `
         <div class="admin-card" style="margin-bottom:16px;">
-          <p style="font-size:13px; color:#888; margin:0;">呢度顯示全站用緊嘅香港地區清單（註冊表格揀學校地區、分區溫習排行榜用）。同科目清單一樣，淨係可以<b>新增</b>，唔支援改名或者刪除。</p>
+          <p style="font-size:13px; color:#888; margin:0;">此處顯示全站使用的香港地區清單（用於註冊表格選擇學校地區及分區溫習排行榜）。與科目清單一樣，只可以<b>新增</b>，不支援改名或刪除。</p>
         </div>
         <div class="admin-card" style="margin-bottom:16px;">
           <p style="font-size:13px; font-weight:bold; margin-bottom:8px;">➕ 新增地區</p>
@@ -4286,7 +4343,7 @@
       const container = document.getElementById('admin-tab-schools');
       if (!container) return;
       if (!isCurrentUserSuperAdmin()) {
-        container.innerHTML = '<div class="admin-card" style="color:#c0392b;">淨係「超級管理員」先睇得到呢頁。</div>';
+        container.innerHTML = '<div class="admin-card" style="color:#c0392b;">只有「超級管理員」可以查看此頁。</div>';
         return;
       }
       if (!schoolListConfigLoaded) {
@@ -4303,7 +4360,7 @@
 
       container.innerHTML = `
         <div class="admin-card" style="margin-bottom:16px;">
-          <p style="font-size:13px; color:#888; margin:0;">呢度可以新增註冊表格揀學校用嘅中學／大專院校。同科目清單／地區清單一樣，淨係可以<b>新增</b>，唔支援改名或者刪除。下面表格淨係顯示你喺呢度新增嘅學校，內建嗰成千幾間中學／院校唔會逐間列出嚟（可以去網站註冊表格揀地區睇齊內建清單）。</p>
+          <p style="font-size:13px; color:#888; margin:0;">此處可以新增註冊表格可選的中學及大專院校。與科目及地區清單一樣，只可以<b>新增</b>，不支援改名或刪除。下表只顯示在此新增的學校，內建的一千多間中學及院校不會逐一列出（可在註冊表格選擇地區查看完整清單）。</p>
         </div>
         <div class="admin-card" style="margin-bottom:16px;">
           <p style="font-size:13px; font-weight:bold; margin-bottom:8px;">➕ 新增中學</p>
@@ -4326,7 +4383,7 @@
           <div style="overflow-x:auto;">
             <table class="admin-table">
               <thead><tr><th>中學（後台新增）</th><th>地區</th></tr></thead>
-              <tbody>${secondaryRows || '<tr><td colspan="2" style="text-align:center; color:#999;">暫時未有後台新增嘅中學</td></tr>'}</tbody>
+              <tbody>${secondaryRows || '<tr><td colspan="2" style="text-align:center; color:#999;">暫時未有在後台新增的中學</td></tr>'}</tbody>
             </table>
           </div>
         </div>
@@ -4351,7 +4408,7 @@
           <div style="overflow-x:auto;">
             <table class="admin-table">
               <thead><tr><th>大專／大學（後台新增）</th><th>地區</th></tr></thead>
-              <tbody>${tertiaryRows || '<tr><td colspan="2" style="text-align:center; color:#999;">暫時未有後台新增嘅院校</td></tr>'}</tbody>
+              <tbody>${tertiaryRows || '<tr><td colspan="2" style="text-align:center; color:#999;">暫時未有在後台新增的院校</td></tr>'}</tbody>
             </table>
           </div>
         </div>
@@ -4632,7 +4689,7 @@
       const container = document.getElementById('admin-tab-legal');
       if (!container) return;
       if (!isCurrentUserSuperAdmin()) {
-        container.innerHTML = '<div class="admin-card" style="color:#c0392b;">淨係「超級管理員」先睇得到呢頁。</div>';
+        container.innerHTML = '<div class="admin-card" style="color:#c0392b;">只有「超級管理員」可以查看此頁。</div>';
         return;
       }
       if (!legalContentConfigLoaded) {
@@ -4651,7 +4708,7 @@
 
       container.innerHTML = `
         <div class="admin-card" style="margin-bottom:16px;">
-          <p style="font-size:13px; color:#888; margin:0;">呢度編輯「服務條款」同「私隱政策」嘅內容，支援三語言分開編輯。段落之間留一行空白分段；想要粗體小標題（例如「第一條　服務內容」），喺嗰行開頭打「#」。⚠️ 法律文字嘅English／廣東話版本（翻譯是否準確、是否符合法律要求）請你自己把關或者搵專業人士核實，我哋淨係提供編輯工具，唔負責法律文字本身嘅準確性。</p>
+          <p style="font-size:13px; color:#888; margin:0;">此處編輯「服務條款」及「私隱政策」的內容，三種語言可以分開編輯。段落之間留一行空白；如需粗體小標題（例如「第一條　服務內容」），請在該行開頭輸入「#」。注意：English 及廣東話版本的翻譯準確性及法律效力，請自行核實或諮詢專業人士。</p>
         </div>
         <div class="admin-card" style="margin-bottom:16px;">
           <div style="display:flex; gap:8px; margin-bottom:10px;">${docBtns}</div>
@@ -5111,6 +5168,31 @@
     if (errs.vultr) errNotes.push('Vultr 數據未能取得，直播流量改用系統估算：' + errs.vultr);
     const s = d.settings || {};
     const updated = new Date(d.at).toLocaleString('zh-HK', { hour12: false });
+    // v1.230.1：每月預算自動控制狀態
+    const g = d.budgetGuard || {};
+    const budget = Number(s.monthlyBudgetUSD) || 0;
+    const fmtTime = (ms) => ms ? new Date(ms).toLocaleString('zh-HK', { hour12: false }) : '';
+    let budgetHtml;
+    if (g.paused) {
+      budgetHtml = `<div class="card" style="padding:16px; border:2px solid #C0392B; background:#FDF1EF;">
+        <h3 style="margin:0 0 6px; font-size:16px; color:#A33A2F;">直播已自動暫停（本月開支已達預算上限）</h3>
+        <p style="margin:0; font-size:14px; line-height:1.7; color:#5A2A24;">暫停時間：${esc(fmtTime(g.pausedAt))}<br>本月估算 ${usd(d.totalUSD)}，預算上限 ${usd(budget || g.budgetUSD)}。<br>暫停期間一般用戶不能開始或觀看直播（管理員除外）。提高預算上限或關閉「自動暫停」後儲存，直播會即時恢復；下月估算回落至預算以下亦會自動恢復。</p>
+      </div>`;
+    } else if (budget > 0) {
+      const pct = Math.round(d.totalUSD / budget * 100);
+      const barColor = pct >= 90 ? '#C0392B' : pct >= 70 ? '#E0A800' : '#4A68A8';
+      budgetHtml = `<div class="card" style="padding:16px;">
+        <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; align-items:baseline;">
+          <h3 style="margin:0; font-size:16px;">每月預算控制</h3>
+          <span style="font-size:13px; color:#6B7894;">自動暫停直播：<b>${s.budgetAutoStop ? '已開啟' : '未開啟'}</b></span>
+        </div>
+        <p style="margin:6px 0 8px; font-size:14px;">本月估算 ${usd(d.totalUSD)} ／ 預算上限 ${usd(budget)}（${pct}%）</p>
+        <div style="height:10px; background:var(--brand-100); border-radius:6px; overflow:hidden;"><div style="height:100%; width:${Math.min(100, pct)}%; background:${barColor};"></div></div>
+        ${g.resumedAt ? `<p style="margin:8px 0 0; font-size:12px; color:#8A94A8;">上次自動恢復直播：${esc(fmtTime(g.resumedAt))}</p>` : ''}
+      </div>`;
+    } else {
+      budgetHtml = `<div class="card" style="padding:16px;"><h3 style="margin:0 0 4px; font-size:16px;">每月預算控制</h3><p style="margin:0; font-size:13px; color:#6B7894;">尚未設定預算上限。可在下方「方案設定」填寫每月預算上限，並開啟「超出預算時自動暫停直播」。</p></div>`;
+    }
 
     panel.innerHTML = `
       <div class="card" style="padding:16px;">
@@ -5131,6 +5213,8 @@
         </div>
       </div>
 
+      ${budgetHtml}
+
       <div class="card" style="padding:16px;">
         <h3 style="margin:0 0 10px; font-size:16px;">需要處理的項目</h3>
         ${alertHtml}
@@ -5146,7 +5230,7 @@
         </div>
         <div class="card" style="padding:16px; margin:0;">
           <h3 style="margin:0 0 4px; font-size:16px;">過去 6 個月估算開支</h3>
-          <p style="margin:0; font-size:12px; color:#8A94A8;">每月數字於管理員打開此分頁時記錄</p>
+          <p style="margin:0; font-size:12px; color:#8A94A8;">每 3 小時自動記錄一次當月估算</p>
           ${bars(d.history || [])}
         </div>
       </div>
@@ -5161,8 +5245,10 @@
           <label>EmailJS 方案<select id="cost-emailjs" style="width:100%; box-sizing:border-box; margin-top:4px; padding:8px; border:1px solid var(--brand-200); border-radius:8px;">
             ${[[200, '免費（每月 200 封）'], [2000, 'Personal（2,000 封，US$9）'], [5000, 'Professional（5,000 封，US$15）'], [25000, 'Business（25,000 封，US$40）']].map(([v, l]) => `<option value="${v}" ${Number(s.emailjsQuota) === v ? 'selected' : ''}>${l}</option>`).join('')}
           </select></label>
+          <label>每月預算上限（US$，0 為不設）<input id="cost-budget" type="number" min="0" step="1" value="${esc(s.monthlyBudgetUSD || 0)}" style="width:100%; box-sizing:border-box; margin-top:4px; padding:8px; border:1px solid var(--brand-200); border-radius:8px;"></label>
+          <label style="display:flex; align-items:center; gap:8px; margin-top:22px;"><input id="cost-budget-autostop" type="checkbox" ${s.budgetAutoStop ? 'checked' : ''}>超出預算時自動暫停直播</label>
         </div>
-        <p style="margin:10px 0 0; font-size:12px; color:#8A94A8;">中轉伺服器的上限請在「中轉伺服器」分頁設定。</p>
+        <p style="margin:10px 0 0; font-size:12px; color:#8A94A8;">系統每 3 小時檢查一次本月估算開支；達到預算上限時會結束所有進行中的直播，並暫停開播及觀看，直至估算回落至預算以下。中轉伺服器的上限請在「中轉伺服器」分頁設定。</p>
         <button type="button" class="btn btn-primary" style="margin-top:12px;" onclick="window.adminSaveCostSettings()">儲存方案設定</button>
       </div>`;
   }
@@ -5173,7 +5259,9 @@
     try {
       await window.callCloudFunction('saveCostSettings', {
         vultrMonthlyUSD: v('cost-vultr-fee'), vultrIncludedGB: v('cost-vultr-gb'),
-        liveViewerCapacity: v('cost-live-cap'), emailjsQuota: v('cost-emailjs')
+        liveViewerCapacity: v('cost-live-cap'), emailjsQuota: v('cost-emailjs'),
+        monthlyBudgetUSD: v('cost-budget'),
+        budgetAutoStop: !!(document.getElementById('cost-budget-autostop') || {}).checked
       });
       window.showToast('已儲存方案設定', '✅');
       load(true);

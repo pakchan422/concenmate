@@ -540,7 +540,8 @@ service cloud.firestore {
         isAdmin(database)
       );
       match /participants/{uid} {
-        allow read: if request.auth != null;
+        // v1.230.0：房內成員名單只限自己、同房成員及管理員讀取（保護中學生溫習室成員身份）
+        allow read: if request.auth != null && (request.auth.uid == uid || isRoomParticipant(database, roomId) || isAdmin(database));
         // ⚠️ create 一定要先有一張仲未過期嘅入場證（見上面
         // hasValidRoomEntryTicket()）——密碼、踢人名單已經喺簽發入場證
         // 嗰步（verifyRoomPassword Cloud Function）核實過，呢度唔使再
@@ -685,6 +686,8 @@ service cloud.firestore {
         request.resource.data.commentCount == 0 &&
         request.resource.data.title is string && request.resource.data.title.size() <= 100 &&
         request.resource.data.subject is string && request.resource.data.subject.size() <= 50 &&
+        // v1.230.0：內容字數上限
+        (!('body' in request.resource.data) || (request.resource.data.body is string && request.resource.data.body.size() <= 2000)) &&
         (!('photos' in request.resource.data) || (request.resource.data.photos is list && request.resource.data.photos.size() <= 6));
       // ⚠️ update 之前係 request.auth != null 就得，即係任何已登入用戶
       // 都可以改任何一篇貼文嘅內容（唔淨止 commentCount），變成任何人
@@ -702,8 +705,17 @@ service cloud.firestore {
       allow delete: if request.auth != null && (resource.data.uid == request.auth.uid || isAdmin(database));
       match /comments/{commentId} {
         allow read: if request.auth != null;
-        allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
-        allow update, delete: if request.auth != null && (resource.data.uid == request.auth.uid || isAdmin(database));
+        // v1.230.0：回答加字數及相片數上限，並只可寫指定欄位（防止寫入超大文件）
+        allow create: if request.auth != null && request.resource.data.uid == request.auth.uid &&
+          request.resource.data.keys().hasOnly(['uid', 'authorName', 'body', 'photos', 'createdAt']) &&
+          request.resource.data.body is string && request.resource.data.body.size() <= 2000 &&
+          (!('authorName' in request.resource.data) || (request.resource.data.authorName is string && request.resource.data.authorName.size() <= 30)) &&
+          (!('photos' in request.resource.data) || (request.resource.data.photos is list && request.resource.data.photos.size() <= 6));
+        allow update: if request.auth != null && (resource.data.uid == request.auth.uid || isAdmin(database)) &&
+          request.resource.data.uid == resource.data.uid &&
+          (!('body' in request.resource.data) || (request.resource.data.body is string && request.resource.data.body.size() <= 2000)) &&
+          (!('photos' in request.resource.data) || (request.resource.data.photos is list && request.resource.data.photos.size() <= 6));
+        allow delete: if request.auth != null && (resource.data.uid == request.auth.uid || isAdmin(database));
       }
     }
     // ===================== 後台設定（扭蛋機／等級系統） =====================

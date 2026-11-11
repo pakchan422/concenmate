@@ -946,7 +946,7 @@ window.applyRoleBasedSidebar = function() {
       <label style="font-size:13px; font-weight:bold; color:#555;">標題 *</label>
       <input id="tutor-note-title" class="input-field" type="text" maxlength="80" style="width:100%; margin-bottom:8px;" placeholder="例如：三角函數重點筆記">
       <label style="font-size:13px; font-weight:bold; color:#555;">簡介</label>
-      <textarea id="tutor-note-desc" class="input-field" rows="2" maxlength="1000" style="width:100%; margin-bottom:8px; resize:vertical;" placeholder="簡單講吓呢份筆記有咩內容"></textarea>
+      <textarea id="tutor-note-desc" class="input-field" rows="2" maxlength="1000" style="width:100%; margin-bottom:8px; resize:vertical;" placeholder="簡單介紹這份筆記的內容"></textarea>
       <label style="font-size:13px; font-weight:bold; color:#555;">定價（港幣，最低 $10，只能為整數）*</label>
       <input id="tutor-note-price" class="input-field" type="number" min="10" step="1" style="width:100%; margin-bottom:8px;" placeholder="例如：30">
       <label style="font-size:13px; font-weight:bold; color:#555;">PDF 檔案 *（上限 50MB）</label>

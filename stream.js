@@ -26,6 +26,34 @@
 
   // v1.227.3：直播與視訊溫習室只可以二選一
   window.swmIsBusy = function () { return st.mode !== 'lobby'; };
+  window.swmHostStreamId = function () { return st.mode === 'host' ? st.streamId : null; };
+  // v1.230.3：主播或觀眾正在參與的直播（計分用）
+  window.swmAwardStreamId = function () { return (st.mode === 'host' || st.mode === 'viewer') ? st.streamId : null; };
+  const VIEWER_CONFIRM_MS = 25 * 60 * 1000; // 每 25 分鐘問一次「仍在溫習嗎？」
+  const VIEWER_AWARD_STALE_MS = 30 * 60 * 1000; // 伺服器 30 分鐘內要有確認
+  async function askViewerConfirm() {
+    if (st.mode !== 'viewer' || st.confirmOpen) return;
+    st.confirmOpen = true;
+    const sid = st.streamId;
+    const ok = await window.appConfirm(t('stream.stillStudying', '仍在溫習嗎？按「確定」繼續計算溫習時間及分數。'));
+    st.confirmOpen = false;
+    if (!ok || st.mode !== 'viewer' || st.streamId !== sid) return;
+    try {
+      await window.callCloudFunction('confirmStreamWatching', { streamId: sid });
+      st.lastConfirm = Date.now();
+    } catch (e) { toast(errText(e), '❌'); }
+  }
+  function startViewerAward() {
+    st.lastConfirm = Date.now();
+    if (typeof window.recordStudyDayIfNeeded === 'function') window.recordStudyDayIfNeeded();
+    st.awardTimer = setInterval(() => {
+      if (st.mode !== 'viewer' || typeof window.awardStudyPoint !== 'function') return;
+      if (Date.now() - (st.lastConfirm || 0) > VIEWER_AWARD_STALE_MS) return; // 未確認：暫停計分
+      const rules = window.SCORING_RULES || {};
+      window.awardStudyPoint(typeof rules.ptsPerMinute === 'number' ? rules.ptsPerMinute : 1, 1 / 60);
+    }, 60 * 1000);
+    st.confirmTimer = setInterval(askViewerConfirm, VIEWER_CONFIRM_MS);
+  }
   function inStudyRoom() {
     return typeof window.isInStudyRoom === 'function' && window.isInStudyRoom();
   }
@@ -297,6 +325,13 @@
         if (id) window.callCloudFunction('endStream', { streamId: id }).catch(() => {});
       });
       st.heartbeat = setInterval(sendHeartbeat, 60 * 1000);
+      // v1.230.0：主播直播期間每分鐘計分、EXP、時數及石頭（伺服器確認直播進行中及鏡頭開住才派）
+      if (typeof window.recordStudyDayIfNeeded === 'function') window.recordStudyDayIfNeeded();
+      st.awardTimer = setInterval(() => {
+        if (st.mode !== 'host' || typeof window.awardStudyPoint !== 'function') return;
+        const rules = window.SCORING_RULES || {};
+        window.awardStudyPoint(typeof rules.ptsPerMinute === 'number' ? rules.ptsPerMinute : 1, 1 / 60);
+      }, 60 * 1000);
       st.endTimer = setTimeout(() => window.swmEnd(true), Math.max(60000, res.maxEndAt - Date.now()));
       watchStreamDoc(res.streamId);
       const modal = document.getElementById('modal-create-stream');
@@ -378,6 +413,7 @@
       });
       await room.connect(res.url, res.token);
       watchBlocked(streamId);
+      startViewerAward();
       setTimeout(() => setLoading(false), 8000);
     } catch (e) {
       toast(t('stream.joinFailed', '未能觀看直播：') + errText(e), '❌');
@@ -404,6 +440,8 @@
     streamDocUnsub = window.fs.onSnapshot(window.fs.doc(window.db, 'streams', streamId), (snap) => {
       st.stream = snap.exists() ? snap.data() : null;
       if (!st.stream || st.stream.status !== 'live') {
+        // v1.230.1：每月預算自動控制暫停直播
+        if (st.stream && st.stream.endReason === 'budget' && st.mode) { stopAll(t('stream.endedBudget', '直播功能暫停中，直播已結束')); return; }
         if (st.mode === 'viewer') stopAll(t('stream.viewerEnded', '直播已結束'));
         else if (st.mode === 'host') stopAll(t('stream.endedByAdmin', '直播已被結束'));
         return;
@@ -453,11 +491,11 @@
     document.body.classList.remove('swm-full-open');
     if (document.fullscreenElement) { try { document.exitFullscreen(); } catch (_) {} }
     const room = st.room;
-    clearInterval(st.heartbeat); clearTimeout(st.endTimer);
+    clearInterval(st.heartbeat); clearTimeout(st.endTimer); clearInterval(st.awardTimer); clearInterval(st.confirmTimer);
     if (chatUnsub) { chatUnsub(); chatUnsub = null; }
     if (streamDocUnsub) { streamDocUnsub(); streamDocUnsub = null; }
     if (blockedUnsub) { blockedUnsub(); blockedUnsub = null; }
-    Object.assign(st, { mode: 'lobby', room: null, streamId: null, stream: null, heartbeat: null, endTimer: null, micOn: false, pending: [], lastMsgs: null, hiddenIds: null });
+    Object.assign(st, { mode: 'lobby', room: null, streamId: null, stream: null, heartbeat: null, endTimer: null, awardTimer: null, confirmTimer: null, confirmOpen: false, lastConfirm: 0, micOn: false, pending: [], lastMsgs: null, hiddenIds: null });
     if (room) { try { room.disconnect(); } catch (_) {} }
     if (message) toast(message, '');
     if (isTabOpen()) renderLobby();

@@ -3157,7 +3157,7 @@
       const editArea = document.createElement('div');
       editArea.id = 'edit-area-' + commentId;
       editArea.innerHTML = `
-        <textarea id="edit-input-${commentId}" class="input-field" rows="3"
+        <textarea id="edit-input-${commentId}" class="input-field" rows="3" maxlength="2000"
           style="margin-top:6px; resize:vertical; font-size:13px;">${currentBody.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"')}</textarea>
         <div style="display:flex; gap:6px; margin-top:6px;">
           <button class="btn btn-outline" style="font-size:13px; padding:4px 10px;"
@@ -4687,7 +4687,7 @@
                 <strong style="font-size:14px; color:var(--brand-800); cursor:pointer;" onclick="window.viewUserProfile && window.viewUserProfile('${post.authorUid}')">${escapeHtml(post.authorName || window.t('lb.defaultUsername', '同學'))}</strong>
                 <span style="font-size:12px; color:#999; margin-left:4px;">${formatTime(post.createdAt)}</span>
               </div>
-              <span class="tag" style="background:var(--brand-100); color:var(--brand-800);">${roleMeta.emoji} ${roleMeta.label}</span>
+              <span class="tag" style="background:var(--brand-100); color:var(--brand-800);">${roleMeta.label}</span>
             </div>
             <div style="margin-bottom:6px;">${subjectTagsHtml}</div>
             <p style="font-size:14px; color:#333; line-height:1.6; margin-bottom:10px;">${escapeHtml(post.content)}</p>
@@ -5036,7 +5036,7 @@
               </div>
             </div>
             <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
-              <button class="btn btn-outline" type="button" style="font-size:13px; padding:5px 8px;" onclick="window.openChatWindow('${f.uid}', ${safeChatName})" title="${escapeHtml(window.t('social.sendMessageTitle', '傳送訊息'))}">💬</button>
+              <button class="btn btn-outline" type="button" style="font-size:13px; padding:5px 8px;" onclick="window.openChatWindow('${f.uid}', ${safeChatName})" title="${escapeHtml(window.t('social.sendMessageTitle', '傳送訊息'))}">${window.cmIcon('chat', 16)}</button>
               <span style="font-size:13px; color:#3F588F; cursor:pointer;" onclick="viewUserProfile('${f.uid}')">${window.t('social.viewProfileLink', '看資料 ›')}</span>
             </div>
           </div>
@@ -5651,13 +5651,13 @@
             <div class="chat-window-header" onclick="window.toggleMinimizeChatWindow('${w.chatId}')">
               <span class="presence-dot ${online ? 'online' : ''}" style="position:static;"></span>
               <span class="chat-window-title">${escapeHtml(w.friendUsername)}</span>
-              <button type="button" class="chat-window-close-btn" title="清除對話記錄" onclick="event.stopPropagation(); window.clearChatHistory('${w.chatId}')">🗑️</button>
+              <button type="button" class="chat-window-close-btn" title="清除對話記錄" onclick="event.stopPropagation(); window.clearChatHistory('${w.chatId}')">${window.cmIcon('trash', 15)}</button>
               <button type="button" class="chat-window-close-btn" title="關閉視窗" aria-label="關閉視窗" onclick="event.stopPropagation(); window.closeChatWindow('${w.chatId}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
             </div>
             <div class="chat-window-body" id="chat-body-${w.chatId}"></div>
             <div class="chat-window-input-row">
               <input type="text" id="chat-input-${w.chatId}" placeholder="打字傳送訊息..." onkeydown="if(event.key==='Enter'){window.sendChatMessage('${w.chatId}');}">
-              <button type="button" onclick="window.sendChatMessage('${w.chatId}')">➤</button>
+              <button type="button" onclick="window.sendChatMessage('${w.chatId}')" aria-label="傳送">${window.cmIcon('send', 16)}</button>
             </div>
           </div>
         `;

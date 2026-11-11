@@ -14,7 +14,7 @@
 
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler"); // v1.227.9：定時清理逾時直播
-const { onDocumentWritten } = require("firebase-functions/v2/firestore"); // 分區／學校溫習排行榜：users/{uid} 一寫入就自動同步
+const { onDocumentWritten, onDocumentCreated } = require("firebase-functions/v2/firestore"); // 分區／學校溫習排行榜：users/{uid} 一寫入就自動同步
 const { setGlobalOptions } = require("firebase-functions/v2");
 const { defineSecret } = require("firebase-functions/params");
 // ⚠️ v1.198.0：忘記密碼電郵改由伺服器寄出，需要 EmailJS 嘅 Private Key。
@@ -24,6 +24,8 @@ const { defineSecret } = require("firebase-functions/params");
 // EmailJS 後台亦要喺 Account → Security 剔選
 // 「Allow EmailJS API for non-browser applications」。
 const EMAILJS_PRIVATE_KEY = defineSecret("EMAILJS_PRIVATE_KEY");
+const LIVEKIT_API_KEY = defineSecret("LIVEKIT_API_KEY");
+const LIVEKIT_API_SECRET = defineSecret("LIVEKIT_API_SECRET");
 const admin = require("firebase-admin");
 const crypto = require("crypto");
 const vision = require("@google-cloud/vision");
@@ -960,7 +962,12 @@ function levelFromExp(exp, f) {
   return level;
 }
 
-exports.awardStudyPoints = onCall(async (request) => {
+// v1.230.3：觀看直播計分——分數、EXP 及石頭進度按此比率計（溫習時數及今日目標照計足一分鐘）；
+// 觀眾要每 25 分鐘確認一次「仍在溫習」，超過 30 分鐘未確認就停止計分
+const VIEWER_AWARD_RATE = 0.5;
+const VIEWER_CONFIRM_WINDOW_MS = 30 * 60 * 1000;
+
+exports.awardStudyPoints = onCall({ secrets: [LIVEKIT_API_KEY, LIVEKIT_API_SECRET] }, async (request) => {
   const uid = request.auth && request.auth.uid;
   if (!uid) {
     throw new HttpsError("unauthenticated", "請先登入會員");
@@ -1001,11 +1008,35 @@ exports.awardStudyPoints = onCall(async (request) => {
   //     時間回復，最多儲 2 個。超出就拒絕（failed-precondition，前端會放棄
   //     呢次，唔會不停重試）。
   const roomId = request.data && request.data.roomId;
-  if (!roomId || typeof roomId !== "string" || roomId.includes("/")) {
-    throw new HttpsError("failed-precondition", "請先進入溫習室");
-  }
-  const participantSnap = await db.doc(`rooms/${roomId}/participants/${uid}`).get();
-  if (!participantSnap.exists) {
+  const streamId = request.data && request.data.streamId;
+  let awardRate = 1; // v1.230.3：觀眾 = VIEWER_AWARD_RATE
+  if (roomId && typeof roomId === "string" && !roomId.includes("/")) {
+    const participantSnap = await db.doc(`rooms/${roomId}/participants/${uid}`).get();
+    if (!participantSnap.exists) {
+      throw new HttpsError("failed-precondition", "請先進入溫習室");
+    }
+  } else if (streamId && typeof streamId === "string" && !streamId.includes("/") && isMinuteAward) {
+    // v1.230.0：主播直播期間同樣計分、EXP 及石頭（只限每分鐘溫習分；直播要仲進行緊、主播係自己、鏡頭開住）
+    const sSnap = await db.doc(`streams/${streamId}`).get();
+    const s = sSnap.exists ? sSnap.data() : null;
+    if (!s || !streamIsLive(s)) throw new HttpsError("failed-precondition", "直播已經結束");
+    if (s.hostUid === uid) {
+      if ((s.noVideoCount || 0) > 0) throw new HttpsError("failed-precondition", "直播已經結束");
+    } else {
+      // v1.230.3：觀眾——要係最近加入嘅直播、30 分鐘內確認過仍在溫習、未被移出，而且真係連線緊
+      const [watchSnap, blockedSnap] = await Promise.all([db.doc(`streamWatch/${uid}`).get(), db.doc(`streams/${streamId}/blocked/${uid}`).get()]);
+      const w = watchSnap.exists ? watchSnap.data() : null;
+      if (!w || w.streamId !== streamId || blockedSnap.exists) throw new HttpsError("failed-precondition", "請先觀看直播");
+      if (Date.now() - (w.confirmedAt || 0) > VIEWER_CONFIRM_WINDOW_MS) throw new HttpsError("failed-precondition", "請先確認仍在溫習");
+      let present = true;
+      try {
+        const res = await livekitRoomService("ListParticipants", { room: streamId });
+        if (res && Array.isArray(res.participants)) present = res.participants.some((p) => p && p.identity === uid);
+      } catch (e) { /* LiveKit 查詢失敗時不拒絕，避免誤判 */ }
+      if (!present) throw new HttpsError("failed-precondition", "請先觀看直播");
+      awardRate = VIEWER_AWARD_RATE;
+    }
+  } else {
     throw new HttpsError("failed-precondition", "請先進入溫習室");
   }
   const bonusIntervalMin = await getPresenceCheckIntervalMin();
@@ -1016,7 +1047,7 @@ exports.awardStudyPoints = onCall(async (request) => {
   // v1.224.0：黃金時段內，每分鐘溫習嘅 EXP 同石頭進度按倍數計（「仍在學習」獎勵不受影響）
   const golden = isMinuteAward ? goldenHourNow(levelRules.goldenHour) : null;
   // 倍數可以係小數（例如 1.5）：EXP 一定係整數，小數部分記喺 expFrac，下一分鐘再加返
-  const rawExpGain = expPerPoint * pointsAmount * (golden ? golden.expMultiplier : 1);
+  const rawExpGain = expPerPoint * pointsAmount * (golden ? golden.expMultiplier : 1) * awardRate;
 
   const userRef = db.doc(`users/${uid}`);
   const bucketRef = db.doc(`rateLimits/studyAwardBucket_${uid}`);
@@ -1042,12 +1073,18 @@ exports.awardStudyPoints = onCall(async (request) => {
       throw new HttpsError("failed-precondition", "你的帳戶正被暫停使用");
     }
     tx.set(bucketRef, { [field + "Credit"]: credit - 1, [field + "At"]: nowMs }, { merge: true });
-    const newPoints = (data.points || 0) + pointsAmount;
+    // v1.230.3：觀眾分數可以係小數，小數部分記喺 pointsFrac，累積到 1 分先加
+    const prevPtsFrac = (typeof data.pointsFrac === "number" && data.pointsFrac >= 0 && data.pointsFrac < 1) ? data.pointsFrac : 0;
+    const ptsTotal = pointsAmount * awardRate + prevPtsFrac;
+    const ptsGain = Math.floor(ptsTotal + 1e-9);
+    const newPtsFrac = Math.round((ptsTotal - ptsGain) * 1000) / 1000;
+    const newPoints = (data.points || 0) + ptsGain;
     const prevFrac = (typeof data.expFrac === "number" && data.expFrac >= 0 && data.expFrac < 1) ? data.expFrac : 0;
     const totalGain = rawExpGain + prevFrac;
     const expGain = Math.floor(totalGain + 1e-9);
     const newExp = (data.exp || 0) + expGain;
     const update = { points: newPoints, exp: newExp };
+    if (newPtsFrac !== prevPtsFrac) update.pointsFrac = newPtsFrac;
     const newFrac = Math.round((totalGain - expGain) * 1000) / 1000;
     if (newFrac !== prevFrac) update.expFrac = newFrac;
 
@@ -1090,7 +1127,7 @@ exports.awardStudyPoints = onCall(async (request) => {
         stones = b.stones;
         stoneMinutes = b.stoneMinutes;
       }
-      stoneMinutes = Math.round((stoneMinutes + (golden ? golden.stoneMultiplier : 1)) * 1000) / 1000;
+      stoneMinutes = Math.round((stoneMinutes + (golden ? golden.stoneMultiplier : 1) * awardRate) * 1000) / 1000;
       // activeStone：0 = 自動（最新解鎖嗰款），1–5 = 用戶手動揀的款式（要已解鎖）
       let activeStone = (typeof data.activeStone === "number") ? data.activeStone : 0;
       const reqStone = request.data && request.data.activeStone;
@@ -2525,8 +2562,7 @@ exports.reportRtcResult = onCall(async (request) => {
 // 用 LIVEKIT_API_KEY／LIVEKIT_API_SECRET 簽發，前端無法自行偽造。
 // Firestore：streams/{id}（直播）、streams/{id}/messages（留言）、
 // streams/{id}/blocked/{uid}（被主播封鎖）、streams/{id}/deletedMessages（已刪留言原文，只限管理員）。
-const LIVEKIT_API_KEY = defineSecret("LIVEKIT_API_KEY");
-const LIVEKIT_API_SECRET = defineSecret("LIVEKIT_API_SECRET");
+// （LIVEKIT_API_KEY／LIVEKIT_API_SECRET 已移至檔案頂部定義，awardStudyPoints 亦要用）
 const LIVEKIT_HTTP = "https://live.concenmate.com";
 const LIVEKIT_WS = "wss://live.concenmate.com";
 const STREAM_STALE_MS = 3 * 60 * 1000; // 主播超過 3 分鐘冇心跳，當直播已結束
@@ -2588,13 +2624,15 @@ const STREAM_CONTACT_PATTERNS = [
   /\b(ig|insta|instagram|whatsapp|whats\s*app|wechat|telegram|tg|line|snapchat|snap|discord|signal|kik)\b/gi,
   /(微信|電話|电话|手機號|手机号|聯絡我|联系我|加我|私訊|私讯|私聊|私信|加好友)/g,
 ];
+// v1.230.0：好友私訊只過濾粗口、網址、電話號碼及社交帳戶（@名稱），不過濾「加我」等字眼
+const CHAT_CONTACT_PATTERNS = STREAM_CONTACT_PATTERNS.slice(0, 5);
 function escapeRegExp(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
-function filterStreamText(text, extraWords) {
+function filterStreamText(text, extraWords, patterns) {
   let out = String(text || "");
   let changed = false;
-  STREAM_CONTACT_PATTERNS.forEach((re) => {
+  (patterns || STREAM_CONTACT_PATTERNS).forEach((re) => {
     const next = out.replace(re, "＊＊＊");
     if (next !== out) changed = true;
     out = next;
@@ -2666,6 +2704,7 @@ exports.startStream = onCall({ secrets: [LIVEKIT_API_KEY, LIVEKIT_API_SECRET] },
   const rules = await getStreamingFullRules();
   if (!isAdmin) {
     if (!rules.enabled) throw new HttpsError("failed-precondition", "直播功能尚未開放");
+    if (await isStreamingBudgetPaused()) throw new HttpsError("failed-precondition", "直播功能暫停中，請稍後再試");
     if (me.streamBanned === true) throw new HttpsError("permission-denied", "你的直播資格已被暫停");
     // v1.228.4：最低開播年齡（預設 16 歲）。以註冊時填寫的出生年月計算（用戶註冊後不能自行修改）；
     // 沒有出生年月的帳戶一律當作未達年齡。觀看不受年齡限制。
@@ -2743,12 +2782,32 @@ exports.joinStream = onCall({ secrets: [LIVEKIT_API_KEY, LIVEKIT_API_SECRET] }, 
     loadStreamActor(uid), getStreamingRules(), db.doc(`streams/${streamId}`).get(), db.doc(`streams/${streamId}/blocked/${uid}`).get(),
   ]);
   if (!rules.enabled && !isAdmin) throw new HttpsError("failed-precondition", "直播功能尚未開放");
+  if (!isAdmin && await isStreamingBudgetPaused()) throw new HttpsError("failed-precondition", "直播功能暫停中，請稍後再試");
   if (!snap.exists || !streamIsLive(snap.data())) throw new HttpsError("not-found", "這個直播已經結束");
   if (blocked.exists) throw new HttpsError("permission-denied", "你已被主播移出這個直播");
   // v1.227.4：主播不可以用同一帳戶觀看自己的直播（同一身份會令主播連線被踢走）
   if (snap.data().hostUid === uid) throw new HttpsError("failed-precondition", "你正在主持這個直播，不可以同時觀看");
   const token = livekitToken(uid, me.username || "同學", { room: streamId, roomJoin: true, canPublish: false, canSubscribe: true, canPublishData: false }, STREAM_TOKEN_TTL_SEC);
+  // v1.230.3：記錄正在觀看哪個直播（觀看計分用；同一時間只計一個直播）
+  const watchRef = db.doc(`streamWatch/${uid}`);
+  const watchSnap = await watchRef.get();
+  if (!watchSnap.exists || watchSnap.data().streamId !== streamId) {
+    await watchRef.set({ streamId, joinedAt: Date.now(), confirmedAt: Date.now() });
+  }
   return { token, url: LIVEKIT_WS };
+});
+
+// v1.230.3：觀眾確認「仍在溫習」，之後 30 分鐘內可繼續計分
+exports.confirmStreamWatching = onCall(async (request) => {
+  const uid = request.auth && request.auth.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "請先登入會員");
+  await checkRateLimit(`confirmStreamWatching_${uid}`, 10, 60 * 60 * 1000);
+  const streamId = streamIdArg(request);
+  const ref = db.doc(`streamWatch/${uid}`);
+  const snap = await ref.get();
+  if (!snap.exists || snap.data().streamId !== streamId) throw new HttpsError("failed-precondition", "請先觀看直播");
+  await ref.update({ confirmedAt: Date.now() });
+  return { ok: true };
 });
 
 // v1.227.9：觀看人數改由伺服器向 LiveKit 查詢（不再相信主播部機報上來的數字），
@@ -2962,7 +3021,46 @@ const VULTR_API_KEY = defineSecret("VULTR_API_KEY");
 const COST_DEFAULTS = {
   vultrMonthlyUSD: 20, vultrIncludedGB: 3000, liveViewerCapacity: 300,
   emailjsQuota: 200, turnFreeGB: 1000, domainYearlyUSD: 10.46,
+  monthlyBudgetUSD: 0, budgetAutoStop: false, // v1.230.1：每月預算上限（0 = 不設）及超出時自動暫停直播
 };
+
+// v1.230.1：每月預算自動控制——估算開支達到預算上限時暫停直播（開播及觀看），回落後自動恢復
+let budgetGuardCache = { at: 0, paused: false };
+async function isStreamingBudgetPaused() {
+  if (Date.now() - budgetGuardCache.at < 60 * 1000) return budgetGuardCache.paused;
+  const snap = await db.doc("adminCost/budgetGuard").get().catch(() => null);
+  const paused = !!(snap && snap.exists && snap.data().paused === true);
+  budgetGuardCache = { at: Date.now(), paused };
+  return paused;
+}
+async function applyBudgetGuard(cfg, totalUSD, monthKey) {
+  const ref = db.doc("adminCost/budgetGuard");
+  const snap = await ref.get();
+  const prev = snap.exists ? snap.data() : {};
+  const budget = Number(cfg.monthlyBudgetUSD) || 0;
+  const over = budget > 0 && cfg.budgetAutoStop === true && totalUSD >= budget;
+  const nowMs = Date.now();
+  if (over && prev.paused !== true) {
+    const guard = { paused: true, pausedAt: nowMs, monthKey, estUSD: totalUSD, budgetUSD: budget, resumedAt: null };
+    await ref.set(guard);
+    // 即時結束所有進行中的直播（主播及觀眾畫面會自動顯示直播已結束）
+    const live = await db.collection("streams").where("status", "==", "live").limit(200).get();
+    const batch = db.batch();
+    live.forEach((d) => batch.update(d.ref, { status: "ended", endedAt: nowMs, endReason: "budget" }));
+    if (!live.empty) await batch.commit();
+    await db.collection("adminLogs").add({ action: "budgetPauseStreaming", estUSD: totalUSD, budgetUSD: budget, endedStreams: live.size, at: nowMs }).catch(() => {});
+    budgetGuardCache = { at: 0, paused: true };
+    return Object.assign({}, guard, { autoStop: true });
+  }
+  if (!over && prev.paused === true) {
+    const guard = Object.assign({}, prev, { paused: false, resumedAt: nowMs, estUSD: totalUSD, budgetUSD: budget });
+    await ref.set(guard);
+    await db.collection("adminLogs").add({ action: "budgetResumeStreaming", estUSD: totalUSD, budgetUSD: budget, at: nowMs }).catch(() => {});
+    budgetGuardCache = { at: 0, paused: false };
+    return Object.assign({}, guard, { autoStop: cfg.budgetAutoStop === true });
+  }
+  return Object.assign({}, prev, { budgetUSD: budget, estUSD: totalUSD, autoStop: cfg.budgetAutoStop === true, paused: prev.paused === true });
+}
 const EMAILJS_PLAN_FEES = { 200: 0, 2000: 9, 5000: 15, 25000: 40 };
 const LIVE_GB_PER_VIEWER_MINUTE = 0.0045; // 480p 約 600 kbps：每位觀眾每分鐘約 4.5 MB
 
@@ -3043,7 +3141,17 @@ exports.getCostDashboard = onCall({ secrets: [VULTR_API_KEY], timeoutSeconds: 60
     const c = await cacheRef.get();
     if (c.exists && Date.now() - (c.data().at || 0) < 30 * 60 * 1000) return c.data().data;
   }
+  return computeCostDashboard();
+});
 
+// v1.230.0：每日自動計算一次並記錄當月估算總額，「過去 6 個月走勢」唔使等管理員打開分頁先有數據
+// v1.230.1：改為每 3 小時計算一次（同時檢查每月預算）；排程數目不變，不會增加 Cloud Scheduler 收費
+exports.recordCostDaily = onSchedule({ schedule: "17 */3 * * *", timeZone: "Asia/Hong_Kong", secrets: [VULTR_API_KEY], timeoutSeconds: 120 }, async () => {
+  await computeCostDashboard();
+});
+
+async function computeCostDashboard() {
+  const cacheRef = db.doc("adminCost/dashboardCache");
   const now = new Date();
   const monthKey = rtcMonthKey(now);
   const hkNow = new Date(now.getTime() + 8 * 3600 * 1000);
@@ -3211,6 +3319,8 @@ exports.getCostDashboard = onCall({ secrets: [VULTR_API_KEY], timeoutSeconds: 60
   });
   const domainUSD = Math.round(cfg.domainYearlyUSD / 12 * 100) / 100;
   const totalUSD = Math.round((items.reduce((a, b) => a + b.costUSD, 0) + domainUSD) * 100) / 100;
+  let budgetGuard = null;
+  try { budgetGuard = await applyBudgetGuard(cfg, totalUSD, monthKey); } catch (e) { errors.budget = e.message; }
 
   // 記錄本月估算總額，供「過去 6 個月走勢」使用
   await db.doc(`adminCost/stats_${monthKey}`).set({ estTotalUSD: totalUSD, updatedAt: Date.now() }, { merge: true }).catch(() => {});
@@ -3226,11 +3336,11 @@ exports.getCostDashboard = onCall({ secrets: [VULTR_API_KEY], timeoutSeconds: 60
   const data = {
     at: Date.now(), monthKey, dayOfMonth, daysInMonth, items, domainUSD, totalUSD,
     vultrPendingUSD: vultr ? vultr.pendingCharges : null,
-    settings: cfg, history: historyData, errors,
+    settings: cfg, history: historyData, errors, budgetGuard,
   };
   await cacheRef.set({ at: Date.now(), data }).catch(() => {});
   return data;
-});
+}
 
 exports.saveCostSettings = onCall(async (request) => {
   const uid = request.auth && request.auth.uid;
@@ -3244,6 +3354,8 @@ exports.saveCostSettings = onCall(async (request) => {
     vultrIncludedGB: num(d.vultrIncludedGB, 1, 1000000),
     liveViewerCapacity: num(d.liveViewerCapacity, 1, 1000000),
     emailjsQuota: [200, 2000, 5000, 25000].includes(Number(d.emailjsQuota)) ? Number(d.emailjsQuota) : undefined,
+    monthlyBudgetUSD: num(d.monthlyBudgetUSD, 0, 100000),
+    budgetAutoStop: typeof d.budgetAutoStop === "boolean" ? d.budgetAutoStop : undefined,
   };
   Object.keys(out).forEach((k) => out[k] === undefined && delete out[k]);
   await db.doc("adminCost/settings").set(Object.assign(out, { updatedAt: Date.now(), updatedBy: uid }), { merge: true });
@@ -3417,4 +3529,180 @@ exports.reviewSchoolEmailDomain = onCall(async (request) => {
   }
   await db.collection("adminAuditLog").add({ action: approve ? "批准學校電郵域名" : "拒絕學校電郵域名", details: { domain, school, updated }, adminLoginId: null, adminEmail: null, createdAt: Date.now() });
   return { ok: true, updated };
+});
+
+
+// ===================== 公開及私人文字內容過濾＋發佈頻率限制（v1.230.0） =====================
+// 書伴廣場貼文／留言、疑難解答區提問／回答、好友私訊：寫入後由伺服器即時檢查——
+// (1) 粗口及聯絡資料（私訊只過濾粗口、網址、電話、@帳戶）以＊遮蓋；
+// (2) 超出發佈頻率即刪除該則內容。
+// 前端直接寫入 Firestore，所以一定要喺伺服器做先防到改網頁繞過。
+async function overRate(key, max, windowMs) {
+  try { await checkRateLimit(key, max, windowMs); return false; } catch (e) { return true; }
+}
+async function moderateTextDoc(event, opts) {
+  const snap = event.data;
+  if (!snap) return;
+  const d = snap.data() || {};
+  const uid = d[opts.uidField];
+  if (uid && opts.rate && await overRate(`${opts.rate.key}_${uid}`, opts.rate.max, opts.rate.windowMs)) {
+    await snap.ref.delete().catch(() => {});
+    if (opts.onDelete) await opts.onDelete(event).catch(() => {});
+    return;
+  }
+  const rules = await getStreamingFullRules().catch(() => ({ bannedWords: [] }));
+  const update = {};
+  opts.fields.forEach((f) => {
+    if (typeof d[f] !== "string" || !d[f]) return;
+    const r = filterStreamText(d[f], rules.bannedWords, opts.patterns);
+    if (r.changed) update[f] = r.text;
+  });
+  if (Object.keys(update).length) {
+    update.filtered = true;
+    await snap.ref.update(update).catch(() => {});
+    if (opts.afterFilter) await opts.afterFilter(event, update).catch(() => {});
+  }
+}
+const decParent = (path, field) => () => db.doc(path).update({ [field]: admin.firestore.FieldValue.increment(-1) });
+
+exports.moderateBuddyPost = onDocumentCreated("buddyPosts/{postId}", (event) => moderateTextDoc(event, {
+  uidField: "authorUid", fields: ["content"], rate: { key: "buddyPost", max: 5, windowMs: 60 * 60 * 1000 },
+}));
+exports.moderateBuddyComment = onDocumentCreated("buddyPosts/{postId}/comments/{commentId}", (event) => moderateTextDoc(event, {
+  uidField: "authorUid", fields: ["text"], rate: { key: "buddyComment", max: 30, windowMs: 60 * 60 * 1000 },
+  onDelete: (ev) => decParent(`buddyPosts/${ev.params.postId}`, "commentCount")(),
+}));
+exports.moderateQaPost = onDocumentCreated("qa_posts/{postId}", (event) => moderateTextDoc(event, {
+  uidField: "uid", fields: ["title", "body"], rate: { key: "qaPost", max: 10, windowMs: 60 * 60 * 1000 },
+}));
+exports.moderateQaComment = onDocumentCreated("qa_posts/{postId}/comments/{commentId}", (event) => moderateTextDoc(event, {
+  uidField: "uid", fields: ["body"], rate: { key: "qaComment", max: 30, windowMs: 60 * 60 * 1000 },
+  onDelete: (ev) => decParent(`qa_posts/${ev.params.postId}`, "commentCount")(),
+}));
+exports.moderateChatMessage = onDocumentCreated("directChats/{chatId}/messages/{messageId}", (event) => moderateTextDoc(event, {
+  uidField: "fromUid", fields: ["text"], patterns: CHAT_CONTACT_PATTERNS, rate: { key: "chatMsg", max: 40, windowMs: 60 * 1000 },
+}));
+// 對話摘要（directChats/{chatId}.lastMessage）會顯示喺對方嘅對話列表，同樣要過濾
+exports.moderateChatSummary = onDocumentWritten("directChats/{chatId}", async (event) => {
+  const after = event.data && event.data.after;
+  if (!after || !after.exists) return;
+  const a = after.data() || {};
+  const before = event.data.before && event.data.before.exists ? event.data.before.data() : {};
+  if (typeof a.lastMessage !== "string" || a.lastMessage === before.lastMessage) return;
+  const rules = await getStreamingFullRules().catch(() => ({ bannedWords: [] }));
+  const r = filterStreamText(a.lastMessage, rules.bannedWords, CHAT_CONTACT_PATTERNS);
+  if (r.changed) await after.ref.update({ lastMessage: r.text }).catch(() => {});
+});
+
+// ===================== 用戶自行刪除帳戶（v1.230.0） =====================
+// 前端要先用密碼重新驗證（auth_time 5 分鐘內），然後由伺服器刪除該用戶的個人資料。
+// 有違規紀錄的帳戶，會另存一份最少資料（moderationArchive），防止刪除後重新註冊逃避停權（私隱政策第九條）。
+exports.deleteMyAccount = onCall({ timeoutSeconds: 300, memory: "512MiB", secrets: [LIVEKIT_API_KEY, LIVEKIT_API_SECRET] }, async (request) => {
+  const uid = request.auth && request.auth.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "請先登入會員");
+  const authTime = Number(request.auth.token && request.auth.token.auth_time) * 1000;
+  if (!authTime || Date.now() - authTime > 5 * 60 * 1000) {
+    throw new HttpsError("failed-precondition", "為保障帳戶安全，請重新輸入密碼後再試");
+  }
+  if (!(request.data && request.data.confirm === "DELETE")) throw new HttpsError("invalid-argument", "缺少確認");
+  await checkRateLimit(`deleteMyAccount_${uid}`, 3, 60 * 60 * 1000);
+
+  const userRef = db.doc(`users/${uid}`);
+  const userSnap = await userRef.get();
+  const u = userSnap.exists ? userSnap.data() : {};
+  if (await isAdminUserData(u)) throw new HttpsError("failed-precondition", "管理員帳戶不可以自行刪除，請先由其他管理員移除管理員身份");
+
+  const safe = async (label, fn) => { try { await fn(); } catch (e) { console.warn(`刪除帳戶（${label}）失敗:`, e.message); } };
+  const delQuery = async (q) => {
+    const snap = await q.get();
+    for (const d of snap.docs) await db.recursiveDelete(d.ref);
+  };
+
+  // 1. 違規紀錄存檔（只限有違規紀錄的帳戶）
+  if ((u.strikeCount || 0) > 0 || u.suspended === true || (typeof u.suspendedUntil === "number" && u.suspendedUntil > Date.now())) {
+    await safe("違規存檔", () => db.doc(`moderationArchive/${uid}`).set({
+      loginId: u.loginId || null,
+      contactEmailHash: u.contactEmail ? hashEmail(u.contactEmail) : null,
+      schoolEmailHash: u.schoolEmail ? hashEmail(u.schoolEmail) : null,
+      strikeCount: u.strikeCount || 0,
+      suspended: u.suspended === true,
+      suspendedUntil: u.suspendedUntil || null,
+      deletedAt: Date.now(),
+    }));
+  }
+  // 2. 進行中的直播
+  await safe("直播", async () => {
+    const live = await db.collection("streams").where("hostUid", "==", uid).where("status", "==", "live").get();
+    for (const d of live.docs) {
+      await d.ref.update({ status: "ended", endedAt: Date.now(), endReason: "accountDeleted" });
+      await livekitRoomService("DeleteRoom", { room: d.id }).catch(() => {});
+    }
+  });
+  // 3. 好友關係、好友邀請、房間邀請
+  await safe("好友", async () => {
+    const friends = await db.collection(`users/${uid}/friends`).get();
+    for (const f of friends.docs) await db.doc(`users/${f.id}/friends/${uid}`).delete().catch(() => {});
+    await delQuery(db.collection("friendRequests").where("fromUid", "==", uid));
+    await delQuery(db.collection("friendRequests").where("toUid", "==", uid));
+    await delQuery(db.collection("roomInvites").where("fromUid", "==", uid));
+    await delQuery(db.collection("roomInvites").where("toUid", "==", uid));
+  });
+  // 4. 私訊（連訊息一併刪除）
+  await safe("私訊", () => delQuery(db.collection("directChats").where("participants", "array-contains", uid)));
+  // 5. 追蹤關係（同時更新對方的粉絲／追蹤數）
+  await safe("追蹤", async () => {
+    const out = await db.collection("follows").where("followerUid", "==", uid).get();
+    for (const d of out.docs) {
+      await db.doc(`users/${d.data().followedUid}`).update({ followerCount: admin.firestore.FieldValue.increment(-1) }).catch(() => {});
+      await d.ref.delete();
+    }
+    const inn = await db.collection("follows").where("followedUid", "==", uid).get();
+    for (const d of inn.docs) {
+      await db.doc(`users/${d.data().followerUid}`).update({ followingCount: admin.firestore.FieldValue.increment(-1) }).catch(() => {});
+      await d.ref.delete();
+    }
+  });
+  // 6. 溫習日記相片（連檔案）
+  await safe("溫習日記", async () => {
+    await delQuery(db.collection("studyPhotos").where("uid", "==", uid));
+    await admin.storage().bucket().deleteFiles({ prefix: `study_photos/${uid}/` }).catch(() => {});
+  });
+  // 7. 書伴廣場、疑難解答區的貼文及留言
+  await safe("貼文", async () => {
+    await delQuery(db.collection("buddyPosts").where("authorUid", "==", uid));
+    await delQuery(db.collection("qa_posts").where("uid", "==", uid));
+  });
+  await safe("留言", async () => {
+    const c1 = await db.collectionGroup("comments").where("authorUid", "==", uid).get();
+    const c2 = await db.collectionGroup("comments").where("uid", "==", uid).get();
+    for (const d of c1.docs.concat(c2.docs)) {
+      await d.ref.delete();
+      const parent = d.ref.parent.parent;
+      if (parent) await parent.update({ commentCount: admin.firestore.FieldValue.increment(-1) }).catch(() => {});
+    }
+  });
+  // 8. 導師資料
+  await safe("導師", async () => {
+    await db.doc(`tutorApplications/${uid}`).delete().catch(() => {});
+    const t = await db.doc(`tutors/${uid}`).get();
+    if (t.exists) {
+      await t.ref.update({ status: "deleted", deletedAt: Date.now() });
+      const notes = await db.collection("tutorNotes").where("tutorUid", "==", uid).where("status", "==", "published").get();
+      for (const n of notes.docs) await n.ref.update({ status: "delisted" });
+    }
+  });
+  // 9. 其他個人資料
+  await safe("其他", async () => {
+    if (u.schoolEmail) await db.doc(`schoolEmailIndex/${hashEmail(u.schoolEmail)}`).delete().catch(() => {});
+    if (u.loginId) await db.doc(`usernames/${String(u.loginId).toLowerCase()}`).delete().catch(() => {});
+    await db.doc(`presence/${uid}`).delete().catch(() => {});
+    await db.doc(`streamWatch/${uid}`).delete().catch(() => {});
+    await db.doc(`publicProfiles/${uid}`).delete().catch(() => {});
+    await db.doc(`leaderboardEntries/${uid}`).delete().catch(() => {});
+  });
+  // 10. 用戶文件（連子集合；排行榜觸發函數會自動更新學校總數）及登入帳戶
+  await db.recursiveDelete(userRef);
+  await admin.auth().deleteUser(uid).catch((e) => console.warn("刪除登入帳戶失敗:", e.message));
+  await db.collection("adminAuditLog").add({ action: "用戶自行刪除帳戶", details: { uid, loginId: u.loginId || null }, adminLoginId: null, adminEmail: null, createdAt: Date.now() }).catch(() => {});
+  return { ok: true };
 });

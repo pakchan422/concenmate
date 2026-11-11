@@ -6,7 +6,7 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.229.4"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.230.3"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- v1.227.8：全站確認／輸入視窗，取代瀏覽器原生 confirm()／prompt()，外觀同資訊卡一致。
@@ -1791,7 +1791,7 @@
   <!-- 💬 即時對話浮動視窗（FB 式）：登入先顯示，右下角一粒圓形掣，撳落見到
        好友名單（有冇上線一眼睇晒），揀一個開對話視窗，可以同時開幾個 -->
   <button id="chat-dock-toggle" type="button" title="即時對話" data-i18n-title="chatdock.title" onclick="window.toggleChatDockPanel()">
-    💬
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
     <span class="chat-dock-badge" id="chat-dock-badge">0</span>
   </button>
   <div id="chat-dock-panel">
@@ -1927,7 +1927,7 @@
   <div id="app-shell" style="display:none;">
   <div id="app-top-sticky">
   <header>
-    <button class="mobile-nav-toggle" id="mobile-nav-toggle-btn" type="button" onclick="window.toggleMobileNav()" aria-label="開啟選單">☰</button>
+    <button class="mobile-nav-toggle" id="mobile-nav-toggle-btn" type="button" onclick="window.toggleMobileNav()" aria-label="開啟選單"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg></button>
     <div class="logo-box" onclick="switchTab('home')">
       <div class="logo-avatar" style="background:transparent; border:none; padding:0; width:40px; height:40px;"><img id="header-logo-img" src="logo.png" width="36" height="36" alt="ConcenMate" style="border-radius:50%; object-fit:cover;"></div>
       <div>
@@ -2445,7 +2445,7 @@
                    嗰陣 room-bar 只係頂部一張細細張卡，掣掛喺卡嘅角落先會
                    同個控制列視覺上連埋一齊，唔會孤伶伶咁飄喺成塊黑色畫面
                    最底。 -->
-              <button type="button" id="fs-room-bar-collapse-btn" onclick="toggleFsRoomBarCollapse()" title="收埋／顯示控制列" style="display:none; width:34px; height:34px; background:rgba(255,255,255,.16); color:#fff; border:1.5px solid rgba(255,255,255,.75); border-radius:10px; font-size:16px; padding:0; cursor:pointer; line-height:1; backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);">➖</button>
+              <button type="button" id="fs-room-bar-collapse-btn" onclick="toggleFsRoomBarCollapse()" title="收埋／顯示控制列" style="display:none; width:34px; height:34px; background:rgba(255,255,255,.16); color:#fff; border:1.5px solid rgba(255,255,255,.75); border-radius:10px; font-size:16px; padding:0; cursor:pointer; line-height:1; backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg></button>
             </div>
 
             <div id="video-grid-container" class="video-grid-container">
@@ -2577,7 +2577,7 @@
 
               <div>
                 <label style="font-size:13px; font-weight:bold; color:#555;" data-i18n="qa.descLabel">詳細描述</label>
-                <textarea id="qa-body" class="input-field" rows="4" placeholder="描述你的問題，或補充更多資料…" style="resize:vertical;" data-i18n-placeholder="qa.descPlaceholder"></textarea>
+                <textarea id="qa-body" class="input-field" rows="4" maxlength="2000" placeholder="描述你的問題，或補充更多資料…" style="resize:vertical;" data-i18n-placeholder="qa.descPlaceholder"></textarea>
               </div>
 
               <div>
@@ -2601,7 +2601,7 @@
 
             <div style="border-top:1px solid var(--brand-200); margin-top:14px; padding-top:12px;">
               <label style="font-size:13px; font-weight:bold; color:#555;" data-i18n="qa.commentLabel">留言回答</label>
-              <textarea id="qa-comment-input" class="input-field" rows="3" placeholder="分享你的解題方法…" style="margin-top:4px; resize:vertical;" data-i18n-placeholder="qa.commentPlaceholder"></textarea>
+              <textarea id="qa-comment-input" class="input-field" rows="3" maxlength="2000" placeholder="分享你的解題方法…" style="margin-top:4px; resize:vertical;" data-i18n-placeholder="qa.commentPlaceholder"></textarea>
               <div style="margin-top:8px;">
                 <label style="font-size:13px; font-weight:bold; color:#555;" data-i18n="qa.commentPhotoLabel">附上圖片（最多 3 張）</label>
                 <input type="file" id="qa-comment-photos" accept="image/*" multiple style="margin-top:4px; font-size:13px; width:100%;">
@@ -2757,6 +2757,14 @@
                   更改密碼
                 </button>
               </form>
+
+              <!-- v1.230.0：用戶自行刪除帳戶（app-core.js window.deleteMyAccount → Cloud Function deleteMyAccount） -->
+              <div style="margin-top:24px; padding-top:16px; border-top:1px solid var(--brand-200);">
+                <h4 style="font-size:14px; font-weight:bold; color:#A33A2F; margin:0 0 6px;" data-i18n="profile.deleteTitle">刪除帳戶</h4>
+                <p style="font-size:13px; color:#6B7894; line-height:1.7; margin:0 0 10px;" data-i18n="profile.deleteDesc">刪除後，你的個人資料、溫習紀錄、貼圖、好友、私訊、溫習日記相片、貼文及留言將會永久刪除，不能復原。帳號 ID 可以再被其他人註冊。如帳戶有違規紀錄，本公司會按私隱政策保留有關紀錄。</p>
+                <input type="password" id="delete-account-password" class="input-field" autocomplete="current-password" placeholder="輸入目前登入密碼以確認" data-i18n-placeholder="profile.deletePasswordPlaceholder" style="margin-bottom:10px;">
+                <button type="button" class="btn btn-outline" id="delete-account-btn" style="width:100%; justify-content:center; color:#A33A2F; border-color:#E2B4AE;" onclick="window.deleteMyAccount()" data-i18n="profile.deleteBtn">永久刪除我的帳戶</button>
+              </div>
             </div>
           </div>
 
@@ -3678,7 +3686,7 @@
         <div>
           <label style="font-size:13px; font-weight:bold; color:#555; display:block;" data-i18n="room.passwordLabel">房間密碼鎖（4 位數字，留空則不設密碼）</label>
           <input type="text" id="modal-room-password" class="input-field" maxlength="4" inputmode="numeric" pattern="[0-9]{0,4}" placeholder="例如 1234" data-i18n-placeholder="room.passwordPlaceholder">
-          <p style="font-size:13px; color:#999; margin-top:4px;" data-i18n="room.passwordHint">設定之後，只有輸入正確密碼的同學才可以加入這個溫習室，適合想與指定朋友私下溫習的情況；房間在公開大廳依然看得到，但會加上 🔒 標示。</p>
+          <p style="font-size:13px; color:#999; margin-top:4px;" data-i18n="room.passwordHint">設定之後，只有輸入正確密碼的同學才可以加入這個溫習室，適合想與指定朋友私下溫習的情況；房間在公開大廳依然看得到，但會加上鎖頭標示。</p>
         </div>
 
         <div style="display:flex; gap:8px; margin-top:10px; justify-content:flex-end;">
@@ -4313,6 +4321,21 @@
     roomLock: '<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
     tutorMaterials: '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>'
   };
+  // v1.230.0：介面細圖示（取代 emoji）
+  window.CM_UI_SVGS = {
+    lock: '<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+    plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+    minus: '<path d="M5 12h14"/>',
+    menu: '<path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/>',
+    chat: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+    trash: '<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+    send: '<path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/>'
+  };
+  window.cmIcon = function (key, size) {
+    var p = window.CM_UI_SVGS[key]; if (!p) return '';
+    var s = size || 16;
+    return '<svg viewBox="0 0 24 24" width="' + s + '" height="' + s + '" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;">' + p + '</svg>';
+  };
   window.cmNavSvg = function (key) {
     var p = window.CM_NAV_SVGS[key]; if (!p) return '';
     return '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + p + '</svg>';
@@ -4435,14 +4458,14 @@
   })();
   </script>
 
-  <script src="i18n.js?v=1.229.4"></script>
+  <script src="i18n.js?v=1.230.3"></script>
 
-  <script src="app-features.js?v=1.229.4"></script>
+  <script src="app-features.js?v=1.230.3"></script>
 
-  <script type="module" src="app-core.js?v=1.229.4"></script>
+  <script type="module" src="app-core.js?v=1.230.3"></script>
 
-  <script src="room-video.js?v=1.229.4"></script>
-  <script src="stream.js?v=1.229.4"></script>
+  <script src="room-video.js?v=1.230.3"></script>
+  <script src="stream.js?v=1.230.3"></script>
   <!-- 房主退出房間選擇彈窗 -->
   <div class="modal-backdrop" id="modal-host-leave" style="display:none;">
     <div class="modal-box" style="text-align:center;">
@@ -4498,7 +4521,7 @@
        房主本人（isMyRoom）唔會見到呢個視窗。 -->
   <div class="modal-backdrop" id="modal-room-password-check" style="display:none;">
     <div class="modal-box" style="text-align:center;">
-      <div style="font-size:32px; margin-bottom:8px;">🔒</div>
+      <div style="margin-bottom:8px; color:var(--brand-700);"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
       <h3 style="font-size:16px; font-weight:bold; margin-bottom:6px;" data-i18n="room.passwordLockedTitle">這個溫習室已上鎖</h3>
       <p style="font-size:13px; color:#666; margin-bottom:14px;" data-i18n="room.passwordLockedDesc">請向房主查詢密碼，並輸入 4 位數字密碼先可以加入。</p>
       <input type="text" id="room-password-check-input" class="input-field" maxlength="4" inputmode="numeric" pattern="[0-9]{0,4}" style="text-align:center; font-size:22px; letter-spacing:10px;" placeholder="••••" onkeydown="if(event.key==='Enter'){event.preventDefault(); window.confirmRoomPasswordCheck();}">
@@ -4708,7 +4731,7 @@
     </div>
   </div>
 
-  <script src="admin-panel.js?v=1.229.4"></script>
+  <script src="admin-panel.js?v=1.230.3"></script>
   <!-- pdf.js：導師教材嘅 PDF 預覽（整份文件／學生視角）同教材卡嘅第一頁
        縮圖，都用呢個 library 自己畫落 <canvas>，唔再靠瀏覽器內建嘅PDF
        viewer（手機Safari個內建viewer塞喺iframe度揭唔到第二頁）。淨係
@@ -4735,7 +4758,7 @@
       return window._pdfJsLoading;
     };
   </script>
-  <script src="tutor-panel.js?v=1.229.4"></script>
+  <script src="tutor-panel.js?v=1.230.3"></script>
 
 </body>
 </html>

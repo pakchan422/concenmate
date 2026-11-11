@@ -213,7 +213,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
               <span class="tag" style="background:#F6F7FB; color:#29395C;">${window.escapeHtml(window.translateSubjectName ? window.translateSubjectName(room.subject || '數學') : (room.subject || '數學'))}</span>
               <span style="font-size:13px; color:#3F588F; font-weight:bold;">${window.t('room.liveNow', '直播中')}</span>
             </div>
-            <h4 style="font-size:14px; font-weight:bold; color:var(--brand-800); margin-bottom:4px;">${room.hasPassword ? '🔒 ' : ''}${window.escapeHtml(room.name)}</h4>
+            <h4 style="font-size:14px; font-weight:bold; color:var(--brand-800); margin-bottom:4px;">${room.hasPassword ? (window.cmIcon ? window.cmIcon('lock', 14) + ' ' : '') : ''}${window.escapeHtml(room.name)}</h4>
             <p style="font-size:13px; color:#666;">${window.t('room.hostPrefix', '房主：')}<strong>${window.escapeHtml(room.hostName || window.t('room.anonymousStudent', '匿名同學'))}</strong></p>
             <p style="font-size:13px; color:#888; margin-top:2px;">${window.t('room.capacityInfoTemplate', '{count}/{max} 人 · 每輪專注：{duration} 分鐘').replace('{count}', room.participantCount || 0).replace('{max}', (typeof window.resolveRoomCapacity === 'function') ? window.resolveRoomCapacity(room) : (window.ROOM_CAPACITY || 4)).replace('{duration}', room.duration || 30)}</p>
           </div>
@@ -712,7 +712,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
       if (!match) return;
       const roomId = match[1];
       if (!window.currentUser) {
-        window.showToast(window.t('core.needLoginToJoinRoom', '請先登入或註冊帳戶，先可以加入呢間溫習室'), '⚠️');
+        window.showToast(window.t('core.needLoginToJoinRoom', '請先登入或註冊帳戶，才可以加入這個溫習室'), '⚠️');
         return; // 特登唔清走個 hash，等登入完成之後可以自動重試
       }
       try {
@@ -1004,6 +1004,39 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
         }
       } finally {
         if (btn) { btn.disabled = false; btn.innerText = '更改密碼'; }
+      }
+    };
+
+    // v1.230.0：用戶自行刪除帳戶——先用密碼重新驗證，再由伺服器刪除全部個人資料
+    window.deleteMyAccount = async function() {
+      const pwdEl = document.getElementById('delete-account-password');
+      const pwd = pwdEl ? pwdEl.value : '';
+      if (!auth.currentUser || !window.currentUser) return;
+      if (!pwd) { window.showToast(window.t('profile.deleteNeedPassword', '請先輸入目前登入密碼'), '⚠️'); return; }
+      if (!(await window.appConfirm(window.t('profile.deleteConfirm1', '確定永久刪除你的帳戶？所有資料將會刪除，不能復原。')))) return;
+      const typed = await window.appPrompt(window.t('profile.deleteConfirm2', '請輸入你的帳號 ID 以確認刪除：'), '');
+      if (typed == null) return;
+      if (String(typed).trim().toLowerCase() !== String(window.currentUser.loginId || window.currentUser.username || '').toLowerCase()) {
+        window.showToast(window.t('profile.deleteIdMismatch', '帳號 ID 不正確，已取消刪除'), '⚠️');
+        return;
+      }
+      const btn = document.getElementById('delete-account-btn');
+      if (btn) { btn.disabled = true; btn.innerText = window.t('profile.deleting', '正在刪除…'); }
+      try {
+        const credential = EmailAuthProvider.credential(window.currentUser.email, pwd);
+        await reauthenticateWithCredential(auth.currentUser, credential);
+        await auth.currentUser.getIdToken(true);
+        await window.callCloudFunction('deleteMyAccount', { confirm: 'DELETE' });
+        window.showToast(window.t('profile.deleted', '帳戶已刪除，多謝你使用 ConcenMate'), '✅');
+        try { await signOut(auth); } catch (_) {}
+        setTimeout(() => { window.location.hash = ''; window.location.reload(); }, 1500);
+      } catch (error) {
+        if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+          window.showToast(window.t('core.currentPasswordWrong', '目前密碼輸入錯誤，請再試一次'), '❌');
+        } else {
+          window.showToast(window.friendlyErrorText ? window.friendlyErrorText(error) : (error.message || error), '❌');
+        }
+        if (btn) { btn.disabled = false; btn.innerText = window.t('profile.deleteBtn', '永久刪除我的帳戶'); }
       }
     };
 
