@@ -45,16 +45,39 @@
     if (!u.uid) return false;
     if (isAdmin()) return true;
     if (u.accountType === 'tutor' || u.role === 'tutor') return false;
-    return settings.enabled === true;
+    // v1.228.2：是否在功能表顯示，改由後台「功能表及圖示」控制（app-features.js 的 navVisibility）；
+    // 總開關只決定按鈕可否點擊（見 isLocked）
+    return true;
+  }
+  // 總開關關閉時，一般用戶的功能表按鈕變灰，不能點擊（管理員除外）。
+  // 真正的權限檢查在伺服器（startStream／joinStream／sendStreamMessage 均會檢查總開關），
+  // 用戶就算自行改動網頁亦無法開播或觀看。
+  function isLocked() {
+    return !isAdmin() && settings.enabled !== true;
   }
   // v1.227.5：記住上次是否顯示，重新載入時即時套用，避免功能表遲半秒才彈出
   const NAV_KEY = 'swmNavVisible';
   function refreshNav() {
     const btn = document.getElementById('nav-btn-stream');
     const show = canSee();
-    if (btn) btn.style.display = show ? '' : 'none';
+    if (btn) {
+      btn.style.display = show ? '' : 'none';
+      const locked = show && isLocked();
+      btn.classList.toggle('nav-btn-locked', locked);
+      btn.setAttribute('aria-disabled', locked ? 'true' : 'false');
+      btn.title = locked ? t('stream.notOpen', '直播功能暫未開放') : '';
+      if (locked && isTabOpen() && typeof window.switchTab === 'function') window.switchTab('home', document.getElementById('nav-btn-home'));
+    }
     try { if (me().uid) localStorage.setItem(NAV_KEY, show ? '1' : '0'); else localStorage.removeItem(NAV_KEY); } catch (_) {}
   }
+  // 灰色按鈕：攔截點擊（在 document 捕獲階段，早過按鈕本身的 onclick）
+  document.addEventListener('click', (e) => {
+    const btn = e.target && e.target.closest && e.target.closest('#nav-btn-stream');
+    if (btn && btn.classList.contains('nav-btn-locked')) {
+      e.preventDefault(); e.stopImmediatePropagation();
+      toast(t('stream.notOpen', '直播功能暫未開放'), '');
+    }
+  }, true);
   (function applyCachedNav() {
     let cached = null;
     try { cached = localStorage.getItem(NAV_KEY); } catch (_) {}
@@ -93,6 +116,11 @@
   // ---------- 大廳 ----------
   window.openStreamTab = function () {
     init();
+    if (isLocked()) {
+      const box = document.getElementById('swm-root');
+      if (box) box.innerHTML = `<p style="font-size:14px; color:var(--brand-700);">${esc(t('stream.notOpen', '直播功能暫未開放'))}</p>`;
+      return;
+    }
     if (st.mode === 'lobby') renderLobby();
     else renderStage();
   };
@@ -113,7 +141,11 @@
       : '';
     const startCard = el.ok
       ? `<button type="button" class="btn btn-primary" onclick="window.swmOpenStartForm()">${esc(t('stream.startBtn', '開始直播'))}</button>`
-      : `<p style="font-size:14px; color:var(--brand-700); margin:0;">${esc(t('stream.progressTemplate', '累積溫習 {need} 日即可開始直播（現時 {days} 日；每日溫習滿 {min} 分鐘計一日）。').replace('{need}', el.need).replace('{days}', el.days).replace('{min}', settings.minMinutesPerDay || 15))}</p>`;
+      // v1.228.2：未合資格亦顯示「開始直播」按鈕，但設為不可點擊；伺服器 startStream 會再檢查日數
+      : `<div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
+          <button type="button" class="btn btn-primary" disabled aria-disabled="true" style="opacity:.45; cursor:not-allowed;">${esc(t('stream.startBtn', '開始直播'))}</button>
+          <p style="font-size:13px; color:var(--brand-700); margin:0; text-align:right;">${esc(t('stream.progressTemplate', '累積溫習 {need} 日即可開始直播（現時 {days} 日；每日溫習滿 {min} 分鐘計一日）。').replace('{need}', el.need).replace('{days}', el.days).replace('{min}', settings.minMinutesPerDay || 15))}</p>
+        </div>`;
     box.innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
         <h2 style="font-size:18px; font-weight:bold; color:var(--brand-800); margin:0;">Study with me</h2>

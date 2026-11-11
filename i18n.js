@@ -188,6 +188,7 @@
     'stream.busyRoom': { 'zh-Hant': '你正在直播或觀看直播，請先離開直播再使用視訊溫習室', 'en': 'You are streaming or watching a stream. Please leave it before using the study room.', 'yue': '你而家直播緊或者睇緊直播，請先離開直播再用視訊溫習室' },
     'stream.busyStream': { 'zh-Hant': '你正在視訊溫習室，請先退出溫習室再使用直播', 'en': 'You are in a study room. Please leave it before using live streaming.', 'yue': '你而家喺視訊溫習室，請先退出溫習室再用直播' },
     'nav.stream': { 'zh-Hant': 'Study with me', 'en': 'Study with me', 'yue': 'Study with me' },
+    'stream.notOpen': { 'zh-Hant': '直播功能暫未開放', 'en': 'Study with me is not open yet', 'yue': '直播功能暫時未開放' },
     'common.cancel': { 'zh-Hant': '取消', 'en': 'Cancel', 'yue': '取消' },
     'common.confirm': { 'zh-Hant': '確定', 'en': 'OK', 'yue': '確定' },
     'common.save': { 'zh-Hant': '儲存', 'en': 'Save', 'yue': '儲存' },

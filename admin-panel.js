@@ -1719,7 +1719,7 @@
           <label style="display:flex; align-items:center; gap:8px; font-size:14px; margin-bottom:6px; cursor:pointer;">
             <input type="checkbox" ${d.enabled ? 'checked' : ''} onchange="window.adminUpdateStreamingDraft('enabled', this.checked)"> 開放直播功能（總開關）
           </label>
-          <p style="font-size:13px; color:#888; margin:0;">關閉時，只有管理員可以開播及觀看，供測試之用；開啟後，合資格用戶可以開播，所有登入用戶可以觀看。管理員不受開通日數限制。開通資格（合資格溫習日數）已開始記錄。</p>
+          <p style="font-size:13px; color:#888; margin:0; line-height:1.7;">關閉時，功能表的「Study with me」會顯示為灰色，用戶不能點擊，只有管理員可以開播及觀看（供測試之用）；開啟後，所有登入用戶可以觀看，累積溫習日數達標的用戶可以開播。管理員不受開通日數限制。<br>功能表是否顯示「Study with me」，請到「網站內容」→「功能表及圖示」設定。</p>
         </div>
         <div class="admin-card" style="margin-top:12px;">
           <h3 style="font-size:14px; font-weight:bold; margin-bottom:10px;">開通資格</h3>

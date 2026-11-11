@@ -6,7 +6,7 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.228.1"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.228.2"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- v1.227.8：全站確認／輸入視窗，取代瀏覽器原生 confirm()／prompt()，外觀同資訊卡一致。
@@ -394,6 +394,9 @@
     /* v1.207.0：後台「功能表顯示」關閉咗嘅功能——一般用戶完全隱藏；管理員半透明＋「已關閉」標籤 */
     .nav-feature-off { display: none !important; }
     .nav-btn.nav-feature-off-admin { opacity: .55; }
+    /* v1.228.2：直播總開關關閉時，Study with me 按鈕變灰不可點擊 */
+    .nav-btn.nav-btn-locked { opacity: .45; cursor: not-allowed; }
+    .nav-btn.nav-btn-locked:hover { background: transparent; }
     .nav-off-tag { margin-left: auto; font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 6px; background: #E5E7EB; color: #555; white-space: nowrap; flex-shrink: 0; }
     .nav-btn.nav-feature-off-admin .nav-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
     /* 側邊功能表圖示：預設純粹顯示 emoji 文字；管理員喺後台上傳咗自訂
@@ -4428,14 +4431,14 @@
   })();
   </script>
 
-  <script src="i18n.js?v=1.228.1"></script>
+  <script src="i18n.js?v=1.228.2"></script>
 
-  <script src="app-features.js?v=1.228.1"></script>
+  <script src="app-features.js?v=1.228.2"></script>
 
-  <script type="module" src="app-core.js?v=1.228.1"></script>
+  <script type="module" src="app-core.js?v=1.228.2"></script>
 
-  <script src="room-video.js?v=1.228.1"></script>
-  <script src="stream.js?v=1.228.1"></script>
+  <script src="room-video.js?v=1.228.2"></script>
+  <script src="stream.js?v=1.228.2"></script>
   <!-- 房主退出房間選擇彈窗 -->
   <div class="modal-backdrop" id="modal-host-leave" style="display:none;">
     <div class="modal-box" style="text-align:center;">
@@ -4700,7 +4703,7 @@
     </div>
   </div>
 
-  <script src="admin-panel.js?v=1.228.1"></script>
+  <script src="admin-panel.js?v=1.228.2"></script>
   <!-- pdf.js：導師教材嘅 PDF 預覽（整份文件／學生視角）同教材卡嘅第一頁
        縮圖，都用呢個 library 自己畫落 <canvas>，唔再靠瀏覽器內建嘅PDF
        viewer（手機Safari個內建viewer塞喺iframe度揭唔到第二頁）。淨係
@@ -4727,7 +4730,7 @@
       return window._pdfJsLoading;
     };
   </script>
-  <script src="tutor-panel.js?v=1.228.1"></script>
+  <script src="tutor-panel.js?v=1.228.2"></script>
 
 </body>
 </html>

@@ -276,6 +276,7 @@
     // 強制退出溫習室），只係之後入唔返。
     window.NAV_FEATURE_LIST = [
       { id: 'room', key: 'nav.room', label: '視訊溫習室' },
+      { id: 'stream', key: 'nav.stream', label: 'Study with me' }, // v1.228.2
       { id: 'qa', key: 'nav.qa', label: '疑難解答區' },
       { id: 'vip', key: 'nav.vip', label: '教材中心' },
       { id: 'store', key: 'nav.store', label: '時數扭蛋機' },
