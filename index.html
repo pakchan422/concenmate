@@ -6,7 +6,79 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.226.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.228.1"; // 每次推送 GitHub 前，喺呢度改版號
+  </script>
+
+  <!-- v1.227.8：全站確認／輸入視窗，取代瀏覽器原生 confirm()／prompt()，外觀同資訊卡一致。
+       用法：if (!(await window.appConfirm('確定？'))) return;
+             const v = await window.appPrompt('請輸入：', '預設'); // 取消時為 null -->
+  <script>
+    (function () {
+      function tt(k, fb) { return (window.t ? window.t(k, fb) : fb); }
+      function openDialog(message, withInput, defVal) {
+        return new Promise(function (resolve) {
+          var prevFocus = document.activeElement;
+          var wrap = document.createElement('div');
+          wrap.className = 'modal-backdrop app-dialog';
+          wrap.style.zIndex = '200000'; // 要高過直播全螢幕（100000）
+          var box = document.createElement('div');
+          box.className = 'modal-box';
+          box.style.maxWidth = '380px';
+          box.style.textAlign = 'center';
+          box.setAttribute('role', 'dialog');
+          box.setAttribute('aria-modal', 'true');
+          var msg = document.createElement('p');
+          msg.style.cssText = 'margin:6px 0 16px; font-size:15px; line-height:1.6; color:var(--brand-800); white-space:pre-line; text-align:left;';
+          msg.textContent = String(message == null ? '' : message);
+          box.appendChild(msg);
+          var input = null;
+          if (withInput) {
+            input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'input-field';
+            input.value = defVal == null ? '' : String(defVal);
+            input.style.cssText = 'width:100%; box-sizing:border-box; margin:0 0 16px; padding:10px 12px; border:1px solid var(--brand-300); border-radius:10px; font-size:15px;';
+            box.appendChild(input);
+          }
+          var row = document.createElement('div');
+          row.style.cssText = 'display:flex; gap:10px;';
+          var cancel = document.createElement('button');
+          cancel.type = 'button';
+          cancel.className = 'btn btn-outline';
+          cancel.style.cssText = 'flex:1; justify-content:center; min-height:40px;';
+          cancel.textContent = tt('common.cancel', '取消');
+          var ok = document.createElement('button');
+          ok.type = 'button';
+          ok.className = 'btn btn-primary';
+          ok.style.cssText = 'flex:1; justify-content:center; min-height:40px;';
+          ok.textContent = tt('common.confirm', '確定');
+          row.appendChild(cancel); row.appendChild(ok);
+          box.appendChild(row);
+          wrap.appendChild(box);
+          var done = false;
+          function finish(result) {
+            if (done) return; done = true;
+            document.removeEventListener('keydown', onKey, true);
+            if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
+            try { if (prevFocus && prevFocus.focus) prevFocus.focus(); } catch (_) {}
+            resolve(result);
+          }
+          function onKey(e) {
+            if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finish(withInput ? null : false); }
+            else if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); e.stopPropagation(); finish(withInput ? input.value : true); }
+          }
+          cancel.onclick = function () { finish(withInput ? null : false); };
+          ok.onclick = function () { finish(withInput ? input.value : true); };
+          wrap.addEventListener('click', function (e) { if (e.target === wrap) finish(withInput ? null : false); });
+          document.addEventListener('keydown', onKey, true);
+          // 全螢幕時要放入全螢幕元素內，否則會被遮住
+          (document.fullscreenElement || document.body).appendChild(wrap);
+          setTimeout(function () { (input || ok).focus(); }, 0);
+        });
+      }
+      window.appConfirm = function (message) { return openDialog(message, false); };
+      window.appPrompt = function (message, defVal) { return openDialog(message, true, defVal); };
+    })();
   </script>
 
   <meta charset="UTF-8">
@@ -330,6 +402,40 @@
     .nav-icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; flex-shrink: 0; }
     .nav-icon img { width: 100%; height: 100%; object-fit: contain; border-radius: 4px; }
     .nav-icon svg { width: 20px; height: 20px; display: block; }
+    .swm-stage { display:grid; grid-template-columns: minmax(0, 1fr) 320px; gap:14px; align-items:start; }
+    .swm-chat { background:#fff; border:1px solid var(--brand-200); border-radius:14px; display:flex; flex-direction:column; height:520px; min-width:0; }
+    @media (max-width: 900px) { .swm-stage { grid-template-columns: 1fr; } .swm-chat { height:380px; } }
+    .swm-fs-btn { position:absolute; top:10px; right:10px; z-index:3; width:36px; height:36px; border:none; border-radius:10px; background:rgba(0,0,0,.55); color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+    .swm-fs-btn svg { width:20px; height:20px; }
+    /* 全螢幕：畫面佔左邊，留言區固定右邊；窄屏時留言區疊喺畫面下半部 */
+    .swm-stage.swm-full { position:fixed; inset:0; z-index:10050; background:#000; padding:12px; gap:12px; grid-template-columns:minmax(0,1fr) 340px; align-items:stretch; height:100vh; height:100dvh; }
+    .swm-stage.swm-full .swm-left { display:flex; flex-direction:column; min-height:0; }
+    .swm-stage.swm-full .swm-video-box { flex:1; aspect-ratio:auto !important; min-height:0; }
+    .swm-stage.swm-full .swm-left > div:not(.swm-video-box) { display:none; }
+    .swm-stage.swm-full .swm-chat { height:auto; max-height:none; background:rgba(255,255,255,.96); }
+    body.swm-full-open { overflow:hidden; }
+    .swm-stage.swm-full .swm-titlebox { display:none; }
+    .swm-stage.swm-full { z-index:100000; }
+    .swm-spinner { width:30px; height:30px; border:3px solid rgba(255,255,255,.3); border-top-color:#fff; border-radius:50%; animation:swmspin 0.8s linear infinite; }
+    @keyframes swmspin { to { transform:rotate(360deg); } }
+    @media (max-width: 900px) {
+      .swm-chat { height:300px; }
+      .swm-stage.swm-full { grid-template-columns:1fr; padding:0; gap:0; }
+      .swm-stage.swm-full .swm-left { height:100%; }
+      .swm-stage.swm-full .swm-video-box { border-radius:0; }
+      .swm-stage.swm-full .swm-controls { margin:0 !important; padding:8px; background:#000; }
+      /* 手機全螢幕：留言區細細一格疊喺畫面下方，大約顯示 5 行 */
+      .swm-stage.swm-full .swm-chat { position:absolute; left:8px; right:8px; bottom:64px; height:auto; max-height:34%; background:rgba(0,0,0,.35); border:none; }
+      .swm-stage.swm-full .swm-chat > div:first-child { display:none; }
+      .swm-stage.swm-full #swm-msgs { max-height:120px; padding:6px 10px !important; gap:2px !important; }
+      .swm-stage.swm-full #swm-msgs .swm-msg { font-size:12px !important; line-height:1.4 !important; }
+      .swm-name:hover { text-decoration: underline; }
+      .swm-stage.swm-full .swm-chat form { padding:6px !important; border-top:none !important; }
+      .swm-stage.swm-full .swm-chat input { height:34px; font-size:13px; }
+      .swm-stage.swm-full .swm-chat, .swm-stage.swm-full #swm-msgs * { color:#fff !important; text-shadow:0 1px 2px rgba(0,0,0,.7); }
+      .swm-stage.swm-full .swm-chat input { background:rgba(255,255,255,.9); color:#1F2C47 !important; }
+      .swm-stage.swm-full #swm-pinned, .swm-stage.swm-full #swm-pinned * { color:#1F2F55 !important; text-shadow:none; font-size:12px; }
+    }
     .nav-btn:not(.active):not(:hover) .nav-icon { color: var(--brand-600); }
 
     .auth-wall-container {
@@ -1896,6 +2002,7 @@
              i18n.js）示範性咁轉咗嘅位，揀 English／廣東話嗰陣呢幾句
              會自動跟住轉，其餘畫面文字暫時未轉，仍然顯示繁體中文。 -->
         <button class="nav-btn student-only-nav" id="nav-btn-room" type="button" onclick="switchTab('room', this)"><span class="nav-icon" id="nav-icon-room"></span> <span class="nav-text" data-i18n="nav.room">視訊溫習室</span></button>
+        <button class="nav-btn" id="nav-btn-stream" type="button" onclick="switchTab('stream', this)" style="display:none;"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2.5"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M4.9 4.9a10 10 0 0 0 0 14.2M19.1 4.9a10 10 0 0 1 0 14.2"/></svg></span> <span class="nav-text" data-i18n="nav.stream">Study with me</span></button>
         <button class="nav-btn student-only-nav" id="nav-btn-qa" type="button" onclick="switchTab('qa', this)"><span class="nav-icon" id="nav-icon-qa"></span> <span class="nav-text" data-i18n="nav.qa">疑難解答區</span></button>
         <button class="nav-btn student-only-nav" id="nav-btn-vip" type="button" onclick="switchTab('vip', this)"><span class="nav-icon" id="nav-icon-vip"></span> <span class="nav-text" data-i18n="nav.vip">教材中心</span></button>
         <button class="nav-btn student-only-nav" id="nav-btn-store" type="button" onclick="switchTab('store', this)"><span class="nav-icon" id="nav-icon-store"></span> <span class="nav-text" data-i18n="nav.store">時數扭蛋機</span></button>
@@ -2408,6 +2515,11 @@
 
           </div>
 
+        </section>
+
+        <!-- v1.227.0 Study with me 直播（stream.js 負責渲染） -->
+        <section id="tab-stream" class="tab-content">
+          <div id="swm-root"></div>
         </section>
 
         <section id="tab-qa" class="tab-content">
@@ -4316,13 +4428,14 @@
   })();
   </script>
 
-  <script src="i18n.js"></script>
+  <script src="i18n.js?v=1.228.1"></script>
 
-  <script src="app-features.js"></script>
+  <script src="app-features.js?v=1.228.1"></script>
 
-  <script type="module" src="app-core.js"></script>
+  <script type="module" src="app-core.js?v=1.228.1"></script>
 
-  <script src="room-video.js"></script>
+  <script src="room-video.js?v=1.228.1"></script>
+  <script src="stream.js?v=1.228.1"></script>
   <!-- 房主退出房間選擇彈窗 -->
   <div class="modal-backdrop" id="modal-host-leave" style="display:none;">
     <div class="modal-box" style="text-align:center;">
@@ -4452,6 +4565,12 @@
        ============================================================ -->
   <style>
     .admin-tab-btn.active { font-weight: 700; }
+    /* v1.228.1：後台兩層 tab——上排類別 */
+    #admin-cat-bar { display:flex; gap:4px; overflow-x:auto; white-space:nowrap; border-bottom:1px solid var(--brand-200); margin-bottom:12px; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+    #admin-cat-bar::-webkit-scrollbar { display:none; }
+    .admin-cat-btn { flex:none; background:none; border:none; border-bottom:3px solid transparent; padding:10px 14px; font-size:15px; font-weight:700; color:#6B7894; cursor:pointer; font-family:inherit; }
+    .admin-cat-btn:hover { color:var(--brand-800); }
+    .admin-cat-btn.active { color:var(--brand-800); border-bottom-color:var(--accent, #FFD84D); }
     .admin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
     .admin-table th, .admin-table td { padding: 8px 10px; border-bottom: 1px solid #eee; text-align: left; vertical-align: middle; }
     .admin-table th { background: #F7FAFD; color: #555; font-weight: 700; white-space: nowrap; }
@@ -4480,37 +4599,57 @@
            用嘅設定／管治分頁分開，方便搵。每組淨係加咗一個小標題
            文字，分頁掣本身嘅class、data-tab、onclick完全冇變，
            switchAdminTab()／checkAdminHashRoute()嗰套邏輯唔使改。 -->
+      <!-- v1.228.0：後台分頁重新分類（總覽／日常營運／溫習室及直播／獎勵系統／網站內容／
+           選項清單／管治）。部分相關分頁合併顯示（見 admin-panel.js 的 ADMIN_TAB_GROUPS），
+           舊分頁名稱（例如 antiidle、subjects）仍然可用，會自動轉到合併後的分頁。 -->
       <div id="admin-tab-nav">
+        <div id="admin-tab-group-overview">
+        <p class="admin-tab-group-label" style="font-size:12px; font-weight:bold; color:#999; margin:0 0 6px;">總覽</p>
+        <div style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;">
+          <button class="btn btn-outline admin-tab-btn" data-tab="costs" onclick="switchAdminTab('costs')">營運開支</button>
+          <button class="btn btn-outline admin-tab-btn" data-tab="dashboard" onclick="switchAdminTab('dashboard')">數據總覽</button>
+        </div>
+        </div>
         <div id="admin-tab-group-daily">
         <p class="admin-tab-group-label" style="font-size:12px; font-weight:bold; color:#999; margin:0 0 6px;">日常營運</p>
         <div style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;">
-          <button class="btn btn-primary admin-tab-btn active" data-tab="dashboard" onclick="switchAdminTab('dashboard')">數據總覽</button>
-          <button class="btn btn-outline admin-tab-btn" data-tab="rooms" onclick="switchAdminTab('rooms')">房間管理</button>
-          <button class="btn btn-outline admin-tab-btn" data-tab="qa" onclick="switchAdminTab('qa')">疑難解答區</button>
           <button class="btn btn-outline admin-tab-btn" data-tab="users" onclick="switchAdminTab('users')">用戶管理</button>
           <button class="btn btn-outline admin-tab-btn" data-tab="reports" onclick="switchAdminTab('reports')">舉報處理 <span id="admin-reports-badge" style="display:none; background:#C0524A; color:#fff; border-radius:99px; font-size:13px; padding:1px 6px; margin-left:3px;">0</span></button>
           <button class="btn btn-outline admin-tab-btn" data-tab="tutors" onclick="switchAdminTab('tutors')">導師申請 <span id="admin-tutors-badge" style="display:none; background:#C0524A; color:#fff; border-radius:99px; font-size:13px; padding:1px 6px; margin-left:3px;">0</span></button>
           <button class="btn btn-outline admin-tab-btn" data-tab="support" onclick="switchAdminTab('support')">用戶支援</button>
+          <button class="btn btn-outline admin-tab-btn" data-tab="rooms" onclick="switchAdminTab('rooms')">溫習室監察</button>
+          <button class="btn btn-outline admin-tab-btn" data-tab="qa" onclick="switchAdminTab('qa')">疑難解答區管理</button>
         </div>
         </div>
         <div id="admin-tab-group-settings">
-        <p class="admin-tab-group-label" style="font-size:12px; font-weight:bold; color:#999; margin:0 0 6px;">網站設定</p>
+        <p class="admin-tab-group-label" style="font-size:12px; font-weight:bold; color:#999; margin:0 0 6px;">溫習室及直播</p>
         <div style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;">
-          <button class="btn btn-outline admin-tab-btn" data-tab="gacha" onclick="switchAdminTab('gacha')">扭蛋機貼圖</button>
-          <button class="btn btn-outline admin-tab-btn" data-tab="level" onclick="switchAdminTab('level')">等級系統</button>
-          <button class="btn btn-outline admin-tab-btn" data-tab="icons" onclick="switchAdminTab('icons')">功能圖示</button>
-          <button class="btn btn-outline admin-tab-btn" data-tab="landing" onclick="switchAdminTab('landing')">Landing page文案</button>
-          <button class="btn btn-outline admin-tab-btn" data-tab="roomsettings" onclick="switchAdminTab('roomsettings')">房間設定</button>
-          <button class="btn btn-outline admin-tab-btn" data-tab="antiidle" onclick="switchAdminTab('antiidle')">防掛機參數</button>
-          <button class="btn btn-outline admin-tab-btn" data-tab="announcement" onclick="switchAdminTab('announcement')">全站公告</button>
-          <button class="btn btn-outline admin-tab-btn" data-tab="subjects" onclick="switchAdminTab('subjects')">科目清單</button>
-          <button class="btn btn-outline admin-tab-btn" data-tab="districts" onclick="switchAdminTab('districts')">地區清單</button>
-          <button class="btn btn-outline admin-tab-btn" data-tab="schools" onclick="switchAdminTab('schools')">學校名單</button>
-          <button class="btn btn-outline admin-tab-btn" data-tab="legal" onclick="switchAdminTab('legal')">條款內容</button>
-          <button class="btn btn-outline admin-tab-btn" data-tab="snapshotbg" onclick="switchAdminTab('snapshotbg')">合照背景</button>
-          <button class="btn btn-outline admin-tab-btn" data-tab="navmenu" onclick="switchAdminTab('navmenu')">功能表顯示</button>
+          <button class="btn btn-outline admin-tab-btn" data-tab="roomsettings" onclick="switchAdminTab('roomsettings')">溫習室設定</button>
           <button class="btn btn-outline admin-tab-btn" data-tab="turn" onclick="switchAdminTab('turn')">中轉伺服器</button>
           <button class="btn btn-outline admin-tab-btn" data-tab="streaming" onclick="switchAdminTab('streaming')">直播設定</button>
+        </div>
+        </div>
+        <div id="admin-tab-group-rewards">
+        <p class="admin-tab-group-label" style="font-size:12px; font-weight:bold; color:#999; margin:0 0 6px;">獎勵系統</p>
+        <div style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;">
+          <button class="btn btn-outline admin-tab-btn" data-tab="level" onclick="switchAdminTab('level')">等級系統</button>
+          <button class="btn btn-outline admin-tab-btn" data-tab="gacha" onclick="switchAdminTab('gacha')">扭蛋機貼圖</button>
+        </div>
+        </div>
+        <div id="admin-tab-group-content">
+        <p class="admin-tab-group-label" style="font-size:12px; font-weight:bold; color:#999; margin:0 0 6px;">網站內容</p>
+        <div style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;">
+          <button class="btn btn-outline admin-tab-btn" data-tab="landing" onclick="switchAdminTab('landing')">首頁介紹文案</button>
+          <button class="btn btn-outline admin-tab-btn" data-tab="announcement" onclick="switchAdminTab('announcement')">全站公告</button>
+          <button class="btn btn-outline admin-tab-btn" data-tab="legal" onclick="switchAdminTab('legal')">條款內容</button>
+          <button class="btn btn-outline admin-tab-btn" data-tab="navmenu" onclick="switchAdminTab('navmenu')">功能表及圖示</button>
+          <button class="btn btn-outline admin-tab-btn" data-tab="snapshotbg" onclick="switchAdminTab('snapshotbg')">合照背景</button>
+        </div>
+        </div>
+        <div id="admin-tab-group-lists">
+        <p class="admin-tab-group-label" style="font-size:12px; font-weight:bold; color:#999; margin:0 0 6px;">選項清單</p>
+        <div style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;">
+          <button class="btn btn-outline admin-tab-btn" data-tab="lists" onclick="switchAdminTab('lists')">科目、地區及學校</button>
         </div>
         </div>
         <div id="admin-tab-group-governance">
@@ -4522,6 +4661,7 @@
         </div>
       </div>
 
+      <div id="admin-tab-costs" class="admin-tab-panel" style="display:none;"></div>
       <div id="admin-tab-dashboard" class="admin-tab-panel"></div>
       <div id="admin-tab-gacha" class="admin-tab-panel" style="display:none;"></div>
       <div id="admin-tab-rooms" class="admin-tab-panel" style="display:none;"></div>
@@ -4560,7 +4700,7 @@
     </div>
   </div>
 
-  <script src="admin-panel.js"></script>
+  <script src="admin-panel.js?v=1.228.1"></script>
   <!-- pdf.js：導師教材嘅 PDF 預覽（整份文件／學生視角）同教材卡嘅第一頁
        縮圖，都用呢個 library 自己畫落 <canvas>，唔再靠瀏覽器內建嘅PDF
        viewer（手機Safari個內建viewer塞喺iframe度揭唔到第二頁）。淨係
@@ -4587,7 +4727,7 @@
       return window._pdfJsLoading;
     };
   </script>
-  <script src="tutor-panel.js"></script>
+  <script src="tutor-panel.js?v=1.228.1"></script>
 
 </body>
 </html>

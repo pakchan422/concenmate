@@ -249,6 +249,9 @@
         window.renderTutorDirectoryTab();
       }
 
+      // v1.227.0 Study with me 直播分頁（stream.js）
+      if (tabId === 'stream' && typeof window.openStreamTab === 'function') window.openStreamTab();
+
       // 「溫習排行榜」分頁一開就即刻載入（預設：自己所屬地區嘅個人榜）
       if (tabId === 'leaderboard' && typeof window.loadLeaderboardTab === 'function') {
         window.loadLeaderboardTab();
@@ -1455,7 +1458,7 @@
       if (grid) grid.classList.remove('diary-edit-mode');
     };
     window.deleteMyStudyPhoto = async function(photoId, btnEl) {
-      if (!confirm(window.t('diary.deletePhotoConfirm', '確定刪除這張溫習相片？刪除後不能復原。如刪除的是今日的相片，今日可以重新發佈一張。'))) return;
+      if (!(await window.appConfirm(window.t('diary.deletePhotoConfirm', '確定刪除這張溫習相片？刪除後不能復原。如刪除的是今日的相片，今日可以重新發佈一張。')))) return;
       if (btnEl) btnEl.disabled = true;
       try {
         const res = await window.callCloudFunction('deleteStudyPhoto', { photoId });
@@ -2990,7 +2993,7 @@
 
     window.deleteQAPost = async function(event, postId) {
       event.stopPropagation();
-      if (!confirm(window.t('qa.confirmDeletePost', '確定刪除這個提問嗎？'))) return;
+      if (!(await window.appConfirm(window.t('qa.confirmDeletePost', '確定刪除這個提問嗎？')))) return;
       try {
         await window.fs.deleteDoc(window.fs.doc(window.db, 'qa_posts', postId));
         window.showToast(window.t('qa.postDeleted', '提問已刪除'), '🗑️');
@@ -3122,7 +3125,7 @@
     };
 
     window.deleteComment = async function(commentId) {
-      if (!confirm(window.t('qa.confirmDeleteComment', '確定刪除這個留言？'))) return;
+      if (!(await window.appConfirm(window.t('qa.confirmDeleteComment', '確定刪除這個留言？')))) return;
       try {
         await window.fs.deleteDoc(
           window.fs.doc(window.db, 'qa_posts', qaCurrentPostId, 'comments', commentId)
@@ -4492,7 +4495,7 @@
 
     window.removeFriendAction = async function(friendUid) {
       if (!window.currentUser || !window.db || !window.fs) return;
-      if (!confirm(window.t('social.removeFriendConfirm', '確定要移除這位好友嗎？'))) return;
+      if (!(await window.appConfirm(window.t('social.removeFriendConfirm', '確定要移除這位好友嗎？')))) return;
       try {
         await window.fs.deleteDoc(window.fs.doc(window.db, 'users', window.currentUser.uid, 'friends', friendUid));
         await window.fs.deleteDoc(window.fs.doc(window.db, 'users', friendUid, 'friends', window.currentUser.uid));
@@ -4791,7 +4794,7 @@
 
     window.deleteBuddyPost = async function(postId) {
       if (!window.currentUser || !window.db || !window.fs) return;
-      if (!confirm(window.t('social.deleteConfirm', '確定刪除這則貼文？'))) return;
+      if (!(await window.appConfirm(window.t('social.deleteConfirm', '確定刪除這則貼文？')))) return;
       try {
         await window.fs.deleteDoc(window.fs.doc(window.db, 'buddyPosts', postId));
         window.showToast && window.showToast(window.t('social.postDeletedToast', '貼文已刪除'), '🗑️');
@@ -5819,7 +5822,7 @@
     // 嘅所有訊息（唔係淨係自己隱藏），撳之前會 confirm 一次先，避免手震撳錯
     window.clearChatHistory = async function(chatId) {
       if (!window.currentUser || !window.db || !window.fs) return;
-      if (!confirm(window.t('features.confirmDeleteChatHistory', '確定要清除這個對話的訊息記錄？只會清除你這邊的顯示，對方仍然可以看到。'))) return;
+      if (!(await window.appConfirm(window.t('features.confirmDeleteChatHistory', '確定要清除這個對話的訊息記錄？只會清除你這邊的顯示，對方仍然可以看到。')))) return;
       try {
         // v1.199.0：唔再真正刪除訊息（對方嘅訊息唔可以由你刪走，亦要保留
         // 作舉報證據），改為記低「你喺幾時清除咗」，之後只隱藏你嗰邊。

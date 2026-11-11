@@ -13,6 +13,7 @@
 // firebase-functions 嘅 httpsCallable() 直接呼叫，唔使自己砌 fetch()。
 
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onSchedule } = require("firebase-functions/v2/scheduler"); // v1.227.9：定時清理逾時直播
 const { onDocumentWritten } = require("firebase-functions/v2/firestore"); // 分區／學校溫習排行榜：users/{uid} 一寫入就自動同步
 const { setGlobalOptions } = require("firebase-functions/v2");
 const { defineSecret } = require("firebase-functions/params");
@@ -343,6 +344,10 @@ async function sendEmailJsServerSide(templateId, toEmail, username, link) {
     const text = await resp.text().catch(() => "");
     throw new Error(`EmailJS ${resp.status}: ${text}`);
   }
+  // v1.228.0：記錄本月寄出電郵數目（營運開支分頁用）
+  try {
+    await db.doc(`adminCost/stats_${rtcMonthKey()}`).set({ emailsSent: admin.firestore.FieldValue.increment(1), updatedAt: Date.now() }, { merge: true });
+  } catch (e) { /* 統計失敗不影響寄信 */ }
 }
 
 async function sendPasswordResetEmailServerSide(toEmail, username, token) {
@@ -2510,4 +2515,706 @@ exports.reportRtcResult = onCall(async (request) => {
     return { ok: true };
   }
   throw new HttpsError("invalid-argument", "資料格式不正確");
+});
+
+// ===================== Study with me 直播（v1.227.0） =====================
+// 直播伺服器：自建 LiveKit（Vultr 東京，live.concenmate.com）。
+// 前端只可以經以下 Cloud Functions 開播／入場／留言；通行證（JWT）由伺服器
+// 用 LIVEKIT_API_KEY／LIVEKIT_API_SECRET 簽發，前端無法自行偽造。
+// Firestore：streams/{id}（直播）、streams/{id}/messages（留言）、
+// streams/{id}/blocked/{uid}（被主播封鎖）、streams/{id}/deletedMessages（已刪留言原文，只限管理員）。
+const LIVEKIT_API_KEY = defineSecret("LIVEKIT_API_KEY");
+const LIVEKIT_API_SECRET = defineSecret("LIVEKIT_API_SECRET");
+const LIVEKIT_HTTP = "https://live.concenmate.com";
+const LIVEKIT_WS = "wss://live.concenmate.com";
+const STREAM_STALE_MS = 3 * 60 * 1000; // 主播超過 3 分鐘冇心跳，當直播已結束
+// v1.227.9：入場通行證只有效 10 分鐘（已入場的人由 LiveKit 自動續期），
+// 被封鎖／被中止後舊通行證很快作廢，不能繞過網站重新入場
+const STREAM_TOKEN_TTL_SEC = 10 * 60;
+
+function lkB64(input) {
+  return Buffer.from(input).toString("base64").replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+function livekitToken(identity, name, grants, ttlSec) {
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: "HS256", typ: "JWT" };
+  const payload = { iss: String(LIVEKIT_API_KEY.value() || "").trim(), sub: identity, name: name || identity, nbf: now - 10, exp: now + ttlSec, jti: `${identity}-${now}`, video: grants };
+  const data = `${lkB64(JSON.stringify(header))}.${lkB64(JSON.stringify(payload))}`;
+  const sig = lkB64(crypto.createHmac("sha256", String(LIVEKIT_API_SECRET.value() || "").trim()).update(data).digest());
+  return `${data}.${sig}`;
+}
+async function livekitRoomService(method, body) {
+  const token = livekitToken("concenmate-server", "server", { roomAdmin: true, roomCreate: true, roomList: true, room: body.room || "" }, 60);
+  const res = await fetch(`${LIVEKIT_HTTP}/twirp/livekit.RoomService/${method}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`LiveKit ${method} ${res.status}`);
+  return res.json();
+}
+
+async function isAdminUserData(userData) {
+  if (!userData || !userData.loginId) return false;
+  const snap = await db.doc("admin_config/adminIds").get();
+  const ids = (snap.exists && Array.isArray(snap.data().ids)) ? snap.data().ids : [];
+  return ids.includes(userData.loginId);
+}
+function isMinorUser(d) {
+  if (!d) return false;
+  if (d.isSecondaryStudent === true) return true;
+  if (typeof d.birthYear === "number") return (new Date().getFullYear() - d.birthYear) < 18;
+  return false;
+}
+function streamIsLive(s) {
+  return !!s && s.status === "live" && typeof s.lastActiveAt === "number" && (Date.now() - s.lastActiveAt) < STREAM_STALE_MS;
+}
+
+// ---------- 留言過濾：粗口及聯絡資料 ----------
+const STREAM_DEFAULT_BANNED = [
+  "屌", "𨳒", "閪", "撚", "柒頭", "仆街", "冚家鏟", "戇鳩", "on9", "老母", "老味",
+  "操你", "傻逼", "傻b", "妈的", "他妈", "尼玛", "鸡巴", "雞巴", "婊子", "賤人", "贱人",
+  "fuck", "fck", "shit", "bitch", "cunt", "dick", "pussy", "slut", "whore", "nigger", "retard",
+  "做愛", "做爱", "約炮", "约炮", "裸照", "nude", "nudes", "porn",
+];
+const STREAM_CONTACT_PATTERNS = [
+  /https?:\/\/\S+/gi,
+  /\bwww\.\S+/gi,
+  /\b[\w-]+\.(com|net|org|hk|io|me|cc|tv|co|ly|link|xyz)\b\S*/gi,
+  /@[A-Za-z0-9._]{2,}/g,
+  /(\d[\s\-_.]*){8,}/g,
+  /\b(ig|insta|instagram|whatsapp|whats\s*app|wechat|telegram|tg|line|snapchat|snap|discord|signal|kik)\b/gi,
+  /(微信|電話|电话|手機號|手机号|聯絡我|联系我|加我|私訊|私讯|私聊|私信|加好友)/g,
+];
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+function filterStreamText(text, extraWords) {
+  let out = String(text || "");
+  let changed = false;
+  STREAM_CONTACT_PATTERNS.forEach((re) => {
+    const next = out.replace(re, "＊＊＊");
+    if (next !== out) changed = true;
+    out = next;
+  });
+  const words = STREAM_DEFAULT_BANNED.concat(Array.isArray(extraWords) ? extraWords : []);
+  words.forEach((w) => {
+    const word = String(w || "").trim();
+    if (!word) return;
+    const body = Array.from(word).map(escapeRegExp).join("[\\s._\\-*·]*");
+    const latin = /^[a-z0-9]+$/i.test(word);
+    const re = new RegExp(latin ? `\\b${body}\\b` : body, "gi");
+    const next = out.replace(re, (m) => "＊".repeat(Math.min(6, Array.from(m).length)));
+    if (next !== out) changed = true;
+    out = next;
+  });
+  return { text: out, changed };
+}
+
+async function getStreamingFullRules() {
+  if (streamingFullCache && Date.now() - streamingFullCacheAt < 30 * 1000) return streamingFullCache;
+  const rules = Object.assign({ maxDurationHours: 4, maxConcurrent: 20, defaultQuality: "480p", hotQuality: "720p", bannedWords: [] }, await getStreamingRules());
+  try {
+    const snap = await db.doc("admin_config/streaming").get();
+    if (snap.exists) {
+      const d = snap.data();
+      if (typeof d.maxDurationHours === "number" && d.maxDurationHours >= 1 && d.maxDurationHours <= 12) rules.maxDurationHours = d.maxDurationHours;
+      if (typeof d.maxConcurrent === "number" && d.maxConcurrent >= 1) rules.maxConcurrent = d.maxConcurrent;
+      if (["360p", "480p", "720p"].includes(d.defaultQuality)) rules.defaultQuality = d.defaultQuality;
+      if (Array.isArray(d.bannedWords)) rules.bannedWords = d.bannedWords.filter((w) => typeof w === "string").slice(0, 500);
+    }
+  } catch (e) {
+    console.warn("讀取直播設定失敗:", e);
+  }
+  streamingFullCache = rules;
+  streamingFullCacheAt = Date.now();
+  return rules;
+}
+let streamingFullCache = null;
+let streamingFullCacheAt = 0;
+async function loadStreamActor(uid) {
+  const snap = await db.doc(`users/${uid}`).get();
+  if (!snap.exists) throw new HttpsError("not-found", "找不到這個帳戶");
+  const data = snap.data();
+  if (isUserSuspendedNow(data)) throw new HttpsError("permission-denied", "你的帳戶正被暫停使用");
+  const admin_ = await isAdminUserData(data);
+  return { data, isAdmin: admin_ };
+}
+function streamIdArg(request) {
+  const id = request.data && request.data.streamId;
+  if (!id || typeof id !== "string" || id.includes("/") || id.length > 64) throw new HttpsError("invalid-argument", "缺少直播資料");
+  return id;
+}
+
+exports.startStream = onCall({ secrets: [LIVEKIT_API_KEY, LIVEKIT_API_SECRET] }, async (request) => {
+  const uid = request.auth && request.auth.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "請先登入會員");
+  await checkRateLimit(`startStream_${uid}`, 10, 60 * 60 * 1000);
+  const { data: me, isAdmin } = await loadStreamActor(uid);
+  const rules = await getStreamingFullRules();
+  if (!isAdmin) {
+    if (!rules.enabled) throw new HttpsError("failed-precondition", "直播功能尚未開放");
+    if (me.streamBanned === true) throw new HttpsError("permission-denied", "你的直播資格已被暫停");
+    if ((me.qualifiedDays || 0) < rules.requiredDays) {
+      throw new HttpsError("failed-precondition", `需要累積溫習 ${rules.requiredDays} 日才可以開始直播（現時 ${me.qualifiedDays || 0} 日）`);
+    }
+  }
+  const userRef = db.doc(`users/${uid}`);
+  if (isMinorUser(me) && !me.parentConsentAt) {
+    if (request.data && request.data.parentConsent === true) {
+      await userRef.update({ parentConsentAt: Date.now() });
+    } else {
+      throw new HttpsError("failed-precondition", "請先確認已取得家長或監護人同意");
+    }
+  }
+  const title = filterStreamText(String((request.data && request.data.title) || "").trim().slice(0, 40), rules.bannedWords).text || "Study with me";
+  const subject = String((request.data && request.data.subject) || "").trim().slice(0, 30);
+  const plannedRaw = Number(request.data && request.data.plannedMinutes);
+
+  // 清理逾時直播、結束自己舊的直播、檢查同時直播數目
+  const now = Date.now();
+  const liveSnap = await db.collection("streams").where("status", "==", "live").limit(500).get();
+  let activeCount = 0;
+  const batch = db.batch();
+  liveSnap.forEach((doc) => {
+    const s = doc.data();
+    if (!streamIsLive(s) || s.hostUid === uid) {
+      batch.update(doc.ref, { status: "ended", endedAt: now, endReason: s.hostUid === uid ? "restart" : "stale" });
+    } else {
+      activeCount++;
+    }
+  });
+  await batch.commit();
+  if (!isAdmin && activeCount >= rules.maxConcurrent) {
+    throw new HttpsError("resource-exhausted", "同一時間的直播數目已滿，請稍後再試");
+  }
+
+  const ref = db.collection("streams").doc();
+  const maxMinutes = rules.maxDurationHours * 60;
+  const plannedMinutes = (Number.isFinite(plannedRaw) && plannedRaw >= 15) ? Math.min(maxMinutes, Math.floor(plannedRaw)) : maxMinutes;
+  const maxEndAt = now + plannedMinutes * 60 * 1000;
+  await ref.set({
+    hostUid: uid,
+    hostName: me.username || "同學",
+    title,
+    subject,
+    status: "live",
+    startedAt: now,
+    lastActiveAt: now,
+    viewerCount: 0,
+    maxEndAt,
+    plannedMinutes,
+    quality: rules.defaultQuality,
+    testMode: !rules.enabled,
+  });
+  const token = livekitToken(uid, me.username || "同學", { room: ref.id, roomJoin: true, canPublish: true, canSubscribe: false, canPublishData: false }, STREAM_TOKEN_TTL_SEC);
+  return { streamId: ref.id, token, url: LIVEKIT_WS, quality: rules.defaultQuality, maxEndAt, maxDurationHours: rules.maxDurationHours };
+});
+
+exports.joinStream = onCall({ secrets: [LIVEKIT_API_KEY, LIVEKIT_API_SECRET] }, async (request) => {
+  const uid = request.auth && request.auth.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "請先登入會員");
+  await checkRateLimit(`joinStream_${uid}`, 60, 60 * 60 * 1000);
+  const streamId = streamIdArg(request);
+  const [{ data: me, isAdmin }, rules, snap, blocked] = await Promise.all([
+    loadStreamActor(uid), getStreamingRules(), db.doc(`streams/${streamId}`).get(), db.doc(`streams/${streamId}/blocked/${uid}`).get(),
+  ]);
+  if (!rules.enabled && !isAdmin) throw new HttpsError("failed-precondition", "直播功能尚未開放");
+  if (!snap.exists || !streamIsLive(snap.data())) throw new HttpsError("not-found", "這個直播已經結束");
+  if (blocked.exists) throw new HttpsError("permission-denied", "你已被主播移出這個直播");
+  // v1.227.4：主播不可以用同一帳戶觀看自己的直播（同一身份會令主播連線被踢走）
+  if (snap.data().hostUid === uid) throw new HttpsError("failed-precondition", "你正在主持這個直播，不可以同時觀看");
+  const token = livekitToken(uid, me.username || "同學", { room: streamId, roomJoin: true, canPublish: false, canSubscribe: true, canPublishData: false }, STREAM_TOKEN_TTL_SEC);
+  return { token, url: LIVEKIT_WS };
+});
+
+// v1.227.9：觀看人數改由伺服器向 LiveKit 查詢（不再相信主播部機報上來的數字），
+// 同時檢查主播是否真的連線並開着鏡頭；連續兩次冇畫面就自動結束直播
+async function livekitRoomStatus(streamId, hostUid) {
+  const res = await livekitRoomService("ListParticipants", { room: streamId });
+  // 回覆格式不如預期時當作「未知」，寧可不處理，也不要誤判而中止正常直播
+  if (!res || !Array.isArray(res.participants)) return null;
+  const list = res.participants;
+  let viewers = 0;
+  let hostVideo = false;
+  let hostPresent = false;
+  list.forEach((p) => {
+    if (!p || !p.identity) return;
+    if (p.identity === hostUid) {
+      hostPresent = true;
+      const tracks = Array.isArray(p.tracks) ? p.tracks : [];
+      hostVideo = tracks.some((t) => t && (t.type === "VIDEO" || t.type === 1) && !t.muted);
+    } else {
+      viewers++;
+    }
+  });
+  return { viewers, hostPresent, hostVideo };
+}
+
+exports.streamHeartbeat = onCall({ secrets: [LIVEKIT_API_KEY, LIVEKIT_API_SECRET] }, async (request) => {
+  const uid = request.auth && request.auth.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "請先登入會員");
+  const streamId = streamIdArg(request);
+  const ref = db.doc(`streams/${streamId}`);
+  const [snap, meSnap] = await Promise.all([ref.get(), db.doc(`users/${uid}`).get()]);
+  if (!snap.exists) throw new HttpsError("not-found", "這個直播已經結束");
+  const s = snap.data();
+  if (s.hostUid !== uid) throw new HttpsError("permission-denied", "只有主播可以執行這個操作");
+  if (s.status !== "live") return { ended: true };
+  const now = Date.now();
+  const endWith = async (reason) => {
+    await ref.update({ status: "ended", endedAt: now, endReason: reason });
+    try { await livekitRoomService("DeleteRoom", { room: streamId }); } catch (e) { /* 房間可能已關閉 */ }
+    return { ended: true };
+  };
+  if (now >= (s.maxEndAt || 0)) return endWith("maxDuration");
+  if (meSnap.exists && isUserSuspendedNow(meSnap.data())) return endWith("suspended");
+  let status = null;
+  try {
+    status = await livekitRoomStatus(streamId, uid);
+  } catch (e) {
+    console.warn("查詢 LiveKit 房間失敗（暫時保留原有人數）:", e.message);
+  }
+  const update = { lastActiveAt: now };
+  if (status) {
+    update.viewerCount = status.viewers;
+    // v1.228.0：記錄直播觀看分鐘數（營運開支分頁用，估算直播伺服器流量）
+    db.doc(`adminCost/stats_${rtcMonthKey()}`).set({
+      liveViewerMinutes: admin.firestore.FieldValue.increment(status.viewers),
+      liveHostMinutes: admin.firestore.FieldValue.increment(1),
+      updatedAt: now,
+    }, { merge: true }).catch(() => {});
+    const noVideo = !status.hostPresent || !status.hostVideo;
+    const misses = noVideo ? (s.noVideoCount || 0) + 1 : 0;
+    if (misses >= 2) return endWith("noVideo");
+    update.noVideoCount = misses;
+  }
+  await ref.update(update);
+  return { ended: false, viewerCount: status ? status.viewers : (s.viewerCount || 0) };
+});
+
+// v1.227.9：每 10 分鐘清理一次已中斷（超過 3 分鐘冇心跳）但狀態仍是「直播中」的直播，
+// 並關閉 LiveKit 上對應的房間；大廳不用再讀取這些殘留直播
+exports.cleanupStaleStreams = onSchedule({ schedule: "every 10 minutes", timeZone: "Asia/Hong_Kong", secrets: [LIVEKIT_API_KEY, LIVEKIT_API_SECRET] }, async () => {
+  const snap = await db.collection("streams").where("status", "==", "live").limit(500).get();
+  const now = Date.now();
+  const stale = snap.docs.filter((d) => !streamIsLive(d.data()) || now >= (d.data().maxEndAt || 0) + 5 * 60 * 1000);
+  if (!stale.length) return;
+  const batch = db.batch();
+  stale.forEach((d) => batch.update(d.ref, { status: "ended", endedAt: now, endReason: "stale" }));
+  await batch.commit();
+  await Promise.all(stale.map((d) => livekitRoomService("DeleteRoom", { room: d.id }).catch(() => null)));
+  console.log(`已清理 ${stale.length} 個逾時直播`);
+});
+
+exports.endStream = onCall({ secrets: [LIVEKIT_API_KEY, LIVEKIT_API_SECRET] }, async (request) => {
+  const uid = request.auth && request.auth.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "請先登入會員");
+  const streamId = streamIdArg(request);
+  const ref = db.doc(`streams/${streamId}`);
+  const snap = await ref.get();
+  if (!snap.exists) return { ok: true };
+  const s = snap.data();
+  let byAdmin = false;
+  if (s.hostUid !== uid) {
+    const meSnap = await db.doc(`users/${uid}`).get();
+    if (!(await isAdminUserData(meSnap.exists ? meSnap.data() : null))) throw new HttpsError("permission-denied", "只有主播或管理員可以結束直播");
+    byAdmin = true;
+  }
+  await ref.update({ status: "ended", endedAt: Date.now(), endReason: byAdmin ? "admin" : "host" });
+  try {
+    await livekitRoomService("DeleteRoom", { room: streamId });
+  } catch (e) {
+    console.warn("關閉 LiveKit 房間失敗（直播狀態已更新）:", e.message);
+  }
+  if (byAdmin) {
+    await db.collection("adminAuditLog").add({ action: "中止直播", details: { streamId, hostUid: s.hostUid }, adminLoginId: null, adminEmail: null, createdAt: Date.now() });
+  }
+  return { ok: true };
+});
+
+exports.sendStreamMessage = onCall(async (request) => {
+  const uid = request.auth && request.auth.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "請先登入會員");
+  const streamId = streamIdArg(request);
+  const raw = String((request.data && request.data.text) || "").trim();
+  if (!raw) throw new HttpsError("invalid-argument", "留言不可以空白");
+  if (Array.from(raw).length > 200) throw new HttpsError("invalid-argument", "留言最多 200 字");
+  const [, { data: me, isAdmin }, rules, snap, blocked] = await Promise.all([
+    checkRateLimit(`streamMsg_${uid}`, 3, 10 * 1000),
+    loadStreamActor(uid), getStreamingFullRules(), db.doc(`streams/${streamId}`).get(), db.doc(`streams/${streamId}/blocked/${uid}`).get(),
+  ]);
+  if (!rules.enabled && !isAdmin) throw new HttpsError("failed-precondition", "直播功能尚未開放");
+  if (!snap.exists || !streamIsLive(snap.data())) throw new HttpsError("not-found", "這個直播已經結束");
+  if (blocked.exists) throw new HttpsError("permission-denied", "你已被主播移出這個直播");
+  const filtered = filterStreamText(raw, rules.bannedWords);
+  await db.collection(`streams/${streamId}/messages`).add({
+    uid,
+    name: me.username || "同學",
+    text: filtered.text,
+    filtered: filtered.changed,
+    isHost: snap.data().hostUid === uid,
+    at: Date.now(),
+  });
+  return { ok: true, filtered: filtered.changed };
+});
+
+exports.moderateStream = onCall({ secrets: [LIVEKIT_API_KEY, LIVEKIT_API_SECRET] }, async (request) => {
+  const uid = request.auth && request.auth.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "請先登入會員");
+  const streamId = streamIdArg(request);
+  const action = request.data && request.data.action;
+  // v1.227.6：直播、本人資料、要刪的留言同時讀取，減少等待
+  const delId = action === "deleteMessage" && request.data && typeof request.data.messageId === "string" && request.data.messageId && !request.data.messageId.includes("/") ? request.data.messageId : null;
+  const [snap, meSnap, preMsgSnap] = await Promise.all([
+    db.doc(`streams/${streamId}`).get(),
+    db.doc(`users/${uid}`).get(),
+    delId ? db.doc(`streams/${streamId}/messages/${delId}`).get() : Promise.resolve(null),
+  ]);
+  if (!snap.exists) throw new HttpsError("not-found", "這個直播已經結束");
+  const s = snap.data();
+  if (s.hostUid !== uid) {
+    if (!(await isAdminUserData(meSnap.exists ? meSnap.data() : null))) throw new HttpsError("permission-denied", "只有主播或管理員可以執行這個操作");
+  }
+  if (action === "deleteMessage") {
+    if (!delId) throw new HttpsError("invalid-argument", "缺少留言資料");
+    const msgRef = db.doc(`streams/${streamId}/messages/${delId}`);
+    const msgSnap = preMsgSnap;
+    if (!msgSnap.exists) return { ok: true };
+    const batch = db.batch();
+    batch.set(db.doc(`streams/${streamId}/deletedMessages/${delId}`), Object.assign({}, msgSnap.data(), { deletedBy: uid, deletedAt: Date.now() }));
+    batch.update(msgRef, { text: "", deleted: true });
+    if (s.pinned && s.pinned.messageId === delId) batch.update(db.doc(`streams/${streamId}`), { pinned: admin.firestore.FieldValue.delete() });
+    await batch.commit();
+    return { ok: true };
+  }
+  // v1.227.1：主播置頂自己的留言（同一時間一條）；主播或管理員可取消
+  if (action === "pin") {
+    const messageId = request.data.messageId;
+    if (!messageId || typeof messageId !== "string" || messageId.includes("/")) throw new HttpsError("invalid-argument", "缺少留言資料");
+    const msgSnap = await db.doc(`streams/${streamId}/messages/${messageId}`).get();
+    if (!msgSnap.exists || msgSnap.data().deleted) throw new HttpsError("not-found", "找不到這則留言");
+    const m = msgSnap.data();
+    if (m.uid !== s.hostUid) throw new HttpsError("permission-denied", "只可以置頂主播自己的留言");
+    await db.doc(`streams/${streamId}`).update({ pinned: { messageId, text: m.text, name: m.name, at: Date.now() } });
+    return { ok: true };
+  }
+  if (action === "unpin") {
+    await db.doc(`streams/${streamId}`).update({ pinned: admin.firestore.FieldValue.delete() });
+    return { ok: true };
+  }
+  if (action === "block") {
+    const targetUid = request.data.targetUid;
+    if (!targetUid || typeof targetUid !== "string" || targetUid.includes("/")) throw new HttpsError("invalid-argument", "缺少用戶資料");
+    if (targetUid === s.hostUid) throw new HttpsError("failed-precondition", "不可以封鎖主播");
+    await db.doc(`streams/${streamId}/blocked/${targetUid}`).set({ at: Date.now(), by: uid });
+    try {
+      await livekitRoomService("RemoveParticipant", { room: streamId, identity: targetUid });
+    } catch (e) {
+      console.warn("移除觀眾連線失敗（封鎖紀錄已寫入）:", e.message);
+    }
+    return { ok: true };
+  }
+  throw new HttpsError("invalid-argument", "未知的操作");
+});
+
+
+// ===================== 營運開支儀表板（v1.228.0） =====================
+// 只限超級管理員。資料來源：
+//  (A) 網站自己點數：adminCost/stats_YYYYMM（寄出電郵、直播觀看分鐘）、
+//      admin_config/rtcStats_YYYYMM（中轉用量）、users 數目
+//  (B) 官方數據：Google Cloud Monitoring（Firestore 讀寫、Cloud Functions 呼叫、
+//      Storage 容量及下載）、Vultr API（直播伺服器真實流量及本月帳單）
+// 結果快取 30 分鐘（adminCost/dashboardCache），避免每次打開都重新查詢。
+const VULTR_API_KEY = defineSecret("VULTR_API_KEY");
+const COST_DEFAULTS = {
+  vultrMonthlyUSD: 20, vultrIncludedGB: 3000, liveViewerCapacity: 300,
+  emailjsQuota: 200, turnFreeGB: 1000, domainYearlyUSD: 10.46,
+};
+const EMAILJS_PLAN_FEES = { 200: 0, 2000: 9, 5000: 15, 25000: 40 };
+const LIVE_GB_PER_VIEWER_MINUTE = 0.0045; // 480p 約 600 kbps：每位觀眾每分鐘約 4.5 MB
+
+async function isSuperAdminUserData(userData) {
+  if (!userData || !userData.loginId) return false;
+  const snap = await db.doc("admin_config/adminIds").get();
+  const d = snap.exists ? snap.data() : {};
+  const ids = Array.isArray(d.ids) ? d.ids : [];
+  if (!ids.includes(userData.loginId)) return false;
+  const roles = d.roles && typeof d.roles === "object" ? d.roles : null;
+  if (!roles || !(userData.loginId in roles)) return true;
+  return roles[userData.loginId] === "super";
+}
+
+function gcpProjectId() {
+  if (process.env.GCLOUD_PROJECT) return process.env.GCLOUD_PROJECT;
+  try { return JSON.parse(process.env.FIREBASE_CONFIG || "{}").projectId; } catch (e) { return null; }
+}
+async function gcpAccessToken() {
+  const res = await fetch("http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token", { headers: { "Metadata-Flavor": "Google" } });
+  if (!res.ok) throw new Error(`metadata ${res.status}`);
+  return (await res.json()).access_token;
+}
+// 以「每日」為單位取某個指標，回傳 [{ day: 'YYYY-MM-DD', value }]
+async function monitoringDaily(token, metricType, startIso, endIso, aligner) {
+  const project = gcpProjectId();
+  const params = new URLSearchParams({
+    filter: `metric.type = "${metricType}"`,
+    "interval.startTime": startIso,
+    "interval.endTime": endIso,
+    "aggregation.alignmentPeriod": "86400s",
+    "aggregation.perSeriesAligner": aligner || "ALIGN_SUM",
+    "aggregation.crossSeriesReducer": "REDUCE_SUM",
+  });
+  const res = await fetch(`https://monitoring.googleapis.com/v3/projects/${project}/timeSeries?${params}`, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) throw new Error(`monitoring ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  const json = await res.json();
+  const out = {};
+  (json.timeSeries || []).forEach((ts) => (ts.points || []).forEach((pt) => {
+    const day = String(pt.interval.endTime).slice(0, 10);
+    const v = pt.value.int64Value != null ? Number(pt.value.int64Value) : Number(pt.value.doubleValue || 0);
+    out[day] = (out[day] || 0) + v;
+  }));
+  return Object.keys(out).sort().map((day) => ({ day, value: out[day] }));
+}
+async function monitoringDailyFirst(token, types, startIso, endIso, aligner) {
+  let lastErr = null;
+  for (const t of types) {
+    try {
+      const r = await monitoringDaily(token, t, startIso, endIso, aligner);
+      if (r.length) return r;
+    } catch (e) { lastErr = e; }
+  }
+  if (lastErr) throw lastErr;
+  return [];
+}
+
+async function vultrGet(path) {
+  const key = String(VULTR_API_KEY.value() || "").trim();
+  if (!key || key === "none") throw new Error("未設定 Vultr API Key");
+  const res = await fetch(`https://api.vultr.com/v2${path}`, { headers: { Authorization: `Bearer ${key}` } });
+  if (!res.ok) {
+    const hint = res.status === 401 ? "（API Key 不正確，或未在 Access Control 允許所有 IPv4）" : res.status === 403 ? "（此 Key 沒有權限）" : "";
+    throw new Error(`Vultr ${res.status}${hint}`);
+  }
+  return res.json();
+}
+
+exports.getCostDashboard = onCall({ secrets: [VULTR_API_KEY], timeoutSeconds: 60 }, async (request) => {
+  const uid = request.auth && request.auth.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "請先登入會員");
+  const meSnap = await db.doc(`users/${uid}`).get();
+  if (!(await isSuperAdminUserData(meSnap.exists ? meSnap.data() : null))) throw new HttpsError("permission-denied", "只限超級管理員查看");
+
+  const cacheRef = db.doc("adminCost/dashboardCache");
+  const force = !!(request.data && request.data.refresh);
+  if (!force) {
+    const c = await cacheRef.get();
+    if (c.exists && Date.now() - (c.data().at || 0) < 30 * 60 * 1000) return c.data().data;
+  }
+
+  const now = new Date();
+  const monthKey = rtcMonthKey(now);
+  const hkNow = new Date(now.getTime() + 8 * 3600 * 1000);
+  const monthStartMs = Date.UTC(hkNow.getUTCFullYear(), hkNow.getUTCMonth(), 1) - 8 * 3600 * 1000;
+  const daysInMonth = new Date(Date.UTC(hkNow.getUTCFullYear(), hkNow.getUTCMonth() + 1, 0)).getUTCDate();
+  const dayOfMonth = hkNow.getUTCDate();
+  const startIso = new Date(monthStartMs).toISOString();
+  const endIso = now.toISOString();
+  const errors = {};
+
+  const [settingsSnap, statsSnap, rtcSnap, turnSet] = await Promise.all([
+    db.doc("adminCost/settings").get(),
+    db.doc(`adminCost/stats_${monthKey}`).get(),
+    db.doc(`admin_config/rtcStats_${monthKey}`).get(),
+    readTurnSettings().catch(() => ({ enabled: true, monthlyCapGB: 900 })),
+  ]);
+  const cfg = Object.assign({}, COST_DEFAULTS, settingsSnap.exists ? settingsSnap.data() : {});
+  const stats = statsSnap.exists ? statsSnap.data() : {};
+  const rtc = rtcSnap.exists ? rtcSnap.data() : {};
+
+  // ---- 用戶數目 ----
+  let totalUsers = null, activeUsers = null;
+  try {
+    const [t, a] = await Promise.all([
+      db.collection("users").count().get(),
+      db.collection("presence").where("lastSeenAt", ">=", monthStartMs).count().get(),
+    ]);
+    totalUsers = t.data().count;
+    activeUsers = a.data().count;
+  } catch (e) { errors.users = e.message; }
+
+  // ---- 直播：現時同時觀看人數 ----
+  let liveNowViewers = 0, liveNowStreams = 0;
+  try {
+    const live = await db.collection("streams").where("status", "==", "live").limit(200).get();
+    live.forEach((d) => { if (streamIsLive(d.data())) { liveNowStreams++; liveNowViewers += d.data().viewerCount || 0; } });
+  } catch (e) { errors.live = e.message; }
+
+  // ---- (B) Google Cloud Monitoring ----
+  let fsReads = null, fsWrites = null, fsDeletes = null, fnCalls = null, storageGB = null, storageEgressGB = null;
+  try {
+    const token = await gcpAccessToken();
+    const [r, w, dl, fn, sb, se] = await Promise.all([
+      monitoringDailyFirst(token, ["firestore.googleapis.com/document/read_ops_count", "firestore.googleapis.com/document/read_count"], startIso, endIso),
+      monitoringDailyFirst(token, ["firestore.googleapis.com/document/write_ops_count", "firestore.googleapis.com/document/write_count"], startIso, endIso),
+      monitoringDailyFirst(token, ["firestore.googleapis.com/document/delete_ops_count", "firestore.googleapis.com/document/delete_count"], startIso, endIso),
+      monitoringDaily(token, "run.googleapis.com/request_count", startIso, endIso).catch((e) => { errors.functions = e.message; return null; }),
+      monitoringDaily(token, "storage.googleapis.com/storage/total_bytes", new Date(now.getTime() - 3 * 86400000).toISOString(), endIso, "ALIGN_MEAN").catch((e) => { errors.storage = e.message; return null; }),
+      monitoringDaily(token, "storage.googleapis.com/network/sent_bytes_count", startIso, endIso).catch(() => null),
+    ]);
+    fsReads = r; fsWrites = w; fsDeletes = dl;
+    if (fn) fnCalls = fn.reduce((a, b) => a + b.value, 0);
+    if (sb && sb.length) storageGB = sb[sb.length - 1].value / 1e9;
+    if (se) storageEgressGB = se.reduce((a, b) => a + b.value, 0) / 1e9;
+  } catch (e) { errors.google = e.message; }
+
+  // ---- (B) Vultr ----
+  // v1.228.2：逐項記錄錯誤原因；帳戶流量 API 不可用時，改為讀取伺服器每日流量自行加總
+  let vultr = null;
+  {
+    const vErr = [];
+    const [bw, acct] = await Promise.all([
+      vultrGet("/account/bandwidth").catch((e) => { vErr.push(`流量：${e.message}`); return null; }),
+      vultrGet("/account").catch((e) => { vErr.push(`帳單：${e.message}`); return null; }),
+    ]);
+    const cur = bw && bw.bandwidth && (bw.bandwidth.current_month_to_date || bw.bandwidth.currentMonthToDate);
+    let gbOut = cur ? Number(cur.gb_out || 0) : null;
+    if (gbOut == null) {
+      try {
+        const list = await vultrGet("/instances?per_page=100");
+        const inst = (list.instances || []).find((i) => i.main_ip === "207.148.111.66") || (list.instances || [])[0];
+        if (inst) {
+          const ib = await vultrGet(`/instances/${inst.id}/bandwidth`);
+          const monthPrefix = `${hkNow.getUTCFullYear()}-${String(hkNow.getUTCMonth() + 1).padStart(2, "0")}`;
+          let bytes = 0;
+          Object.keys(ib.bandwidth || {}).forEach((day) => { if (day.startsWith(monthPrefix)) bytes += Number(ib.bandwidth[day].outgoing_bytes || 0); });
+          gbOut = bytes / 1e9;
+        } else {
+          vErr.push("找不到伺服器");
+        }
+      } catch (e) { vErr.push(`伺服器流量：${e.message}`); }
+    }
+    const pending = acct && acct.account ? Number(acct.account.pending_charges || 0) : null;
+    if (gbOut != null || pending != null) vultr = { gbOut, pendingCharges: pending };
+    if (vErr.length && (gbOut == null || pending == null)) errors.vultr = vErr.join("；");
+  }
+
+  // ---- 計算各項目 ----
+  const sum = (arr) => (arr || []).reduce((a, b) => a + b.value, 0);
+  const todayKey = now.toISOString().slice(0, 10);
+  const today = (arr) => { const p = (arr || []).find((x) => x.day === todayKey) || (arr && arr[arr.length - 1]); return p ? p.value : 0; };
+  const overDaily = (arr, free) => (arr || []).reduce((a, b) => a + Math.max(0, b.value - free), 0);
+  const project = (v) => (dayOfMonth > 0 ? v / dayOfMonth * daysInMonth : v);
+
+  const liveEstGB = (stats.liveViewerMinutes || 0) * LIVE_GB_PER_VIEWER_MINUTE;
+  const liveGB = vultr && vultr.gbOut != null ? vultr.gbOut : liveEstGB;
+  const turnGB = (rtc.relayMinutes || 0) * TURN_GB_PER_RELAY_MINUTE;
+  const turnLimit = Math.min(turnSet.monthlyCapGB || 900, cfg.turnFreeGB);
+  const emails = stats.emailsSent || 0;
+
+  const items = [
+    {
+      key: "vultr", name: "直播伺服器流量（Vultr）", source: vultr && vultr.gbOut != null ? "official" : "estimate",
+      used: liveGB, limit: cfg.vultrIncludedGB, unit: "GB", period: "本月",
+      costUSD: cfg.vultrMonthlyUSD + Math.max(0, project(liveGB) - cfg.vultrIncludedGB) * 0.01,
+      advice: "接近上限時：於 Vultr 升級至較大方案，或啟用熱門直播轉用 R2 的方案；超出部分每 GB US$0.01。",
+    },
+    {
+      key: "liveViewers", name: "直播同時觀看人數", source: "count",
+      used: liveNowViewers, limit: cfg.liveViewerCapacity, unit: "人", period: "現時",
+      extra: `${liveNowStreams} 個直播進行中`, costUSD: 0,
+      advice: "經常超過七成：將 Vultr 伺服器升級至 4 核心方案，以免畫面卡頓。",
+    },
+    {
+      key: "turn", name: "視訊溫習室中轉（Cloudflare）", source: "estimate",
+      used: turnGB, limit: turnLimit, unit: "GB", period: "本月",
+      costUSD: Math.max(0, project(turnGB) - cfg.turnFreeGB) * 0.05,
+      advice: "達到上限後中轉會自動暫停，部分同學會無法入房。接近上限：考慮提高上限（超出 1,000 GB 每 GB US$0.05），或改用自建中轉伺服器。",
+    },
+    {
+      key: "email", name: "電郵（EmailJS）", source: "count",
+      used: emails, limit: cfg.emailjsQuota, unit: "封", period: "本月",
+      costUSD: EMAILJS_PLAN_FEES[cfg.emailjsQuota] != null ? EMAILJS_PLAN_FEES[cfg.emailjsQuota] : 0,
+      advice: "用完額度後驗證及重設密碼電郵將寄不出。接近上限：升級 EmailJS 方案（2,000 封 US$9／5,000 封 US$15），並在下方更新方案設定。",
+    },
+    {
+      key: "fsReads", name: "資料庫讀取（今日）", source: fsReads ? "official" : "unavailable",
+      used: fsReads ? today(fsReads) : null, limit: 50000, unit: "次", period: "今日",
+      extra: fsReads ? `本月累計 ${Math.round(sum(fsReads)).toLocaleString()} 次` : "",
+      costUSD: fsReads ? overDaily(fsReads, 50000) / 100000 * 0.06 / Math.max(1, dayOfMonth) * daysInMonth : 0,
+      advice: "每日首 5 萬次免費，其後每 10 萬次約 US$0.06。經常超出屬正常增長；如突然大增，可能有程式不斷重複讀取，需要檢查。",
+    },
+    {
+      key: "fsWrites", name: "資料庫寫入（今日）", source: fsWrites ? "official" : "unavailable",
+      used: fsWrites ? today(fsWrites) + today(fsDeletes) : null, limit: 20000, unit: "次", period: "今日",
+      extra: fsWrites ? `本月累計 ${Math.round(sum(fsWrites)).toLocaleString()} 次` : "",
+      costUSD: fsWrites ? overDaily(fsWrites, 20000) / 100000 * 0.18 / Math.max(1, dayOfMonth) * daysInMonth : 0,
+      advice: "每日首 2 萬次免費，其後每 10 萬次約 US$0.18。",
+    },
+    {
+      key: "functions", name: "伺服器程式呼叫（Cloud Functions）", source: fnCalls != null ? "official" : "unavailable",
+      used: fnCalls, limit: 2000000, unit: "次", period: "本月",
+      costUSD: fnCalls != null ? Math.max(0, project(fnCalls) - 2000000) / 1e6 * 0.4 : 0,
+      advice: "每月首 200 萬次免費，其後每 100 萬次約 US$0.40（另按運算時間收費，金額一般很少）。",
+    },
+    {
+      key: "storage", name: "相片儲存量（Storage）", source: storageGB != null ? "official" : "unavailable",
+      used: storageGB, limit: 5, unit: "GB", period: "現時",
+      extra: storageEgressGB != null ? `本月下載 ${storageEgressGB.toFixed(2)} GB` : "",
+      costUSD: (storageGB != null ? Math.max(0, storageGB - 5) * 0.026 : 0) + (storageEgressGB != null ? Math.max(0, project(storageEgressGB) - 30) * 0.12 : 0),
+      advice: "超過 5 GB 後每 GB 每月約 US$0.026；下載流量超出後每 GB 約 US$0.12。可考慮壓縮相片或定期清理舊相片。",
+    },
+    {
+      key: "auth", name: "登入系統（本月活躍用戶）", source: activeUsers != null ? "count" : "unavailable",
+      used: activeUsers, limit: 50000, unit: "人", period: "本月",
+      extra: totalUsers != null ? `總用戶 ${totalUsers.toLocaleString()} 人` : "", costUSD: 0,
+      advice: "每月 5 萬名活躍用戶以內免費。",
+    },
+  ];
+  items.forEach((it) => {
+    it.pct = it.used != null && it.limit ? Math.min(999, Math.round(it.used / it.limit * 100)) : null;
+    it.level = it.pct == null ? "unknown" : it.pct >= 90 ? "urgent" : it.pct >= 70 ? "watch" : "ok";
+    if (it.used != null) it.used = Math.round(it.used * 100) / 100;
+    it.costUSD = Math.round((it.costUSD || 0) * 100) / 100;
+  });
+  const domainUSD = Math.round(cfg.domainYearlyUSD / 12 * 100) / 100;
+  const totalUSD = Math.round((items.reduce((a, b) => a + b.costUSD, 0) + domainUSD) * 100) / 100;
+
+  // 記錄本月估算總額，供「過去 6 個月走勢」使用
+  await db.doc(`adminCost/stats_${monthKey}`).set({ estTotalUSD: totalUSD, updatedAt: Date.now() }, { merge: true }).catch(() => {});
+  const history = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(Date.UTC(hkNow.getUTCFullYear(), hkNow.getUTCMonth() - i, 15));
+    const k = `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+    history.push(k);
+  }
+  const histSnaps = await Promise.all(history.map((k) => db.doc(`adminCost/stats_${k}`).get()));
+  const historyData = history.map((k, i) => ({ month: k, totalUSD: histSnaps[i].exists ? (histSnaps[i].data().estTotalUSD || 0) : null }));
+
+  const data = {
+    at: Date.now(), monthKey, dayOfMonth, daysInMonth, items, domainUSD, totalUSD,
+    vultrPendingUSD: vultr ? vultr.pendingCharges : null,
+    settings: cfg, history: historyData, errors,
+  };
+  await cacheRef.set({ at: Date.now(), data }).catch(() => {});
+  return data;
+});
+
+exports.saveCostSettings = onCall(async (request) => {
+  const uid = request.auth && request.auth.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "請先登入會員");
+  const meSnap = await db.doc(`users/${uid}`).get();
+  if (!(await isSuperAdminUserData(meSnap.exists ? meSnap.data() : null))) throw new HttpsError("permission-denied", "只限超級管理員修改");
+  const d = request.data || {};
+  const num = (v, min, max) => { const n = Number(v); return Number.isFinite(n) && n >= min && n <= max ? n : undefined; };
+  const out = {
+    vultrMonthlyUSD: num(d.vultrMonthlyUSD, 0, 10000),
+    vultrIncludedGB: num(d.vultrIncludedGB, 1, 1000000),
+    liveViewerCapacity: num(d.liveViewerCapacity, 1, 1000000),
+    emailjsQuota: [200, 2000, 5000, 25000].includes(Number(d.emailjsQuota)) ? Number(d.emailjsQuota) : undefined,
+  };
+  Object.keys(out).forEach((k) => out[k] === undefined && delete out[k]);
+  await db.doc("adminCost/settings").set(Object.assign(out, { updatedAt: Date.now(), updatedBy: uid }), { merge: true });
+  await db.doc("adminCost/dashboardCache").delete().catch(() => {});
+  return { ok: true };
 });

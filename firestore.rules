@@ -791,6 +791,31 @@ service cloud.firestore {
     // （畀佢哋處理完之後清理返啲舊紀錄，前端亦都刻意淨係喺「已處
     // 理／已駁回」先出刪除掣，唔會俾人手快唔覺意刪走仲未跟進嘅
     // pending 舉報）。
+    // ===================== Study with me 直播（v1.227.0） =====================
+    // 全部寫入經 Cloud Functions（startStream／sendStreamMessage／moderateStream 等）。
+    match /streams/{streamId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+      match /messages/{messageId} {
+        allow read: if request.auth != null;
+        allow write: if false;
+      }
+      match /blocked/{blockedUid} {
+        allow read: if request.auth != null && (request.auth.uid == blockedUid ||
+          get(/databases/$(database)/documents/streams/$(streamId)).data.hostUid == request.auth.uid ||
+          isAdmin(database));
+        allow write: if false;
+      }
+      match /deletedMessages/{messageId} {
+        allow read: if isAdmin(database);
+        allow write: if false;
+      }
+    }
+    // v1.228.0：營運開支統計及儀表板快取——只限超級管理員讀取，只由 Cloud Functions 寫入
+    match /adminCost/{docId} {
+      allow read: if isSuperAdmin(database);
+      allow write: if false;
+    }
     match /reports/{reportId} {
       allow create: if false;
       allow read, update, delete: if isAdmin(database);

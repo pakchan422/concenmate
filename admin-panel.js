@@ -107,8 +107,22 @@
     const SUPER_ADMIN_ONLY_TABS = [
       'gacha', 'level', 'icons', 'landing', 'scoring', 'roomsettings',
       'antiidle', 'announcement', 'adminlist', 'auditlog',
-      'subjects', 'districts', 'schools', 'legal', 'snapshotbg', 'navmenu', 'turn', 'streaming'
+      'subjects', 'districts', 'schools', 'legal', 'snapshotbg', 'navmenu', 'turn', 'streaming',
+      'costs', 'lists'
     ];
+    // v1.228.0：合併顯示的分頁——撳一個分頁掣，會依次顯示多個原有的分頁內容
+    const ADMIN_TAB_GROUPS = {
+      roomsettings: ['roomsettings', 'antiidle'],
+      navmenu: ['navmenu', 'icons'],
+      lists: ['subjects', 'districts', 'schools'],
+    };
+    // 舊分頁名稱 → 合併後的分頁（網址 hash 或其他地方仍然可以用舊名稱）
+    const ADMIN_TAB_ALIASES = { antiidle: 'roomsettings', scoring: 'roomsettings', icons: 'navmenu', subjects: 'lists', districts: 'lists', schools: 'lists' };
+    // 某個原有分頁的內容而家是否顯示緊（合併分頁後，不可以再只比較 currentAdminTab）
+    function adminTabShowing(name) {
+      const el = document.getElementById('admin-tab-' + name);
+      return !!(el && el.style.display === 'block');
+    }
 
     // 操作紀錄（第四階段第10項）：將重要嘅管治／高風險操作（停權、
     // 補發分數／貼紙、強制關房、審批導師、管理員名單異動等）寫一筆
@@ -145,7 +159,7 @@
     let adminUsersUnsubscribe = null;
     let adminReportsUnsubscribe = null;
     let adminReportsBadgeUnsubscribe = null;
-    let currentAdminTab = 'dashboard';
+    let currentAdminTab = null; // v1.228.0：超級管理員預設打開「營運開支」，其他管理員打開「數據總覽」
 
     // 網址 hash 路由：#admin 先顯示管理後台，離開就切返正常介面。
     // 未登入／auth 仲未 resolve 之前 window.currentUser 係 undefined，
@@ -235,13 +249,14 @@
       // 設定」「管治」呢兩組入面嘅掣全部都係super限定，『support』
       // 帳戶見唔到任何一粒，咁連個組嘅小標題都一齊隱藏埋，唔會見到
       // 得個「網站設定」四個字、下面乜掣都冇咁奇怪。
-      ['admin-tab-group-settings', 'admin-tab-group-governance'].forEach((groupId) => {
+      ['admin-tab-group-settings', 'admin-tab-group-governance', 'admin-tab-group-rewards', 'admin-tab-group-content', 'admin-tab-group-lists'].forEach((groupId) => {
         const groupEl = document.getElementById(groupId);
-        if (groupEl) groupEl.style.display = isSuper ? '' : 'none';
+        if (groupEl) groupEl.dataset.allowed = isSuper ? '1' : '0';
       });
+      buildAdminCategoryBar();
       // 如果而家記住嘅分頁係『support』見唔到嗰啲，就退返去「數據總覽」，
       // 避免見到一個冇按鈕對應、又撳唔返嘅空白分頁。
-      let startTab = currentAdminTab || 'dashboard';
+      let startTab = currentAdminTab || (isSuper ? 'costs' : 'dashboard');
       if (!isSuper && SUPER_ADMIN_ONLY_TABS.includes(startTab)) startTab = 'dashboard';
 
       switchAdminTab(startTab);
@@ -250,6 +265,7 @@
     window.addEventListener('hashchange', checkAdminHashRoute);
 
     window.switchAdminTab = function(tab) {
+      if (ADMIN_TAB_ALIASES[tab]) tab = ADMIN_TAB_ALIASES[tab];
       // 防止『support』帳戶用網址hash或者其他方式直接跳去冇按鈕對應
       // 嘅super限定分頁——退返去「數據總覽」並提示一下。
       if (SUPER_ADMIN_ONLY_TABS.includes(tab) && !isCurrentUserSuperAdmin()) {
@@ -257,15 +273,102 @@
         tab = 'dashboard';
       }
       currentAdminTab = tab;
+      updateAdminCategoryUI(tab);
       document.querySelectorAll('.admin-tab-btn').forEach(btn => {
         const active = btn.getAttribute('data-tab') === tab;
         btn.className = 'btn admin-tab-btn ' + (active ? 'btn-primary active' : 'btn-outline');
       });
+      const showPanels = ADMIN_TAB_GROUPS[tab] || [tab];
       document.querySelectorAll('.admin-tab-panel').forEach(panel => {
-        panel.style.display = (panel.id === 'admin-tab-' + tab) ? 'block' : 'none';
+        panel.style.display = showPanels.some(n => panel.id === 'admin-tab-' + n) ? 'block' : 'none';
       });
+      if (ADMIN_TAB_GROUPS[tab]) {
+        // 按指定次序排列合併分頁的內容，並逐個渲染
+        showPanels.forEach(n => {
+          const el = document.getElementById('admin-tab-' + n);
+          if (el && el.parentNode) el.parentNode.appendChild(el);
+        });
+        showPanels.forEach(n => renderSingleAdminTab(n));
+        return;
+      }
+      renderSingleAdminTab(tab);
+    };
 
-      if (tab === 'dashboard') renderAdminDashboardTab();
+    // v1.228.1：後台分頁改為兩層 tab——上排是類別（總覽、日常營運……），
+    // 下排只顯示所選類別入面的分頁，唔再一路向下排晒所有分頁
+    const adminLastTabByGroup = {};
+    function adminTabGroups() {
+      return Array.from(document.querySelectorAll('#admin-tab-nav > [id^="admin-tab-group-"]'));
+    }
+    function buildAdminCategoryBar() {
+      const nav = document.getElementById('admin-tab-nav');
+      if (!nav) return;
+      let bar = document.getElementById('admin-cat-bar');
+      if (!bar) {
+        bar = document.createElement('div');
+        bar.id = 'admin-cat-bar';
+        bar.setAttribute('role', 'tablist');
+        nav.insertBefore(bar, nav.firstChild);
+      }
+      bar.innerHTML = adminTabGroups().map(g => {
+        const labelEl = g.querySelector('.admin-tab-group-label');
+        if (labelEl) labelEl.style.display = 'none';
+        const label = labelEl ? labelEl.textContent.trim() : g.id;
+        const hidden = g.dataset.allowed === '0' ? ' style="display:none;"' : '';
+        return `<button type="button" class="admin-cat-btn" role="tab" data-group="${g.id}"${hidden} onclick="window.switchAdminCategory('${g.id}')">${label}</button>`;
+      }).join('');
+      updateAdminCategoryUI(currentAdminTab || 'dashboard');
+      syncAdminCategoryBadges();
+    }
+    // 「舉報處理」「導師申請」有待處理項目時，喺「日常營運」類別旁邊顯示紅點，
+    // 即使管理員停留喺其他類別都會見到
+    function syncAdminCategoryBadges() {
+      const badges = ['admin-reports-badge', 'admin-tutors-badge'].map(id => document.getElementById(id)).filter(Boolean);
+      const update = () => {
+        adminTabGroups().forEach(g => {
+          const catBtn = document.querySelector(`#admin-cat-bar .admin-cat-btn[data-group="${g.id}"]`);
+          if (!catBtn) return;
+          const pending = Array.from(g.querySelectorAll('[id$="-badge"]')).some(el => el.style.display !== 'none' && el.textContent.trim() !== '0');
+          let dot = catBtn.querySelector('.admin-cat-dot');
+          if (pending && !dot) {
+            dot = document.createElement('span');
+            dot.className = 'admin-cat-dot';
+            dot.style.cssText = 'display:inline-block; width:8px; height:8px; border-radius:50%; background:#C0524A; margin-left:5px; vertical-align:middle;';
+            catBtn.appendChild(dot);
+          } else if (!pending && dot) dot.remove();
+        });
+      };
+      if (!window._adminCatBadgeObserver && window.MutationObserver) {
+        window._adminCatBadgeObserver = new MutationObserver(update);
+        badges.forEach(el => window._adminCatBadgeObserver.observe(el, { attributes: true, childList: true, characterData: true, subtree: true }));
+      }
+      update();
+    }
+    function updateAdminCategoryUI(tab) {
+      const btn = document.querySelector(`.admin-tab-btn[data-tab="${tab}"]`);
+      const activeGroup = btn ? btn.closest('[id^="admin-tab-group-"]') : null;
+      if (activeGroup) adminLastTabByGroup[activeGroup.id] = tab;
+      adminTabGroups().forEach(g => {
+        g.style.display = (g === activeGroup && g.dataset.allowed !== '0') ? '' : 'none';
+      });
+      document.querySelectorAll('#admin-cat-bar .admin-cat-btn').forEach(b => {
+        const on = !!activeGroup && b.dataset.group === activeGroup.id;
+        b.classList.toggle('active', on);
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+    }
+    window.switchAdminCategory = function(groupId) {
+      const g = document.getElementById(groupId);
+      if (!g) return;
+      const visibleBtns = Array.from(g.querySelectorAll('.admin-tab-btn')).filter(b => b.style.display !== 'none');
+      const remembered = adminLastTabByGroup[groupId];
+      const target = (remembered && visibleBtns.some(b => b.dataset.tab === remembered)) ? remembered : (visibleBtns[0] && visibleBtns[0].dataset.tab);
+      if (target) window.switchAdminTab(target);
+    };
+
+    function renderSingleAdminTab(tab) {
+      if (tab === 'costs') window.renderAdminCostsTab();
+      else if (tab === 'dashboard') renderAdminDashboardTab();
       else if (tab === 'gacha') renderAdminGachaTab();
       else if (tab === 'rooms') renderAdminRoomsTab();
       else if (tab === 'qa') renderAdminQaTab();
@@ -290,7 +393,7 @@
       else if (tab === 'navmenu') renderAdminNavMenuTab();
       else if (tab === 'turn') renderAdminTurnTab();
       else if (tab === 'streaming') renderAdminStreamingTab();
-    };
+    }
 
     // ---------- 扭蛋機貼紙管理 ----------
     // 扭蛋機貼紙／收費而家改為由 Firestore（admin_config/gacha 文件）讀取，
@@ -592,12 +695,12 @@
       renderAdminGachaTab();
       window.showToast('已新增系列（預設未開放扭蛋），請點擊「儲存全部改動」', '📦');
     };
-    window.adminRemoveGachaSeries = function(idx) {
+    window.adminRemoveGachaSeries = async function(idx) {
       if (!adminGachaDraft || !adminGachaDraft.series[idx]) return;
       const se = adminGachaDraft.series[idx];
       const n = adminGachaDraft.stickers.filter(st => String(st.seriesId) === String(se.id)).length;
       if (n > 0) { window.showToast(`此系列仍有 ${n} 張貼圖，請先將貼圖移到其他系列或刪除`, '⚠️'); return; }
-      if (!confirm(`確定刪除系列「${se.name || se.id}」？`)) return;
+      if (!(await window.appConfirm(`確定刪除系列「${se.name || se.id}」？`))) return;
       adminGachaDraft.series.splice(idx, 1);
       adminGachaDraft.series.forEach((x, i) => { x.order = i + 1; });
       if (adminGachaSeriesFilter === String(se.id)) adminGachaSeriesFilter = '';
@@ -865,9 +968,9 @@
       renderAdminGachaTab();
     };
 
-    window.adminRemoveGachaPrize = function(idx) {
+    window.adminRemoveGachaPrize = async function(idx) {
       if (!adminGachaDraft) return;
-      if (!confirm('確定刪除這張貼圖？若已經有用戶擁有，其收集紀錄會保留，但在圖鑑中將不再顯示。')) return;
+      if (!(await window.appConfirm('確定刪除這張貼圖？若已經有用戶擁有，其收集紀錄會保留，但在圖鑑中將不再顯示。'))) return;
       adminGachaDraft.stickers.splice(idx, 1);
       renderAdminGachaTab();
     };
@@ -880,9 +983,9 @@
     // 掉」，唔係刪走但會變樣。所以特登喺按鈕嗰段文字、同呢度嘅 confirm
     // 入面都講清楚呢個風險，等管理員自己衡量而家係咪安全時機（例如仲
     // 未有學生正式扭過蛋）先撳。
-    window.adminRenumberGachaStickers = function() {
+    window.adminRenumberGachaStickers = async function() {
       if (!adminGachaDraft || !adminGachaDraft.stickers.length) return;
-      if (!confirm('重新排序編號會將貼紙 id 由 1 開始重新連續編號。\n\n如果已經有真實學生使用這個扭蛋機扭過蛋、收藏了某幾隻貼紙，他們原有的收藏會因為編號改變而對應不上（貼紙會「變成另一隻」）。如果尚未有學生正式使用過，或者你願意接受洗牌整批收藏記錄，才繼續。\n\n確定要重新編號？')) return;
+      if (!(await window.appConfirm('重新排序編號會將貼紙 id 由 1 開始重新連續編號。\n\n如果已經有真實學生使用這個扭蛋機扭過蛋、收藏了某幾隻貼紙，他們原有的收藏會因為編號改變而對應不上（貼紙會「變成另一隻」）。如果尚未有學生正式使用過，或者你願意接受洗牌整批收藏記錄，才繼續。\n\n確定要重新編號？'))) return;
       adminGachaDraft.stickers.forEach((p, i) => { p.id = i + 1; });
       renderAdminGachaTab();
       window.showToast('已重新排序編號，請點擊「儲存全部改動」才會正式生效', '🔢');
@@ -990,7 +1093,7 @@
         // （adminGachaDraft 仲係 null，即係岩岩好卡喺「載入中...」嗰個畫面），
         // 而家攞到資料喇，即刻幫佢用返最新（剛儲存低嗰份）資料重新 render 一次，
         // 唔使佢自己撳一撳個分頁先會刷新
-        if (currentAdminTab === 'gacha' && !adminGachaDraft) {
+        if (adminTabShowing('gacha') && !adminGachaDraft) {
           const adminPanelEl = document.getElementById('admin-panel-container');
           if (adminPanelEl && adminPanelEl.style.display !== 'none') {
             renderAdminGachaTab();
@@ -1298,7 +1401,7 @@
           // 段位嘅水獺相片就係喺呢個設定入面，一齊刷新，唔使等5分鐘嗰個定時器先見到
           updateOtterDisplay();
         }
-        if (currentAdminTab === 'level' && !adminLevelDraft) {
+        if (adminTabShowing('level') && !adminLevelDraft) {
           const adminPanelEl = document.getElementById('admin-panel-container');
           if (adminPanelEl && adminPanelEl.style.display !== 'none') {
             renderAdminLevelTab();
@@ -1366,7 +1469,7 @@
     window.renderAdminRoomsTab = renderAdminRoomsTab;
 
     window.adminDeleteRoom = async function(roomId, roomName) {
-      if (!confirm(`確定要強制關閉房間「${roomName}」？裡面的同學會即時被移至大廳。`)) return;
+      if (!(await window.appConfirm(`確定要強制關閉房間「${roomName}」？裡面的同學會即時被移至大廳。`))) return;
       try {
         await window.fs.deleteDoc(window.fs.doc(window.db, 'rooms', roomId));
         await logAdminAction('強制關閉房間', { roomId, roomName });
@@ -1418,7 +1521,7 @@
     window.renderAdminQaTab = renderAdminQaTab;
 
     window.adminDeleteQaPost = async function(postId) {
-      if (!confirm('確定刪除這個提問？裡面的留言都會一齊清埋。')) return;
+      if (!(await window.appConfirm('確定刪除這個提問？裡面的留言都會一齊清埋。'))) return;
       try {
         // 先刪晒 comments 呢個 subcollection 入面嘅所有文件，先刪返個 post 本身
         // （Firestore 刪除文件唔會自動連 subcollection 一齊刪，要自己手動清）
@@ -1576,7 +1679,7 @@
 
     // v1.225.0：停權改由伺服器（moderateUser）處理，永久停權會同時停用登入帳戶
     window.adminToggleSuspendUser = async function(uid, suspend) {
-      if (!confirm(suspend ? '確定永久停用這個帳戶？用戶會即時被登出，並無法再登入。' : '確定解除這個帳戶的停權？')) return;
+      if (!(await window.appConfirm(suspend ? '確定永久停用這個帳戶？用戶會即時被登出，並無法再登入。' : '確定解除這個帳戶的停權？'))) return;
       try {
         await window.callCloudFunction('moderateUser', { uid, action: suspend ? 'permanent' : 'lift', reason: suspend ? '管理員手動停權' : '' });
         window.showToast(suspend ? '已永久停用該帳戶' : '已解除停權', suspend ? '🚫' : '✅');
@@ -1649,7 +1752,12 @@
           <div style="display:flex; gap:16px; flex-wrap:wrap;">
             ${num('monthlyBudgetHkd', '每月上限 HK$', '（包括主機月費）', 0, 1000000)}
           </div>
-          <p style="font-size:13px; color:#888; margin:8px 0 0;">用到 80%：所有直播最高畫質降至 360p 並通知管理員；用到 100%：暫停開新直播，進行中的直播可繼續。</p>
+          <p style="font-size:13px; color:#888; margin:8px 0 0;">用到 80%：所有直播最高畫質降至 360p 並通知管理員；用到 100%：暫停開新直播，進行中的直播可繼續。（預算自動控制將於日後版本啟用）</p>
+        </div>
+        <div class="admin-card" style="margin-top:12px;">
+          <h3 style="font-size:14px; font-weight:bold; margin-bottom:8px;">留言額外過濾字詞</h3>
+          <textarea class="admin-input-sm" rows="4" style="width:100%; font-size:13px;" placeholder="每行一個字詞" oninput="window.adminUpdateStreamingDraft('bannedWordsText', this.value)">${escapeHtml((d.bannedWords || []).join('\n'))}</textarea>
+          <p style="font-size:13px; color:#888; margin:8px 0 0;">系統已內置常見粗口（中文、粵語、英文）及聯絡資料（電話、網址、IG、WhatsApp 等）過濾；這裏可以額外加入字詞，留言中出現會被遮蓋。</p>
         </div>
         <div style="text-align:center; margin-top:16px;">
           <button type="button" class="btn btn-primary" style="padding:12px 32px; font-size:15px;" onclick="window.adminSaveStreamingSettings()">儲存直播設定</button>
@@ -1659,6 +1767,7 @@
       if (!adminStreamingDraft) return;
       if (key === 'enabled') adminStreamingDraft.enabled = !!value;
       else if (key === 'defaultQuality' || key === 'hotQuality') adminStreamingDraft[key] = value;
+      else if (key === 'bannedWordsText') adminStreamingDraft.bannedWords = String(value || '').split('\n').map(w => w.trim()).filter(Boolean).slice(0, 500);
       else { const n = parseInt(value, 10); if (Number.isFinite(n) && n >= 0) adminStreamingDraft[key] = n; }
     };
     window.adminSaveStreamingSettings = async function() {
@@ -1678,6 +1787,7 @@
         idleShutdownMinutes: clamp(d.idleShutdownMinutes, 5, 240, 30),
         defaultQuality: q(d.defaultQuality, '480p'),
         hotQuality: q(d.hotQuality, '720p'),
+        bannedWords: Array.isArray(d.bannedWords) ? d.bannedWords.map(w => String(w).trim().slice(0, 40)).filter(Boolean).slice(0, 500) : [],
         updatedAt: Date.now()
       };
       try {
@@ -1691,7 +1801,7 @@
     };
 
     window.adminResetStrikes = async function(uid) {
-      if (!confirm('確定將這個帳戶的違規次數重設為 0？')) return;
+      if (!(await window.appConfirm('確定將這個帳戶的違規次數重設為 0？'))) return;
       try {
         await window.callCloudFunction('moderateUser', { uid, action: 'resetStrikes' });
         window.showToast('已重設違規次數', '✅');
@@ -1867,7 +1977,7 @@
       const msg = severe
         ? '確定屬於嚴重違規？該帳戶會被永久封號，並無法再登入。'
         : `確定違規屬實？系統會按違規次數處理：第 1 次停權 ${m.firstDays} 日、第 2 次停權 ${m.secondDays} 日、第 3 次永久封號。`;
-      if (!confirm(msg)) return;
+      if (!(await window.appConfirm(msg))) return;
       const doc = adminReportsLoadedDocs.find(x => x.id === reportId);
       const reason = doc && doc.data().reason ? doc.data().reason : '違反使用守則';
       try {
@@ -1925,7 +2035,7 @@
     // 淨係已經處理完（已駁回／已處理）嘅舉報先俾刪，pending 嘅唔會出呢粒掣，
     // 避免管理員手快手滑刪走仲未跟進嘅證據
     window.adminDeleteReport = async function(reportId) {
-      if (!confirm('確定刪除這一則已處理的舉報紀錄？連同截圖一併刪除，刪除後將無法復原。')) return;
+      if (!(await window.appConfirm('確定刪除這一則已處理的舉報紀錄？連同截圖一併刪除，刪除後將無法復原。'))) return;
       try {
         await window.fs.deleteDoc(window.fs.doc(window.db, 'reports', reportId));
         window.showToast('已刪除舉報紀錄', '🗑️');
@@ -2104,7 +2214,7 @@
         applyNavIconsToSidebar();
         // 如果管理員岩岩好打開緊「功能圖示」呢個分頁、又仲未開始編輯，
         // 而家攞到資料喇，即刻幫佢重新 render 一次，唔使自己撳一撳個分頁
-        if (currentAdminTab === 'icons' && !adminNavIconsDraft) {
+        if (adminTabShowing('icons') && !adminNavIconsDraft) {
           const adminPanelEl = document.getElementById('admin-panel-container');
           if (adminPanelEl && adminPanelEl.style.display !== 'none') {
             renderAdminNavIconsTab();
@@ -2276,7 +2386,7 @@
     window.renderAdminTutorsTab = renderAdminTutorsTab;
 
     window.adminApproveTutorApp = async function(uid) {
-      if (!confirm('確定批准這個導師申請？批准之後該用戶會立即獲得導師身份。')) return;
+      if (!(await window.appConfirm('確定批准這個導師申請？批准之後該用戶會立即獲得導師身份。'))) return;
       try {
         await window.callCloudFunction('approveTutorApplication', { targetUid: uid });
         await logAdminAction('批准導師申請', { uid });
@@ -2287,7 +2397,7 @@
     };
 
     window.adminRejectTutorApp = async function(uid) {
-      const reason = prompt('駁回原因（會顯示給申請人查看，可以留空）：', '');
+      const reason = (await window.appPrompt('駁回原因（會顯示給申請人查看，可以留空）：', ''));
       if (reason === null) return; // 撳咗取消
       try {
         await window.callCloudFunction('rejectTutorApplication', { targetUid: uid, rejectionReason: reason });
@@ -2299,7 +2409,7 @@
     };
 
     window.adminSuspendTutor = async function(uid) {
-      if (!confirm('確定停權這位導師？其已上架的筆記會自動下架，但已購買的學生保留下載權。')) return;
+      if (!(await window.appConfirm('確定停權這位導師？其已上架的筆記會自動下架，但已購買的學生保留下載權。'))) return;
       try {
         await window.callCloudFunction('suspendTutor', { targetUid: uid });
         await logAdminAction('停權導師', { uid });
@@ -2582,7 +2692,7 @@
         // 如果管理員岩岩好打開緊「Landing page文案」呢個分頁、又仲未開始
         // 編輯（adminLandingDraft 仲係 null，卡喺「載入中...」畫面），
         // 而家攞到資料喇，即刻幫佢重新 render 一次。
-        if (currentAdminTab === 'landing' && !adminLandingDraft) {
+        if (adminTabShowing('landing') && !adminLandingDraft) {
           const adminPanelEl = document.getElementById('admin-panel-container');
           if (adminPanelEl && adminPanelEl.style.display !== 'none') {
             renderAdminLandingTab();
@@ -2691,7 +2801,7 @@
           if (typeof data.presenceCheckBonus === 'number' && data.presenceCheckBonus > 0) window.SCORING_RULES.presenceCheckBonus = data.presenceCheckBonus;
         }
         scoringConfigLoaded = true;
-        if ((currentAdminTab === 'scoring' || currentAdminTab === 'roomsettings') && !adminScoringDraft) {
+        if ((adminTabShowing('scoring') || adminTabShowing('roomsettings')) && !adminScoringDraft) {
           const adminPanelEl = document.getElementById('admin-panel-container');
           if (adminPanelEl && adminPanelEl.style.display !== 'none') {
             renderAdminScoringTab();
@@ -2862,7 +2972,7 @@
           if (typeof data.defaultDuration === 'number' && data.defaultDuration > 0) window.ROOM_SETTINGS.defaultDuration = data.defaultDuration;
         }
         roomSettingsConfigLoaded = true;
-        if (currentAdminTab === 'roomsettings' && !adminRoomSettingsDraft) {
+        if (adminTabShowing('roomsettings') && !adminRoomSettingsDraft) {
           const adminPanelEl = document.getElementById('admin-panel-container');
           if (adminPanelEl && adminPanelEl.style.display !== 'none') {
             renderAdminRoomSettingsTab();
@@ -2982,7 +3092,7 @@
           window.applyAntiIdleRules(snap.data());
         }
         antiIdleConfigLoaded = true;
-        if (currentAdminTab === 'antiidle' && !adminAntiIdleDraft) {
+        if (adminTabShowing('antiidle') && !adminAntiIdleDraft) {
           const adminPanelEl = document.getElementById('admin-panel-container');
           if (adminPanelEl && adminPanelEl.style.display !== 'none') {
             renderAdminAntiIdleTab();
@@ -3011,7 +3121,7 @@
     // 器端計數，唔使下載晒成批文件，比較慳。
     // v1.200.0：為所有現有用戶補建 publicProfiles（其他用戶睇資料卡用）。
     window.adminBackfillPublicProfiles = async function(btn) {
-      if (!confirm('確定要為所有用戶同步公開資料卡？用戶較多時可能需要一至兩分鐘。')) return;
+      if (!(await window.appConfirm('確定要為所有用戶同步公開資料卡？用戶較多時可能需要一至兩分鐘。'))) return;
       const original = btn ? btn.innerText : '';
       if (btn) { btn.disabled = true; btn.innerText = '同步中…'; }
       try {
@@ -3264,7 +3374,7 @@
         window.SITE_ANNOUNCEMENT_RAW = data;
         renderSiteAnnouncementBanner(data);
         announcementConfigLoaded = true;
-        if (currentAdminTab === 'announcement' && !adminAnnouncementDraft) {
+        if (adminTabShowing('announcement') && !adminAnnouncementDraft) {
           const adminPanelEl = document.getElementById('admin-panel-container');
           if (adminPanelEl && adminPanelEl.style.display !== 'none') {
             renderAdminAnnouncementTab();
@@ -3490,7 +3600,7 @@
         window.showToast('請輸入不是 0 的數值', '⚠️');
         return;
       }
-      if (!confirm(`確定要幫呢位用戶${amount > 0 ? '補發' : '扣減'} ${Math.abs(amount)} PTS？`)) return;
+      if (!(await window.appConfirm(`確定要幫呢位用戶${amount > 0 ? '補發' : '扣減'} ${Math.abs(amount)} PTS？`))) return;
       try {
         await window.fs.updateDoc(window.fs.doc(window.db, 'users', uid), { points: window.fs.increment(amount) });
         await logAdminAction('補發／扣減PTS', { uid, amount });
@@ -3523,7 +3633,7 @@
         return;
       }
       const sticker = GACHA_STICKERS.find(s => s.id === stickerId);
-      if (!confirm(`確定要幫呢位用戶補發 ${qty} 張「${sticker ? sticker.name : '#' + stickerId}」？`)) return;
+      if (!(await window.appConfirm(`確定要幫呢位用戶補發 ${qty} 張「${sticker ? sticker.name : '#' + stickerId}」？`))) return;
       try {
         const payload = {};
         payload['ownedStickers.' + stickerId] = window.fs.increment(qty);
@@ -3631,9 +3741,9 @@
       adminAdminListDraft.entries[idx].role = role;
     };
 
-    window.adminRemoveAdminListEntry = function(idx) {
+    window.adminRemoveAdminListEntry = async function(idx) {
       if (!adminAdminListDraft || !adminAdminListDraft.entries[idx]) return;
-      if (!confirm(`確定要移除「${adminAdminListDraft.entries[idx].loginId}」的管理員身份？`)) return;
+      if (!(await window.appConfirm(`確定要移除「${adminAdminListDraft.entries[idx].loginId}」的管理員身份？`))) return;
       adminAdminListDraft.entries.splice(idx, 1);
       renderAdminAdminListTab();
     };
@@ -3672,9 +3782,9 @@
       const stillAdmin = entries.some(e => e.loginId === myLoginId);
       const stillSuper = entries.some(e => e.loginId === myLoginId && e.role === 'super');
       if (!stillAdmin) {
-        if (!confirm('你將會喺呢次儲存之後移除咗自己嘅管理員身份，即刻會撳唔返入嚟Admin後台。確定要咁做？')) return;
+        if (!(await window.appConfirm('你將會喺呢次儲存之後移除咗自己嘅管理員身份，即刻會撳唔返入嚟Admin後台。確定要咁做？'))) return;
       } else if (!stillSuper) {
-        if (!confirm('儲存後你將會降為「客服／支援管理員」，並立即無法查看此頁及其他設定分頁。確定要這樣做嗎？')) return;
+        if (!(await window.appConfirm('儲存後你將會降為「客服／支援管理員」，並立即無法查看此頁及其他設定分頁。確定要這樣做嗎？'))) return;
       }
 
       const ids = entries.map(e => e.loginId);
@@ -3817,7 +3927,7 @@
         window.ADMIN_SUBJECT_LIST_RAW = data;
         applySubjectListAdditions(data);
         subjectListConfigLoaded = true;
-        if (currentAdminTab === 'subjects') {
+        if (adminTabShowing('subjects')) {
           const panelEl = document.getElementById('admin-panel-container');
           if (panelEl && panelEl.style.display !== 'none') renderAdminSubjectsTab();
         }
@@ -3938,7 +4048,7 @@
         window.ADMIN_DISTRICT_LIST_RAW = data;
         applyDistrictListAdditions(data);
         districtListConfigLoaded = true;
-        if (currentAdminTab === 'districts') {
+        if (adminTabShowing('districts')) {
           const panelEl = document.getElementById('admin-panel-container');
           if (panelEl && panelEl.style.display !== 'none') renderAdminDistrictsTab();
         }
@@ -4081,7 +4191,7 @@
         window.ADMIN_SCHOOL_LIST_RAW = data;
         applySchoolListAdditions(data);
         schoolListConfigLoaded = true;
-        if (currentAdminTab === 'schools') {
+        if (adminTabShowing('schools')) {
           const panelEl = document.getElementById('admin-panel-container');
           if (panelEl && panelEl.style.display !== 'none') renderAdminSchoolsTab();
         }
@@ -4364,7 +4474,7 @@
         window.LEGAL_CONTENT_RAW = snap.exists() ? snap.data() : null;
         renderLegalContentBody();
         legalContentConfigLoaded = true;
-        if (currentAdminTab === 'legal' && !adminLegalDraft) {
+        if (adminTabShowing('legal') && !adminLegalDraft) {
           const panelEl = document.getElementById('admin-panel-container');
           if (panelEl && panelEl.style.display !== 'none') renderAdminLegalTab();
         }
@@ -4445,7 +4555,7 @@
 
     window.adminSaveLegalContent = async function() {
       ensureLegalDraftLoaded();
-      if (!confirm('確定要儲存嗎？此改動會即時影響全站顯示的服務條款／私隱政策內容。')) return;
+      if (!(await window.appConfirm('確定要儲存嗎？此改動會即時影響全站顯示的服務條款／私隱政策內容。'))) return;
       try {
         const ref = window.fs.doc(window.db, 'admin_config', 'legalContent');
         await window.fs.setDoc(ref, {
@@ -4706,7 +4816,7 @@
     };
 
     window.adminDeleteSnapshotBg = async function(n) {
-      if (!confirm(`確定移除 ${n} 人合照背景？移除後會使用預設背景。`)) return;
+      if (!(await window.appConfirm(`確定移除 ${n} 人合照背景？移除後會使用預設背景。`))) return;
       try {
         await window.fs.deleteDoc(window.fs.doc(window.db, 'admin_config', 'snapshotBg' + n));
         window.showToast(`已移除 ${n} 人合照背景`, '');
@@ -4758,3 +4868,191 @@
         setTimeout(() => URL.revokeObjectURL(a.href), 5000);
       }, 'image/png');
     };
+
+// ===================== 營運開支儀表板（v1.228.0） =====================
+// 資料由 Cloud Function getCostDashboard 提供（只限超級管理員，結果快取 30 分鐘）。
+// 每個收費項目以圓形圖顯示「已用／免費額度或月費包含的用量」：
+// 未到 70% 為正常（藍色），70%–89% 需留意（黃色），90% 或以上需立即處理（紅色）。
+(function () {
+  const HKD = 7.8;
+  const LEVEL = {
+    ok: { color: '#4A68A8', label: '正常' },
+    watch: { color: '#E8B321', label: '需要留意' },
+    urgent: { color: '#C0392B', label: '立即處理' },
+    unknown: { color: '#A4B4D4', label: '未有數據' }
+  };
+  const SOURCE = { official: '官方數據', count: '系統點數', estimate: '系統估算', unavailable: '未能取得' };
+  const PIE_COLORS = ['#29395C', '#4A68A8', '#7F96C6', '#FFD84D', '#E8A33C', '#A4B4D4', '#C0392B', '#6B7894', '#344976'];
+  const esc = (s) => (window.escapeHtml ? window.escapeHtml(String(s == null ? '' : s)) : String(s == null ? '' : s));
+  const fmt = (n, d) => (n == null ? '—' : Number(n).toLocaleString('zh-HK', { maximumFractionDigits: d == null ? 1 : d }));
+  const usd = (n) => 'US$' + Number(n || 0).toFixed(2);
+  const hkd = (n) => '約 HK$' + Math.round(Number(n || 0) * HKD).toLocaleString('zh-HK');
+
+  // 圓環圖（百分比）
+  function gauge(pct, color) {
+    const r = 42, c = 2 * Math.PI * r;
+    const p = pct == null ? 0 : Math.min(100, pct);
+    return `<svg viewBox="0 0 100 100" width="110" height="110" aria-hidden="true">
+      <circle cx="50" cy="50" r="${r}" fill="none" stroke="#E9EDF5" stroke-width="12"/>
+      ${p > 0 ? `<circle cx="50" cy="50" r="${r}" fill="none" stroke="${color}" stroke-width="12" stroke-linecap="round"
+        stroke-dasharray="${(p / 100 * c).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 50 50)"/>` : ''}
+      <text x="50" y="55" text-anchor="middle" font-size="18" font-weight="700" fill="#29395C">${pct == null ? '—' : pct + '%'}</text>
+    </svg>`;
+  }
+  // 圓形圖（開支分佈）
+  function pie(parts) {
+    const total = parts.reduce((a, b) => a + b.value, 0);
+    if (!total) return '<p style="font-size:13px; color:#6B7894; margin:0;">本月暫時沒有收費項目。</p>';
+    let acc = 0;
+    const r = 40, cx = 50, cy = 50;
+    const slices = parts.map((pt, i) => {
+      const frac = pt.value / total;
+      const color = PIE_COLORS[i % PIE_COLORS.length];
+      if (frac >= 0.999) return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${color}"/>`;
+      const a0 = acc * 2 * Math.PI - Math.PI / 2; acc += frac;
+      const a1 = acc * 2 * Math.PI - Math.PI / 2;
+      const large = frac > 0.5 ? 1 : 0;
+      return `<path d="M${cx},${cy} L${(cx + r * Math.cos(a0)).toFixed(2)},${(cy + r * Math.sin(a0)).toFixed(2)} A${r},${r} 0 ${large} 1 ${(cx + r * Math.cos(a1)).toFixed(2)},${(cy + r * Math.sin(a1)).toFixed(2)} Z" fill="${color}"/>`;
+    }).join('');
+    const legend = parts.map((pt, i) => `<div style="display:flex; align-items:center; gap:8px; font-size:13px; color:var(--brand-800);">
+        <span style="width:12px; height:12px; border-radius:3px; background:${PIE_COLORS[i % PIE_COLORS.length]}; flex:none;"></span>
+        <span style="flex:1;">${esc(pt.name)}</span><b>${usd(pt.value)}</b><span style="color:#6B7894; width:42px; text-align:right;">${Math.round(pt.value / total * 100)}%</span></div>`).join('');
+    return `<div style="display:flex; gap:18px; align-items:center; flex-wrap:wrap;">
+      <svg viewBox="0 0 100 100" width="150" height="150" aria-hidden="true">${slices}<circle cx="50" cy="50" r="20" fill="#fff"/></svg>
+      <div style="flex:1; min-width:220px; display:flex; flex-direction:column; gap:6px;">${legend}</div></div>`;
+  }
+  // 過去 6 個月棒形圖
+  function bars(history) {
+    const max = Math.max(1, ...history.map(h => h.totalUSD || 0));
+    return `<div style="display:flex; gap:10px; align-items:flex-end; height:150px; padding-top:10px;">${history.map(h => {
+      const v = h.totalUSD;
+      const ht = v == null ? 4 : Math.max(4, Math.round(v / max * 110));
+      return `<div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; min-width:0;">
+        <span style="font-size:11px; color:var(--brand-800); white-space:nowrap;">${v == null ? '—' : usd(v)}</span>
+        <div style="width:100%; max-width:46px; height:${ht}px; border-radius:6px 6px 0 0; background:${v == null ? '#E9EDF5' : '#4A68A8'};"></div>
+        <span style="font-size:11px; color:#6B7894;">${Number(h.month.slice(4))} 月</span></div>`;
+    }).join('')}</div>`;
+  }
+
+  async function load(refresh) {
+    const panel = document.getElementById('admin-tab-costs');
+    if (!panel) return;
+    if (!panel.dataset.loaded || refresh) panel.innerHTML = '<div class="card" style="padding:16px;">正在讀取用量數據…（首次約需 5 至 10 秒）</div>';
+    let d;
+    try {
+      d = await window.callCloudFunction('getCostDashboard', { refresh: !!refresh });
+    } catch (e) {
+      panel.innerHTML = `<div class="card" style="padding:16px; color:#8A2F2F;">未能讀取營運開支數據：${esc((e && e.message) || e)}</div>`;
+      return;
+    }
+    panel.dataset.loaded = '1';
+    const items = d.items || [];
+    const alerts = items.filter(it => it.level === 'urgent' || it.level === 'watch')
+      .sort((a, b) => (a.level === 'urgent' ? 0 : 1) - (b.level === 'urgent' ? 0 : 1));
+    const alertHtml = alerts.length
+      ? alerts.map(it => `<div style="display:flex; gap:10px; padding:10px 12px; border-radius:10px; margin-bottom:8px; background:${it.level === 'urgent' ? '#FDECEA' : '#FFF7DA'}; border:1px solid ${it.level === 'urgent' ? '#F1B8B1' : '#F0D98A'};">
+          <b style="color:${LEVEL[it.level].color}; white-space:nowrap;">${LEVEL[it.level].label}</b>
+          <div style="font-size:13px; color:var(--brand-800); line-height:1.6;"><b>${esc(it.name)}</b>：已用 ${it.pct}%。${esc(it.advice)}</div></div>`).join('')
+      : '<div style="padding:10px 12px; border-radius:10px; background:var(--brand-100); font-size:14px; color:var(--brand-800);">所有項目均在安全水平，暫時毋須升級。</div>';
+
+    const pieParts = items.filter(it => it.costUSD > 0).map(it => ({ name: it.name.replace(/（.*?）/g, ''), value: it.costUSD }));
+    if (d.domainUSD) pieParts.push({ name: '域名', value: d.domainUSD });
+
+    const cards = items.map(it => {
+      const lv = LEVEL[it.level] || LEVEL.unknown;
+      return `<div class="card" style="padding:14px; margin:0; display:flex; flex-direction:column; gap:8px; border-top:4px solid ${lv.color};">
+        <div style="display:flex; justify-content:space-between; gap:6px; align-items:flex-start;">
+          <b style="font-size:14px; color:var(--brand-800); line-height:1.4;">${esc(it.name)}</b>
+          <span style="font-size:11px; color:#6B7894; background:var(--brand-100); border-radius:6px; padding:2px 6px; white-space:nowrap;">${esc(SOURCE[it.source] || '')}</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          ${gauge(it.pct, lv.color)}
+          <div style="font-size:13px; color:var(--brand-800); line-height:1.7;">
+            <div>${esc(it.period)}：<b>${fmt(it.used, it.unit === 'GB' ? 1 : 0)}</b> ${esc(it.unit)}</div>
+            <div style="color:#6B7894;">上限：${fmt(it.limit, 0)} ${esc(it.unit)}</div>
+            ${it.extra ? `<div style="color:#6B7894;">${esc(it.extra)}</div>` : ''}
+            <div>本月估算：<b>${usd(it.costUSD)}</b></div>
+            <div style="color:${lv.color}; font-weight:700;">${lv.label}</div>
+          </div>
+        </div>
+        <details style="font-size:12px; color:#6B7894;"><summary style="cursor:pointer;">幾時要升級？</summary><p style="margin:6px 0 0; line-height:1.6;">${esc(it.advice)}</p></details>
+      </div>`;
+    }).join('');
+
+    const errs = d.errors || {};
+    const errNotes = [];
+    if (errs.google) errNotes.push('Google 用量數據（資料庫、伺服器程式、相片儲存）未能取得：' + errs.google);
+    if (errs.vultr) errNotes.push('Vultr 數據未能取得，直播流量改用系統估算：' + errs.vultr);
+    const s = d.settings || {};
+    const updated = new Date(d.at).toLocaleString('zh-HK', { hour12: false });
+
+    panel.innerHTML = `
+      <div class="card" style="padding:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+          <div>
+            <h3 style="margin:0 0 4px;">營運開支</h3>
+            <p style="margin:0; font-size:13px; color:#6B7894;">本月（${Number(d.monthKey.slice(4))} 月，已過 ${d.dayOfMonth}／${d.daysInMonth} 日）全月估算開支</p>
+            <div style="font-size:28px; font-weight:800; color:var(--brand-800); margin-top:6px;">${usd(d.totalUSD)} <span style="font-size:15px; font-weight:600; color:#6B7894;">${hkd(d.totalUSD)}</span></div>
+            ${d.vultrPendingUSD != null ? `<p style="margin:4px 0 0; font-size:13px; color:#6B7894;">Vultr 本月實際累計帳單：${usd(d.vultrPendingUSD)}</p>` : ''}
+          </div>
+          <div style="text-align:right;">
+            <button type="button" class="btn btn-outline" onclick="window.renderAdminCostsTab(true)">重新整理</button>
+            <p style="margin:6px 0 0; font-size:12px; color:#8A94A8;">更新時間：${esc(updated)}<br>數據每 30 分鐘更新一次</p>
+          </div>
+        </div>
+        <div style="display:flex; gap:14px; flex-wrap:wrap; margin-top:12px; font-size:12px; color:#6B7894;">
+          ${['ok', 'watch', 'urgent'].map(k => `<span style="display:flex; align-items:center; gap:5px;"><span style="width:10px; height:10px; border-radius:50%; background:${LEVEL[k].color};"></span>${LEVEL[k].label}${k === 'ok' ? '（70% 以下）' : k === 'watch' ? '（70%–89%）' : '（90% 或以上）'}</span>`).join('')}
+        </div>
+      </div>
+
+      <div class="card" style="padding:16px;">
+        <h3 style="margin:0 0 10px; font-size:16px;">需要處理的項目</h3>
+        ${alertHtml}
+        ${errNotes.length ? `<div style="font-size:12px; color:#8A6D1F; background:#FFF7E6; border:1px solid #F0D9A0; border-radius:8px; padding:8px 10px; margin-top:6px; line-height:1.6;">${errNotes.map(esc).join('<br>')}</div>` : ''}
+      </div>
+
+      <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:12px; margin-bottom:12px;">${cards}</div>
+
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:12px;">
+        <div class="card" style="padding:16px; margin:0;">
+          <h3 style="margin:0 0 10px; font-size:16px;">本月開支分佈</h3>
+          ${pie(pieParts)}
+        </div>
+        <div class="card" style="padding:16px; margin:0;">
+          <h3 style="margin:0 0 4px; font-size:16px;">過去 6 個月估算開支</h3>
+          <p style="margin:0; font-size:12px; color:#8A94A8;">每月數字於管理員打開此分頁時記錄</p>
+          ${bars(d.history || [])}
+        </div>
+      </div>
+
+      <div class="card" style="padding:16px; margin-top:12px;">
+        <h3 style="margin:0 0 6px; font-size:16px;">方案設定</h3>
+        <p style="margin:0 0 12px; font-size:13px; color:#6B7894;">升級或更改方案後，請在此更新，圓形圖的上限及估算開支會隨之調整。</p>
+        <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:10px; font-size:14px;">
+          <label>Vultr 月費（US$）<input id="cost-vultr-fee" type="number" min="0" step="1" value="${esc(s.vultrMonthlyUSD)}" class="input-field" style="width:100%; box-sizing:border-box; margin-top:4px; padding:8px; border:1px solid var(--brand-200); border-radius:8px;"></label>
+          <label>Vultr 每月包含流量（GB）<input id="cost-vultr-gb" type="number" min="1" step="100" value="${esc(s.vultrIncludedGB)}" style="width:100%; box-sizing:border-box; margin-top:4px; padding:8px; border:1px solid var(--brand-200); border-radius:8px;"></label>
+          <label>直播同時觀看上限（人）<input id="cost-live-cap" type="number" min="1" step="10" value="${esc(s.liveViewerCapacity)}" style="width:100%; box-sizing:border-box; margin-top:4px; padding:8px; border:1px solid var(--brand-200); border-radius:8px;"></label>
+          <label>EmailJS 方案<select id="cost-emailjs" style="width:100%; box-sizing:border-box; margin-top:4px; padding:8px; border:1px solid var(--brand-200); border-radius:8px;">
+            ${[[200, '免費（每月 200 封）'], [2000, 'Personal（2,000 封，US$9）'], [5000, 'Professional（5,000 封，US$15）'], [25000, 'Business（25,000 封，US$40）']].map(([v, l]) => `<option value="${v}" ${Number(s.emailjsQuota) === v ? 'selected' : ''}>${l}</option>`).join('')}
+          </select></label>
+        </div>
+        <p style="margin:10px 0 0; font-size:12px; color:#8A94A8;">中轉伺服器的上限請在「中轉伺服器」分頁設定。</p>
+        <button type="button" class="btn btn-primary" style="margin-top:12px;" onclick="window.adminSaveCostSettings()">儲存方案設定</button>
+      </div>`;
+  }
+
+  window.renderAdminCostsTab = function (refresh) { load(refresh === true); };
+  window.adminSaveCostSettings = async function () {
+    const v = (id) => (document.getElementById(id) || {}).value;
+    try {
+      await window.callCloudFunction('saveCostSettings', {
+        vultrMonthlyUSD: v('cost-vultr-fee'), vultrIncludedGB: v('cost-vultr-gb'),
+        liveViewerCapacity: v('cost-live-cap'), emailjsQuota: v('cost-emailjs')
+      });
+      window.showToast('已儲存方案設定', '✅');
+      load(true);
+    } catch (e) {
+      window.showToast('儲存失敗：' + ((e && e.message) || e), '❌');
+    }
+  };
+})();

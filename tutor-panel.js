@@ -458,7 +458,7 @@ window.applyRoleBasedSidebar = function() {
       window.showToast('這個科目底下還有課題，請先刪除全部課題', '⚠️');
       return;
     }
-    if (!confirm('確定刪除這個科目？')) return;
+    if (!(await window.appConfirm('確定刪除這個科目？'))) return;
     try {
       await window.fs.deleteDoc(window.fs.doc(window.db, 'tutorSubjects', subjectId));
       window.showToast('已刪除科目', '✅');
@@ -516,7 +516,7 @@ window.applyRoleBasedSidebar = function() {
 
   window.promptCreateTutorTopic = async function() {
     if (!selectedSubjectId) { window.showToast('請先選擇一個科目', '⚠️'); return; }
-    const name = (prompt('新課題名稱（例如：三角函數）：', '') || '').trim();
+    const name = ((await window.appPrompt('新課題名稱（例如：三角函數）：', '')) || '').trim();
     if (!name) return;
     try {
       const ref = await window.fs.addDoc(window.fs.collection(window.db, 'tutorTopics'), {
@@ -543,7 +543,7 @@ window.applyRoleBasedSidebar = function() {
       window.showToast('這個課題底下還有教材，請先刪除全部教材', '⚠️');
       return;
     }
-    if (!confirm('確定刪除這個課題？')) return;
+    if (!(await window.appConfirm('確定刪除這個課題？'))) return;
     try {
       await window.fs.deleteDoc(window.fs.doc(window.db, 'tutorTopics', topicId));
       window.showToast('已刪除課題', '✅');
@@ -1132,7 +1132,7 @@ window.applyRoleBasedSidebar = function() {
   };
 
   window.deleteTutorNoteConfirm = async function(noteId) {
-    if (!confirm('確定刪除這份教材？已上傳的 PDF 檔案會一併刪除，這個操作無法復原。')) return;
+    if (!(await window.appConfirm('確定刪除這份教材？已上傳的 PDF 檔案會一併刪除，這個操作無法復原。'))) return;
     try {
       await window.callCloudFunction('deleteTutorNote', { noteId });
       window.showToast('已刪除教材', '🗑️');
