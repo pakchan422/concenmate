@@ -1180,7 +1180,7 @@ exports.awardStudyPoints = onCall(async (request) => {
 // ===================== Study with me 直播設定（v1.226.0） =====================
 // admin_config/streaming：開通所需日數、每日最少分鐘等。合資格溫習日數
 // users/{uid}.qualifiedDays／qualifiedDate 由 awardStudyPoints 記錄，前端改不到。
-const STREAMING_DEFAULT = { enabled: false, requiredDays: 30, minMinutesPerDay: 15 };
+const STREAMING_DEFAULT = { enabled: false, requiredDays: 30, minMinutesPerDay: 15, minStreamAge: 16 };
 let streamingRulesCache = null;
 let streamingRulesCacheAt = 0;
 async function getStreamingRules() {
@@ -1194,6 +1194,7 @@ async function getStreamingRules() {
       if (typeof d.enabled === "boolean") rules.enabled = d.enabled;
       if (typeof d.requiredDays === "number" && d.requiredDays >= 0 && d.requiredDays <= 365) rules.requiredDays = Math.floor(d.requiredDays);
       if (typeof d.minMinutesPerDay === "number" && d.minMinutesPerDay >= 1 && d.minMinutesPerDay <= 600) rules.minMinutesPerDay = Math.floor(d.minMinutesPerDay);
+      if (typeof d.minStreamAge === "number" && d.minStreamAge >= 0 && d.minStreamAge <= 99) rules.minStreamAge = Math.floor(d.minStreamAge);
     }
   } catch (e) {
     console.warn("讀取直播設定失敗，使用預設值:", e);
@@ -2640,6 +2641,16 @@ async function loadStreamActor(uid) {
   const admin_ = await isAdminUserData(data);
   return { data, isAdmin: admin_ };
 }
+// 以香港時間計算足歲年齡；冇出生年份回傳 null
+function userAgeYears(d) {
+  const y = d && Number(d.birthYear);
+  if (!Number.isFinite(y) || y < 1900) return null;
+  const m = Number(d.birthMonth);
+  const hk = new Date(Date.now() + 8 * 3600 * 1000);
+  let age = hk.getUTCFullYear() - y;
+  if (Number.isFinite(m) && m >= 1 && m <= 12 && hk.getUTCMonth() + 1 < m) age--;
+  return age;
+}
 function streamIdArg(request) {
   const id = request.data && request.data.streamId;
   if (!id || typeof id !== "string" || id.includes("/") || id.length > 64) throw new HttpsError("invalid-argument", "缺少直播資料");
@@ -2655,6 +2666,17 @@ exports.startStream = onCall({ secrets: [LIVEKIT_API_KEY, LIVEKIT_API_SECRET] },
   if (!isAdmin) {
     if (!rules.enabled) throw new HttpsError("failed-precondition", "直播功能尚未開放");
     if (me.streamBanned === true) throw new HttpsError("permission-denied", "你的直播資格已被暫停");
+    // v1.228.4：最低開播年齡（預設 16 歲）。以註冊時填寫的出生年月計算（用戶註冊後不能自行修改）；
+    // 沒有出生年月的帳戶一律當作未達年齡。觀看不受年齡限制。
+    const minAge = typeof rules.minStreamAge === "number" ? rules.minStreamAge : 16;
+    if (minAge > 0) {
+      const age = userAgeYears(me);
+      if (age == null || age < minAge) {
+        throw new HttpsError("failed-precondition", age == null
+          ? `年滿 ${minAge} 歲方可開始直播。你的帳戶未有出生年月資料，請電郵 support@concenmate.com 聯絡我們補填`
+          : `年滿 ${minAge} 歲方可開始直播`);
+      }
+    }
     if ((me.qualifiedDays || 0) < rules.requiredDays) {
       throw new HttpsError("failed-precondition", `需要累積溫習 ${rules.requiredDays} 日才可以開始直播（現時 ${me.qualifiedDays || 0} 日）`);
     }

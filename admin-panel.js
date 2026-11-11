@@ -1689,7 +1689,7 @@
     };
     // ===================== 直播設定（Study with me，v1.226.0） =====================
     // admin_config/streaming。第一階段只記錄開通資格；直播本身未上線，總開關預設關閉。
-    const STREAMING_DEFAULTS = { enabled: false, requiredDays: 30, minMinutesPerDay: 15, maxDurationHours: 4, maxConcurrent: 20, monthlyBudgetHkd: 500, hotThreshold: 50, hotMinutes: 3, idleShutdownMinutes: 30, defaultQuality: '480p', hotQuality: '720p' };
+    const STREAMING_DEFAULTS = { enabled: false, requiredDays: 30, minMinutesPerDay: 15, minStreamAge: 16, maxDurationHours: 4, maxConcurrent: 20, monthlyBudgetHkd: 500, hotThreshold: 50, hotMinutes: 3, idleShutdownMinutes: 30, defaultQuality: '480p', hotQuality: '720p' };
     let adminStreamingDraft = null;
     async function renderAdminStreamingTab() {
       const container = document.getElementById('admin-tab-streaming');
@@ -1726,8 +1726,9 @@
           <div style="display:flex; gap:16px; flex-wrap:wrap;">
             ${num('requiredDays', '需累積溫習', '日', 0, 365)}
             ${num('minMinutesPerDay', '每日最少溫習', '分鐘才計一日', 1, 600)}
+            ${num('minStreamAge', '最低開播年齡', '歲', 0, 99)}
           </div>
-          <p style="font-size:13px; color:#888; margin:8px 0 0;">由伺服器記錄，用戶無法自行修改。首次記錄時會按溫習日曆補回過往日數。</p>
+          <p style="font-size:13px; color:#888; margin:8px 0 0;">由伺服器記錄，用戶無法自行修改。首次記錄時會按溫習日曆補回過往日數。<br>年齡按用戶註冊時填寫的出生年月計算（註冊後用戶不能自行修改）；沒有出生年月的帳戶當作未達年齡，可在「日常營運」→「用戶支援」代為補填。觀看直播不受年齡限制。設為 0 即不設年齡限制。</p>
         </div>
         <div class="admin-card" style="margin-top:12px;">
           <h3 style="font-size:14px; font-weight:bold; margin-bottom:10px;">直播限制及畫質</h3>
@@ -1779,6 +1780,7 @@
         enabled: d.enabled === true,
         requiredDays: clamp(d.requiredDays, 0, 365, 30),
         minMinutesPerDay: clamp(d.minMinutesPerDay, 1, 600, 15),
+        minStreamAge: clamp(d.minStreamAge, 0, 99, 16),
         maxDurationHours: clamp(d.maxDurationHours, 1, 12, 4),
         maxConcurrent: clamp(d.maxConcurrent, 1, 500, 20),
         monthlyBudgetHkd: clamp(d.monthlyBudgetHkd, 0, 1000000, 500),
@@ -3503,6 +3505,7 @@
             <div><b>學校：</b>${escapeHtml(d.school || '—')}</div>
             <div><b>年級：</b>${escapeHtml(d.grade || '—')}</div>
             <div><b>身份：</b>${d.accountType === 'tutor' ? '導師' : '學生'}</div>
+            <div><b>出生年月：</b>${d.birthYear ? escapeHtml(String(d.birthYear)) + ' 年' + (d.birthMonth ? ' ' + escapeHtml(String(d.birthMonth)) + ' 月' : '') : '未填寫'}</div>
             <div><b>現存 PTS：</b>${d.points || 0}</div>
             <div><b>累積時數：</b>${(parseFloat(d.hours) || 0).toFixed(1)}</div>
             <div><b>EXP：</b>${d.exp || 0}</div>
@@ -3516,6 +3519,16 @@
             <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
               <input type="number" step="1" value="${adminSupportPointsGrantAmount}" style="width:120px; font-size:15px; padding:8px 10px; border:1px solid #DCE5F4; border-radius:6px;" oninput="adminUpdateSupportPointsAmount(this.value)">
               <button type="button" class="btn btn-primary" style="font-size:13px; padding:6px 16px;" onclick="adminGrantSupportPoints('${uid}')">確認</button>
+            </div>
+          </div>
+
+          <div style="border-top:1px solid #F0F0F0; padding-top:14px; margin-bottom:14px;">
+            <h4 style="font-size:14px; font-weight:bold; color:var(--brand-700); margin-bottom:8px;">更正出生年月</h4>
+            <p style="font-size:13px; color:#999; margin-bottom:8px;">用戶不能自行修改出生年月；如用戶電郵要求補填或更正，請先核實後在此修改。直播的最低開播年齡以此計算。</p>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <input id="admin-birth-year-${uid}" type="number" min="1930" max="${new Date().getFullYear()}" step="1" placeholder="年份" value="${d.birthYear || ''}" style="width:110px; font-size:15px; padding:8px 10px; border:1px solid #DCE5F4; border-radius:6px;"> 年
+              <input id="admin-birth-month-${uid}" type="number" min="1" max="12" step="1" placeholder="月份" value="${d.birthMonth || ''}" style="width:80px; font-size:15px; padding:8px 10px; border:1px solid #DCE5F4; border-radius:6px;"> 月
+              <button type="button" class="btn btn-primary" style="font-size:13px; padding:6px 16px;" onclick="adminSetBirthDate('${uid}')">儲存</button>
             </div>
           </div>
 
@@ -3592,6 +3605,25 @@
     window.adminUpdateSupportPointsAmount = function(value) {
       const n = parseInt(value, 10);
       adminSupportPointsGrantAmount = Number.isFinite(n) ? n : 0;
+    };
+
+    // v1.228.4：管理員代用戶補填／更正出生年月（用戶自己改不到，見 firestore.rules selfUserUpdateOk）
+    window.adminSetBirthDate = async function(uid) {
+      const y = parseInt((document.getElementById('admin-birth-year-' + uid) || {}).value, 10);
+      const m = parseInt((document.getElementById('admin-birth-month-' + uid) || {}).value, 10);
+      const thisYear = new Date().getFullYear();
+      if (!(y >= 1930 && y <= thisYear) || !(m >= 1 && m <= 12)) { window.showToast('請輸入有效的年份及月份', '⚠️'); return; }
+      if (!(await window.appConfirm(`確定將這位用戶的出生年月設為 ${y} 年 ${m} 月？`))) return;
+      try {
+        await window.fs.updateDoc(window.fs.doc(window.db, 'users', uid), { birthYear: y, birthMonth: m });
+        await logAdminAction('更正出生年月', { uid, birthYear: y, birthMonth: m });
+        const cached = adminSupportUsersCache && adminSupportUsersCache.find(u => u.uid === uid);
+        if (cached) { cached.data.birthYear = y; cached.data.birthMonth = m; }
+        window.showToast('已更新出生年月', '✅');
+        renderAdminSupportTab();
+      } catch (err) {
+        window.showToast('更新失敗：' + (err.message || err), '❌');
+      }
     };
 
     window.adminGrantSupportPoints = async function(uid) {
@@ -4370,7 +4402,7 @@
 本公司保留移除任何違反本條款之使用者生成內容之權利，毋須事先通知該使用者。
 
 # 第四條之一　直播功能（Study with me）
-（一）使用者於本服務累積之合資格溫習日數達本公司不時訂定之要求，方可使用直播功能（下稱「直播」），向其他使用者播放其本人之鏡頭畫面。本公司有權隨時修改開通要求、暫停或撤銷任何使用者之直播資格，或暫停或終止直播功能，毋須事先通知。
+（一）使用者須年滿十六歲（以註冊時所填寫之出生年月計算），並於本服務累積之合資格溫習日數達本公司不時訂定之要求，方可使用直播功能（下稱「直播」），向其他使用者播放其本人之鏡頭畫面。觀看直播不設年齡限制。本公司有權隨時修改開通要求（包括最低年齡）、暫停或撤銷任何使用者之直播資格，或暫停或終止直播功能，毋須事先通知。使用者如虛報出生年月，本公司有權撤銷其直播資格。
 
 （二）未滿十八歲之使用者（下稱「未成年使用者」）於首次開始直播前，須確認已取得其父母或監護人之同意。本公司有權要求使用者提供有關同意之證明，並於未能提供時暫停其直播資格。
 

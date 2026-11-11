@@ -9,7 +9,7 @@
     '720p': { width: 1280, height: 720, maxBitrate: 1500000 }
   };
   let LK = null;
-  let settings = { enabled: false, requiredDays: 30, minMinutesPerDay: 15 };
+  let settings = { enabled: false, requiredDays: 30, minMinutesPerDay: 15, minStreamAge: 16 };
   let settingsUnsub = null, lobbyUnsub = null, chatUnsub = null, streamDocUnsub = null, blockedUnsub = null;
   let lobbyStreams = [];
   let initUid = null;
@@ -93,7 +93,7 @@
     initUid = u.uid;
     if (settingsUnsub) settingsUnsub();
     settingsUnsub = window.fs.onSnapshot(window.fs.doc(window.db, 'admin_config', 'streaming'), (snap) => {
-      settings = Object.assign({ enabled: false, requiredDays: 30, minMinutesPerDay: 15 }, snap.exists() ? snap.data() : {});
+      settings = Object.assign({ enabled: false, requiredDays: 30, minMinutesPerDay: 15, minStreamAge: 16 }, snap.exists() ? snap.data() : {});
       refreshNav();
       if (st.mode === 'lobby' && isTabOpen()) renderLobby();
     }, () => {});
@@ -125,11 +125,24 @@
     else renderStage();
   };
 
+  function userAge(u) {
+    const y = Number(u && u.birthYear);
+    if (!Number.isFinite(y) || y < 1900) return null;
+    const m = Number(u.birthMonth);
+    const now = new Date();
+    let age = now.getFullYear() - y;
+    if (Number.isFinite(m) && m >= 1 && m <= 12 && now.getMonth() + 1 < m) age--;
+    return age;
+  }
   function eligibility() {
     const u = me();
     const days = typeof u.qualifiedDays === 'number' ? u.qualifiedDays : 0;
     const need = settings.requiredDays || 0;
-    return { days, need, ok: isAdmin() || (settings.enabled && days >= need && u.streamBanned !== true) };
+    // v1.228.4：最低開播年齡（只影響開播，觀看不受限制）；伺服器 startStream 會再檢查
+    const minAge = typeof settings.minStreamAge === 'number' ? settings.minStreamAge : 16;
+    const age = userAge(u);
+    const ageOk = minAge <= 0 || (age != null && age >= minAge);
+    return { days, need, minAge, age, ageOk, ok: isAdmin() || (settings.enabled && ageOk && days >= need && u.streamBanned !== true) };
   }
 
   function renderLobby() {
@@ -144,7 +157,9 @@
       // v1.228.2：未合資格亦顯示「開始直播」按鈕，但設為不可點擊；伺服器 startStream 會再檢查日數
       : `<div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
           <button type="button" class="btn btn-primary" disabled aria-disabled="true" style="opacity:.45; cursor:not-allowed;">${esc(t('stream.startBtn', '開始直播'))}</button>
-          <p style="font-size:13px; color:var(--brand-700); margin:0; text-align:right;">${esc(t('stream.progressTemplate', '累積溫習 {need} 日即可開始直播（現時 {days} 日；每日溫習滿 {min} 分鐘計一日）。').replace('{need}', el.need).replace('{days}', el.days).replace('{min}', settings.minMinutesPerDay || 15))}</p>
+          <p style="font-size:13px; color:var(--brand-700); margin:0; text-align:right;">${!el.ageOk
+            ? esc((el.age == null ? t('stream.ageUnknownTemplate', '年滿 {age} 歲方可開始直播。你的帳戶未有出生年月資料，請電郵 support@concenmate.com 聯絡我們補填。') : t('stream.ageTemplate', '年滿 {age} 歲方可開始直播。')).replace('{age}', el.minAge))
+            : esc(t('stream.progressTemplate', '累積溫習 {need} 日即可開始直播（現時 {days} 日；每日溫習滿 {min} 分鐘計一日）。').replace('{need}', el.need).replace('{days}', el.days).replace('{min}', settings.minMinutesPerDay || 15))}</p>
         </div>`;
     box.innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
