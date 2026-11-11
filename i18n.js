@@ -952,6 +952,17 @@
     'verify.diffTitle': { 'zh-Hant': '兩種帳戶的分別', 'en': 'Two types of account', 'yue': '兩種帳戶有咩分別' },
     'verify.diffSecondary': { 'zh-Hant': '中學生帳戶：可以進入「中學生溫習室」，日後亦可參加溫習比賽及獲取導師教學資源。', 'en': 'Secondary student account: can use the Secondary Study Rooms, and later join study competitions and get tutor resources.', 'yue': '中學生帳戶：可以入「中學生溫習室」，日後仲可以參加溫習比賽同攞導師教學資源。' },
     'verify.diffGeneral': { 'zh-Hant': '一般帳戶：可以使用「公開溫習室」、Study with me 及其他功能。', 'en': 'General account: can use the Public Study Rooms, Study with me and other features.', 'yue': '一般帳戶：可以用「公開溫習室」、Study with me 同其他功能。' },
+    'acct.f.secondaryRoom': { 'zh-Hant': '中學生溫習室', 'en': 'Secondary Study Rooms', 'yue': '中學生溫習室' },
+    'acct.f.publicRoom': { 'zh-Hant': '公開溫習室', 'en': 'Public Study Rooms', 'yue': '公開溫習室' },
+    'acct.f.privateRoom': { 'zh-Hant': '好友邀請／密碼溫習房', 'en': 'Invite-only / password rooms', 'yue': '好友邀請／密碼溫習房' },
+    'acct.f.streamWatch': { 'zh-Hant': 'Study with me 觀看及留言', 'en': 'Watch and comment on Study with me', 'yue': 'Study with me 睇直播同留言' },
+    'acct.f.streamHost': { 'zh-Hant': 'Study with me 開播（年滿 16 歲）', 'en': 'Host Study with me (aged 16+)', 'yue': 'Study with me 開直播（滿 16 歲）' },
+    'acct.f.others': { 'zh-Hant': '扭蛋、排行榜、書伴廣場、溫習日記', 'en': 'Gacha, leaderboards, Study Buddies, Study Diary', 'yue': '扭蛋、排行榜、書伴廣場、溫習日記' },
+    'acct.f.contest': { 'zh-Hant': '溫習比賽（日後推出）', 'en': 'Study competitions (coming soon)', 'yue': '溫習比賽（日後推出）' },
+    'acct.f.tutor': { 'zh-Hant': '導師教學資源（日後推出）', 'en': 'Tutor resources (coming soon)', 'yue': '導師教學資源（日後推出）' },
+    'acct.yes': { 'zh-Hant': '有', 'en': 'Yes', 'yue': '有' },
+    'acct.no': { 'zh-Hant': '沒有', 'en': 'No', 'yue': '冇' },
+    'acct.note': { 'zh-Hant': '中學生帳戶：未滿 20 歲、學歷為中學生，並以學校電郵驗證。每年 9 月 1 日後第一次登入時，需要確認一次最新學歷。', 'en': 'Secondary student account: under 20, education level secondary school, and verified with a school email. After 1 September each year, you will be asked to confirm your education level when you first log in.', 'yue': '中學生帳戶：未滿 20 歲、學歷係中學生，仲要用學校電郵驗證。每年 9 月 1 日之後第一次登入，要確認一次最新學歷。' },
     'verify.confirmNow': { 'zh-Hant': '確認本學年學歷', 'en': 'Confirm education level', 'yue': '確認今個學年學歷' },
     'verify.badEmail': { 'zh-Hant': '請輸入以 .edu.hk 結尾的學校電郵', 'en': 'Please enter a school email ending in .edu.hk', 'yue': '請輸入 .edu.hk 結尾嘅學校電郵' },
     'verify.sending': { 'zh-Hant': '寄出中…', 'en': 'Sending…', 'yue': '寄緊…' },
@@ -1315,6 +1326,7 @@
     const lang = window.getAppLanguage();
     // v1.203.1：記低而家嘅語言，等 CSS 可以按語言調整排版（例如英文標題要自動換行）
     document.documentElement.setAttribute('lang', lang === 'en' ? 'en' : (lang === 'yue' ? 'zh-HK' : 'zh-Hant'));
+    if (typeof window.fillRegAccountTable === 'function') window.fillRegAccountTable();
     document.querySelectorAll('[data-i18n]').forEach((el) => {
       const key = el.getAttribute('data-i18n');
       el.textContent = window.t(key, el.textContent);

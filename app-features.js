@@ -6222,8 +6222,8 @@
         </div>
         <div class="card" style="padding:16px;">${emailBox}</div>
         <div class="card" style="padding:16px;">
-          <h3 style="font-size:15px; font-weight:800; color:var(--brand-800); margin:0 0 6px;">${esc(t('verify.diffTitle', '兩種帳戶的分別'))}</h3>
-          <p style="font-size:14px; color:var(--brand-800); line-height:1.7; margin:0;">${esc(t('verify.diffSecondary', '中學生帳戶：可以進入「中學生溫習室」，日後亦可參加溫習比賽及獲取導師教學資源。'))}<br>${esc(t('verify.diffGeneral', '一般帳戶：可以使用「公開溫習室」、Study with me 及其他功能。'))}</p>
+          <h3 style="font-size:15px; font-weight:800; color:var(--brand-800); margin:0 0 8px;">${esc(t('verify.diffTitle', '兩種帳戶的分別'))}</h3>
+          ${window.accountTypeTableHtml()}
         </div>
       </div>`;
     if (!c.confirmedThisYear && u.accountType !== 'tutor') {
@@ -6231,6 +6231,42 @@
       if (box) box.insertAdjacentHTML('beforeend', `<button type="button" class="btn btn-outline" style="margin-top:10px;" onclick="window.showEducationConfirm(true)">${esc(t('verify.confirmNow', '確認本學年學歷'))}</button>`);
     }
   };
+
+  // v1.229.4：兩種帳戶的分別（列表；有＝綠色剔號，冇＝灰色）
+  const ACCOUNT_FEATURES = [
+    ['acct.f.secondaryRoom', '中學生溫習室', true, false],
+    ['acct.f.publicRoom', '公開溫習室', false, true],
+    ['acct.f.privateRoom', '好友邀請／密碼溫習房', true, true],
+    ['acct.f.streamWatch', 'Study with me 觀看及留言', true, true],
+    ['acct.f.streamHost', 'Study with me 開播（年滿 16 歲）', true, true],
+    ['acct.f.others', '扭蛋、排行榜、書伴廣場、溫習日記', true, true],
+    ['acct.f.contest', '溫習比賽（日後推出）', true, false],
+    ['acct.f.tutor', '導師教學資源（日後推出）', true, false],
+  ];
+  window.accountTypeTableHtml = function () {
+    const yes = `<span aria-label="${esc(t('acct.yes', '有'))}" style="display:inline-flex; width:22px; height:22px; border-radius:50%; align-items:center; justify-content:center; background:#2E9E5B; color:#fff; font-size:13px; font-weight:800;">&#10003;</span>`;
+    const no = `<span aria-label="${esc(t('acct.no', '沒有'))}" style="display:inline-flex; width:22px; height:22px; border-radius:50%; align-items:center; justify-content:center; background:#E3E7EE; color:#9AA3B5; font-size:13px; font-weight:800;">&#8211;</span>`;
+    const th = 'padding:6px 4px; font-size:12px; font-weight:800; color:var(--brand-800); text-align:center; white-space:nowrap;';
+    return `<table style="width:100%; border-collapse:collapse;">
+      <thead><tr>
+        <th style="${th} text-align:left;"></th>
+        <th style="${th}">${esc(t('verify.typeSecondary', '中學生帳戶'))}</th>
+        <th style="${th}">${esc(t('verify.typeGeneral', '一般帳戶'))}</th>
+      </tr></thead>
+      <tbody>${ACCOUNT_FEATURES.map(([k, fb, a, b]) => `<tr style="border-top:1px solid var(--brand-100);">
+        <td style="padding:7px 4px; font-size:13px; color:${(a || b) ? 'var(--brand-800)' : '#9AA3B5'}; line-height:1.4;">${esc(t(k, fb))}</td>
+        <td style="padding:7px 4px; text-align:center;">${a ? yes : no}</td>
+        <td style="padding:7px 4px; text-align:center;">${b ? yes : no}</td>
+      </tr>`).join('')}</tbody>
+    </table>
+    <p style="font-size:12px; color:#6B7894; margin:8px 0 0; line-height:1.6;">${esc(t('acct.note', '中學生帳戶：未滿 20 歲、學歷為中學生，並以學校電郵驗證。每年 9 月 1 日後第一次登入時，需要確認一次最新學歷。'))}</p>`;
+  };
+  function fillRegAccountTable() {
+    const box = document.getElementById('reg-account-type-table');
+    if (box) box.innerHTML = window.accountTypeTableHtml();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fillRegAccountTable); else fillRegAccountTable();
+  window.fillRegAccountTable = fillRegAccountTable;
 
   window.sendSchoolEmailLink = async function () {
     const input = document.getElementById('verify-school-email');
