@@ -2796,8 +2796,17 @@ exports.streamHeartbeat = onCall({ secrets: [LIVEKIT_API_KEY, LIVEKIT_API_SECRET
 // v1.227.9：每 10 分鐘清理一次已中斷（超過 3 分鐘冇心跳）但狀態仍是「直播中」的直播，
 // 並關閉 LiveKit 上對應的房間；大廳不用再讀取這些殘留直播
 exports.cleanupStaleStreams = onSchedule({ schedule: "every 10 minutes", timeZone: "Asia/Hong_Kong", secrets: [LIVEKIT_API_KEY, LIVEKIT_API_SECRET] }, async () => {
-  const snap = await db.collection("streams").where("status", "==", "live").limit(500).get();
   const now = Date.now();
+  // v1.228.3：直播紀錄及留言於直播結束後保存 90 日，其後自動刪除（私隱政策承諾）。
+  // 每次最多處理 10 個，避免單次執行過久。
+  try {
+    const oldSnap = await db.collection("streams").where("endedAt", "<", now - 90 * 24 * 3600 * 1000).limit(10).get();
+    for (const d of oldSnap.docs) await db.recursiveDelete(d.ref);
+    if (oldSnap.size) console.log(`已刪除 ${oldSnap.size} 個超過 90 日的直播紀錄`);
+  } catch (e) {
+    console.warn("刪除舊直播紀錄失敗:", e.message);
+  }
+  const snap = await db.collection("streams").where("status", "==", "live").limit(500).get();
   const stale = snap.docs.filter((d) => !streamIsLive(d.data()) || now >= (d.data().maxEndAt || 0) + 5 * 60 * 1000);
   if (!stale.length) return;
   const batch = db.batch();
