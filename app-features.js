@@ -249,6 +249,9 @@
         window.renderTutorDirectoryTab();
       }
 
+      // v1.229.0 學生身份驗證（學校電郵）分頁
+      if (tabId === 'verification' && typeof window.renderVerificationTab === 'function') window.renderVerificationTab();
+
       // v1.227.0 Study with me 直播分頁（stream.js）
       if (tabId === 'stream' && typeof window.openStreamTab === 'function') window.openStreamTab();
 
@@ -2494,6 +2497,8 @@
         if (typeof window.startNavVisibilityListener === 'function') window.startNavVisibilityListener();
         // v1.211.0：新用戶第一次登入顯示導覽
         if (typeof window.maybeShowOnboarding === 'function') setTimeout(window.maybeShowOnboarding, 900);
+        // v1.229.0：每年 9 月 1 日後第一次登入確認學歷
+        if (typeof window.maybeShowEducationConfirm === 'function') setTimeout(window.maybeShowEducationConfirm, 1500);
         if (typeof window.applyNavVisibility === 'function') window.applyNavVisibility();
 
         switchTab('home');
@@ -6124,3 +6129,219 @@
       inviteModalShowing = false;
     };
 
+
+
+// ===================== 中學生帳戶：學校電郵驗證、每年確認學歷（v1.229.0） =====================
+// 中學生帳戶條件：學歷中學生＋學校電郵已驗證＋本學年已確認學歷＋未滿 20 歲。
+// 判斷要同 firestore.rules viewerRoomPool() 及 functions isSecondaryEligible() 一致。
+// 年齡及學年一律即時計算，不另外儲存，亦不增加資料庫讀取（用登入時已讀取的用戶資料）。
+(function () {
+  const t = (k, fb) => (window.t ? window.t(k, fb) : fb);
+  const esc = (v) => (window.escapeHtml ? window.escapeHtml(String(v == null ? '' : v)) : String(v == null ? '' : v));
+  const hkNow = () => new Date(Date.now() + 8 * 3600 * 1000);
+
+  window.currentSchoolYearHK = function () {
+    const d = hkNow();
+    return d.getUTCMonth() + 1 >= 9 ? d.getUTCFullYear() : d.getUTCFullYear() - 1;
+  };
+  window.userAgeYears = function (u) {
+    const y = Number(u && u.birthYear);
+    if (!Number.isFinite(y) || y < 1900) return null;
+    const m = Number(u.birthMonth);
+    const d = hkNow();
+    let age = d.getUTCFullYear() - y;
+    if (Number.isFinite(m) && m >= 1 && m <= 12 && d.getUTCMonth() + 1 < m) age--;
+    return age;
+  };
+  // 回傳各項條件，方便畫面逐項顯示
+  window.secondaryEligibilityChecks = function (u) {
+    u = u || {};
+    const age = window.userAgeYears(u);
+    return {
+      declared: u.isSecondaryStudent === true,
+      underAge: age != null && age < 20,
+      emailVerified: u.schoolEmailStatus === 'verified',
+      emailPending: u.schoolEmailStatus === 'pendingDomain',
+      emailRejected: u.schoolEmailStatus === 'rejected',
+      confirmedThisYear: typeof u.educationConfirmedYear === 'number' && u.educationConfirmedYear >= window.currentSchoolYearHK(),
+      age
+    };
+  };
+  window.isSecondaryEligible = function (u) {
+    if (!u) return false;
+    const c = window.secondaryEligibilityChecks(u);
+    return c.declared && c.underAge && c.emailVerified && c.confirmedThisYear;
+  };
+
+  function refreshPool() {
+    if (typeof window.retryListenToPublicRooms === 'function') { try { window.retryListenToPublicRooms(); } catch (_) {} }
+  }
+
+  // ---------- 學生身份驗證分頁 ----------
+  window.renderVerificationTab = function () {
+    const sec = document.getElementById('tab-verification');
+    const u = window.currentUser;
+    if (!sec || !u) return;
+    const c = window.secondaryEligibilityChecks(u);
+    const eligible = window.isSecondaryEligible(u);
+    const row = (ok, text, warn) => `<li style="display:flex; gap:8px; align-items:flex-start; padding:6px 0; font-size:14px; color:var(--brand-800);">
+        <span style="flex:none; width:20px; height:20px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:#fff; background:${ok ? 'var(--brand-500)' : (warn ? '#E8B321' : '#A4B4D4')};">${ok ? '&#10003;' : (warn ? '!' : '&#8211;')}</span>
+        <span>${text}</span></li>`;
+    let emailBox = '';
+    if (!c.declared) {
+      emailBox = `<p style="font-size:14px; color:var(--brand-700); line-height:1.7; margin:0;">${esc(t('verify.notSecondary', '你的學歷不是中學生，屬「一般帳戶」，可以使用公開溫習室及其他功能。如你現時是中學生，請先在「我的帳戶」把學歷改為中學生。'))}</p>`;
+    } else if (!c.underAge) {
+      emailBox = `<p style="font-size:14px; color:var(--brand-700); line-height:1.7; margin:0;">${esc(c.age == null ? t('verify.noBirth', '你的帳戶未有出生年月資料，請電郵 support@concenmate.com 聯絡我們補填。') : t('verify.over20', '中學生帳戶只適用於未滿 20 歲的用戶。'))}</p>`;
+    } else if (c.emailVerified) {
+      emailBox = `<p style="font-size:14px; color:var(--brand-800); margin:0;">${esc(t('verify.emailDone', '已驗證學校電郵：'))}<b>${esc(u.schoolEmail || t('verify.manual', '已由管理員核實'))}</b></p>`;
+    } else if (c.emailPending) {
+      emailBox = `<p style="font-size:14px; color:var(--brand-800); line-height:1.7; margin:0;">${esc(t('verify.emailPendingDomain', '你的學校電郵已確認收到，由於這是我們第一次收到這間學校的電郵，管理員需要核實一次，一般需時一至兩個工作天，完成後會自動生效。'))}<br><b>${esc(u.schoolEmail || '')}</b></p>`;
+    } else {
+      const sent = u.schoolEmailPending ? `<p style="font-size:13px; color:var(--brand-700); margin:8px 0 0;">${esc(t('verify.sentTemplate', '驗證連結已寄到 {email}，請在 24 小時內打開電郵並點擊連結。').replace('{email}', u.schoolEmailPending))}</p>` : '';
+      const rejected = c.emailRejected ? `<p style="font-size:13px; color:#C0392B; margin:0 0 8px;">${esc(t('verify.rejected', '你之前提交的電郵不屬於中學，請使用學校派發的學生電郵。'))}</p>` : '';
+      emailBox = `${rejected}
+        <label for="verify-school-email" style="display:block; font-size:14px; font-weight:700; color:var(--brand-800); margin-bottom:6px;">${esc(t('verify.emailLabel', '學校電郵'))}</label>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <input id="verify-school-email" type="email" inputmode="email" autocomplete="email" placeholder="${esc(t('verify.emailPlaceholder', '例如 s1234567@school.edu.hk'))}" style="flex:1; min-width:200px; padding:10px 12px; border:1px solid var(--brand-300); border-radius:10px; font-size:15px; box-sizing:border-box;">
+          <button type="button" id="verify-school-send" class="btn btn-primary" style="justify-content:center; min-height:42px;" onclick="window.sendSchoolEmailLink()">${esc(t('verify.sendBtn', '寄出驗證連結'))}</button>
+        </div>
+        <p style="font-size:12px; color:#6B7894; margin:8px 0 0; line-height:1.6;">${esc(t('verify.emailHint', '只接受學校派發、以 .edu.hk 結尾的中學電郵。學校電郵只用作核實身份，不會公開。'))}</p>${sent}`;
+    }
+    sec.innerHTML = `
+      <div style="max-width:620px; margin:0 auto; padding:8px 4px 24px;">
+        <h2 style="font-size:20px; font-weight:800; color:var(--brand-800); margin:0 0 6px;">${esc(t('verify.heading', '學生身份驗證'))}</h2>
+        <p style="font-size:14px; color:var(--brand-700); margin:0 0 14px;">${esc(t('verify.currentType', '你現時的帳戶類型：'))}<b>${esc(eligible ? t('verify.typeSecondary', '中學生帳戶') : t('verify.typeGeneral', '一般帳戶'))}</b></p>
+        <div class="card" style="padding:16px;">
+          <h3 style="font-size:15px; font-weight:800; color:var(--brand-800); margin:0 0 6px;">${esc(t('verify.reqTitle', '成為中學生帳戶需要'))}</h3>
+          <ul style="list-style:none; padding:0; margin:0;">
+            ${row(c.declared, esc(t('verify.reqDeclared', '學歷為中學生')))}
+            ${row(c.underAge, esc(t('verify.reqAge', '未滿 20 歲（按註冊時填寫的出生年月計算）')))}
+            ${row(c.emailVerified, esc(t('verify.reqEmail', '已驗證學校電郵')), c.emailPending)}
+            ${row(c.confirmedThisYear, esc(t('verify.reqYear', '已確認本學年學歷（每年 9 月 1 日後確認一次）')))}
+          </ul>
+        </div>
+        <div class="card" style="padding:16px;">${emailBox}</div>
+        <div class="card" style="padding:16px;">
+          <h3 style="font-size:15px; font-weight:800; color:var(--brand-800); margin:0 0 6px;">${esc(t('verify.diffTitle', '兩種帳戶的分別'))}</h3>
+          <p style="font-size:14px; color:var(--brand-800); line-height:1.7; margin:0;">${esc(t('verify.diffSecondary', '中學生帳戶：可以進入「中學生溫習室」，日後亦可參加溫習比賽及獲取導師教學資源。'))}<br>${esc(t('verify.diffGeneral', '一般帳戶：可以使用「公開溫習室」、Study with me 及其他功能。'))}</p>
+        </div>
+      </div>`;
+    if (!c.confirmedThisYear && u.accountType !== 'tutor') {
+      const box = sec.querySelector('.card');
+      if (box) box.insertAdjacentHTML('beforeend', `<button type="button" class="btn btn-outline" style="margin-top:10px;" onclick="window.showEducationConfirm(true)">${esc(t('verify.confirmNow', '確認本學年學歷'))}</button>`);
+    }
+  };
+
+  window.sendSchoolEmailLink = async function () {
+    const input = document.getElementById('verify-school-email');
+    const btn = document.getElementById('verify-school-send');
+    const email = (input && input.value || '').trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.edu\.hk$/.test(email)) { window.showToast(t('verify.badEmail', '請輸入以 .edu.hk 結尾的學校電郵'), '⚠️'); return; }
+    if (btn) { btn.disabled = true; btn.innerText = t('verify.sending', '寄出中…'); }
+    try {
+      await window.callCloudFunction('requestSchoolEmailVerification', { email });
+      if (window.currentUser) window.currentUser.schoolEmailPending = email;
+      window.showToast(t('verify.sentToast', '已寄出驗證連結，請到學校電郵信箱查收'), '✅');
+      window.renderVerificationTab();
+    } catch (e) {
+      window.showToast(window.friendlyErrorText ? window.friendlyErrorText(e) : (e.message || e), '❌');
+      if (btn) { btn.disabled = false; btn.innerText = t('verify.sendBtn', '寄出驗證連結'); }
+    }
+  };
+
+  // 撳學校電郵內的連結：#verify-school=<token>
+  window.checkSchoolEmailHashRoute = async function () {
+    const m = (window.location.hash || '').match(/^#verify-school=([0-9a-f]{48})$/);
+    if (!m) return;
+    window.location.hash = '';
+    try {
+      const res = await window.callCloudFunction('verifySchoolEmailToken', { token: m[1] });
+      window.showToast(res && res.status === 'verified'
+        ? t('verify.doneToast', '學校電郵驗證成功')
+        : t('verify.pendingToast', '已收到你的學校電郵，管理員核實學校後會自動生效'), '✅');
+      const u = window.currentUser;
+      if (u && res && u.uid === res.uid) {
+        try {
+          const snap = await window.fs.getDoc(window.fs.doc(window.db, 'users', u.uid));
+          if (snap.exists()) Object.assign(u, snap.data());
+        } catch (_) {}
+        refreshPool();
+        if (typeof window.switchTab === 'function') window.switchTab('verification', document.getElementById('nav-btn-verification'));
+      }
+    } catch (e) {
+      window.showToast(window.friendlyErrorText ? window.friendlyErrorText(e) : (e.message || e), '❌');
+    }
+  };
+
+  // ---------- 每年 9 月 1 日確認學歷 ----------
+  window.showEducationConfirm = function (fromTab) {
+    const u = window.currentUser;
+    if (!u || document.getElementById('edu-confirm-dialog')) return;
+    const age = window.userAgeYears(u);
+    const canSecondary = age != null && age < 20;
+    const sy = window.currentSchoolYearHK();
+    const wrap = document.createElement('div');
+    wrap.className = 'modal-backdrop';
+    wrap.id = 'edu-confirm-dialog';
+    wrap.style.zIndex = '20000';
+    wrap.innerHTML = `
+      <div class="modal-box" style="max-width:400px;" role="dialog" aria-modal="true">
+        <h3 style="font-size:17px; font-weight:800; color:var(--brand-800); margin:0 0 8px;">${esc(t('edu.title', '確認本學年學歷'))}</h3>
+        <p style="font-size:14px; color:var(--brand-800); line-height:1.7; margin:0 0 14px;">${esc(t('edu.body', '新學年（{y}/{y2}）開始，請確認你現時的學歷。').replace('{y}', sy).replace('{y2}', String(sy + 1).slice(-2)))}</p>
+        <div style="display:flex; flex-direction:column; gap:8px;" role="radiogroup">
+          ${canSecondary ? `<button type="button" class="btn btn-outline" role="radio" aria-checked="false" style="justify-content:center; min-height:42px;" data-edu="1">${esc(t('edu.secondary', '現時為中學生'))}</button>` : ''}
+          <button type="button" class="btn btn-outline" role="radio" aria-checked="false" style="justify-content:center; min-height:42px;" data-edu="0">${esc(t('edu.notSecondary', '現時為大專 / 大學 / 在職或其他（並非中學生）'))}</button>
+        </div>
+        <button type="button" class="btn btn-primary" id="edu-confirm-ok" disabled style="width:100%; justify-content:center; min-height:44px; margin-top:14px; opacity:.45; cursor:not-allowed;">${esc(t('common.confirm', '確定'))}</button>
+        ${canSecondary ? '' : `<p style="font-size:12px; color:#6B7894; margin:10px 0 0;">${esc(age == null ? t('edu.noBirth', '帳戶未有出生年月資料，暫時只可選擇「並非中學生」；如需補填，請電郵 support@concenmate.com。') : t('edu.over20', '根據出生年月，你已滿 20 歲，屬一般帳戶。'))}</p>`}
+      </div>`;
+    // v1.229.2：先揀選項（只作標示），再撳「確定」才儲存
+    let picked = null;
+    wrap.addEventListener('click', async (e) => {
+      const opt = e.target.closest && e.target.closest('[data-edu]');
+      const okBtn = wrap.querySelector('#edu-confirm-ok');
+      if (opt) {
+        picked = opt.getAttribute('data-edu');
+        wrap.querySelectorAll('[data-edu]').forEach(x => {
+          const on = x === opt;
+          x.classList.toggle('btn-primary', on);
+          x.classList.toggle('btn-outline', !on);
+          x.setAttribute('aria-checked', on ? 'true' : 'false');
+        });
+        if (okBtn) { okBtn.disabled = false; okBtn.style.opacity = ''; okBtn.style.cursor = ''; }
+        return;
+      }
+      if (!(e.target.closest && e.target.closest('#edu-confirm-ok')) || picked == null) return;
+      const isSecondary = picked === '1';
+      wrap.querySelectorAll('button').forEach(x => { x.disabled = true; });
+      try {
+        const res = await window.callCloudFunction('confirmEducation', { isSecondary });
+        u.isSecondaryStudent = isSecondary;
+        u.educationConfirmedYear = res && res.educationConfirmedYear;
+        wrap.remove();
+        refreshPool();
+        if (typeof window.setSecondaryStudentToggle === 'function') window.setSecondaryStudentToggle('prof', isSecondary ? 'yes' : 'no');
+        if (isSecondary && u.schoolEmailStatus !== 'verified') {
+          window.showToast(t('edu.needEmail', '請到「學生身份驗證」驗證學校電郵，才可進入中學生溫習室'), 'ℹ️');
+        } else {
+          window.showToast(t('edu.saved', '已確認本學年學歷'), '✅');
+        }
+        if (fromTab || document.getElementById('tab-verification')?.classList.contains('active')) window.renderVerificationTab();
+      } catch (err) {
+        wrap.querySelectorAll('button').forEach(x => { x.disabled = false; });
+        window.showToast(window.friendlyErrorText ? window.friendlyErrorText(err) : (err.message || err), '❌');
+      }
+    });
+    document.body.appendChild(wrap);
+  };
+  // 登入後檢查一次：未確認本學年就彈出（導師、自動測試、首次導覽期間不彈）
+  window.maybeShowEducationConfirm = function () {
+    const u = window.currentUser;
+    if (!u || !u.uid || u.accountType === 'tutor' || u.role === 'tutor') return;
+    if (navigator.webdriver) return;
+    if (typeof u.educationConfirmedYear === 'number' && u.educationConfirmedYear >= window.currentSchoolYearHK()) return;
+    const ob = document.getElementById('cm-onboard');
+    if (ob && ob.classList.contains('show')) { setTimeout(window.maybeShowEducationConfirm, 3000); return; }
+    window.showEducationConfirm(false);
+  };
+})();

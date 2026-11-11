@@ -259,8 +259,10 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
     // 推出之前註冊、未填過嘅舊帳戶）。呢個判斷要同 firestore.rules 嘅
     // viewerRoomPool() 完全一致（見嗰邊嘅註解解釋點解「未知」預設當
     // 公開池唔當中學池），唔可以兩邊各自寫一套、之後改壞咗一邊。
+    // v1.229.0：中學生帳戶＝學歷中學生＋學校電郵已驗證＋本學年已確認學歷＋未滿 20 歲
+    // （同 firestore.rules viewerRoomPool() 及 functions isSecondaryEligible() 一致）
     window.getViewerRoomPool = function() {
-      return (window.currentUser && window.currentUser.isSecondaryStudent === true) ? 'secondary' : 'public';
+      return window.isSecondaryEligible(window.currentUser) ? 'secondary' : 'public';
     };
 
     // 管理員專用：撳「🛠️ 轉換溫習室」掣之後暫存嘅覆寫值。null 代表跟返
@@ -622,6 +624,9 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
       if (typeof window.checkEmailVerifyHashRoute === 'function') {
         window.checkEmailVerifyHashRoute();
       }
+      if (typeof window.checkSchoolEmailHashRoute === 'function') {
+        window.checkSchoolEmailHashRoute();
+      }
       if (typeof window.checkJoinRoomHashRoute === 'function') {
         window.checkJoinRoomHashRoute();
       }
@@ -694,6 +699,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
       }
     };
     window.addEventListener('hashchange', () => { window.checkEmailVerifyHashRoute(); });
+    window.addEventListener('hashchange', () => { if (window.checkSchoolEmailHashRoute) window.checkSchoolEmailHashRoute(); });
 
     // ===================== 🔗 分享連結邀請入房 =====================
     // 撳完（WhatsApp／Instagram 等社交媒體傳過嚟嘅）連結 #join-room=<roomId>
@@ -1075,7 +1081,9 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
           hours: "0.0",
           points: 0,
           exp: 0,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          // v1.229.0：註冊時填寫的學歷當作已確認本學年
+          educationConfirmedYear: window.currentSchoolYearHK()
         };
 
         await setDoc(doc(db, "users", uid), newProfile);

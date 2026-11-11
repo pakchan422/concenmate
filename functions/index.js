@@ -180,7 +180,8 @@ exports.verifyRoomPassword = onCall(async (request) => {
       db.doc(`rooms/${roomId}/invitedUids/${uid}`).get(),
     ]);
     const userData = userSnap.exists ? userSnap.data() : {};
-    const myPool = userData.isSecondaryStudent === true ? "secondary" : "public";
+    // v1.229.0：中學生帳戶＝學歷中學生＋學校電郵已驗證＋本學年已確認＋未滿 20 歲（同 firestore.rules viewerRoomPool 一致）
+    const myPool = isSecondaryEligible(userData) ? "secondary" : "public";
     if (!inviteSnap.exists && roomData.roomPool !== myPool) {
       const adminSnap = await db.doc("admin_config/adminIds").get();
       const ids = (adminSnap.exists && Array.isArray(adminSnap.data().ids)) ? adminSnap.data().ids : [];
@@ -3248,4 +3249,172 @@ exports.saveCostSettings = onCall(async (request) => {
   await db.doc("adminCost/settings").set(Object.assign(out, { updatedAt: Date.now(), updatedBy: uid }), { merge: true });
   await db.doc("adminCost/dashboardCache").delete().catch(() => {});
   return { ok: true };
+});
+
+
+// ===================== 中學生帳戶：學校電郵驗證及每年確認學歷（v1.229.0） =====================
+// 中學生帳戶條件（四項同時成立）：isSecondaryStudent、schoolEmailStatus === "verified"、
+// educationConfirmedYear >= 本學年（每年 9 月 1 日香港時間開始）、未滿 20 歲（以出生年月計算）。
+// 同 firestore.rules 的 viewerRoomPool() 及前端 window.isSecondaryEligible() 必須一致。
+// 學校電郵只接受 .edu.hk（排除大專院校）；新域名第一次出現時由管理員確認一次屬哪間中學。
+const UNIVERSITY_EMAIL_SUFFIXES = [
+  "cuhk.edu.hk", "polyu.edu.hk", "cityu.edu.hk", "hkbu.edu.hk", "ln.edu.hk", "hkmu.edu.hk", "ouhk.edu.hk",
+  "vtc.edu.hk", "hsu.edu.hk", "hkapa.edu.hk", "cihe.edu.hk", "chuhai.edu.hk", "twc.edu.hk", "hkct.edu.hk",
+  "thei.edu.hk", "uowchk.edu.hk", "cpce-polyu.edu.hk", "hkcc-polyu.edu.hk", "hkuspace.edu.hk", "hkust.edu.hk",
+  "hku.edu.hk", "eduhk.edu.hk", "hkshsu.edu.hk", "saihonghs.edu.hk", "hkiit.edu.hk", "yccece.edu.hk",
+];
+function currentSchoolYearHK(ms) {
+  const hk = new Date((ms || Date.now()) + 8 * 3600 * 1000);
+  return hk.getUTCMonth() + 1 >= 9 ? hk.getUTCFullYear() : hk.getUTCFullYear() - 1;
+}
+function isSecondaryEligible(d) {
+  if (!d || d.isSecondaryStudent !== true) return false;
+  if (d.schoolEmailStatus !== "verified") return false;
+  if (!(typeof d.educationConfirmedYear === "number" && d.educationConfirmedYear >= currentSchoolYearHK())) return false;
+  const age = userAgeYears(d);
+  return age != null && age < 20;
+}
+function schoolEmailDomainOk(domain) {
+  if (!domain || !domain.endsWith(".edu.hk")) return false;
+  return !UNIVERSITY_EMAIL_SUFFIXES.some((u) => domain === u || domain.endsWith("." + u));
+}
+function hashEmail(email) {
+  return crypto.createHash("sha256").update(String(email).toLowerCase()).digest("hex");
+}
+function domainDocId(domain) {
+  return String(domain).replace(/\//g, "_");
+}
+
+// 用戶確認本學年學歷（每年 9 月 1 日後第一次登入時彈出；註冊時已寫入當年）
+exports.confirmEducation = onCall(async (request) => {
+  const uid = request.auth && request.auth.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "請先登入會員");
+  await checkRateLimit(`confirmEducation_${uid}`, 10, 60 * 60 * 1000);
+  const isSecondary = !!(request.data && request.data.isSecondary === true);
+  const ref = db.doc(`users/${uid}`);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "找不到這個帳戶");
+  if (isSecondary) {
+    const age = userAgeYears(snap.data());
+    if (age == null || age >= 20) throw new HttpsError("failed-precondition", "根據帳戶登記的出生年月，不可以選擇中學生");
+  }
+  const year = currentSchoolYearHK();
+  await ref.update({ isSecondaryStudent: isSecondary, educationConfirmedYear: year, educationConfirmedAt: Date.now() });
+  return { ok: true, educationConfirmedYear: year };
+});
+
+// 寄出學校電郵驗證連結
+exports.requestSchoolEmailVerification = onCall({ secrets: [EMAILJS_PRIVATE_KEY] }, async (request) => {
+  const uid = request.auth && request.auth.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "請先登入會員");
+  const email = String((request.data && request.data.email) || "").trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 120) throw new HttpsError("invalid-argument", "請輸入有效的電郵地址");
+  const domain = email.split("@")[1];
+  if (!schoolEmailDomainOk(domain)) {
+    throw new HttpsError("failed-precondition", "請使用學校派發的中學電郵（以 .edu.hk 結尾；大專院校電郵不適用）");
+  }
+  const userRef = db.doc(`users/${uid}`);
+  const [userSnap, domainSnap, indexSnap] = await Promise.all([
+    userRef.get(),
+    db.doc(`schoolEmailDomains/${domainDocId(domain)}`).get(),
+    db.doc(`schoolEmailIndex/${hashEmail(email)}`).get(),
+  ]);
+  if (!userSnap.exists) throw new HttpsError("not-found", "找不到這個帳戶");
+  const u = userSnap.data();
+  if (u.accountType === "tutor") throw new HttpsError("failed-precondition", "導師帳戶不適用");
+  if (u.isSecondaryStudent !== true) throw new HttpsError("failed-precondition", "請先在「我的帳戶」把學歷設為中學生");
+  const age = userAgeYears(u);
+  if (age == null || age >= 20) throw new HttpsError("failed-precondition", "根據帳戶登記的出生年月，不可以登記為中學生帳戶");
+  if (domainSnap.exists && domainSnap.data().status === "rejected") {
+    throw new HttpsError("failed-precondition", "此電郵域名不屬於中學，請使用學校派發的學生電郵");
+  }
+  if (indexSnap.exists && indexSnap.data().uid !== uid) {
+    throw new HttpsError("already-exists", "此學校電郵已用於另一個帳戶");
+  }
+  await checkRateLimit(`schoolEmail_${uid}`, 5, 24 * 60 * 60 * 1000);
+  const token = crypto.randomBytes(24).toString("hex");
+  await db.doc(`schoolEmailTokens/${token}`).set({ uid, email, domain, createdAt: Date.now(), expiresAt: Date.now() + 24 * 3600 * 1000 });
+  const link = `${getSiteBaseUrl()}#verify-school=${token}`;
+  try {
+    await sendEmailJsServerSide(EMAILJS_VERIFY_TEMPLATE_ID, email, u.username, link);
+  } catch (e) {
+    console.error("寄學校電郵驗證失敗:", e);
+    throw new HttpsError("internal", "暫時未能寄出驗證電郵，請稍後再試");
+  }
+  await userRef.update({ schoolEmailPending: email, schoolEmailRequestedAt: Date.now() });
+  return { ok: true };
+});
+
+// 撳學校電郵內的連結後驗證（毋須登入，連結本身已是憑證）
+exports.verifySchoolEmailToken = onCall(async (request) => {
+  const token = String((request.data && request.data.token) || "");
+  if (!/^[0-9a-f]{48}$/.test(token)) throw new HttpsError("invalid-argument", "驗證連結不正確");
+  await checkRateLimit(`verifySchoolEmail_${request.rawRequest && request.rawRequest.ip || "x"}`, 30, 60 * 60 * 1000);
+  const tokenRef = db.doc(`schoolEmailTokens/${token}`);
+  const tokenSnap = await tokenRef.get();
+  if (!tokenSnap.exists) throw new HttpsError("failed-precondition", "這個驗證連結已經失效，請重新寄出");
+  const t = tokenSnap.data();
+  await tokenRef.delete();
+  if (Date.now() > t.expiresAt) throw new HttpsError("failed-precondition", "這個驗證連結已經失效，請重新寄出");
+  const userRef = db.doc(`users/${t.uid}`);
+  const indexRef = db.doc(`schoolEmailIndex/${hashEmail(t.email)}`);
+  const domainRef = db.doc(`schoolEmailDomains/${domainDocId(t.domain)}`);
+  const [userSnap, indexSnap, domainSnap] = await Promise.all([userRef.get(), indexRef.get(), domainRef.get()]);
+  if (!userSnap.exists) throw new HttpsError("not-found", "找不到這個帳戶");
+  if (indexSnap.exists && indexSnap.data().uid !== t.uid) throw new HttpsError("already-exists", "此學校電郵已用於另一個帳戶");
+  const u = userSnap.data();
+  const dStatus = domainSnap.exists ? domainSnap.data().status : null;
+  if (dStatus === "rejected") {
+    await userRef.update({ schoolEmailStatus: "rejected", schoolEmailPending: admin.firestore.FieldValue.delete() });
+    throw new HttpsError("failed-precondition", "此電郵域名不屬於中學，請使用學校派發的學生電郵");
+  }
+  const status = dStatus === "approved" ? "verified" : "pendingDomain";
+  const batch = db.batch();
+  if (u.schoolEmail && u.schoolEmail !== t.email) batch.delete(db.doc(`schoolEmailIndex/${hashEmail(u.schoolEmail)}`));
+  batch.set(indexRef, { uid: t.uid, at: Date.now() });
+  batch.update(userRef, {
+    schoolEmail: t.email,
+    schoolEmailDomain: t.domain,
+    schoolEmailStatus: status,
+    schoolEmailVerifiedAt: Date.now(),
+    schoolEmailPending: admin.firestore.FieldValue.delete(),
+  });
+  if (status === "pendingDomain") {
+    batch.set(domainRef, {
+      domain: t.domain,
+      status: "pending",
+      firstSeenAt: domainSnap.exists ? (domainSnap.data().firstSeenAt || Date.now()) : Date.now(),
+      sampleSchools: admin.firestore.FieldValue.arrayUnion(String(u.school || "（未填學校）").slice(0, 60)),
+      pendingCount: admin.firestore.FieldValue.increment(1),
+    }, { merge: true });
+  }
+  await batch.commit();
+  return { ok: true, status, uid: t.uid };
+});
+
+// 管理員確認／拒絕學校電郵域名（批准後，同一域名正在等候的學生即時通過）
+exports.reviewSchoolEmailDomain = onCall(async (request) => {
+  const uid = request.auth && request.auth.uid;
+  await assertIsAdmin(uid);
+  const domain = String((request.data && request.data.domain) || "").trim().toLowerCase();
+  const approve = !!(request.data && request.data.approve);
+  const school = String((request.data && request.data.school) || "").trim().slice(0, 80);
+  if (!domain || !domain.includes(".")) throw new HttpsError("invalid-argument", "缺少域名");
+  if (approve && !school) throw new HttpsError("invalid-argument", "請填寫這個域名屬於哪間中學");
+  await db.doc(`schoolEmailDomains/${domainDocId(domain)}`).set({
+    domain, status: approve ? "approved" : "rejected", school: approve ? school : "",
+    reviewedAt: Date.now(), reviewedBy: uid, pendingCount: 0,
+  }, { merge: true });
+  const fromStatuses = approve ? ["pendingDomain", "rejected"] : ["pendingDomain", "verified"];
+  let updated = 0;
+  for (const st of fromStatuses) {
+    const q = await db.collection("users").where("schoolEmailDomain", "==", domain).where("schoolEmailStatus", "==", st).limit(500).get();
+    if (q.empty) continue;
+    const batch = db.batch();
+    q.docs.forEach((d) => batch.update(d.ref, { schoolEmailStatus: approve ? "verified" : "rejected" }));
+    await batch.commit();
+    updated += q.size;
+  }
+  await db.collection("adminAuditLog").add({ action: approve ? "批准學校電郵域名" : "拒絕學校電郵域名", details: { domain, school, updated }, adminLoginId: null, adminEmail: null, createdAt: Date.now() });
+  return { ok: true, updated };
 });

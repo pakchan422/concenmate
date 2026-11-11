@@ -98,10 +98,25 @@ function viewerRoomPool(database) {
   // isSecondaryStudent 呢個 key 存在。而家加多一重 'isSecondaryStudent'
   // in get(userPath).data 呢個檢查，冇呢個 key 就當「未知」處理，
   // 同上面已經講嘅道理一樣，預設歸做公開池。
-  return exists(userPath) &&
-    ('isSecondaryStudent' in get(userPath).data) &&
-    get(userPath).data.isSecondaryStudent == true
-    ? 'secondary' : 'public';
+  // v1.229.0：中學生帳戶＝學歷中學生＋學校電郵已驗證＋本學年已確認學歷＋未滿 20 歲
+  // （同 functions/index.js 的 isSecondaryEligible() 及前端 window.isSecondaryEligible() 一致）
+  return exists(userPath) && isSecondaryEligibleData(get(userPath).data) ? 'secondary' : 'public';
+}
+
+// 本學年（每年 9 月 1 日開始）。規則用 UTC 時間，香港 9 月 1 日凌晨 0–8 時仍當舊學年，影響輕微。
+function currentSchoolYear() {
+  return request.time.month() >= 9 ? request.time.year() : request.time.year() - 1;
+}
+function under20(d) {
+  return d.get('birthYear', null) is int && d.get('birthMonth', null) is int &&
+    (request.time.year() - d.birthYear - (request.time.month() < d.birthMonth ? 1 : 0)) < 20;
+}
+function isSecondaryEligibleData(d) {
+  return d.get('isSecondaryStudent', false) == true &&
+    d.get('schoolEmailStatus', '') == 'verified' &&
+    d.get('educationConfirmedYear', 0) is int &&
+    d.get('educationConfirmedYear', 0) >= currentSchoolYear() &&
+    under20(d);
 }
 
 // ⚠️ 安全修補（見 docs/PROGRESS.md）：視訊溫習房嘅「入場證」檢查。
@@ -250,8 +265,11 @@ function newUserProfileOk(database, uid) {
       'uid', 'email', 'loginId', 'contactEmail', 'emailVerified', 'emailVerifyToken',
       'username', 'school', 'district', 'grade', 'favSubjects', 'dislikeSubjects',
       'birthYear', 'birthMonth', 'isSecondaryStudent', 'accountType',
-      'hours', 'points', 'exp', 'createdAt'
+      'hours', 'points', 'exp', 'createdAt', 'educationConfirmedYear'
     ]) &&
+    // v1.229.0：註冊時當作已確認本學年學歷（只可以寫本學年；8 月 31 日 UTC 容許下一學年，對應香港 9 月 1 日凌晨）
+    (!('educationConfirmedYear' in d) || d.educationConfirmedYear == currentSchoolYear() ||
+      (request.time.month() == 8 && request.time.day() == 31 && d.educationConfirmedYear == currentSchoolYear() + 1)) &&
     d.uid == uid &&
     d.loginId is string && d.loginId.size() >= 3 && d.loginId.size() <= 20 &&
     exists(/databases/$(database)/documents/usernames/$(d.loginId.lower())) &&
@@ -815,6 +833,17 @@ service cloud.firestore {
     match /adminCost/{docId} {
       allow read: if isSuperAdmin(database);
       allow write: if false;
+    }
+    // v1.229.0：學校電郵驗證——域名審批紀錄只限管理員讀；其餘只由 Cloud Functions 讀寫
+    match /schoolEmailDomains/{domainId} {
+      allow read: if isAdmin(database);
+      allow write: if false;
+    }
+    match /schoolEmailTokens/{token} {
+      allow read, write: if false;
+    }
+    match /schoolEmailIndex/{hash} {
+      allow read, write: if false;
     }
     match /reports/{reportId} {
       allow create: if false;
