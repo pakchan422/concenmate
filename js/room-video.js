@@ -554,7 +554,7 @@
             <p style="font-size:13px; color:#ccc; margin-top:6px;">${window.t('room.remoteCameraOff', '對方鏡頭已關閉')}</p>
           </div>
           <div class="video-header">
-            <span class="video-tag" style="cursor:pointer;" onclick="viewUserProfile('${uid}')" title="${window.t('room.viewProfile', '點擊查看資料／加好友')}">${window.escapeHtml(name || window.t('room.otherUser', '其他用家'))}<span class="video-rank" id="remote-rank-${uid}"></span><span class="video-stones" id="remote-stone-${uid}" data-n="0" data-src="stone-1.png" data-exp="0" onclick="event.stopPropagation(); window.openStoneInfo && window.openStoneInfo({ mode: 'room', name: ${window.jsArg(name || window.t('room.otherUser', '其他用家'))}, exp: parseInt(this.dataset.exp || '0'), count: parseInt(this.dataset.n || '0') })"></span></span>
+            <span class="video-tag" style="cursor:pointer;" onclick="viewUserProfile('${uid}')" title="${window.t('room.viewProfile', '點擊查看資料／加好友')}">${window.escapeHtml(name || window.t('room.otherUser', '其他用家'))}<span class="video-rank" id="remote-rank-${uid}"></span><span class="video-stones" id="remote-stone-${uid}" data-n="0" data-src="assets/images/stone-1.png" data-exp="0" onclick="event.stopPropagation(); window.openStoneInfo && window.openStoneInfo({ mode: 'room', name: ${window.jsArg(name || window.t('room.otherUser', '其他用家'))}, exp: parseInt(this.dataset.exp || '0'), count: parseInt(this.dataset.n || '0') })"></span></span>
             <span class="video-tag" id="remote-host-badge-${slotNum}" style="background:#E9EDF5; color:#29395C; display:none;">${window.t('room.hostBadge', '房主')}</span>
             <span class="video-tag" id="stream-status-${uid}" data-conn="connecting" style="background:#3F588F; color:#fff;">${window.t('room.remoteWaitStream', '連線中...')}</span>
             <div class="video-more-menu-wrap">
@@ -589,7 +589,7 @@
         el.dataset.bound = '1';
         el.addEventListener('click', (e) => { e.stopPropagation(); window.openStoneInfo && window.openStoneInfo({ mode: 'room', count: state.myStones || 0 }); });
       }
-      el.innerHTML = stoneTagHtml(window.myActiveStoneIndex ? `stone-${window.myActiveStoneIndex()}.png` : 'stone-1.png', state.myStones || 0);
+      el.innerHTML = stoneTagHtml(window.myActiveStoneIndex ? `assets/images/stone-${window.myActiveStoneIndex()}.png` : 'assets/images/stone-1.png', state.myStones || 0);
       if (pop) { el.classList.remove('stone-pop'); void el.offsetWidth; el.classList.add('stone-pop'); }
     }
     window.refreshMyStoneTag = refreshMyStoneTag;
@@ -598,7 +598,7 @@
       if (!el) return;
       const prev = parseInt(el.dataset.n || '0');
       el.dataset.n = String(n || 0);
-      el.innerHTML = stoneTagHtml(el.dataset.src || 'stone-1.png', n || 0);
+      el.innerHTML = stoneTagHtml(el.dataset.src || 'assets/images/stone-1.png', n || 0);
       if ((n || 0) > prev) { el.classList.remove('stone-pop'); void el.offsetWidth; el.classList.add('stone-pop'); }
     }
 
@@ -1671,16 +1671,16 @@
 
     // ===================== 專注背景音（真實錄音 MP3，循環播放）=====================
     // 之前用 Web Audio API 即時合成雜訊，後來改用管理員提供嘅 ElevenLabs
-    // 錄音（放喺 sound/ 資料夾），音質靚好多，所以呢度改用簡單嘅
+    // 錄音（放喺 assets/sounds/ 資料夾），音質靚好多，所以呢度改用簡單嘅
     // <audio loop> 方式播放，唔再需要濾波器/雜訊合成嗰套邏輯。
     const BG_SOUND_FILES = {
-      white: { label: '白噪音',        file: 'sound/white-noise.mp3' },
-      rain1: { label: '雨聲 1',        file: 'sound/rain-1.mp3' },
-      rain2: { label: '雨聲 2',        file: 'sound/rain-2.mp3' },
-      cafe1: { label: '咖啡室環境聲 1', file: 'sound/cafe-1.mp3' },
-      cafe2: { label: '咖啡室環境聲 2', file: 'sound/cafe-2.mp3' },
-      train1: { label: '火車聲 1',      file: 'sound/train-1.mp3' },
-      train2: { label: '火車聲 2',      file: 'sound/train-2.mp3' }
+      white: { label: '白噪音',        file: 'assets/sounds/white-noise.mp3' },
+      rain1: { label: '雨聲 1',        file: 'assets/sounds/rain-1.mp3' },
+      rain2: { label: '雨聲 2',        file: 'assets/sounds/rain-2.mp3' },
+      cafe1: { label: '咖啡室環境聲 1', file: 'assets/sounds/cafe-1.mp3' },
+      cafe2: { label: '咖啡室環境聲 2', file: 'assets/sounds/cafe-2.mp3' },
+      train1: { label: '火車聲 1',      file: 'assets/sounds/train-1.mp3' },
+      train2: { label: '火車聲 2',      file: 'assets/sounds/train-2.mp3' }
     };
 
     let bgAudioEl = null;
@@ -3571,9 +3571,9 @@
         const g = ctx.createLinearGradient(x, y, x, y + h);
         g.addColorStop(0, '#CFE3E8'); g.addColorStop(1, '#D2D9E9');
         ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
-        const otter = await loadImg('ottie-wave.png');
+        const otter = await loadImg('assets/images/ottie-wave.png');
         if (otter) {
-          const size = Math.min(w, h) * 1.05; // ottie-wave.png 本身四邊有透明留白，要畫大啲先夠大隻
+          const size = Math.min(w, h) * 1.05; // assets/images/ottie-wave.png 本身四邊有透明留白，要畫大啲先夠大隻
           ctx.drawImage(otter, x + (w - size) / 2, y + (h - size) / 2, size, size);
         }
       }
@@ -3685,7 +3685,7 @@
         ctx.fillStyle = '#5E6E73';
         ctx.font = `600 28px ${font}`;
         ctx.fillText(tt('snapshot.studiedLine', '今日溫習 {t}').replace('{t}', formatMinutes(todayMinutes())), MARGIN + 4, fy);
-        const logo = await loadImg('logo-snapshot.png');
+        const logo = await loadImg('assets/images/logo-snapshot.png');
         ctx.textAlign = 'right';
         ctx.fillStyle = '#4A68A8';
         ctx.font = `700 24px ${font}`;

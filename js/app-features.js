@@ -837,7 +837,7 @@
       const i = sorted.findIndex(r => r === rank || (r.minLevel === rank.minLevel && r.title === rank.title));
       return Math.min(STONE_COUNT, Math.max(1, (i < 0 ? 0 : i) + 1));
     }
-    window.stoneSrcForRank = (rank) => `stone-${stoneIndexForRank(rank)}.png`;
+    window.stoneSrcForRank = (rank) => `assets/images/stone-${stoneIndexForRank(rank)}.png`;
     window.stoneSrcForExp = (exp) => window.stoneSrcForRank(getRankTitle(calcLevelInfo(exp || 0).level));
     // v1.222.0：石頭改為累積，分款記錄（伺服器 users/{uid}.stones）。
     // 未有 stones 欄位（舊帳戶第一次溫習之前）就用累積時數估算總數。
@@ -968,7 +968,7 @@
           ? escapeHtml(window.rankTitle ? window.rankTitle(r) : r.title)
           : escapeHtml(window.t('stone.unlockAtTemplate', 'Lv.{n} 解鎖').replace('{n}', unlockInfo.map[idx] || r.minLevel || 1));
         return `<div ${clickable ? `role="button" tabindex="0" onclick="window.chooseStone(${idx})"` : ''} style="display:flex; flex-direction:column; align-items:center; gap:3px; min-width:0; flex:1; ${clickable ? 'cursor:pointer;' : ''}">
-          <img src="stone-${idx}.png" alt="" width="34" height="34" style="border-radius:50%; ${on ? 'box-shadow:0 0 0 3px var(--accent);' : (!unlocked ? 'filter:grayscale(1); opacity:.45;' : '')}">
+          <img src="assets/images/stone-${idx}.png" alt="" width="34" height="34" style="border-radius:50%; ${on ? 'box-shadow:0 0 0 3px var(--accent);' : (!unlocked ? 'filter:grayscale(1); opacity:.45;' : '')}">
           <span style="font-size:11px; color:${on ? 'var(--brand-800)' : (unlocked ? 'var(--brand-700)' : '#8A94A8')}; font-weight:${on ? '700' : '400'}; white-space:nowrap;">${escapeHtml(window.stoneNameForRank(r))}</span>
           <span style="font-size:10px; color:#8A94A8; white-space:nowrap;">${sub}</span>
           ${perType ? `<span style="font-size:13px; font-weight:800; color:${perType[idx - 1] ? 'var(--brand-800)' : '#B8C0CF'};">×${perType[idx - 1]}</span>` : ''}
@@ -976,7 +976,7 @@
       }).join('');
       const body = document.getElementById('stone-info-body');
       if (body) body.innerHTML = `
-        <img src="stone-${activeIdx}.png" alt="" width="64" height="64" style="display:block; margin:6px auto 8px;">
+        <img src="assets/images/stone-${activeIdx}.png" alt="" width="64" height="64" style="display:block; margin:6px auto 8px;">
         <p style="font-size:14px; color:var(--brand-800); line-height:1.6; margin:0 0 6px;">${escapeHtml(window.t('stone.infoDesc', '你每專心溫習 15 分鐘，Ottie 就在你身邊磨好一粒石頭。'))}</p>
         <p style="font-size:14px; font-weight:700; color:var(--brand-700); margin:0 0 12px;">${escapeHtml(line)}</p>
         <div style="display:flex; gap:4px; justify-content:space-between; padding:10px 6px; background:var(--brand-50); border-radius:12px;">${row}</div>
@@ -1135,7 +1135,7 @@
       // 上傳過頭像就顯示返自己個頭像，冇上傳就維持顯示品牌 Logo。
       const homeHeroAvatar = document.getElementById('home-hero-avatar');
       if (homeHeroAvatar) {
-        homeHeroAvatar.src = avatarSrc || 'logo.png';
+        homeHeroAvatar.src = avatarSrc || 'assets/images/logo.png';
         if (avatarSrc) {
           homeHeroAvatar.style.cursor = 'zoom-in';
           homeHeroAvatar.onclick = () => openLightbox(avatarSrc, true);
@@ -1930,7 +1930,7 @@
           if (photoImg) { photoImg.src = avatarSticker.photo; photoImg.style.display = 'block'; }
           if (blankEl) blankEl.style.display = 'none';
         } else {
-          if (photoImg) { photoImg.src = 'ottie-full.png'; photoImg.style.display = 'block'; }
+          if (photoImg) { photoImg.src = 'assets/images/ottie-full.png'; photoImg.style.display = 'block'; }
           if (blankEl) blankEl.style.display = 'none';
         }
         if (svgEl) svgEl.style.display = 'none';
@@ -1938,7 +1938,7 @@
       }
 
       // 未揀貼圖：顯示全身 Ottie（v1.220.2 起段位相片已停用）
-      if (photoImg) { photoImg.src = 'ottie-full.png'; photoImg.style.display = 'block'; }
+      if (photoImg) { photoImg.src = 'assets/images/ottie-full.png'; photoImg.style.display = 'block'; }
       if (svgEl) svgEl.style.display = 'none';
       if (blankEl) blankEl.style.display = 'none';
     }
@@ -1968,7 +1968,7 @@
       // 今日石頭（第 6 格）：今日溫習分鐘 ÷ 15
       const stoneTile = document.getElementById('otter-stat-stones');
       if (stoneTile) {
-        stoneTile.innerHTML = `<img src="stone-${window.myActiveStoneIndex()}.png" alt="" style="width:1.2em; height:1.2em; display:block;">×${totalStoneCount()}`;
+        stoneTile.innerHTML = `<img src="assets/images/stone-${window.myActiveStoneIndex()}.png" alt="" style="width:1.2em; height:1.2em; display:block;">×${totalStoneCount()}`;
       }
     }
     window.updateOtterStatsCard = updateOtterStatsCard;
@@ -2057,10 +2057,10 @@
         </div>`;
       const thumbOf = (st) => st.photo
         ? `<img src="${st.photo}" style="width:100%; aspect-ratio:1; object-fit:contain; border-radius:6px;">`
-        : `<img src="ottie-full.png" style="width:100%; aspect-ratio:1; object-fit:contain; border-radius:6px;" alt="">`;
+        : `<img src="assets/images/ottie-full.png" style="width:100%; aspect-ratio:1; object-fit:contain; border-radius:6px;" alt="">`;
 
       let html = headHtml(window.t('home.otterDefaultLook', '預設 Ottie'), '');
-      html += tileHtml(0, `<img src="ottie-full.png" style="width:100%; aspect-ratio:1; object-fit:contain; border-radius:6px;" alt="">`, window.t('home.otterDefaultLook', '預設 Ottie'), _otterAvatarPick === 0);
+      html += tileHtml(0, `<img src="assets/images/ottie-full.png" style="width:100%; aspect-ratio:1; object-fit:contain; border-radius:6px;" alt="">`, window.t('home.otterDefaultLook', '預設 Ottie'), _otterAvatarPick === 0);
 
       if (typeof GACHA_STICKERS !== 'undefined') {
         const ownedSet = new Set(ownedIds.map(String));
@@ -2677,7 +2677,7 @@
     // 產生一個飄浮嘅表情動畫，放入指定嘅容器（自己或其他人嘅視訊卡片皆可用）
     // v1.221.2：表情反應改用 Ottie 圖。廣播出去的仍然是 emoji（舊版本都收得到），
     // 收到時對照呢個表換成 Ottie 圖；表入面冇的就照舊顯示文字。
-    const OTTIE_REACTIONS = { '😆': 'react-laugh.png', '😍': 'react-love.png', '😭': 'react-cry.png', '😴': 'react-sleep.png' };
+    const OTTIE_REACTIONS = { '😆': 'assets/images/react-laugh.png', '😍': 'assets/images/react-love.png', '😭': 'assets/images/react-cry.png', '😴': 'assets/images/react-sleep.png' };
     window.OTTIE_REACTIONS = OTTIE_REACTIONS;
     function spawnSticker(container, emoji) {
       if (!container) return;
@@ -3359,7 +3359,7 @@
       wrap.innerHTML = active.map(se => {
         const items = gachaItemsInSeries(se.id);
         // 系列縮圖：用該系列嘅扭蛋機圖（冇就用預設扭蛋機圖）
-        const cover = se.machineImage || window.GACHA_MACHINE_IMAGE_URL || 'gacha-machine.png';
+        const cover = se.machineImage || window.GACHA_MACHINE_IMAGE_URL || 'assets/images/gacha-machine.png';
         const on = String(se.id) === String(sel);
         return `<button type="button" onclick="selectGachaSeries('${escapeHtml(String(se.id))}')" class="gacha-series-chip${on ? ' on' : ''}">
           ${cover ? `<img src="${cover}" alt="">` : ''}
@@ -3370,18 +3370,18 @@
     }
     window.renderGachaSeriesPicker = renderGachaSeriesPicker;
     // 扭蛋機外觀圖：先用所選系列自己嘅扭蛋機圖，冇就用後台設定嘅
-    // 預設扭蛋機圖，再冇就用網站內建嘅 gacha-machine.png
+    // 預設扭蛋機圖，再冇就用網站內建嘅 assets/images/gacha-machine.png
     function gachaApplyMachineImage() {
       const el = document.getElementById('gacha-machine-img');
       if (!el) return;
       const sid = gachaSelectedSeriesId();
       const se = GACHA_SERIES.find(x => String(x.id) === String(sid));
-      const url = (se && se.machineImage) || window.GACHA_MACHINE_IMAGE_URL || 'gacha-machine.png';
+      const url = (se && se.machineImage) || window.GACHA_MACHINE_IMAGE_URL || 'assets/images/gacha-machine.png';
       if (el.getAttribute('src') !== url) el.setAttribute('src', url);
-      // 扭蛋機背景場景圖：先用所選系列自己嘅背景圖，冇就用網站內建嘅 gacha-bg.jpg
+      // 扭蛋機背景場景圖：先用所選系列自己嘅背景圖，冇就用網站內建嘅 assets/images/gacha-bg.jpg
       const stage = document.getElementById('gacha-stage-card');
       if (stage) {
-        const bg = (se && se.bgImage) || 'gacha-bg.jpg';
+        const bg = (se && se.bgImage) || 'assets/images/gacha-bg.jpg';
         const css = `url("${bg}")`;
         if (stage.style.backgroundImage !== css) stage.style.backgroundImage = css;
       }

@@ -441,7 +441,7 @@
         const url = adminGachaDraft.machineImageUrl;
         const previewInner = url
           ? `<img src="${url}" style="width:100%; height:100%; object-fit:contain;">`
-          : `<img src="gacha-machine.png" style="width:100%; height:100%; object-fit:contain;">`;
+          : `<img src="assets/images/gacha-machine.png" style="width:100%; height:100%; object-fit:contain;">`;
         return `
           <div class="admin-card">
             <h3 style="font-size:15px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;">預設扭蛋機圖片</h3>
@@ -492,7 +492,7 @@
                 row('地平線', '地面與牆壁或天空的分界線約在圖片高度 65% 至 75% 的位置，令扭蛋機看起來站在地上') +
                 row('底部', '圖片底部約 15% 保持淺色及簡單，以免遮擋「抽一次」「連續抽十次」按鈕') +
                 row('網站顯示', '電腦版：填滿整個框並貼底顯示，頂部可能被裁走少許。手機版：放大至框高的 140% 並貼底顯示，左右兩邊會被裁走較多，重要物件須放近中間') +
-                row('未上傳時', '使用網站內建的預設背景（gacha-bg.jpg）') +
+                row('未上傳時', '使用網站內建的預設背景（assets/images/gacha-bg.jpg）') +
                 row('上傳處理', '系統會自動壓縮至最闊 1600 像素'))}
               ${sec('四、原始檔存放位置',
                 row('貼圖', 'Desktop/concenmate-app/Ottie Pic/（每個系列一個資料夾，例如「動物連身衣」「書伴日常」）') +
@@ -1078,12 +1078,12 @@
           if (typeof window.gachaRenderFragmentCount === 'function') window.gachaRenderFragmentCount();
           // 扭蛋機外殼圖片：如果管理員上傳咗自訂圖，用返嗰張；冇嘅話
           // window.GACHA_MACHINE_IMAGE_URL 保持 null，畫面繼續用返
-          // <img> tag 原本寫死嘅 gacha-machine.png 預設圖。
+          // <img> tag 原本寫死嘅 assets/images/gacha-machine.png 預設圖。
           window.GACHA_MACHINE_IMAGE_URL = (typeof data.machineImageUrl === 'string' && data.machineImageUrl) ? data.machineImageUrl : null;
           if (typeof window.gachaApplyMachineImage === 'function') window.gachaApplyMachineImage();
           else {
             const machineImgEl = document.getElementById('gacha-machine-img');
-            if (machineImgEl) machineImgEl.src = window.GACHA_MACHINE_IMAGE_URL || 'gacha-machine.png';
+            if (machineImgEl) machineImgEl.src = window.GACHA_MACHINE_IMAGE_URL || 'assets/images/gacha-machine.png';
           }
         }
         gachaConfigLoaded = true;
@@ -1146,8 +1146,8 @@
           <td style="${td}"><input class="admin-input-sm" style="width:96px;" value="${escapeHtml(r.title || '')}" oninput="adminLevelDraft.ranks[${idx}].title = this.value; adminRefreshLevelPreview();"></td>
           <td style="${td}"><input class="admin-input-sm" style="width:100px;" value="${escapeHtml(r.titleEn || '')}" oninput="adminLevelDraft.ranks[${idx}].titleEn = this.value"></td>
           <td style="${td} white-space:nowrap;">
-            <img src="${window.stoneSrcForRank ? window.stoneSrcForRank(r) : 'stone-1.png'}" id="admin-rank-stone-img-${idx}" alt="" width="26" height="26" style="vertical-align:middle;">
-            <select class="admin-input-sm" style="vertical-align:middle; width:auto; min-width:0; max-width:96px;" onchange="adminLevelDraft.ranks[${idx}].stone = parseInt(this.value)||undefined; document.getElementById('admin-rank-stone-img-${idx}').src = 'stone-' + (parseInt(this.value) || ${idx + 1 > 5 ? 5 : idx + 1}) + '.png';">
+            <img src="${window.stoneSrcForRank ? window.stoneSrcForRank(r) : 'assets/images/stone-1.png'}" id="admin-rank-stone-img-${idx}" alt="" width="26" height="26" style="vertical-align:middle;">
+            <select class="admin-input-sm" style="vertical-align:middle; width:auto; min-width:0; max-width:96px;" onchange="adminLevelDraft.ranks[${idx}].stone = parseInt(this.value)||undefined; document.getElementById('admin-rank-stone-img-${idx}').src = 'assets/images/stone-' + (parseInt(this.value) || ${idx + 1 > 5 ? 5 : idx + 1}) + '.png';">
               <option value="">自動</option>
               ${['灰石','鵝卵石','雲石','水晶','寶石'].map((nm, k) => `<option value="${k + 1}" ${parseInt(r.stone) === k + 1 ? 'selected' : ''}>${nm}</option>`).join('')}
             </select>
@@ -2491,7 +2491,7 @@
     // 內容（zh-Hant／en／yue），管理員改嘅其實就係 window.I18N_DICT
     // 入面呢幾組字嘅值；圖片部分（Nav Logo／主橫幅吉祥物圖）存返兩條
     // Firebase Storage 下載連結，冇自訂圖片嗰陣就維持用返 index.html
-    // 寫死嘅預設檔案（logo-hero.png／ottie-wave.png）。
+    // 寫死嘅預設檔案（assets/images/logo-hero.png／assets/images/ottie-wave.png）。
 
     // 分組顯示用：每個分組底下嘅 key 清單＋中文標籤，純粹為咗令管理員
     // 睇得明呢個欄位對應緊個網站邊一句字，唔影響實際儲存結構。
@@ -2628,8 +2628,8 @@
 
       container.innerHTML = `
         <p style="font-size:13px; color:#888; margin-bottom:14px;">這裏的文字是未登入訪客打開網站時首先看到的首頁內容，三種語言可以分開修改。修改後點擊最底的「儲存全部改動」，即時全站生效（包括未登入的訪客），毋須修改程式。</p>
-        ${renderAdminLandingImageCard('navLogoUrl', '主橫幅 Logo', '顯示喺 Landing page 主橫幅左上方嘅大 Logo（建議用透明背景 PNG，闊度約 600px 以上）。', 'logo-hero.png')}
-        ${renderAdminLandingImageCard('heroImageUrl', '主橫幅吉祥物圖', '顯示在主橫幅中間的 Ottiee 吉祥物圖案。', 'ottie-wave.png')}
+        ${renderAdminLandingImageCard('navLogoUrl', '主橫幅 Logo', '顯示喺 Landing page 主橫幅左上方嘅大 Logo（建議用透明背景 PNG，闊度約 600px 以上）。', 'assets/images/logo-hero.png')}
+        ${renderAdminLandingImageCard('heroImageUrl', '主橫幅吉祥物圖', '顯示在主橫幅中間的 Ottiee 吉祥物圖案。', 'assets/images/ottie-wave.png')}
         ${groupsHtml}
         <div style="text-align:center; margin-top:10px;">
           <button type="button" class="btn btn-primary" id="btn-admin-save-landing" style="padding:12px 32px; font-size:15px;" onclick="adminSaveLandingContent()">儲存全部改動</button>
@@ -2733,9 +2733,9 @@
           }
           window.LANDING_IMAGE_OVERRIDES = data.images || {};
           const navLogoEl = document.getElementById('landing-nav-logo-img');
-          if (navLogoEl) navLogoEl.src = (data.images && data.images.navLogoUrl) ? data.images.navLogoUrl : 'logo-hero.png';
+          if (navLogoEl) navLogoEl.src = (data.images && data.images.navLogoUrl) ? data.images.navLogoUrl : 'assets/images/logo-hero.png';
           const heroImgEl = document.getElementById('landing-hero-mascot-img');
-          if (heroImgEl) heroImgEl.src = (data.images && data.images.heroImageUrl) ? data.images.heroImageUrl : 'ottie-wave.png';
+          if (heroImgEl) heroImgEl.src = (data.images && data.images.heroImageUrl) ? data.images.heroImageUrl : 'assets/images/ottie-wave.png';
         }
         landingConfigLoaded = true;
         if (typeof window.applyAppLanguage === 'function') window.applyAppLanguage();
