@@ -6,7 +6,7 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.230.5"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.230.7"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- v1.227.8：全站確認／輸入視窗，取代瀏覽器原生 confirm()／prompt()，外觀同資訊卡一致。
@@ -2156,9 +2156,9 @@
                 <h3 style="font-size:15px; font-weight:bold; margin-bottom:6px; color:var(--brand-800); display:flex; align-items:center; justify-content:center; gap:6px;">
                   <span id="otter-name-display">Ottiee</span>
                 </h3>
-                <div id="otter-pet-wrap" class="otter-mood-happy" style="display:inline-block; margin:4px 0;">
+                <div id="otter-pet-wrap" class="otter-mood-happy" style="display:inline-flex; align-items:center; justify-content:center; min-height:220px; margin:4px 0;">
                   <!-- 管理員如果有上傳自訂水獺相片，會優先顯示呢張相，取代下面嘅插畫 -->
-                  <img id="otter-photo-img" style="display:none; max-width:220px; max-height:220px; width:auto; height:auto; object-fit:contain;" alt="我的水獺">
+                  <img id="otter-photo-img" style="display:none; transition:opacity .25s ease; max-width:220px; max-height:220px; width:auto; height:auto; object-fit:contain;" alt="我的水獺">
                   <!-- 管理員未上傳呢個等級嘅相片時，顯示呢個簡單佔位圖示，唔會用返預設插畫 -->
                   <div id="otter-blank-placeholder" style="display:none; width:120px; height:120px; border-radius:50%; background:#EFEAE0; border:3px solid #C08B57; box-shadow:0 2px 10px rgba(0,0,0,.15); align-items:center; justify-content:center; font-size:44px;"></div>
                   <svg id="otter-pet-svg" width="120" height="120" viewBox="0 0 140 140" style="display:none;">
@@ -4461,14 +4461,14 @@
   })();
   </script>
 
-  <script src="js/i18n.js?v=1.230.5"></script>
+  <script src="js/i18n.js?v=1.230.7"></script>
 
-  <script src="js/app-features.js?v=1.230.5"></script>
+  <script src="js/app-features.js?v=1.230.7"></script>
 
-  <script type="module" src="js/app-core.js?v=1.230.5"></script>
+  <script type="module" src="js/app-core.js?v=1.230.7"></script>
 
-  <script src="js/room-video.js?v=1.230.5"></script>
-  <script src="js/stream.js?v=1.230.5"></script>
+  <script src="js/room-video.js?v=1.230.7"></script>
+  <script src="js/stream.js?v=1.230.7"></script>
   <!-- 房主退出房間選擇彈窗 -->
   <div class="modal-backdrop" id="modal-host-leave" style="display:none;">
     <div class="modal-box" style="text-align:center;">
@@ -4734,7 +4734,7 @@
     </div>
   </div>
 
-  <script src="js/admin-panel.js?v=1.230.5"></script>
+  <script src="js/admin-panel.js?v=1.230.7"></script>
   <!-- pdf.js：導師教材嘅 PDF 預覽（整份文件／學生視角）同教材卡嘅第一頁
        縮圖，都用呢個 library 自己畫落 <canvas>，唔再靠瀏覽器內建嘅PDF
        viewer（手機Safari個內建viewer塞喺iframe度揭唔到第二頁）。淨係
@@ -4761,7 +4761,7 @@
       return window._pdfJsLoading;
     };
   </script>
-  <script src="js/tutor-panel.js?v=1.230.5"></script>
+  <script src="js/tutor-panel.js?v=1.230.7"></script>
 
 </body>
 </html>

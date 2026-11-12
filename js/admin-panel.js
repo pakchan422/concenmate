@@ -651,6 +651,10 @@
           <button class="btn btn-outline" type="button" onclick="adminResetGachaDraft()">還原未儲存的改動</button>
           <button class="btn btn-primary" type="button" id="btn-admin-save-gacha" onclick="adminSaveGachaConfig()">儲存全部改動</button>
         </div>
+        <div style="margin-top:14px; padding-top:12px; border-top:1px solid var(--brand-200); display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <button class="btn btn-outline" type="button" id="btn-admin-compress-gacha" onclick="adminCompressGachaImages()">壓縮現有圖片（加快載入）</button>
+          <span style="font-size:12px; color:#8A94A8;">把已上傳的貼圖、扭蛋機圖及背景圖轉為 WebP 格式，檔案細約九成。執行前請先儲存改動。可重複執行，已壓縮的會略過。</span>
+        </div>
       `;
     }
     window.renderAdminGachaTab = renderAdminGachaTab;
@@ -762,6 +766,7 @@
         const img = new Image();
         const url = URL.createObjectURL(file);
         const keepTransparency = /^image\/(png|gif|webp|svg\+xml)$/.test(file.type);
+        // v1.230.7：瀏覽器支援時一律輸出 WebP（保留透明背景，檔案細好多）；不支援（舊 Safari）則沿用 PNG／JPEG
         img.onload = () => {
           const scale = Math.min(1, maxWidth / img.width);
           const canvas = document.createElement('canvas');
@@ -769,11 +774,14 @@
           canvas.height = Math.round(img.height * scale);
           canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
           URL.revokeObjectURL(url);
-          const mimeType = keepTransparency ? 'image/png' : 'image/jpeg';
-          canvas.toBlob((blob) => {
-            if (blob) resolve({ blob, mimeType });
-            else reject(new Error('圖片轉換失敗'));
-          }, mimeType, quality);
+          const fallbackType = keepTransparency ? 'image/png' : 'image/jpeg';
+          canvas.toBlob((webp) => {
+            if (webp && webp.type === 'image/webp') { resolve({ blob: webp, mimeType: 'image/webp' }); return; }
+            canvas.toBlob((blob) => {
+              if (blob) resolve({ blob, mimeType: fallbackType });
+              else reject(new Error('圖片轉換失敗'));
+            }, fallbackType, quality);
+          }, 'image/webp', 0.82);
         };
         img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
         img.src = url;
@@ -812,7 +820,7 @@
       window.showToast('上傳中相片…', '📤');
       try {
         const { blob, mimeType } = await compressImageFileToBlob(file, 600, 0.85);
-        const ext = mimeType === 'image/png' ? 'png' : 'jpg';
+        const ext = mimeType === 'image/webp' ? 'webp' : (mimeType === 'image/png' ? 'png' : 'jpg');
         const path = `gacha_stickers/sticker_${sticker.id}_${Date.now()}.${ext}`;
         const fileRef = window.storageApi.ref(window.storage, path);
         await window.storageApi.uploadBytes(fileRef, blob, { contentType: mimeType });
@@ -823,6 +831,22 @@
         tryDeleteOldGachaStoragePhoto(oldPhoto); // best-effort，唔使等佢完成
       } catch (err) {
         window.showToast('圖片上傳失敗：' + (err.message || err), '❌');
+      }
+    };
+
+    // v1.230.7：伺服器把現有扭蛋圖片壓縮成 WebP
+    window.adminCompressGachaImages = async function () {
+      if (!(await window.appConfirm('把現有的貼圖、扭蛋機圖及背景圖壓縮為 WebP？未儲存的改動將會被還原。'))) return;
+      const btn = document.getElementById('btn-admin-compress-gacha');
+      if (btn) { btn.disabled = true; btn.innerText = '壓縮中，約需一分鐘…'; }
+      try {
+        const r = await window.callCloudFunction('compressGachaImages', {});
+        adminGachaDraft = null;
+        window.showToast(`完成：已壓縮 ${r.done} 張，略過 ${r.skipped} 張${r.failed ? `，失敗 ${r.failed} 張` : ''}，節省約 ${r.savedMB} MB`, '✅');
+      } catch (e) {
+        window.showToast('壓縮失敗：' + ((e && e.message) || e), '❌');
+      } finally {
+        if (btn) { btn.disabled = false; btn.innerText = '壓縮現有圖片（加快載入）'; }
       }
     };
 
@@ -853,7 +877,7 @@
       window.showToast('上傳中圖片…', '📤');
       try {
         const { blob, mimeType } = await compressImageFileToBlob(file, 800, 0.85);
-        const ext = mimeType === 'image/png' ? 'png' : 'jpg';
+        const ext = mimeType === 'image/webp' ? 'webp' : (mimeType === 'image/png' ? 'png' : 'jpg');
         const path = `gacha_stickers/machine_image_${Date.now()}.${ext}`;
         const fileRef = window.storageApi.ref(window.storage, path);
         await window.storageApi.uploadBytes(fileRef, blob, { contentType: mimeType });
@@ -879,7 +903,7 @@
       window.showToast('上傳中圖片…', '📤');
       try {
         const { blob, mimeType } = await compressImageFileToBlob(file, 800, 0.85);
-        const ext = mimeType === 'image/png' ? 'png' : 'jpg';
+        const ext = mimeType === 'image/webp' ? 'webp' : (mimeType === 'image/png' ? 'png' : 'jpg');
         const path = `gacha_stickers/machine_series_${String(se.id).replace(/[^A-Za-z0-9_-]/g, '')}_${Date.now()}.${ext}`;
         const fileRef = window.storageApi.ref(window.storage, path);
         await window.storageApi.uploadBytes(fileRef, blob, { contentType: mimeType });
@@ -903,7 +927,7 @@
       window.showToast('上傳中圖片…', '📤');
       try {
         const { blob, mimeType } = await compressImageFileToBlob(file, 1600, 0.85);
-        const ext = mimeType === 'image/png' ? 'png' : 'jpg';
+        const ext = mimeType === 'image/webp' ? 'webp' : (mimeType === 'image/png' ? 'png' : 'jpg');
         const path = `gacha_stickers/bg_series_${String(se.id).replace(/[^A-Za-z0-9_-]/g, '')}_${Date.now()}.${ext}`;
         const fileRef = window.storageApi.ref(window.storage, path);
         await window.storageApi.uploadBytes(fileRef, blob, { contentType: mimeType });
@@ -1093,6 +1117,7 @@
         // 貼紙資料（相片）依家先攞齊，如果用家揀咗貼紙做水獺頭像，要
         // 喺呢度補叫多一次先會顯示到啱嘅相（登入嗰陣呢份資料仲未到）
         if (typeof updateOtterDisplay === 'function') updateOtterDisplay();
+        if (typeof window.updateOtterStatsCard === 'function') window.updateOtterStatsCard(); // v1.230.6：補回圖鑑完成度
         // 如果管理員岩岩好打開緊「扭蛋機獎品」呢個分頁、又仲未開始編輯
         // （adminGachaDraft 仲係 null，即係岩岩好卡喺「載入中...」嗰個畫面），
         // 而家攞到資料喇，即刻幫佢用返最新（剛儲存低嗰份）資料重新 render 一次，
@@ -2208,7 +2233,7 @@
       window.showToast('上傳中圖片…', '📤');
       try {
         const { blob, mimeType } = await compressImageFileToBlob(file, 128, 0.85);
-        const ext = mimeType === 'image/png' ? 'png' : 'jpg';
+        const ext = mimeType === 'image/webp' ? 'webp' : (mimeType === 'image/png' ? 'png' : 'jpg');
         const path = `nav_icons/${key}_${Date.now()}.${ext}`;
         const fileRef = window.storageApi.ref(window.storage, path);
         await window.storageApi.uploadBytes(fileRef, blob, { contentType: mimeType });
@@ -2659,7 +2684,7 @@
       window.showToast('上傳中圖片…', '📤');
       try {
         const { blob, mimeType } = await compressImageFileToBlob(file, 600, 0.9);
-        const ext = mimeType === 'image/png' ? 'png' : 'jpg';
+        const ext = mimeType === 'image/webp' ? 'webp' : (mimeType === 'image/png' ? 'png' : 'jpg');
         const path = `landing_assets/${imgKey}_${Date.now()}.${ext}`;
         const fileRef = window.storageApi.ref(window.storage, path);
         await window.storageApi.uploadBytes(fileRef, blob, { contentType: mimeType });

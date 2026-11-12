@@ -3342,6 +3342,64 @@ async function computeCostDashboard() {
   return data;
 }
 
+// v1.230.7：把扭蛋貼圖、扭蛋機圖及背景圖壓縮成 WebP（貼圖原本 PNG 每張約 0.5–1 MB，
+// 主頁 Ottie 要等幾秒先顯示；WebP 約 50 KB）。只限超級管理員，可重複執行（已是 WebP 的會略過）。
+// 舊檔案保留不刪，避免管理員未儲存的草稿仍指向舊連結時圖片失效。
+exports.compressGachaImages = onCall({ timeoutSeconds: 300, memory: "1GiB" }, async (request) => {
+  const uid = request.auth && request.auth.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "請先登入會員");
+  const meSnap = await db.doc(`users/${uid}`).get();
+  if (!(await isSuperAdminUserData(meSnap.exists ? meSnap.data() : null))) throw new HttpsError("permission-denied", "只限超級管理員執行");
+  const sharp = require("sharp");
+  const ref = db.doc("admin_config/gacha");
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "找不到扭蛋機設定");
+  const data = snap.data();
+  const cache = {};
+  let done = 0, skipped = 0, failed = 0, savedBytes = 0;
+  async function convert(url, maxWidth) {
+    if (typeof url !== "string" || !url.includes("firebasestorage")) { skipped++; return url; }
+    if (cache[url]) return cache[url];
+    const m = url.match(/\/o\/([^?]+)/);
+    if (!m) { skipped++; return url; }
+    const path = decodeURIComponent(m[1]);
+    if (path.endsWith(".webp")) { skipped++; return url; }
+    try {
+      const [buf] = await bucket.file(path).download();
+      const out = await sharp(buf).rotate().resize({ width: maxWidth, withoutEnlargement: true }).webp({ quality: 82 }).toBuffer();
+      if (out.length >= buf.length) { skipped++; cache[url] = url; return url; }
+      const newPath = path.replace(/\.[A-Za-z0-9]+$/, "") + ".webp";
+      const token = crypto.randomUUID();
+      await bucket.file(newPath).save(out, { contentType: "image/webp", metadata: { cacheControl: "public, max-age=31536000", metadata: { firebaseStorageDownloadTokens: token } } });
+      const newUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(newPath)}?alt=media&token=${token}`;
+      savedBytes += buf.length - out.length; done++; cache[url] = newUrl;
+      return newUrl;
+    } catch (e) {
+      console.warn("壓縮圖片失敗:", path, e.message); failed++; return url;
+    }
+  }
+  const update = {};
+  if (Array.isArray(data.stickers)) {
+    const stickers = [];
+    for (const s of data.stickers) stickers.push(s && s.photo ? Object.assign({}, s, { photo: await convert(s.photo, 600) }) : s);
+    update.stickers = stickers;
+  }
+  if (Array.isArray(data.series)) {
+    const series = [];
+    for (const se of data.series) {
+      const n = Object.assign({}, se);
+      if (se && se.machineImage) n.machineImage = await convert(se.machineImage, 900);
+      if (se && se.bgImage) n.bgImage = await convert(se.bgImage, 1600);
+      series.push(n);
+    }
+    update.series = series;
+  }
+  if (data.machineImageUrl) update.machineImageUrl = await convert(data.machineImageUrl, 900);
+  if (done > 0) await ref.update(update);
+  await db.collection("adminAuditLog").add({ action: "compressGachaImages", adminUid: uid, done, skipped, failed, savedBytes, at: Date.now() }).catch(() => {});
+  return { done, skipped, failed, savedMB: Math.round(savedBytes / 1048576 * 10) / 10 };
+});
+
 exports.saveCostSettings = onCall(async (request) => {
   const uid = request.auth && request.auth.uid;
   if (!uid) throw new HttpsError("unauthenticated", "請先登入會員");

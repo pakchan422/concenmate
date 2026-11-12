@@ -1906,6 +1906,9 @@
       // 之前會先閃一下預設 Ottie。而家：(1) 記低上次顯示嘅貼圖相片喺本機，
       // 一登入即刻用返；(2) 設定未載入又冇快取，就暫時唔顯示，等設定到咗先畫。
       const lookCacheKey = 'cm_otter_look_' + (window.currentUser.uid || '');
+      // v1.230.6：設定未載入前，GACHA_STICKERS 仍是程式內建的預設清單（沒有相片），
+      // 會令已揀的貼圖先顯示成預設 Ottie；一律當作未找到，改用本機快取或暫時留白。
+      if (!window.GACHA_CONFIG_LOADED) avatarSticker = null;
       if (avatarId && !avatarSticker && !window.GACHA_CONFIG_LOADED) {
         let cached = null;
         try { cached = JSON.parse(localStorage.getItem(lookCacheKey) || 'null'); } catch (e) { cached = null; }
@@ -1927,7 +1930,14 @@
       if (petWrap) petWrap.classList.toggle('otter-has-bg', !!(avatarSticker && avatarSticker.photo && (avatarSticker.rarity === 'rare' || avatarSticker.rarity === 'limited')));
       if (avatarSticker) {
         if (avatarSticker.photo) {
-          if (photoImg) { photoImg.src = avatarSticker.photo; photoImg.style.display = 'block'; }
+          // v1.230.7：新圖片下載完成先淡入，避免一截截咁顯示
+          if (photoImg && photoImg.getAttribute('src') !== avatarSticker.photo) {
+            photoImg.style.opacity = '0';
+            photoImg.onload = () => { photoImg.style.opacity = '1'; };
+            photoImg.onerror = () => { photoImg.style.opacity = '1'; };
+            photoImg.src = avatarSticker.photo;
+          }
+          if (photoImg) photoImg.style.display = 'block';
           if (blankEl) blankEl.style.display = 'none';
         } else {
           if (photoImg) { photoImg.src = 'assets/images/ottie-full.png'; photoImg.style.display = 'block'; }
@@ -1962,7 +1972,8 @@
       setText('otter-stat-streak', streakEl ? streakEl.innerText : '0');
 
       if (typeof GACHA_STICKERS !== 'undefined' && typeof getOwnedStickerTypeCount === 'function') {
-        setText('otter-stat-stickers', `${getOwnedStickerTypeCount()}/${GACHA_STICKERS.length}`);
+        // v1.230.6：設定未載入前總數是預設清單的數目（例如 50），先顯示「–」避免數字跳動
+        setText('otter-stat-stickers', window.GACHA_CONFIG_LOADED ? `${getOwnedStickerTypeCount()}/${GACHA_STICKERS.length}` : '–');
       }
 
       // 今日石頭（第 6 格）：今日溫習分鐘 ÷ 15
