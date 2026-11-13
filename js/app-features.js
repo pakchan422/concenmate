@@ -225,6 +225,7 @@
 
       // 「時數扭蛋機」分頁一開就更新返積分顯示同貼紙圖鑑收集進度
       if (tabId === 'store' && typeof syncGachaPtsDisplay === 'function') syncGachaPtsDisplay();
+      if (tabId === 'store' && typeof window.gachaPreloadAll === 'function') window.gachaPreloadAll();
       if (tabId === 'store' && typeof updateStickerProgressUI === 'function') updateStickerProgressUI();
 
       // 「個人資料」分頁一開就載入中獎記錄
@@ -3847,6 +3848,19 @@
       const all = Promise.all([...new Set(list)].map(u => new Promise(res => { const im = new Image(); im.onload = im.onerror = res; im.src = u; })));
       return Promise.race([all, new Promise(r => setTimeout(r, timeoutMs || 2500))]);
     }
+    // v1.232.3：所有貼圖第一次下載較慢（每張可達數秒），所以登入後及打開扭蛋機時，
+    // 在背後一次過預先下載全部貼圖（每次開網頁只做一次），之後扭蛋及圖鑑都即時顯示。
+    let gachaAllPreloaded = false;
+    window.gachaPreloadAll = function () {
+      if (gachaAllPreloaded || !window.GACHA_CONFIG_LOADED || typeof GACHA_STICKERS === 'undefined') return;
+      gachaAllPreloaded = true;
+      const sel = gachaSelectedSeriesId();
+      // 先下載目前所選系列，再下載其他
+      const list = GACHA_STICKERS.filter(st => st && st.photo)
+        .sort((a, b) => (String(b.seriesId) === String(sel)) - (String(a.seriesId) === String(sel)))
+        .map(st => st.photo);
+      list.forEach(u => { const im = new Image(); im.decoding = 'async'; im.src = u; });
+    };
     async function doGachaInner(type) {
       // 「幸運扭蛋」掣而家改咗做「連續抽十次」——一次過用同一個獎池
       // （lucky 池）抽 10 次、一次過扣總費用，結果分兩行顯示，唔再係
@@ -3903,7 +3917,7 @@
 
       // 等震動動畫完成；v1.232.2：同時預先下載抽中貼圖，結果卡出現時圖片已就緒（最多多等 2.5 秒）
       const _preSticker = findGachaStickerById(serverStickerIds[0]);
-      await Promise.all([new Promise(r => setTimeout(r, 500)), gachaPreloadImages([_preSticker && _preSticker.photo])]);
+      await Promise.all([new Promise(r => setTimeout(r, 500)), gachaPreloadImages([_preSticker && _preSticker.photo], 800)]);
 
       // 抽獎：而家全部改成 Ottiee 貼紙，抽之前先記低呢隻之前擁有幾多張
       // （0 即係「新貼紙」），抽完即刻寫返擁有狀態（畫面 + Firestore）。
@@ -3921,7 +3935,7 @@
       // 如果管理員有幫呢隻貼紙上傳圖片，優先展示相片；沒有的話就繼續用返 emoji
       const resultEmojiEl = document.getElementById('gacha-result-emoji');
       if (sticker.photo) {
-        resultEmojiEl.innerHTML = `<img src="${sticker.photo}" alt="${escapeHtml(gachaItemName(sticker))}" style="width:150px; height:150px; object-fit:contain; background:#F6F7FB; border-radius:14px; border:3px solid ${GACHA_RARITY_STYLE[gachaRarityOf(sticker)].border}; box-shadow:0 2px 8px rgba(0,0,0,.15);">`;
+        resultEmojiEl.innerHTML = `<img src="${sticker.photo}" onload="this.style.opacity=1" onerror="this.style.opacity=1" alt="${escapeHtml(gachaItemName(sticker))}" style="opacity:0; transition:opacity .2s ease; width:150px; height:150px; object-fit:contain; background:#F6F7FB; border-radius:14px; border:3px solid ${GACHA_RARITY_STYLE[gachaRarityOf(sticker)].border}; box-shadow:0 2px 8px rgba(0,0,0,.15);">`;
       } else {
         resultEmojiEl.innerHTML = '';
         resultEmojiEl.innerText = sticker.emoji || '🦦';
@@ -4053,7 +4067,7 @@
       void machine.offsetWidth;
       machine.classList.add('gacha-shaking');
 
-      await Promise.all([new Promise(r => setTimeout(r, 500)), gachaPreloadImages(serverStickerIds.map(id => { const st = findGachaStickerById(id); return st && st.photo; }))]);
+      await Promise.all([new Promise(r => setTimeout(r, 500)), gachaPreloadImages(serverStickerIds.map(id => { const st = findGachaStickerById(id); return st && st.photo; }), 800)]);
 
       // 連續抽 10 次貼紙，每次獨立 roll。先喺本機複製一份目前擁有狀態
       // （localOwned）嚟逐次模擬，先至知呢 10 抽入面邊幾張係「新貼紙」

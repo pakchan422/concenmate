@@ -1114,6 +1114,7 @@
         window.GACHA_CONFIG_LOADED = true;
         applyGachaCostToUI();
         if (typeof window.gachaApplyMachineImage === 'function') window.gachaApplyMachineImage(); // v1.232.1
+        setTimeout(() => { if (typeof window.gachaPreloadAll === 'function') window.gachaPreloadAll(); }, 3000); // v1.232.3
         if (typeof updateStickerProgressUI === 'function') updateStickerProgressUI();
         // 貼紙資料（相片）依家先攞齊，如果用家揀咗貼紙做水獺頭像，要
         // 喺呢度補叫多一次先會顯示到啱嘅相（登入嗰陣呢份資料仲未到）
