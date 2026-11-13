@@ -6,7 +6,7 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.230.7"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.231.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- v1.227.8：全站確認／輸入視窗，取代瀏覽器原生 confirm()／prompt()，外觀同資訊卡一致。
@@ -4352,6 +4352,131 @@
   });
   </script>
 
+  <!-- v1.231.0：手機 App 準備——三種版面（窄 ≤600px 底部導覽列／中 601–900px 圖示側欄／闊 >900px 原有側邊欄）及安全區域 -->
+  <style>
+    /* 安全區域：避開瀏海、動態島、圓角及 Home 指示條（viewport-fit=cover 已設定） */
+    header { padding-top: max(8px, env(safe-area-inset-top)); padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); }
+    @media (orientation: landscape) {
+      main { padding-left: max(8px, env(safe-area-inset-left)); padding-right: max(8px, env(safe-area-inset-right)); }
+    }
+
+    /* ── 中：601–900px（摺機內屏、細平板、iPad 分割畫面）——圖示側欄常駐，不用滑出式選單 ── */
+    @media (min-width: 601px) and (max-width: 900px) {
+      .mobile-nav-toggle { display: none !important; }
+      #mobile-nav-backdrop { display: none !important; }
+      aside {
+        position: relative; transform: none !important; width: 84px; max-width: none;
+        box-shadow: none; z-index: auto; padding: 8px 6px; overflow-y: auto;
+        padding-left: max(6px, env(safe-area-inset-left));
+      }
+      aside .nav-btn { flex-direction: column; justify-content: center; align-items: center; gap: 3px; padding: 8px 2px; text-align: center; position: relative; }
+      aside .nav-btn .nav-text { font-size: 11px; line-height: 1.25; font-weight: 600; white-space: normal; word-break: keep-all; max-width: 100%; }
+      aside .nav-btn .home-sec-badge { position: absolute; top: 4px; right: 10px; margin: 0 !important; }
+      .nav-btn.active::before { display: none; }
+    }
+
+    /* ── 窄：≤600px（手機、摺機外屏）——底部導覽列 ── */
+    #cm-bottom-nav { display: none; }
+    @media (max-width: 600px) {
+      body.cm-has-bottom-nav #cm-bottom-nav {
+        display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+        background: rgba(255,255,255,.97); backdrop-filter: blur(8px);
+        border-top: 1px solid var(--brand-200);
+        padding: 4px max(4px, env(safe-area-inset-right)) max(4px, env(safe-area-inset-bottom)) max(4px, env(safe-area-inset-left));
+      }
+      body.cm-has-bottom-nav .mobile-nav-toggle { display: none !important; }
+      body.cm-has-bottom-nav main { padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
+      body.cm-has-bottom-nav #chat-dock-toggle { bottom: calc(84px + env(safe-area-inset-bottom)); }
+      body.cm-has-bottom-nav #chat-dock-panel { bottom: calc(144px + env(safe-area-inset-bottom)); }
+      body.cm-has-bottom-nav #cm-install-hint { bottom: calc(72px + env(safe-area-inset-bottom)); }
+      body.cm-has-bottom-nav #dev-build-badge { bottom: calc(80px + env(safe-area-inset-bottom)); }
+      body.cm-has-bottom-nav #cm-dev-env-tag { bottom: calc(76px + env(safe-area-inset-bottom)) !important; }
+      body.room-fullscreen-active #cm-bottom-nav, body.swm-full-open #cm-bottom-nav { display: none !important; }
+    }
+    .cm-bn-item { flex: 1 1 0; min-width: 0; min-height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+      background: none; border: none; cursor: pointer; color: #6B7894; font-size: 11px; font-weight: 600; padding: 4px 2px; border-radius: 12px; position: relative;
+      -webkit-tap-highlight-color: transparent; }
+    .cm-bn-item .cm-bn-icon { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; }
+    .cm-bn-item .cm-bn-icon svg, .cm-bn-item .cm-bn-icon img { width: 22px; height: 22px; object-fit: contain; }
+    .cm-bn-item .cm-bn-label { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cm-bn-item.active { color: var(--deep-2, #2A4275); }
+    .cm-bn-item.active .cm-bn-icon { color: var(--deep-2, #2A4275); background: var(--accent, #FFD84D); border-radius: 10px; width: 44px; }
+    .cm-bn-item.locked { opacity: .45; }
+    .cm-bn-item .cm-bn-dot { position: absolute; top: 4px; left: calc(50% + 8px); min-width: 8px; height: 8px; border-radius: 4px; background: #C0524A; display: none; }
+    .cm-bn-item .cm-bn-dot.show { display: block; }
+  </style>
+  <nav id="cm-bottom-nav" aria-label="主要功能"></nav>
+  <script>
+  (function () {
+    // 底部導覽列直接「鏡像」側邊欄的按鈕：顯示／隱藏、鎖定、圖示（包括後台自訂圖示）、文字（多語言）及目前分頁，
+    // 全部跟隨側邊欄，撳下去等於撳側邊欄的按鈕，所以功能開關、權限判斷維持只有一份。
+    var TABS = ['home', 'room', 'stream', 'social'];
+    var bar = document.getElementById('cm-bottom-nav');
+    if (!bar) return;
+    TABS.concat(['more']).forEach(function (tab) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'cm-bn-item'; b.dataset.tab = tab;
+      b.innerHTML = '<span class="cm-bn-icon"></span><span class="cm-bn-label"></span><span class="cm-bn-dot"></span>';
+      b.addEventListener('click', function () {
+        if (tab === 'more') {
+          if (typeof window.toggleMobileNav === 'function') { window.toggleMobileNav(true); return; }
+          var asideEl = document.querySelector('aside'), bd = document.getElementById('mobile-nav-backdrop');
+          if (asideEl) asideEl.classList.add('mobile-nav-open'); if (bd) bd.classList.add('show');
+          return;
+        }
+        var src = document.getElementById('nav-btn-' + tab);
+        if (src) src.click();
+      });
+      bar.appendChild(b);
+    });
+    var moreIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg>';
+    function hidden(el) { return !el || el.style.display === 'none' || el.classList.contains('nav-feature-off') || getComputedStyle(el).display === 'none'; }
+    function sync() {
+      document.body.classList.toggle('cm-has-bottom-nav', !!window.currentUser);
+      var anyActive = false;
+      TABS.forEach(function (tab) {
+        var b = bar.querySelector('[data-tab="' + tab + '"]');
+        var src = document.getElementById('nav-btn-' + tab);
+        b.style.display = hidden(src) ? 'none' : '';
+        if (!src) return;
+        var icon = src.querySelector('.nav-icon'), text = src.querySelector('.nav-text');
+        var iconHtml = icon ? icon.innerHTML : '';
+        if (b._icon !== iconHtml) { b.querySelector('.cm-bn-icon').innerHTML = iconHtml; b._icon = iconHtml; }
+        // 底部導覽列空間有限，溫習室及直播用短名稱
+        var shortKey = { room: ['nav.roomShort', '溫習室'], stream: ['nav.streamShort', '直播'] }[tab];
+        b.querySelector('.cm-bn-label').textContent = shortKey && window.t ? window.t(shortKey[0], shortKey[1]) : (text ? text.textContent.trim() : '');
+        b.classList.toggle('locked', src.classList.contains('nav-btn-locked'));
+        var on = src.classList.contains('active');
+        b.classList.toggle('active', on); if (on) anyActive = true;
+        if (tab === 'social') {
+          var badge = document.getElementById('nav-social-badge');
+          b.querySelector('.cm-bn-dot').classList.toggle('show', !!(badge && badge.style.display !== 'none' && badge.textContent.trim()));
+        }
+      });
+      var more = bar.querySelector('[data-tab="more"]');
+      if (!more._icon) { more.querySelector('.cm-bn-icon').innerHTML = moreIcon; more._icon = 1; }
+      more.querySelector('.cm-bn-label').textContent = window.t ? window.t('nav.more', '更多') : '更多';
+      more.classList.toggle('active', !anyActive && !!document.querySelector('aside .nav-btn.active'));
+    }
+    var pending = false;
+    function schedule() { if (pending) return; pending = true; requestAnimationFrame(function () { pending = false; sync(); }); }
+    window.cmSyncBottomNav = schedule;
+    document.addEventListener('DOMContentLoaded', function () {
+      var aside = document.querySelector('aside');
+      if (aside && window.MutationObserver) new MutationObserver(schedule).observe(aside, { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'style'], characterData: true });
+      sync();
+    });
+    // 登入狀態改變時更新（每 1.5 秒比對一次，成本極低）
+    var lastLogged = null;
+    setInterval(function () { var now = !!window.currentUser; if (now !== lastLogged) { lastLogged = now; sync(); } }, 1500);
+    // 窄 → 中／闊時，滑出式選單如果仍開住就收起
+    window.addEventListener('resize', function () {
+      if (window.innerWidth > 600 && typeof window.toggleMobileNav === 'function' && document.querySelector('aside.mobile-nav-open') && window.innerWidth > 900) window.toggleMobileNav(false);
+      if (window.innerWidth > 600 && window.innerWidth <= 900 && document.querySelector('aside.mobile-nav-open') && typeof window.toggleMobileNav === 'function') window.toggleMobileNav(false);
+    });
+  })();
+  </script>
+
   <!-- v1.211.0：新用戶導覽＋「有新版本」提示 -->
   <style>
     #cm-onboard { position: fixed; inset: 0; z-index: 10200; background: rgba(31,44,71,.55); display: none; align-items: center; justify-content: center; padding: 16px; }
@@ -4461,14 +4586,14 @@
   })();
   </script>
 
-  <script src="js/i18n.js?v=1.230.7"></script>
+  <script src="js/i18n.js?v=1.231.0"></script>
 
-  <script src="js/app-features.js?v=1.230.7"></script>
+  <script src="js/app-features.js?v=1.231.0"></script>
 
-  <script type="module" src="js/app-core.js?v=1.230.7"></script>
+  <script type="module" src="js/app-core.js?v=1.231.0"></script>
 
-  <script src="js/room-video.js?v=1.230.7"></script>
-  <script src="js/stream.js?v=1.230.7"></script>
+  <script src="js/room-video.js?v=1.231.0"></script>
+  <script src="js/stream.js?v=1.231.0"></script>
   <!-- 房主退出房間選擇彈窗 -->
   <div class="modal-backdrop" id="modal-host-leave" style="display:none;">
     <div class="modal-box" style="text-align:center;">
@@ -4734,7 +4859,7 @@
     </div>
   </div>
 
-  <script src="js/admin-panel.js?v=1.230.7"></script>
+  <script src="js/admin-panel.js?v=1.231.0"></script>
   <!-- pdf.js：導師教材嘅 PDF 預覽（整份文件／學生視角）同教材卡嘅第一頁
        縮圖，都用呢個 library 自己畫落 <canvas>，唔再靠瀏覽器內建嘅PDF
        viewer（手機Safari個內建viewer塞喺iframe度揭唔到第二頁）。淨係
@@ -4761,7 +4886,7 @@
       return window._pdfJsLoading;
     };
   </script>
-  <script src="js/tutor-panel.js?v=1.230.7"></script>
+  <script src="js/tutor-panel.js?v=1.231.0"></script>
 
 </body>
 </html>

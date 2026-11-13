@@ -159,6 +159,9 @@
   // ── 翻譯字典（第一階段：淨係示範性咁做咗側邊選單／語言掣本身呢
   //    幾組，其餘留返第二／三階段陸續加）──
   window.I18N_DICT = {
+    'nav.roomShort': { 'zh-Hant': '溫習室', 'en': 'Rooms', 'yue': '溫習室' },
+    'nav.streamShort': { 'zh-Hant': '直播', 'en': 'Live', 'yue': '直播' },
+    'nav.more': { 'zh-Hant': '更多', 'en': 'More', 'yue': '更多' },
     'nav.home': { 'zh-Hant': '主頁', 'en': 'Home', 'yue': '主頁' },
     'nav.room': { 'zh-Hant': '視訊溫習室', 'en': 'Video Study Room', 'yue': '視訊溫習室' },
     'nav.qa': { 'zh-Hant': '疑難解答區', 'en': 'Q&A', 'yue': '疑難解答區' },
