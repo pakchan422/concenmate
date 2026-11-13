@@ -1113,6 +1113,7 @@
         gachaConfigLoaded = true;
         window.GACHA_CONFIG_LOADED = true;
         applyGachaCostToUI();
+        if (typeof window.gachaApplyMachineImage === 'function') window.gachaApplyMachineImage(); // v1.232.1
         if (typeof updateStickerProgressUI === 'function') updateStickerProgressUI();
         // 貼紙資料（相片）依家先攞齊，如果用家揀咗貼紙做水獺頭像，要
         // 喺呢度補叫多一次先會顯示到啱嘅相（登入嗰陣呢份資料仲未到）
@@ -1133,6 +1134,7 @@
         gachaConfigLoaded = true; // 唔好卡死喺「載入中...」畫面，起碼俾程式碼入面嘅預設值可以用
         window.GACHA_CONFIG_LOADED = true;
         if (typeof window.updateOtterDisplay === 'function') window.updateOtterDisplay();
+        if (typeof window.gachaApplyMachineImage === 'function') window.gachaApplyMachineImage();
         if (typeof window.isCurrentUserAdmin === 'function' && window.isCurrentUserAdmin()) {
           window.showToast('讀取扭蛋機設定失敗（可能是 Firestore 規則未生效）：' + (err.message || err), '⚠️');
         }

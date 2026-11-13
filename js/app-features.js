@@ -3382,22 +3382,40 @@
     window.renderGachaSeriesPicker = renderGachaSeriesPicker;
     // 扭蛋機外觀圖：先用所選系列自己嘅扭蛋機圖，冇就用後台設定嘅
     // 預設扭蛋機圖，再冇就用網站內建嘅 assets/images/gacha-machine.png
+    // v1.232.1：跟「載入中畫面原則」——設定未到前不先顯示預設扭蛋機／背景再跳去系列圖；
+    // 改用本機快取（上次顯示的圖），冇快取就先留白；新圖下載完成先淡入；設定一到就預先下載背景圖。
+    const GACHA_LOOK_KEY = 'cm_gacha_look';
     function gachaApplyMachineImage() {
       const el = document.getElementById('gacha-machine-img');
       if (!el) return;
-      const sid = gachaSelectedSeriesId();
-      const se = GACHA_SERIES.find(x => String(x.id) === String(sid));
-      const url = (se && se.machineImage) || window.GACHA_MACHINE_IMAGE_URL || 'assets/images/gacha-machine.png';
-      if (el.getAttribute('src') !== url) el.setAttribute('src', url);
-      // 扭蛋機背景場景圖：先用所選系列自己嘅背景圖，冇就用網站內建嘅 assets/images/gacha-bg.jpg
       const stage = document.getElementById('gacha-stage-card');
-      if (stage) {
-        const bg = (se && se.bgImage) || 'assets/images/gacha-bg.jpg';
+      let url, bg;
+      if (window.GACHA_CONFIG_LOADED) {
+        const sid = gachaSelectedSeriesId();
+        const se = GACHA_SERIES.find(x => String(x.id) === String(sid));
+        url = (se && se.machineImage) || window.GACHA_MACHINE_IMAGE_URL || 'assets/images/gacha-machine.png';
+        bg = (se && se.bgImage) || 'assets/images/gacha-bg.jpg';
+        try { localStorage.setItem(GACHA_LOOK_KEY, JSON.stringify({ url, bg })); } catch (e) { /* 忽略 */ }
+        // 預先下載背景圖（分頁未開時 CSS 背景不會自動下載）
+        try { const pre = new Image(); pre.src = bg; } catch (e) { /* 忽略 */ }
+      } else {
+        let cached = null;
+        try { cached = JSON.parse(localStorage.getItem(GACHA_LOOK_KEY) || 'null'); } catch (e) { cached = null; }
+        if (!cached || !cached.url) return; // 冇快取：保持留白，等設定到咗先畫
+        url = cached.url; bg = cached.bg;
+      }
+      if (el.getAttribute('src') !== url) {
+        el.style.opacity = '0';
+        el.onload = el.onerror = () => { el.style.opacity = '1'; };
+        el.setAttribute('src', url);
+      }
+      if (stage && bg) {
         const css = `url("${bg}")`;
         if (stage.style.backgroundImage !== css) stage.style.backgroundImage = css;
       }
     }
     window.gachaApplyMachineImage = gachaApplyMachineImage;
+    gachaApplyMachineImage(); // 開頁即用本機快取（如有）
     // 一張貼圖所屬系列嘅收集進度文字，例如「動物連身衣 4/10」
     function gachaProgressTextFor(st) {
       const sid = (st && st.seriesId) || gachaSelectedSeriesId();
@@ -3798,9 +3816,12 @@
         btn.disabled = disabled;
         if (disabled) {
           if (btn.dataset.origHtml === undefined) btn.dataset.origHtml = btn.innerHTML;
+          // v1.232.1：先鎖定按鈕闊度，文字變短時排位不會跳動
+          if (btn.offsetWidth) btn.style.minWidth = btn.offsetWidth + 'px';
           btn.innerHTML = window.t('gacha.drawingInProgress', '扭蛋中…');
         } else if (btn.dataset.origHtml !== undefined) {
           btn.innerHTML = btn.dataset.origHtml;
+          btn.style.minWidth = '';
           delete btn.dataset.origHtml;
         }
       });
@@ -3819,6 +3840,13 @@
       }
     };
 
+    // v1.232.2：預先下載貼圖（已在瀏覽器快取的會即時完成），超時就不再等
+    function gachaPreloadImages(urls, timeoutMs) {
+      const list = (urls || []).filter(u => typeof u === 'string' && u);
+      if (!list.length) return Promise.resolve();
+      const all = Promise.all([...new Set(list)].map(u => new Promise(res => { const im = new Image(); im.onload = im.onerror = res; im.src = u; })));
+      return Promise.race([all, new Promise(r => setTimeout(r, timeoutMs || 2500))]);
+    }
     async function doGachaInner(type) {
       // 「幸運扭蛋」掣而家改咗做「連續抽十次」——一次過用同一個獎池
       // （lucky 池）抽 10 次、一次過扣總費用，結果分兩行顯示，唔再係
@@ -3873,8 +3901,9 @@
       void machine.offsetWidth; // reflow to restart animation
       machine.classList.add('gacha-shaking');
 
-      // 等震動動畫完成
-      await new Promise(r => setTimeout(r, 500));
+      // 等震動動畫完成；v1.232.2：同時預先下載抽中貼圖，結果卡出現時圖片已就緒（最多多等 2.5 秒）
+      const _preSticker = findGachaStickerById(serverStickerIds[0]);
+      await Promise.all([new Promise(r => setTimeout(r, 500)), gachaPreloadImages([_preSticker && _preSticker.photo])]);
 
       // 抽獎：而家全部改成 Ottiee 貼紙，抽之前先記低呢隻之前擁有幾多張
       // （0 即係「新貼紙」），抽完即刻寫返擁有狀態（畫面 + Firestore）。
@@ -4024,7 +4053,7 @@
       void machine.offsetWidth;
       machine.classList.add('gacha-shaking');
 
-      await new Promise(r => setTimeout(r, 500));
+      await Promise.all([new Promise(r => setTimeout(r, 500)), gachaPreloadImages(serverStickerIds.map(id => { const st = findGachaStickerById(id); return st && st.photo; }))]);
 
       // 連續抽 10 次貼紙，每次獨立 roll。先喺本機複製一份目前擁有狀態
       // （localOwned）嚟逐次模擬，先至知呢 10 抽入面邊幾張係「新貼紙」

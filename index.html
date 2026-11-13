@@ -6,7 +6,7 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.231.0"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.232.2"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- v1.227.8：全站確認／輸入視窗，取代瀏覽器原生 confirm()／prompt()，外觀同資訊卡一致。
@@ -149,7 +149,12 @@
   <script>
     (function() {
       var PROD_HOSTNAMES = ['concenmate.com', 'www.concenmate.com'];
-      window.IS_PROD_SITE = PROD_HOSTNAMES.indexOf(location.hostname) !== -1;
+      // v1.232.0：手機 App（Capacitor）判斷。App 內網址是 https://localhost，所以改用
+      // CM_APP_ENV 決定連哪個 Firebase 專案：mobile/scripts/sync-web.sh 打包時會改寫下一行（dev 或 prod）。
+      window.CM_APP_ENV = "";
+      window.IS_NATIVE_APP = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+      if (window.IS_NATIVE_APP) document.documentElement.classList.add('cm-native');
+      window.IS_PROD_SITE = PROD_HOSTNAMES.indexOf(location.hostname) !== -1 || (window.IS_NATIVE_APP && window.CM_APP_ENV === 'prod');
       // 正式網站唔顯示右下角嘅除錯面板，版本資訊改為只喺管理後台顯示
       if (window.IS_PROD_SITE) document.documentElement.classList.add('cm-prod');
       if (!window.IS_PROD_SITE) {
@@ -2916,7 +2921,7 @@
           </div>
 
           <!-- 扭蛋機主體 -->
-          <div class="card" id="gacha-stage-card" style="text-align:center; padding:24px 16px; background-color:#F6F7FB; background-image:url('assets/images/gacha-bg.jpg');">
+          <div class="card" id="gacha-stage-card" style="text-align:center; padding:24px 16px; background-color:#F6F7FB;">
 
             <!-- 扭蛋機動畫區 -->
             <div id="gacha-machine" style="position:relative; display:inline-block; user-select:none;">
@@ -2954,7 +2959,7 @@
                 <div id="gacha-result-batch-grid" style="display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:8px;"></div>
               </div>
               <!-- 扭蛋機外殼 SVG -->
-              <img id="gacha-machine-img" src="assets/images/gacha-machine.png" alt="扭蛋機" style="display:block; width:360px; max-width:100%; height:auto; margin:0 auto;">
+              <img id="gacha-machine-img" alt="扭蛋機" style="display:block; width:360px; max-width:100%; aspect-ratio:6/5; object-fit:contain; height:auto; margin:0 auto; opacity:0; transition:opacity .25s ease;">
 
               <!-- 蛋的動畫疊層 -->
               <div id="gacha-capsule-anim" style="
@@ -4230,6 +4235,8 @@
   <script>
   (function () {
     // Service Worker：令網站可以「安裝」做 PWA。只喺 https（或者本機）註冊。
+    // v1.232.0：手機 App 內不需要 Service Worker 及「加至主畫面」提示
+    if (window.IS_NATIVE_APP) return;
     if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
       window.addEventListener('load', function () {
         navigator.serviceWorker.register('sw.js').catch(function (e) { console.warn('Service Worker 註冊失敗:', e); });
@@ -4580,20 +4587,21 @@
           if (m) { latest = m[1]; showBar(); }
         }).catch(function () {});
     }
+    if (window.IS_NATIVE_APP) return; // App 版本更新經 Google Play／App Store，不用網頁版本提示
     setInterval(check, 10 * 60 * 1000);
     setInterval(showBar, 60 * 1000); // 離開溫習室之後補出
     document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') check(); });
   })();
   </script>
 
-  <script src="js/i18n.js?v=1.231.0"></script>
+  <script src="js/i18n.js?v=1.232.2"></script>
 
-  <script src="js/app-features.js?v=1.231.0"></script>
+  <script src="js/app-features.js?v=1.232.2"></script>
 
-  <script type="module" src="js/app-core.js?v=1.231.0"></script>
+  <script type="module" src="js/app-core.js?v=1.232.2"></script>
 
-  <script src="js/room-video.js?v=1.231.0"></script>
-  <script src="js/stream.js?v=1.231.0"></script>
+  <script src="js/room-video.js?v=1.232.2"></script>
+  <script src="js/stream.js?v=1.232.2"></script>
   <!-- 房主退出房間選擇彈窗 -->
   <div class="modal-backdrop" id="modal-host-leave" style="display:none;">
     <div class="modal-box" style="text-align:center;">
@@ -4859,7 +4867,7 @@
     </div>
   </div>
 
-  <script src="js/admin-panel.js?v=1.231.0"></script>
+  <script src="js/admin-panel.js?v=1.232.2"></script>
   <!-- pdf.js：導師教材嘅 PDF 預覽（整份文件／學生視角）同教材卡嘅第一頁
        縮圖，都用呢個 library 自己畫落 <canvas>，唔再靠瀏覽器內建嘅PDF
        viewer（手機Safari個內建viewer塞喺iframe度揭唔到第二頁）。淨係
@@ -4886,7 +4894,7 @@
       return window._pdfJsLoading;
     };
   </script>
-  <script src="js/tutor-panel.js?v=1.231.0"></script>
+  <script src="js/tutor-panel.js?v=1.232.2"></script>
 
 </body>
 </html>
