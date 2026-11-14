@@ -6,7 +6,7 @@
        打開檔案唔使拉就見到，方便快速核對版本）
        ======================================== -->
   <script>
-    window.APP_VERSION = "v1.232.6"; // 每次推送 GitHub 前，喺呢度改版號
+    window.APP_VERSION = "v1.233.0"; // 每次推送 GitHub 前，喺呢度改版號
   </script>
 
   <!-- v1.227.8：全站確認／輸入視窗，取代瀏覽器原生 confirm()／prompt()，外觀同資訊卡一致。
@@ -418,6 +418,7 @@
     .nav-btn.nav-feature-off-admin { opacity: .55; }
     /* v1.228.2：直播總開關關閉時，Study with me 按鈕變灰不可點擊 */
     .nav-btn.nav-btn-locked { opacity: .45; cursor: not-allowed; }
+    html:not(.cm-native) .cm-native-only { display: none !important; }
     .nav-btn.nav-btn-locked:hover { background: transparent; }
     .nav-off-tag { margin-left: auto; font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 6px; background: #E5E7EB; color: #555; white-space: nowrap; flex-shrink: 0; }
     .nav-btn.nav-feature-off-admin .nav-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
@@ -2667,6 +2668,7 @@
             <div style="display:flex; gap:6px; border-bottom:1px solid #eee; margin-bottom:16px;">
               <button type="button" id="profile-subtab-btn-info" class="btn" onclick="switchProfileSubtab('info')" style="flex:1; justify-content:center; border-radius:10px 10px 0 0; background:var(--brand-100); color:var(--brand-800); font-weight:bold;" data-i18n="profile.tabInfo">個人資料</button>
               <button type="button" id="profile-subtab-btn-password" class="btn" onclick="switchProfileSubtab('password')" style="flex:1; justify-content:center; border-radius:10px 10px 0 0; background:transparent; color:#999; font-weight:bold;" data-i18n="profile.tabPassword">更改登入密碼</button>
+              <button type="button" id="profile-subtab-btn-notify" class="btn cm-native-only" onclick="switchProfileSubtab('notify')" style="flex:1; justify-content:center; border-radius:10px 10px 0 0; background:transparent; color:#999; font-weight:bold;" data-i18n="profile.tabNotify">通知</button>
             </div>
 
             <div id="profile-subtab-info">
@@ -2776,6 +2778,8 @@
             <!-- 更改登入密碼：獨立一個 form（唔跟主個人資料 form 一齊送出），
                  需要先打啱「目前密碼」做 reauthenticate，先可以改做新密碼
                  （見 app-core.js 嘅 window.changeUserPassword）。 -->
+            <!-- v1.233.0：推送通知設定（只在 App 內顯示；內容由 app-features.js renderPushSettings 產生） -->
+            <div id="profile-subtab-notify" style="display:none;"></div>
             <div id="profile-subtab-password" style="display:none;">
               <form id="change-password-form" onsubmit="changeUserPassword(event)" style="display:flex; flex-direction:column; gap:12px;">
                 <div>
@@ -4623,14 +4627,14 @@
   })();
   </script>
 
-  <script src="js/i18n.js?v=1.232.6"></script>
+  <script src="js/i18n.js?v=1.233.0"></script>
 
-  <script src="js/app-features.js?v=1.232.6"></script>
+  <script src="js/app-features.js?v=1.233.0"></script>
 
-  <script type="module" src="js/app-core.js?v=1.232.6"></script>
+  <script type="module" src="js/app-core.js?v=1.233.0"></script>
 
-  <script src="js/room-video.js?v=1.232.6"></script>
-  <script src="js/stream.js?v=1.232.6"></script>
+  <script src="js/room-video.js?v=1.233.0"></script>
+  <script src="js/stream.js?v=1.233.0"></script>
   <!-- 房主退出房間選擇彈窗 -->
   <div class="modal-backdrop" id="modal-host-leave" style="display:none;">
     <div class="modal-box" style="text-align:center;">
@@ -4896,7 +4900,7 @@
     </div>
   </div>
 
-  <script src="js/admin-panel.js?v=1.232.6"></script>
+  <script src="js/admin-panel.js?v=1.233.0"></script>
   <!-- pdf.js：導師教材嘅 PDF 預覽（整份文件／學生視角）同教材卡嘅第一頁
        縮圖，都用呢個 library 自己畫落 <canvas>，唔再靠瀏覽器內建嘅PDF
        viewer（手機Safari個內建viewer塞喺iframe度揭唔到第二頁）。淨係
@@ -4923,7 +4927,7 @@
       return window._pdfJsLoading;
     };
   </script>
-  <script src="js/tutor-panel.js?v=1.232.6"></script>
+  <script src="js/tutor-panel.js?v=1.233.0"></script>
 
 </body>
 </html>

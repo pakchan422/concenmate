@@ -1696,6 +1696,7 @@
       if (!window.currentUser) { window.showToast(window.t('common.loginFirst', '請先登入'), '🔒'); return; }
       try {
         await window.callCloudFunction('followUser', { targetUid });
+        if (window.cmPush) window.cmPush.askAfterAction();
         const wrap = document.getElementById(wrapId);
         if (wrap) wrap.innerHTML = `<button class="btn btn-outline" type="button" style="width:100%; justify-content:center; font-size:13px;" onclick="unfollowUserAction('${targetUid}', '${wrapId}')">${window.t('follow.alreadyFollowingBtn', '已追蹤（點擊取消）')}</button>`;
         const countEl = document.getElementById(_followCountIdFor(wrapId));
@@ -4517,6 +4518,7 @@
           respondedAt: null
         });
         window.showToast(window.t('social.requestSentToast', '好友邀請已送出，等對方接受'), '🤝');
+        if (window.cmPush) window.cmPush.askAfterAction();
         renderFriendActionButtons(targetUid, { loginId: targetLoginId, username: targetUsername });
       } catch (e) {
         window.showToast(window.t('social.sendRequestFailedTemplate', `送出邀請失敗：${e.message || e}`).replace('{msg}', e.message || e), '❌');
@@ -4541,6 +4543,7 @@
             uid: data.toUid, loginId: data.toLoginId, username: data.toUsername, addedAt: now
           });
           window.showToast(window.t('social.becameFriendsToast', '已成為好友！'), '🤝');
+          if (window.cmPush) window.cmPush.askAfterAction();
         } else {
           await window.fs.updateDoc(reqRef, { status: 'declined', respondedAt: Date.now() });
           window.showToast(window.t('social.requestDeclinedToast', '已拒絕邀請'), 'ℹ️');
@@ -6433,5 +6436,174 @@
     const ob = document.getElementById('cm-onboard');
     if (ob && ob.classList.contains('show')) { setTimeout(window.maybeShowEducationConfirm, 3000); return; }
     window.showEducationConfirm(false);
+  };
+})();
+
+// ===================== v1.233.0：手機 App 推送通知 =====================
+// 只在 App（Capacitor）內運作；網站版本完全不受影響。
+// 流程：登入後如已授權就登記裝置（registerPushToken）；首次加好友／接受好友／追蹤主播時才詢問權限；
+// 「編輯個人資料」→「通知」分頁可逐類開關（savePushPrefs）。登出時取消登記。
+(function () {
+  const PN = () => (window.IS_NATIVE_APP && window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.PushNotifications) || null;
+  const DEFAULTS = { roomInvite: true, friend: true, dm: true, live: true, daily: false, streak: true, reminderTime: '20:00' };
+  const ASKED_KEY = 'cm_push_asked';
+  let inited = false;
+  let currentToken = null;
+  let pendingAction = null;
+
+  function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+
+  function routeTo(data) {
+    if (!data) return;
+    if (!window.currentUser) { pendingAction = data; return; }
+    const go = (tab) => { if (typeof window.switchTab === 'function') window.switchTab(tab, document.getElementById('nav-btn-' + tab)); };
+    switch (data.route) {
+      case 'dm': if (data.fromUid && typeof window.openChatWindow === 'function') window.openChatWindow(data.fromUid, data.fromName || ''); break;
+      case 'friend': go('social'); break;
+      case 'live': go('stream'); break;
+      case 'roomInvite': case 'study': go('room'); break;
+      default: go('home');
+    }
+  }
+
+  async function init() {
+    const P = PN();
+    if (!P || inited) return;
+    inited = true;
+    try { await P.createChannel({ id: 'default', name: window.t('push.channelName', '一般通知'), importance: 4, visibility: 1 }); } catch (e) {}
+    P.addListener('registration', async (t) => {
+      currentToken = t && t.value;
+      if (!currentToken || !window.currentUser) return;
+      try { await window.callCloudFunction('registerPushToken', { token: currentToken, platform: (window.Capacitor.getPlatform && window.Capacitor.getPlatform()) || 'android' }); }
+      catch (e) { console.warn('登記推送通知失敗:', e); }
+    });
+    P.addListener('registrationError', (e) => console.warn('推送通知登記錯誤:', e));
+    P.addListener('pushNotificationActionPerformed', (ev) => {
+      routeTo(ev && ev.notification && ev.notification.data);
+    });
+  }
+
+  async function permissionState() {
+    const P = PN();
+    if (!P) return 'unavailable';
+    try { const r = await P.checkPermissions(); return r.receive; } catch (e) { return 'unavailable'; }
+  }
+
+  async function register() {
+    const P = PN();
+    if (!P) return;
+    await init();
+    try { await P.register(); } catch (e) { console.warn('推送通知 register 失敗:', e); }
+  }
+
+  async function requestPermission() {
+    const P = PN();
+    if (!P) return 'unavailable';
+    await init();
+    lsSet(ASKED_KEY, '1');
+    let r;
+    try { r = await P.requestPermissions(); } catch (e) { return 'denied'; }
+    if (r.receive === 'granted') await register();
+    return r.receive;
+  }
+
+  window.cmPush = {
+    isAvailable: () => !!PN(),
+    // 登入完成後呼叫：已授權就登記裝置；處理冷啟動時點擊通知
+    onLogin: async function () {
+      if (!PN() || !window.currentUser) return;
+      await init();
+      if ((await permissionState()) === 'granted') await register();
+      if (pendingAction) { const a = pendingAction; pendingAction = null; setTimeout(() => routeTo(a), 600); }
+    },
+    onLogout: async function () {
+      const P = PN();
+      if (!P) return;
+      if (currentToken) {
+        try { await window.callCloudFunction('unregisterPushToken', { token: currentToken }); } catch (e) {}
+      }
+      try { await P.unregister(); } catch (e) {}
+      currentToken = null;
+    },
+    // 首次加好友／接受好友／追蹤主播後才詢問（只問一次；之後可在「通知」分頁開啟）
+    askAfterAction: async function () {
+      if (!PN() || lsGet(ASKED_KEY)) return;
+      if ((await permissionState()) !== 'prompt' && (await permissionState()) !== 'prompt-with-rationale') { lsSet(ASKED_KEY, '1'); return; }
+      const ok = await window.appConfirm(window.t('push.askConfirm', '開啟通知後，好友邀請、私訊及你追蹤的主播開始直播時，書伴會通知你。香港時間晚上 11 時至早上 7 時不會發出通知。要開啟通知嗎？'));
+      if (ok) await requestPermission(); else lsSet(ASKED_KEY, '1');
+    },
+    requestPermission,
+  };
+
+  // ---------- 「編輯個人資料」→「通知」分頁 ----------
+  const TYPES = [
+    ['roomInvite', 'push.typeRoomInvite', '好友邀請你進入溫習室'],
+    ['friend', 'push.typeFriend', '新好友邀請／對方接受邀請'],
+    ['dm', 'push.typeDm', '新私訊（不顯示訊息內容）'],
+    ['live', 'push.typeLive', '你追蹤的主播開始直播'],
+    ['daily', 'push.typeDaily', '每日溫習提醒'],
+    ['streak', 'push.typeStreak', '連續溫習日數快將中斷（晚上 8 時）'],
+  ];
+  function esc(s) { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+  window.renderPushSettings = async function () {
+    const box = document.getElementById('profile-subtab-notify');
+    if (!box) return;
+    const prefs = Object.assign({}, DEFAULTS, (window.currentUser && window.currentUser.notifPrefs) || {});
+    const perm = await permissionState();
+    const permOk = perm === 'granted';
+    const times = [];
+    for (let h = 7; h <= 22; h++) { ['00', '30'].forEach((m) => times.push(String(h).padStart(2, '0') + ':' + m)); }
+    box.innerHTML = `
+      <div style="padding:12px; border:1px solid var(--brand-200); border-radius:10px; margin-bottom:14px; font-size:13px; line-height:1.7;">
+        ${permOk
+          ? `<div style="font-weight:bold; color:var(--brand-800);">${esc(window.t('push.permOn', '此裝置已開啟通知'))}</div>`
+          : `<div style="font-weight:bold; color:#A33A2F; margin-bottom:8px;">${esc(window.t('push.permOff', '此裝置未開啟通知'))}</div>
+             <button type="button" class="btn btn-primary" id="push-enable-btn" style="width:100%; justify-content:center;">${esc(window.t('push.enableBtn', '開啟通知'))}</button>
+             <div style="color:#6B7894; margin-top:6px;">${esc(window.t('push.enableHint', '如按下後沒有反應，請到手機「設定」→「應用程式」→「書伴 ConcenMate」→「通知」開啟。'))}</div>`}
+      </div>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        ${TYPES.map(([k, key, def]) => `
+          <label style="display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:14px; padding:8px 2px; border-bottom:1px solid var(--brand-100);">
+            <span>${esc(window.t(key, def))}</span>
+            <input type="checkbox" data-push-pref="${k}" ${prefs[k] ? 'checked' : ''} style="width:20px; height:20px; flex-shrink:0;">
+          </label>`).join('')}
+        <label style="display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:14px; padding:4px 2px;">
+          <span>${esc(window.t('push.reminderTimeLabel', '每日提醒時間'))}</span>
+          <select id="push-reminder-time" class="input-field" style="width:auto; padding:6px 8px;">
+            ${times.map((t) => `<option value="${t}" ${t === prefs.reminderTime ? 'selected' : ''}>${t}</option>`).join('')}
+          </select>
+        </label>
+        <div style="font-size:12px; color:#6B7894; line-height:1.6;">${esc(window.t('push.quietHint', '香港時間晚上 11 時至早上 7 時為寧靜時間，期間不會發出任何通知。書伴不會發送宣傳或廣告通知。'))}</div>
+        <button type="button" class="btn btn-primary" id="push-save-btn" style="padding:10px; justify-content:center;">${esc(window.t('push.saveBtn', '儲存通知設定'))}</button>
+        ${permOk ? `<button type="button" class="btn btn-outline" id="push-test-btn" style="justify-content:center;">${esc(window.t('push.testBtn', '發送測試通知'))}</button>` : ''}
+      </div>`;
+    const en = document.getElementById('push-enable-btn');
+    if (en) en.onclick = async () => { await requestPermission(); window.renderPushSettings(); };
+    document.getElementById('push-save-btn').onclick = async (ev) => {
+      const btn = ev.currentTarget;
+      const next = { reminderTime: document.getElementById('push-reminder-time').value };
+      box.querySelectorAll('[data-push-pref]').forEach((c) => { next[c.getAttribute('data-push-pref')] = c.checked; });
+      btn.disabled = true;
+      try {
+        const r = await window.callCloudFunction('savePushPrefs', { prefs: next });
+        if (window.currentUser) window.currentUser.notifPrefs = (r && r.prefs) || next;
+        window.showToast(window.t('push.savedToast', '已儲存通知設定'));
+      } catch (e) {
+        window.showToast(window.friendlyErrorText ? window.friendlyErrorText(e) : (e.message || e));
+      } finally { btn.disabled = false; }
+    };
+    const tb = document.getElementById('push-test-btn');
+    if (tb) tb.onclick = async () => {
+      tb.disabled = true;
+      try {
+        await register();
+        await window.callCloudFunction('sendTestPush', {});
+        window.showToast(window.t('push.testSentToast', '已發送測試通知。請先返回手機主畫面，數秒後應會收到。'));
+      } catch (e) {
+        window.showToast(window.friendlyErrorText ? window.friendlyErrorText(e) : (e.message || e));
+      } finally { tb.disabled = false; }
+    };
   };
 })();

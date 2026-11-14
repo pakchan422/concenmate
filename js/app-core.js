@@ -615,6 +615,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
       if (typeof window.updateUserAuthUI === 'function') {
         window.updateUserAuthUI();
       }
+      // v1.233.0：App 推送通知——登入後登記裝置
+      if (window.currentUser && window.cmPush) window.cmPush.onLogin();
       if (typeof window.updateAdminEntryButton === 'function') {
         window.updateAdminEntryButton();
       }
@@ -930,19 +932,18 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
     // 「編輯個人資料」入面分咗「個人資料」同「更改登入密碼」兩個 Tab，
     // 純粹前端切換顯示／隱藏，唔涉及任何資料存取。
     window.switchProfileSubtab = function(tab) {
-      const infoPanel = document.getElementById('profile-subtab-info');
-      const pwdPanel = document.getElementById('profile-subtab-password');
-      const infoBtn = document.getElementById('profile-subtab-btn-info');
-      const pwdBtn = document.getElementById('profile-subtab-btn-password');
-      if (!infoPanel || !pwdPanel || !infoBtn || !pwdBtn) return;
-
-      const isInfo = tab === 'info';
-      infoPanel.style.display = isInfo ? '' : 'none';
-      pwdPanel.style.display = isInfo ? 'none' : '';
-      infoBtn.style.background = isInfo ? 'var(--brand-100)' : 'transparent';
-      infoBtn.style.color = isInfo ? 'var(--brand-800)' : '#999';
-      pwdBtn.style.background = isInfo ? 'transparent' : 'var(--brand-100)';
-      pwdBtn.style.color = isInfo ? '#999' : 'var(--brand-800)';
+      // v1.233.0：多了「通知」分頁（只在 App 內顯示）
+      ['info', 'password', 'notify'].forEach((k) => {
+        const panel = document.getElementById('profile-subtab-' + k);
+        const btn = document.getElementById('profile-subtab-btn-' + k);
+        const on = k === tab;
+        if (panel) panel.style.display = on ? '' : 'none';
+        if (btn) {
+          btn.style.background = on ? 'var(--brand-100)' : 'transparent';
+          btn.style.color = on ? 'var(--brand-800)' : '#999';
+        }
+      });
+      if (tab === 'notify' && typeof window.renderPushSettings === 'function') window.renderPushSettings();
     };
 
     // ===================== 🔑 更改登入密碼 =====================
@@ -1233,6 +1234,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
     };
 
     window.logoutWithFirebase = async function() {
+      // v1.233.0：登出前取消此裝置的推送通知登記（要趁仍然登入）
+      try { if (window.cmPush) await window.cmPush.onLogout(); } catch (_) {}
       await signOut(auth);
       window.currentUser = null;
       window.updateUserAuthUI();

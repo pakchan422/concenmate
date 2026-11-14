@@ -3705,6 +3705,8 @@ exports.deleteMyAccount = onCall({ timeoutSeconds: 300, memory: "512MiB", secret
     await delQuery(db.collection("roomInvites").where("fromUid", "==", uid));
     await delQuery(db.collection("roomInvites").where("toUid", "==", uid));
   });
+  // v1.233.0：推送通知裝置登記
+  await safe("通知裝置", () => delQuery(db.collection("pushTokens").where("uid", "==", uid)));
   // 4. 私訊（連訊息一併刪除）
   await safe("私訊", () => delQuery(db.collection("directChats").where("participants", "array-contains", uid)));
   // 5. 追蹤關係（同時更新對方的粉絲／追蹤數）
@@ -3763,4 +3765,237 @@ exports.deleteMyAccount = onCall({ timeoutSeconds: 300, memory: "512MiB", secret
   await admin.auth().deleteUser(uid).catch((e) => console.warn("刪除登入帳戶失敗:", e.message));
   await db.collection("adminAuditLog").add({ action: "用戶自行刪除帳戶", details: { uid, loginId: u.loginId || null }, adminLoginId: null, adminEmail: null, createdAt: Date.now() }).catch(() => {});
   return { ok: true };
+});
+
+// ===================== v1.233.0：手機 App 推送通知（FCM） =====================
+// pushTokens/{sha256(token)}：{ uid, token, platform, updatedAt }——只限伺服器讀寫（rules 冇開放）。
+// pushThrottle/{key}：限制同一類通知發送次數——只限伺服器讀寫。
+// users/{uid}.notifPrefs：{ roomInvite, friend, dm, live, daily, streak, reminderTime:"HH:MM" }，經 savePushPrefs 寫入。
+// 共通規則：香港時間 23:00–07:00 寧靜時間一律不發；不發宣傳通知。
+const PUSH_DEFAULT_PREFS = { roomInvite: true, friend: true, dm: true, live: true, daily: false, streak: true, reminderTime: "20:00" };
+const PUSH_TYPES = ["roomInvite", "friend", "dm", "live", "daily", "streak"];
+
+function pushTokenDocId(token) {
+  return crypto.createHash("sha256").update(String(token)).digest("hex").slice(0, 40);
+}
+function hkHourMinute(date) {
+  const hk = new Date((date || new Date()).getTime() + 8 * 60 * 60 * 1000);
+  return { h: hk.getUTCHours(), m: hk.getUTCMinutes() };
+}
+function isPushQuietHours() {
+  const { h } = hkHourMinute();
+  return h >= 23 || h < 7;
+}
+function pushPrefsOf(userData) {
+  const p = (userData && userData.notifPrefs && typeof userData.notifPrefs === "object") ? userData.notifPrefs : {};
+  return Object.assign({}, PUSH_DEFAULT_PREFS, p);
+}
+// 同一個 key 在 windowMs 內只放行一次（先到先得；冇用 transaction，偶爾重複一次可接受）
+async function pushThrottleOk(key, windowMs) {
+  const ref = db.doc(`pushThrottle/${key}`);
+  const snap = await ref.get();
+  const now = Date.now();
+  if (snap.exists && now - (snap.data().at || 0) < windowMs) return false;
+  await ref.set({ at: now, expireAt: new Date(now + windowMs + 86400000) });
+  return true;
+}
+async function pushDisplayName(uid) {
+  try {
+    const s = await db.doc(`publicProfiles/${uid}`).get();
+    return (s.exists && s.data().username) || "同學";
+  } catch (e) { return "同學"; }
+}
+// 發送給某用戶所有已登記裝置。userData 可預先傳入以慳一次讀取。
+async function sendPushToUser(uid, type, title, body, data, userData) {
+  if (!uid || isPushQuietHours()) return 0;
+  let u = userData;
+  if (!u) {
+    const us = await db.doc(`users/${uid}`).get();
+    if (!us.exists) return 0;
+    u = us.data();
+  }
+  if (pushPrefsOf(u)[type] === false) return 0;
+  const tokSnap = await db.collection("pushTokens").where("uid", "==", uid).limit(10).get();
+  if (tokSnap.empty) return 0;
+  const tokens = tokSnap.docs.map((d) => d.data().token).filter(Boolean);
+  const strData = { type };
+  Object.keys(data || {}).forEach((k) => { if (data[k] != null) strData[k] = String(data[k]); });
+  const res = await admin.messaging().sendEachForMulticast({
+    tokens,
+    notification: { title, body },
+    data: strData,
+    android: { priority: "high", notification: { channelId: "default", icon: "ic_stat_notify", color: "#2A4275" } },
+    apns: { payload: { aps: { sound: "default" } } },
+  });
+  // 清走已失效的 token（解除安裝 App、重新安裝等）
+  const dead = [];
+  res.responses.forEach((r, i) => {
+    const code = r.error && r.error.code;
+    if (code === "messaging/registration-token-not-registered" || code === "messaging/invalid-registration-token" || code === "messaging/invalid-argument") {
+      dead.push(tokSnap.docs[i].ref.delete().catch(() => {}));
+    }
+  });
+  await Promise.all(dead);
+  return res.successCount;
+}
+
+exports.registerPushToken = onCall(async (request) => {
+  const uid = request.auth && request.auth.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "請先登入會員");
+  const token = String((request.data && request.data.token) || "");
+  if (token.length < 20 || token.length > 4096) throw new HttpsError("invalid-argument", "通知登記資料無效");
+  const platform = ["android", "ios"].includes(request.data && request.data.platform) ? request.data.platform : "android";
+  await checkRateLimit(`registerPushToken_${uid}`, 20, 60 * 60 * 1000);
+  // 同一部手機換人登入：token 相同，直接改為新用戶（舊用戶不再收到）
+  await db.doc(`pushTokens/${pushTokenDocId(token)}`).set({ uid, token, platform, updatedAt: Date.now() });
+  // 每人最多保留 5 部裝置（最舊的先刪）
+  const mine = await db.collection("pushTokens").where("uid", "==", uid).get();
+  if (mine.size > 5) {
+    const sorted = mine.docs.sort((a, b) => (b.data().updatedAt || 0) - (a.data().updatedAt || 0));
+    await Promise.all(sorted.slice(5).map((d) => d.ref.delete().catch(() => {})));
+  }
+  return { ok: true };
+});
+
+exports.unregisterPushToken = onCall(async (request) => {
+  const uid = request.auth && request.auth.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "請先登入會員");
+  const token = String((request.data && request.data.token) || "");
+  if (!token) return { ok: true };
+  const ref = db.doc(`pushTokens/${pushTokenDocId(token)}`);
+  const snap = await ref.get();
+  if (snap.exists && snap.data().uid === uid) await ref.delete();
+  return { ok: true };
+});
+
+exports.savePushPrefs = onCall(async (request) => {
+  const uid = request.auth && request.auth.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "請先登入會員");
+  await checkRateLimit(`savePushPrefs_${uid}`, 60, 60 * 60 * 1000);
+  const input = (request.data && request.data.prefs) || {};
+  const prefs = {};
+  PUSH_TYPES.forEach((k) => { prefs[k] = (typeof input[k] === "boolean") ? input[k] : PUSH_DEFAULT_PREFS[k]; });
+  // 每日提醒時間：07:00–22:30，每 30 分鐘一格（避開寧靜時間）
+  const t = String(input.reminderTime || "");
+  const m = /^(\d{2}):(00|30)$/.exec(t);
+  prefs.reminderTime = (m && Number(m[1]) >= 7 && Number(m[1]) <= 22) ? t : PUSH_DEFAULT_PREFS.reminderTime;
+  await db.doc(`users/${uid}`).update({ notifPrefs: prefs });
+  return { ok: true, prefs };
+});
+
+// 1. 好友邀請你入溫習室（同一位好友每 10 分鐘最多 1 次）
+exports.pushOnRoomInvite = onDocumentCreated("roomInvites/{inviteId}", async (event) => {
+  const d = event.data && event.data.data();
+  if (!d || d.status !== "pending" || !d.toUid || !d.fromUid) return;
+  if (!(await pushThrottleOk(`roomInvite_${d.fromUid}_${d.toUid}`, 10 * 60 * 1000))) return;
+  const name = d.fromUsername || (await pushDisplayName(d.fromUid));
+  await sendPushToUser(d.toUid, "roomInvite", "溫習室邀請", `${name} 邀請你一起進入溫習室「${d.roomName || "溫習房"}」`, { route: "roomInvite", roomId: d.roomId || "" });
+});
+
+// 2. 新好友邀請／對方接受了邀請
+exports.pushOnFriendRequest = onDocumentWritten("friendRequests/{reqId}", async (event) => {
+  const before = event.data && event.data.before && event.data.before.exists ? event.data.before.data() : null;
+  const after = event.data && event.data.after && event.data.after.exists ? event.data.after.data() : null;
+  if (!after) return;
+  if (after.status === "pending" && (!before || before.status !== "pending")) {
+    if (!(await pushThrottleOk(`friendReq_${after.fromUid}_${after.toUid}`, 60 * 60 * 1000))) return;
+    const name = after.fromUsername || (await pushDisplayName(after.fromUid));
+    await sendPushToUser(after.toUid, "friend", "新好友邀請", `${name} 想加你為好友`, { route: "friend" });
+  } else if (after.status === "accepted" && before && before.status === "pending") {
+    const name = after.toUsername || (await pushDisplayName(after.toUid));
+    await sendPushToUser(after.fromUid, "friend", "好友邀請已接受", `${name} 已接受你的好友邀請`, { route: "friend" });
+  }
+});
+
+// 3. 新私訊（同一對話 5 分鐘內只通知 1 次；不顯示內容）
+exports.pushOnDirectMessage = onDocumentCreated("directChats/{chatId}/messages/{messageId}", async (event) => {
+  const d = event.data && event.data.data();
+  if (!d || !d.toUid || !d.fromUid) return;
+  if (!(await pushThrottleOk(`dm_${event.params.chatId}_${d.toUid}`, 5 * 60 * 1000))) return;
+  const name = await pushDisplayName(d.fromUid);
+  await sendPushToUser(d.toUid, "dm", "新訊息", `${name} 傳來訊息`, { route: "dm", fromUid: d.fromUid, fromName: name });
+});
+
+// 4. 你追蹤的主播開始直播（每位主播每日最多 1 次；每人每日最多 3 次）
+exports.pushOnStreamStart = onDocumentCreated({ document: "streams/{streamId}", timeoutSeconds: 120 }, async (event) => {
+  const s = event.data && event.data.data();
+  if (!s || s.status !== "live" || !s.hostUid || isPushQuietHours()) return;
+  const today = getHongKongDateStr();
+  if (!(await pushThrottleOk(`live_${s.hostUid}_${today}`, 20 * 60 * 60 * 1000))) return;
+  const fans = await db.collection("follows").where("followedUid", "==", s.hostUid).limit(1000).get();
+  if (fans.empty) return;
+  // 只通知有登記 App 的粉絲：先查 pushTokens，避免讀取大量用戶文件
+  const fanUids = fans.docs.map((d) => d.data().followerUid).filter(Boolean);
+  const withApp = new Set();
+  for (let i = 0; i < fanUids.length; i += 30) {
+    const chunk = fanUids.slice(i, i + 30);
+    const t = await db.collection("pushTokens").where("uid", "in", chunk).get();
+    t.forEach((d) => withApp.add(d.data().uid));
+  }
+  const name = s.hostName || (await pushDisplayName(s.hostUid));
+  for (const uid of withApp) {
+    const cntRef = db.doc(`pushThrottle/liveCount_${uid}_${today}`);
+    const c = await cntRef.get();
+    const n = c.exists ? (c.data().n || 0) : 0;
+    if (n >= 3) continue;
+    const sent = await sendPushToUser(uid, "live", "直播開始了", `${name} 開始了 Study with me：${s.title || "Study with me"}`, { route: "live", streamId: event.params.streamId }).catch(() => 0);
+    if (sent > 0) await cntRef.set({ n: n + 1, at: Date.now(), expireAt: new Date(Date.now() + 2 * 86400000) });
+  }
+});
+
+// 5. 每日溫習提醒（用戶自行設定時間；當日已溫習則不發）——每 30 分鐘檢查一次
+exports.pushDailyReminder = onSchedule({ schedule: "0,30 7-22 * * *", timeZone: "Asia/Hong_Kong", timeoutSeconds: 300 }, async () => {
+  const { h, m } = hkHourMinute();
+  const slot = `${String(h).padStart(2, "0")}:${m < 30 ? "00" : "30"}`;
+  const today = getHongKongDateStr();
+  const snap = await db.collection("users").where("notifPrefs.daily", "==", true).where("notifPrefs.reminderTime", "==", slot).limit(2000).get();
+  for (const doc of snap.docs) {
+    const u = doc.data();
+    if (u.todayDate === today && (u.todayMinutes || 0) > 0) continue;
+    await sendPushToUser(doc.id, "daily", "溫習提醒", "今日還未溫習，打開書伴開始專注吧", { route: "study" }, u).catch(() => 0);
+  }
+});
+
+// 6. 連續溫習日數快將中斷（連續 3 日或以上、當日未溫習；每日香港時間 20:00）
+function hkStreakFromStudyDays(studyDays) {
+  const days = (studyDays && typeof studyDays === "object") ? studyDays : {};
+  let n = 0;
+  // 由昨日開始向前數（今日未溫習才會發這個通知）
+  for (let i = 1; i < 400; i++) {
+    const key = getHongKongDateStr(new Date(Date.now() - i * 86400000));
+    if (!days[key]) break;
+    n++;
+  }
+  return n;
+}
+exports.pushStreakReminder = onSchedule({ schedule: "0 20 * * *", timeZone: "Asia/Hong_Kong", timeoutSeconds: 300 }, async () => {
+  const today = getHongKongDateStr();
+  // 只檢查有登記 App 的用戶
+  const tokSnap = await db.collection("pushTokens").limit(5000).get();
+  const uids = [...new Set(tokSnap.docs.map((d) => d.data().uid).filter(Boolean))];
+  for (const uid of uids) {
+    const us = await db.doc(`users/${uid}`).get();
+    if (!us.exists) continue;
+    const u = us.data();
+    if ((u.studyDays && u.studyDays[today]) || (u.todayDate === today && (u.todayMinutes || 0) > 0)) continue;
+    const streak = hkStreakFromStudyDays(u.studyDays);
+    if (streak < 3) continue;
+    await sendPushToUser(uid, "streak", "連續溫習快將中斷", `你已連續溫習 ${streak} 日，今日溫習一會就可以保持紀錄`, { route: "study" }, u).catch(() => 0);
+  }
+});
+
+// 管理員測試：發一個測試通知給自己的裝置（不受寧靜時間及個人設定限制）
+exports.sendTestPush = onCall(async (request) => {
+  const uid = request.auth && request.auth.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "請先登入會員");
+  await checkRateLimit(`sendTestPush_${uid}`, 10, 60 * 60 * 1000);
+  const tokSnap = await db.collection("pushTokens").where("uid", "==", uid).limit(10).get();
+  if (tokSnap.empty) throw new HttpsError("failed-precondition", "這個帳戶未有已登記通知的裝置，請先在 App 內開啟通知");
+  const res = await admin.messaging().sendEachForMulticast({
+    tokens: tokSnap.docs.map((d) => d.data().token),
+    notification: { title: "書伴 ConcenMate", body: "測試通知：推送通知運作正常" },
+    data: { type: "test", route: "home" },
+    android: { priority: "high", notification: { channelId: "default", icon: "ic_stat_notify", color: "#2A4275" } },
+  });
+  return { ok: true, sent: res.successCount, failed: res.failureCount };
 });
