@@ -6685,3 +6685,97 @@
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', showOffline); else showOffline();
   }
 })();
+
+// ===================== v1.235.0：App 網站自動更新、強制更新、使用統計（只在 App 內運作） =====================
+// 網站更新包由管理後台「手機 App」分頁上載（admin_config/appUpdate）。App 打開約 4 秒後檢查：
+//   - 原生版本低於 minNativeBuild → 顯示「請到 Google Play 更新」，不能繼續使用
+//   - 有較新的網站版本 → 背景下載，App 下次由背景返回或重新打開時生效（@capgo/capacitor-updater，不經第三方伺服器）
+// 每部裝置每日向伺服器記錄一次使用（pingAppDevice），供後台統計。
+(function () {
+  if (!window.IS_NATIVE_APP || !window.Capacitor || !window.Capacitor.Plugins) return;
+  const P = window.Capacitor.Plugins;
+  const U = P.CapacitorUpdater;
+  // 新版本載入成功後要盡快通知，否則 15 秒後自動退回上一個版本（防止壞版本令 App 打不開）
+  if (U && U.notifyAppReady) U.notifyAppReady().catch(function () {});
+
+  const PLAY_URL = 'https://play.google.com/store/apps/details?id=com.concenmate.app';
+  function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function cmpVer(a, b) {
+    const pa = String(a || '').replace(/^v/, '').split('.').map(n => parseInt(n, 10) || 0);
+    const pb = String(b || '').replace(/^v/, '').split('.').map(n => parseInt(n, 10) || 0);
+    for (let i = 0; i < 3; i++) { if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) - (pb[i] || 0); }
+    return 0;
+  }
+  async function waitFor(fn, ms) {
+    const end = Date.now() + ms;
+    while (Date.now() < end) { if (fn()) return true; await new Promise(r => setTimeout(r, 250)); }
+    return false;
+  }
+  let nativeInfo = null;
+  async function getNativeInfo() {
+    if (nativeInfo) return nativeInfo;
+    try { const i = await P.App.getInfo(); nativeInfo = { version: i.version || '', build: parseInt(i.build, 10) || 0 }; }
+    catch (e) { nativeInfo = { version: '', build: 0 }; }
+    return nativeInfo;
+  }
+
+  function showForceUpdate() {
+    if (document.getElementById('cm-force-update')) return;
+    const d = document.createElement('div');
+    d.id = 'cm-force-update';
+    d.style.cssText = 'position:fixed; inset:0; z-index:100001; background:#2A4275; color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:24px; text-align:center;';
+    d.innerHTML = '<img src="assets/icons/icon-maskable-512.png" alt="" style="width:min(200px,50vw); height:auto;">'
+      + '<div style="font-size:18px; font-weight:bold;">' + window.t('native.forceUpdateTitle', '請更新書伴 App') + '</div>'
+      + '<div style="font-size:14px; line-height:1.7; opacity:.9;">' + window.t('native.forceUpdateDesc', '這個版本已經不再支援，請到 Google Play 更新至最新版本後再使用。') + '</div>'
+      + '<button type="button" id="cm-force-update-btn" style="margin-top:6px; padding:10px 28px; border-radius:999px; border:none; background:#fff; color:#2A4275; font-weight:bold; font-size:15px;">' + window.t('native.forceUpdateBtn', '前往 Google Play') + '</button>';
+    document.body.appendChild(d);
+    document.getElementById('cm-force-update-btn').onclick = function () { window.open(PLAY_URL, '_blank'); };
+  }
+
+  let checking = false, lastCheck = 0;
+  async function checkForUpdate() {
+    if (checking || Date.now() - lastCheck < 30 * 60 * 1000) return;
+    checking = true; lastCheck = Date.now();
+    try {
+      if (!(await waitFor(() => window.db && window.fs, 20000))) return;
+      const snap = await window.fs.getDoc(window.fs.doc(window.db, 'admin_config', 'appUpdate'));
+      if (!snap.exists()) return;
+      const cfg = snap.data();
+      const info = await getNativeInfo();
+      if (Number(cfg.minNativeBuild) > 0 && info.build > 0 && info.build < Number(cfg.minNativeBuild)) { showForceUpdate(); return; }
+      if (!U || !cfg.version || !cfg.url) return;
+      if (cfg.env && cfg.env !== window.CM_APP_ENV) return; // 測試版／正式版更新包不可混用
+      if (cmpVer(cfg.version, window.APP_VERSION) <= 0) return;
+      const list = await U.list();
+      let b = (list.bundles || []).find(x => x.version === cfg.version && x.status !== 'error');
+      if (!b) b = await U.download({ url: cfg.url, version: cfg.version });
+      await U.next({ id: b.id });
+      console.log('[App 更新] 已下載 v' + cfg.version + '，下次打開時生效');
+    } catch (e) {
+      console.warn('[App 更新] 檢查或下載失敗:', e);
+    } finally { checking = false; }
+  }
+
+  async function pingDaily() {
+    if (!(await waitFor(() => window.currentUser && window.currentUser.uid && typeof window.callCloudFunction === 'function', 60000))) return;
+    const today = new Date().toISOString().slice(0, 10);
+    if (lsGet('cm_app_ping_day') === today) return;
+    let id = lsGet('cm_device_id');
+    if (!id) { id = 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10); lsSet('cm_device_id', id); }
+    const info = await getNativeInfo();
+    try {
+      await window.callCloudFunction('pingAppDevice', {
+        deviceId: id,
+        platform: (window.Capacitor.getPlatform && window.Capacitor.getPlatform()) || 'android',
+        nativeVersion: info.version, nativeBuild: info.build,
+        webVersion: String(window.APP_VERSION || '').replace(/^v/, '')
+      });
+      lsSet('cm_app_ping_day', today);
+    } catch (e) {}
+  }
+
+  setTimeout(checkForUpdate, 4000);
+  setTimeout(pingDaily, 6000);
+  if (P.App && P.App.addListener) P.App.addListener('resume', function () { checkForUpdate(); pingDaily(); });
+})();

@@ -737,6 +737,10 @@ service cloud.firestore {
     // 文件。Firestore 規則入面，針對同一個路徑嘅多個 match 區塊會逐個
     // 評估，只要其中一個話 allow 就得，所以呢度加多一個更specific嘅
     // 例外規則，唔使改動返上面嗰條通用規則。
+    // v1.235.0：App 網站更新資料（最新版本、下載網址、最低原生版本）——App 未登入時都要讀到，所以公開讀取；寫入沿用上面規則（只限超級管理員）
+    match /admin_config/appUpdate {
+      allow read: if true;
+    }
     match /admin_config/landingContent {
       allow read: if true;
       allow write: if isSuperAdmin(database);

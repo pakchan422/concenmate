@@ -3707,6 +3707,7 @@ exports.deleteMyAccount = onCall({ timeoutSeconds: 300, memory: "512MiB", secret
   });
   // v1.233.0：推送通知裝置登記
   await safe("通知裝置", () => delQuery(db.collection("pushTokens").where("uid", "==", uid)));
+  await safe("App 裝置紀錄", () => delQuery(db.collection("appDevices").where("uid", "==", uid)));
   // 4. 私訊（連訊息一併刪除）
   await safe("私訊", () => delQuery(db.collection("directChats").where("participants", "array-contains", uid)));
   // 5. 追蹤關係（同時更新對方的粉絲／追蹤數）
@@ -3786,6 +3787,15 @@ function isPushQuietHours() {
   const { h } = hkHourMinute();
   return h >= 23 || h < 7;
 }
+// v1.235.0：後台「推送通知總開關」（admin_config/push.enabled === false 即全部暫停）；快取 60 秒，慳讀取
+let _pushEnabledCache = { at: 0, val: true };
+async function pushGloballyEnabled() {
+  if (Date.now() - _pushEnabledCache.at < 60000) return _pushEnabledCache.val;
+  let val = true;
+  try { const s = await db.doc("admin_config/push").get(); val = !(s.exists && s.data().enabled === false); } catch (e) {}
+  _pushEnabledCache = { at: Date.now(), val };
+  return val;
+}
 function pushPrefsOf(userData) {
   const p = (userData && userData.notifPrefs && typeof userData.notifPrefs === "object") ? userData.notifPrefs : {};
   return Object.assign({}, PUSH_DEFAULT_PREFS, p);
@@ -3815,6 +3825,7 @@ async function sendPushToUser(uid, type, title, body, data, userData) {
     u = us.data();
   }
   if (pushPrefsOf(u)[type] === false) return 0;
+  if (!(await pushGloballyEnabled())) return 0;
   const tokSnap = await db.collection("pushTokens").where("uid", "==", uid).limit(10).get();
   if (tokSnap.empty) return 0;
   const tokens = tokSnap.docs.map((d) => d.data().token).filter(Boolean);
@@ -3998,4 +4009,53 @@ exports.sendTestPush = onCall(async (request) => {
     android: { priority: "high", notification: { channelId: "default", icon: "ic_stat_notify", color: "#2A4275" } },
   });
   return { ok: true, sent: res.successCount, failed: res.failureCount };
+});
+
+
+// ===================== v1.235.0：手機 App 使用統計 =====================
+// appDevices/{deviceId}：{ uid, platform, nativeVersion, nativeBuild, webVersion, lastSeen }——只限伺服器（rules 冇開放）。
+// App 每部裝置每日最多呼叫一次（前端以 localStorage 控制），用嚟統計 App 用戶數及版本分佈。
+exports.pingAppDevice = onCall(async (request) => {
+  const uid = request.auth && request.auth.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "請先登入會員");
+  const d = request.data || {};
+  const deviceId = String(d.deviceId || "");
+  if (!/^[a-zA-Z0-9_-]{8,64}$/.test(deviceId)) throw new HttpsError("invalid-argument", "裝置資料無效");
+  await checkRateLimit(`pingAppDevice_${uid}`, 20, 24 * 60 * 60 * 1000);
+  await db.doc(`appDevices/${deviceId}`).set({
+    uid,
+    platform: ["android", "ios"].includes(d.platform) ? d.platform : "android",
+    nativeVersion: String(d.nativeVersion || "").slice(0, 20),
+    nativeBuild: Number(d.nativeBuild) || 0,
+    webVersion: String(d.webVersion || "").slice(0, 20),
+    lastSeen: Date.now(),
+  });
+  return { ok: true };
+});
+
+exports.getAppStats = onCall(async (request) => {
+  const uid = request.auth && request.auth.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "請先登入會員");
+  const me = await db.doc(`users/${uid}`).get();
+  if (!(await isAdminUserData(me.exists ? me.data() : null))) throw new HttpsError("permission-denied", "只限管理員");
+  const since30 = Date.now() - 30 * 86400000;
+  const since7 = Date.now() - 7 * 86400000;
+  const devSnap = await db.collection("appDevices").where("lastSeen", ">=", since30).limit(5000).get();
+  const users30 = new Set(), users7 = new Set(), platforms = {}, webVersions = {}, nativeBuilds = {};
+  devSnap.forEach((doc) => {
+    const x = doc.data();
+    users30.add(x.uid);
+    if (x.lastSeen >= since7) users7.add(x.uid);
+    platforms[x.platform] = (platforms[x.platform] || 0) + 1;
+    webVersions[x.webVersion || "?"] = (webVersions[x.webVersion || "?"] || 0) + 1;
+    nativeBuilds[String(x.nativeBuild || 0)] = (nativeBuilds[String(x.nativeBuild || 0)] || 0) + 1;
+  });
+  const tokCount = await db.collection("pushTokens").count().get();
+  const pushDoc = await db.doc("admin_config/push").get();
+  return {
+    devices30: devSnap.size, users30: users30.size, users7: users7.size,
+    platforms, webVersions, nativeBuilds,
+    pushDevices: tokCount.data().count,
+    pushEnabled: !(pushDoc.exists && pushDoc.data().enabled === false),
+  };
 });

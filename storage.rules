@@ -74,6 +74,13 @@ service firebase.storage {
     // 吉祥物圖（admin-panel.js 寫入 landing_assets/）。之前冇呢條規則，
     // 被最底嘅「其他一律拒絕」擋住，所以上傳一直失敗。Landing page 係畀
     // 未登入訪客睇，所以讀取公開；上傳淨係管理員、限圖片 2MB 以下。
+    // v1.235.0：App 網站更新包（zip），只限管理員上載，上限 40MB。App 用下載網址（附 token）下載。
+    match /app_updates/{fileName} {
+      allow read: if isSignedIn();
+      allow create, update: if isAdmin() && underSize(40 * 1024 * 1024) &&
+        (request.resource.contentType == 'application/zip' || request.resource.contentType == 'application/x-zip-compressed' || request.resource.contentType == 'application/octet-stream');
+      allow delete: if isAdmin();
+    }
     match /landing_assets/{fileName} {
       allow read: if true;
       allow create, update: if isAdmin() && isImageType() && underSize(2 * 1024 * 1024);

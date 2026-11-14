@@ -108,7 +108,7 @@
       'gacha', 'level', 'icons', 'landing', 'scoring', 'roomsettings',
       'antiidle', 'announcement', 'adminlist', 'auditlog',
       'subjects', 'districts', 'schools', 'legal', 'snapshotbg', 'navmenu', 'turn', 'streaming',
-      'costs', 'lists'
+      'costs', 'lists', 'mobileapp'
     ];
     // v1.228.0：合併顯示的分頁——撳一個分頁掣，會依次顯示多個原有的分頁內容
     const ADMIN_TAB_GROUPS = {
@@ -397,6 +397,7 @@
       else if (tab === 'turn') renderAdminTurnTab();
       else if (tab === 'streaming') renderAdminStreamingTab();
       else if (tab === 'schooldomains') window.renderAdminSchoolDomainsTab();
+      else if (tab === 'mobileapp') window.renderAdminMobileAppTab();
     }
 
     // ---------- 扭蛋機貼紙管理 ----------
@@ -5224,18 +5225,15 @@
 
     panel.innerHTML = `
       <div class="card" style="padding:16px;">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
-          <div>
-            <h3 style="margin:0 0 4px;">營運開支</h3>
-            <p style="margin:0; font-size:13px; color:#6B7894;">本月（${Number(d.monthKey.slice(4))} 月，已過 ${d.dayOfMonth}／${d.daysInMonth} 日）全月估算開支</p>
-            <div style="font-size:28px; font-weight:800; color:var(--brand-800); margin-top:6px;">${usd(d.totalUSD)} <span style="font-size:15px; font-weight:600; color:#6B7894;">${hkd(d.totalUSD)}</span></div>
-            ${d.vultrPendingUSD != null ? `<p style="margin:4px 0 0; font-size:13px; color:#6B7894;">Vultr 本月實際累計帳單：${usd(d.vultrPendingUSD)}</p>` : ''}
-          </div>
-          <div style="text-align:right;">
-            <button type="button" class="btn btn-outline" onclick="window.renderAdminCostsTab(true)">重新整理</button>
-            <p style="margin:6px 0 0; font-size:12px; color:#8A94A8;">更新時間：${esc(updated)}<br>數據每 30 分鐘更新一次</p>
-          </div>
+        <!-- v1.235.1：「重新整理」掣固定在標題右邊（手機窄畫面亦不會跌到中間），更新時間移到金額下面 -->
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+          <h3 style="margin:0;">營運開支</h3>
+          <button type="button" class="btn btn-outline" style="font-size:13px; padding:5px 12px; min-height:0; flex-shrink:0;" onclick="window.renderAdminCostsTab(true)">重新整理</button>
         </div>
+        <p style="margin:4px 0 0; font-size:13px; color:#6B7894;">本月（${Number(d.monthKey.slice(4))} 月，已過 ${d.dayOfMonth}／${d.daysInMonth} 日）全月估算開支</p>
+        <div style="font-size:28px; font-weight:800; color:var(--brand-800); margin-top:6px;">${usd(d.totalUSD)} <span style="font-size:15px; font-weight:600; color:#6B7894;">${hkd(d.totalUSD)}</span></div>
+        ${d.vultrPendingUSD != null ? `<p style="margin:4px 0 0; font-size:13px; color:#6B7894;">Vultr 本月實際累計帳單：${usd(d.vultrPendingUSD)}</p>` : ''}
+        <p style="margin:6px 0 0; font-size:12px; color:#8A94A8;">更新時間：${esc(updated)}（數據每 30 分鐘更新一次）</p>
         <div style="display:flex; gap:14px; flex-wrap:wrap; margin-top:12px; font-size:12px; color:#6B7894;">
           ${['ok', 'watch', 'urgent'].map(k => `<span style="display:flex; align-items:center; gap:5px;"><span style="width:10px; height:10px; border-radius:50%; background:${LEVEL[k].color};"></span>${LEVEL[k].label}${k === 'ok' ? '（70% 以下）' : k === 'watch' ? '（70%–89%）' : '（90% 或以上）'}</span>`).join('')}
         </div>
@@ -5384,5 +5382,152 @@
     } catch (e) {
       window.showToast('處理失敗：' + (window.friendlyErrorText ? window.friendlyErrorText(e) : (e.message || e)), '❌');
     }
+  };
+})();
+
+
+// ===================== v1.235.0：管理後台「手機 App」分頁 =====================
+// 1. App 使用統計（getAppStats）  2. 推送通知總開關（admin_config/push）
+// 3. App 網站更新包上載（Storage app_updates/ + admin_config/appUpdate）及最低原生版本
+(function () {
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+  function cmpVer(a, b) {
+    const pa = String(a || '').replace(/^v/, '').split('.').map(n => parseInt(n, 10) || 0);
+    const pb = String(b || '').replace(/^v/, '').split('.').map(n => parseInt(n, 10) || 0);
+    for (let i = 0; i < 3; i++) { if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) - (pb[i] || 0); }
+    return 0;
+  }
+  function fmtTime(ms) { if (!ms) return '—'; const d = new Date(ms); return d.toLocaleString('zh-HK', { hour12: false }); }
+  function listObj(o) {
+    const ks = Object.keys(o || {}).sort((a, b) => (o[b] - o[a]));
+    return ks.length ? ks.map(k => `${esc(k)}：${o[k]}`).join('　') : '—';
+  }
+  const ENV = () => (window.IS_PROD_SITE ? 'prod' : 'dev');
+
+  window.renderAdminMobileAppTab = async function () {
+    const box = document.getElementById('admin-tab-mobileapp');
+    if (!box) return;
+    box.innerHTML = '<div class="admin-card">載入中…</div>';
+    let stats = null, upd = {}, statsErr = '';
+    try { stats = await window.callCloudFunction('getAppStats', {}); } catch (e) { statsErr = (window.friendlyErrorText ? window.friendlyErrorText(e) : (e.message || e)); }
+    try { const s = await window.fs.getDoc(window.fs.doc(window.db, 'admin_config', 'appUpdate')); if (s.exists()) upd = s.data(); } catch (e) {}
+    const pushOn = stats ? stats.pushEnabled : true;
+    box.innerHTML = `
+      <div class="admin-card">
+        <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); margin-bottom:10px;">App 使用統計</h3>
+        ${stats ? `
+        <table class="admin-table">
+          <tr><th>過去 7 日使用 App 的用戶</th><td>${stats.users7}</td></tr>
+          <tr><th>過去 30 日使用 App 的用戶</th><td>${stats.users30}（裝置 ${stats.devices30} 部）</td></tr>
+          <tr><th>平台</th><td>${listObj(stats.platforms)}</td></tr>
+          <tr><th>網站版本分佈</th><td>${listObj(stats.webVersions)}</td></tr>
+          <tr><th>原生版本（build）分佈</th><td>${listObj(stats.nativeBuilds)}</td></tr>
+          <tr><th>已登記推送通知的裝置</th><td>${stats.pushDevices}</td></tr>
+        </table>
+        <p style="font-size:12px; color:#888; margin-top:6px;">每部裝置每日最多記錄一次；網站用戶不計算在內。</p>` : `<p style="color:#A33A2F; font-size:13px;">未能載入統計：${esc(statsErr)}</p>`}
+      </div>
+
+      <div class="admin-card">
+        <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); margin-bottom:6px;">推送通知總開關</h3>
+        <p style="font-size:13px; color:#6B7894; margin-bottom:10px;">關閉後，所有推送通知即時暫停（約 1 分鐘內生效），用戶個人設定保持不變。</p>
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          <span style="font-weight:bold; color:${pushOn ? 'var(--brand-800)' : '#A33A2F'};">目前：${pushOn ? '開啟' : '已暫停'}</span>
+          <button type="button" class="btn ${pushOn ? 'btn-outline' : 'btn-primary'}" id="adm-push-toggle">${pushOn ? '暫停所有推送通知' : '恢復推送通知'}</button>
+        </div>
+      </div>
+
+      <div class="admin-card">
+        <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); margin-bottom:6px;">App 網站更新</h3>
+        <p style="font-size:13px; color:#6B7894; line-height:1.7; margin-bottom:10px;">
+          網站改動推上 GitHub 後，只會更新網站；App 用戶要靠這裡的「網站更新包」才會更新。上載後，App 下次打開時會在背景下載，再下次打開時生效。<br>
+          製作方法：在終端機執行 <code>cd ~/Desktop/concenmate-app/mobile && npm run bundle:${ENV()}</code>，然後在下面選擇 <code>mobile/dist/</code> 內的 zip 檔。<br>
+          本頁是<b>${window.IS_PROD_SITE ? '正式網站' : '測試環境（Staging）'}</b>，只接受 <code>concenmate-web-${ENV()}-版本.zip</code>。
+        </p>
+        <table class="admin-table" style="margin-bottom:12px;">
+          <tr><th>目前發佈的網站版本</th><td>${upd.version ? 'v' + esc(upd.version) : '未有（App 使用安裝時內置的版本）'}</td></tr>
+          <tr><th>上載時間</th><td>${esc(fmtTime(upd.uploadedAt))}${upd.uploadedBy ? '（' + esc(upd.uploadedBy) + '）' : ''}</td></tr>
+          <tr><th>檔案大小</th><td>${upd.size ? (upd.size / 1048576).toFixed(1) + ' MB' : '—'}</td></tr>
+        </table>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <input type="file" id="adm-bundle-file" accept=".zip,application/zip">
+          <button type="button" class="btn btn-primary" id="adm-bundle-upload">上載網站更新包</button>
+        </div>
+        <div id="adm-bundle-progress" style="font-size:13px; color:#6B7894; margin-top:8px;"></div>
+        ${upd.version ? `<button type="button" class="btn btn-outline" id="adm-bundle-stop" style="margin-top:10px;">停止發佈更新（已更新的 App 不受影響）</button>` : ''}
+      </div>
+
+      <div class="admin-card">
+        <h3 style="font-size:16px; font-weight:bold; color:var(--brand-800); margin-bottom:6px;">最低 App 版本（強制更新）</h3>
+        <p style="font-size:13px; color:#6B7894; line-height:1.7; margin-bottom:10px;">
+          原生版本號（build）低於此數字的 App，打開時會顯示「請到 Google Play 更新」，不能繼續使用。<br>
+          只在發布了新版 App（例如加入新的原生功能）而舊版不能再正常運作時才提高。目前第一版 App 的 build 是 1。設定為 0 即不限制。
+        </p>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <input type="number" min="0" step="1" id="adm-min-build" class="admin-input-sm" style="width:100px;" value="${Number(upd.minNativeBuild) || 0}">
+          <button type="button" class="btn btn-primary" id="adm-min-build-save">儲存</button>
+        </div>
+      </div>`;
+
+    document.getElementById('adm-push-toggle').onclick = async () => {
+      const next = !pushOn;
+      if (!next && !(await window.appConfirm('確定要暫停所有推送通知嗎？'))) return;
+      try {
+        await window.fs.setDoc(window.fs.doc(window.db, 'admin_config', 'push'), { enabled: next, updatedAt: Date.now() }, { merge: true });
+        window.showToast(next ? '已恢復推送通知' : '已暫停所有推送通知');
+        window.renderAdminMobileAppTab();
+      } catch (e) { window.showToast('儲存失敗：' + (e.message || e)); }
+    };
+
+    document.getElementById('adm-min-build-save').onclick = async () => {
+      const v = Math.max(0, parseInt(document.getElementById('adm-min-build').value, 10) || 0);
+      if (v > 0 && !(await window.appConfirm(`原生版本低於 ${v} 的 App 將不能使用，要先到 Google Play 更新。確定嗎？`))) return;
+      try {
+        await window.fs.setDoc(window.fs.doc(window.db, 'admin_config', 'appUpdate'), { minNativeBuild: v }, { merge: true });
+        window.showToast('已儲存');
+        window.renderAdminMobileAppTab();
+      } catch (e) { window.showToast('儲存失敗：' + (e.message || e)); }
+    };
+
+    const stopBtn = document.getElementById('adm-bundle-stop');
+    if (stopBtn) stopBtn.onclick = async () => {
+      if (!(await window.appConfirm('停止後，未更新的 App 不會再下載這個版本。確定嗎？'))) return;
+      try {
+        await window.fs.setDoc(window.fs.doc(window.db, 'admin_config', 'appUpdate'), { version: '', url: '' }, { merge: true });
+        window.showToast('已停止發佈');
+        window.renderAdminMobileAppTab();
+      } catch (e) { window.showToast('儲存失敗：' + (e.message || e)); }
+    };
+
+    document.getElementById('adm-bundle-upload').onclick = async (ev) => {
+      const btn = ev.currentTarget;
+      const prog = document.getElementById('adm-bundle-progress');
+      const f = document.getElementById('adm-bundle-file').files[0];
+      if (!f) { window.showToast('請先選擇 zip 檔'); return; }
+      const m = /^concenmate-web-(dev|prod)-(\d+\.\d+\.\d+)\.zip$/.exec(f.name);
+      if (!m) { window.showToast('檔名不正確，應為 concenmate-web-' + ENV() + '-版本.zip（由 npm run bundle:' + ENV() + ' 產生）'); return; }
+      if (m[1] !== ENV()) { window.showToast(`這是${m[1] === 'prod' ? '正式版' : '測試版'}更新包，不能在${window.IS_PROD_SITE ? '正式網站' : '測試環境'}上載`); return; }
+      const ver = m[2];
+      if (upd.version && cmpVer(ver, upd.version) <= 0) { window.showToast(`版本 v${ver} 不比目前發佈的 v${upd.version} 新，App 不會更新`); return; }
+      if (cmpVer(ver, window.APP_VERSION) !== 0 && !(await window.appConfirm(`更新包版本 v${ver} 與本網站目前版本 ${window.APP_VERSION} 不同，確定要上載嗎？`))) return;
+      if (f.size > 40 * 1024 * 1024) { window.showToast('檔案超過 40MB'); return; }
+      btn.disabled = true;
+      try {
+        prog.textContent = '上載中…（' + (f.size / 1048576).toFixed(1) + ' MB）';
+        const path = `app_updates/web-${ENV()}-${ver}.zip`;
+        const ref = window.storageApi.ref(window.storage, path);
+        await window.storageApi.uploadBytes(ref, f, { contentType: 'application/zip', cacheControl: 'public, max-age=31536000' });
+        const url = await window.storageApi.getDownloadURL(ref);
+        await window.fs.setDoc(window.fs.doc(window.db, 'admin_config', 'appUpdate'), {
+          version: ver, url, env: ENV(), size: f.size, path,
+          uploadedAt: Date.now(), uploadedBy: (window.currentUser && window.currentUser.loginId) || ''
+        }, { merge: true });
+        prog.textContent = '';
+        window.showToast(`已發佈 v${ver}，App 下次打開時會自動下載`);
+        window.renderAdminMobileAppTab();
+      } catch (e) {
+        prog.textContent = '';
+        window.showToast('上載失敗：' + (window.friendlyErrorText ? window.friendlyErrorText(e) : (e.message || e)));
+      } finally { btn.disabled = false; }
+    };
   };
 })();
