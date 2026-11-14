@@ -5663,6 +5663,13 @@
     window.closeChatWindow = function(chatId) {
       closeChatWindowInternal(chatId);
     };
+    // v1.234.0：App 返回鍵用——關閉最上面一個未縮小的對話視窗，有關閉到就回傳 true
+    window.cmCloseTopChatWindow = function() {
+      const open = chatOpenWindows.filter(w => !w.minimized);
+      if (!open.length) return false;
+      closeChatWindowInternal(open[open.length - 1].chatId);
+      return true;
+    };
 
     function closeChatWindowInternal(chatId) {
       chatOpenWindows = chatOpenWindows.filter(w => w.chatId !== chatId);
@@ -6606,4 +6613,75 @@
       } finally { tb.disabled = false; }
     };
   };
+})();
+
+
+// ===================== v1.234.0：App 原生手感（只在 App 內運作） =====================
+// 1. Android 返回鍵：先關閉彈出視窗／側邊選單／對話視窗，再回主頁，最後才把 App 放到背景（不會直接關閉）
+// 2. 在溫習室或直播中保持螢幕常亮，離開後恢復
+// 3. 沒有網絡時顯示「未能連線」提示，恢復後自動消失
+(function () {
+  if (!window.IS_NATIVE_APP || !window.Capacitor || !window.Capacitor.Plugins) return;
+  const P = window.Capacitor.Plugins;
+
+  // ---------- 1. 返回鍵 ----------
+  function isShown(el) { return !!el && el.style.display !== 'none' && getComputedStyle(el).display !== 'none'; }
+  function handleBack() {
+    // 確認視窗（appConfirm 等）由用戶自己揀，返回鍵不處理
+    if (document.querySelector('.modal-backdrop.app-dialog')) return;
+    const modals = Array.from(document.querySelectorAll('.modal-backdrop')).filter(isShown);
+    if (modals.length) {
+      const top = modals[modals.length - 1];
+      if (top.id && typeof window.closeModal === 'function') window.closeModal(top.id); else top.style.display = 'none';
+      return;
+    }
+    for (const id of ['gacha-prize-lightbox', 'qa-lightbox']) {
+      const el = document.getElementById(id);
+      if (isShown(el)) { if (id === 'gacha-prize-lightbox' && typeof window.closeGachaPrizeLightbox === 'function') window.closeGachaPrizeLightbox(); else el.style.display = 'none'; return; }
+    }
+    if (document.querySelector('aside.mobile-nav-open') && typeof window.toggleMobileNav === 'function') { window.toggleMobileNav(false); return; }
+    const dock = document.getElementById('chat-dock-panel');
+    if (dock && dock.style.display === 'flex' && typeof window.toggleChatDockPanel === 'function') { window.toggleChatDockPanel(); return; }
+    if (typeof window.cmCloseTopChatWindow === 'function' && window.cmCloseTopChatWindow()) return;
+    // 溫習室或直播中：不切換分頁，直接放到背景，避免意外離開
+    const busy = (typeof window.isInStudyRoom === 'function' && window.isInStudyRoom()) || (typeof window.swmIsBusy === 'function' && window.swmIsBusy());
+    const active = document.querySelector('section.tab-content.active');
+    if (!busy && window.currentUser && active && active.id !== 'tab-home' && typeof window.switchTab === 'function') {
+      window.switchTab('home', document.getElementById('nav-btn-home'));
+      return;
+    }
+    if (P.App && P.App.minimizeApp) P.App.minimizeApp();
+  }
+  if (P.App && P.App.addListener) P.App.addListener('backButton', handleBack);
+
+  // ---------- 2. 螢幕常亮 ----------
+  let awake = false;
+  setInterval(function () {
+    const KA = P.KeepAwake;
+    if (!KA) return;
+    const want = (typeof window.isInStudyRoom === 'function' && window.isInStudyRoom()) || (typeof window.swmIsBusy === 'function' && window.swmIsBusy());
+    if (want === awake) return;
+    awake = want;
+    (want ? KA.keepAwake() : KA.allowSleep()).catch(function () {});
+  }, 3000);
+
+  // ---------- 3. 未能連線提示 ----------
+  function showOffline() {
+    if (document.getElementById('cm-offline')) return;
+    const d = document.createElement('div');
+    d.id = 'cm-offline';
+    d.style.cssText = 'position:fixed; inset:0; z-index:100000; background:#2A4275; color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:24px; text-align:center;';
+    d.innerHTML = '<img src="assets/icons/icon-maskable-512.png" alt="" style="width:min(200px,50vw); height:auto;">'
+      + '<div style="font-size:18px; font-weight:bold;">' + window.t('native.offlineTitle', '未能連線') + '</div>'
+      + '<div style="font-size:14px; line-height:1.7; opacity:.9;">' + window.t('native.offlineDesc', '請檢查 Wi-Fi 或流動數據。連線恢復後會自動繼續。') + '</div>'
+      + '<button type="button" id="cm-offline-retry" style="margin-top:6px; padding:10px 28px; border-radius:999px; border:none; background:#fff; color:#2A4275; font-weight:bold; font-size:15px;">' + window.t('native.offlineRetry', '重試') + '</button>';
+    document.body.appendChild(d);
+    document.getElementById('cm-offline-retry').onclick = function () { if (navigator.onLine) hideOffline(); };
+  }
+  function hideOffline() { const d = document.getElementById('cm-offline'); if (d) d.remove(); }
+  window.addEventListener('offline', showOffline);
+  window.addEventListener('online', hideOffline);
+  if (navigator.onLine === false) {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', showOffline); else showOffline();
+  }
 })();
